@@ -1,0 +1,88 @@
+{
+  "schemaVersion": "ISOLATED_SAVED_CELL_1_SPARSE_V10_TERMINAL",
+  "executedSourceSnapshots": {
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/attempt_cell1_sparse_v10.py": "591894ad299fc73008e5f93f04378434c8ca45ae7a7d5989e61c85a79fdd9abe",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/sparse_collocation_v10.py": "7af8356d6eed7c05440538ba57c5ec917994431e629296efdbbbdbe1b2f27544",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/solver.py": "29153e7dbca4fb03e565f863fd3ecfeeef65853308c4163f5b8a951edf92ebf2",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/thermo_adapter.py": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/exact_cache.py": "317152837d99eaf33d1a78cf32098a2c379c793afb54e32b5fdc3f38681ac7c6",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/boundary_adapter.py": "e444fd3111754a62acdefa3972379792fb590b94d9d933103036242edb9d78f8",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-preflight/verify_thermo.py": "40435f4baefa04d3779d968e4dd3238229d93ffce43f04e7d390d5004ba665a1"
+  },
+  "branches": [],
+  "productionJobsRun": [],
+  "columnContinuationRun": false,
+  "physicalAcceptance": false,
+  "gateSha256": "64d54cc1adeb0bd39748de220f28a5e1b9f5f543a602b6d878793adcadcb2ee5",
+  "testSha256": "415626162629475c96ccbbf9b2ae16cfd0d034569f4a3771b96959ec487b2318",
+  "input": {
+    "continuousBulk": [
+      7.080024598066372e-06,
+      5.950153875443155e-07,
+      2.8044726397244043e-07,
+      8.65484018591514e-08,
+      3.152131316798451e-08,
+      0.922675288193551,
+      0.07731663824948438
+    ],
+    "dispersedBulk": [
+      0.8314091492606233,
+      0.09703211630006595,
+      0.046867260188424645,
+      0.01647558315782248,
+      0.008215891093063685,
+      1.719044952364148e-28,
+      2.505938900025761e-37
+    ],
+    "freshDispersedInlet": [
+      0.8314095020619516,
+      0.09703193550453774,
+      0.046867166192086945,
+      0.016475538558928395,
+      0.008215857682495201,
+      0.0,
+      0.0
+    ],
+    "continuousConductances": [
+      0.1449172280501945,
+      0.177063123200661,
+      0.17296173069273307,
+      0.15254022104851153,
+      0.11324113884325597,
+      0.18290381180994994,
+      0.2280973174333013
+    ],
+    "dispersedConductances": [
+      0.0020018748861023237,
+      0.002472408921142691,
+      0.002412099264728349,
+      0.0021129981173517768,
+      0.0015434166639340485,
+      0.002558428294435721,
+      0.003229089766778362
+    ],
+    "archivedTotalFluxForReferenceOnly": -0.0033422123776529673,
+    "stages": [
+      33,
+      65,
+      129
+    ],
+    "maximumScientificSeconds": 350
+  },
+  "outcome": "PREFLIGHT_ONLY_PASS_NO_NATIVE_SCIENCE",
+  "preflightOnly": true,
+  "warmArtifactSha256": "81cd9295dea730da37ddca9c9ff87451f85ba70df3f4803c37bd41c2c82bd394",
+  "warmLiteralEndpointsVerified": {
+    "continuousLeft": true,
+    "dispersedRight": true
+  },
+  "serializationProbe": {
+    "unavailableFirstDrifts": {
+      "maximumScaledFluxDriftFromPrevious": null,
+      "maximumInterfaceDriftFromPrevious": null,
+      "maximumCommonCoordinateProfileDriftFromPrevious": null
+    }
+  },
+  "elapsedSeconds": 2.5163388640003177
+}

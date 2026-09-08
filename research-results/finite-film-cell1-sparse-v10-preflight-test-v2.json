@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "SPARSE_V10_REAL_DRIVER_PREFLIGHT_TEST",
+  "scope": "NO_SAVED_CELL_NATIVE_SCIENCE",
+  "preflightExitCode": 0,
+  "preflightTerminal": {
+    "outcome": "PREFLIGHT_ONLY_PASS_NO_NATIVE_SCIENCE",
+    "elapsedSeconds": 2.8147940399994695
+  },
+  "sourceMutationRejected": true,
+  "literalEndpointExactPass": true,
+  "literalEndpointMutationRejected": true,
+  "warmRecordedBernsteinLiteralEndpointsVerified": {
+    "continuousLeft": true,
+    "dispersedRight": true
+  },
+  "exactSourceHashPass": true,
+  "realScientificRun": false,
+  "outcome": "PASS"
+}

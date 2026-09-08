@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "SIZING_AUTHORITY_SOURCE_CACHE_V1",
+  "classification": "CANONICAL_FROZEN_RESEARCH_ONLY_SOURCE_CACHE",
+  "designId": 269,
+  "projectNumber": 236,
+  "sourceFiles": {
+    "developmentReadOnlyCsvWrapper": "research-results/prepilot-sizing-current-basis-db.json",
+    "jobCContinuationInput": "research-results/job-c-final-continuation.json.input.json",
+    "recordedEquilibriumDutyCsvWrapper": "research-results/prepilot-sizing-equilibrium-duty-db.json",
+    "geometryV110Source": "server/ecr-pre-pilot/kuhni-geometry-resolver-v110.ts",
+    "molecularWeightContractSource": "server/ecr-pre-pilot/predictive-nt-seven-component/worker.py"
+  },
+  "sourceSha256": {
+    "developmentReadOnlyCsvWrapper": "5e3223e8658f4424cd5d95ee3a7c22e07d9f6fdda7b33b73dc8cb9fb0d73931a",
+    "jobCContinuationInput": "f62f527dcfa6103ffb374aac0f6be3e46994ee3c1340c4691ca630d3a306beb1",
+    "recordedEquilibriumDutyCsvWrapper": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+    "geometryV110Source": "2998044739ec9467da33202f23e7993386f090885b5728361990ea8f97bf1442",
+    "molecularWeightContractSource": "373df1929dfe25eb566a319f6e3f5a40531442bcdabd1039fb1a03506ec91563"
+  },
+  "expectedBasisHash": "79dc38347407ce26a0124505a96d392ffe7c8d3c291bd93cf1c0a4730ebe0acc"
+}

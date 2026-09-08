@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "SPARSE_COLLOCATION_V10_TEST_ONLY",
+  "scope": "SYNTHETIC_TESTS_ONLY_NO_REAL_SAVED_CELL_RUN",
+  "cases": [
+    {
+      "name": "nonideal_positive",
+      "maximumLocalDenseJacobianDifference": 0.0,
+      "singleInteriorColumnInstrumentation": {
+        "fullResidualCalls": 0,
+        "endpointFieldCalls": 3,
+        "intervalCalls": 2,
+        "localColumnCalls": 1,
+        "fluxColumnCalls": 0
+      },
+      "singleColumnNonzeroRows": 2,
+      "wholeFilmResidualCallsDuringSingleLocalColumn": 0,
+      "passed": false
+    },
+    {
+      "name": "nonideal_literal_zero_fixed_boundary",
+      "maximumLocalDenseJacobianDifference": 0.0,
+      "singleInteriorColumnInstrumentation": {
+        "fullResidualCalls": 0,
+        "endpointFieldCalls": 3,
+        "intervalCalls": 2,
+        "localColumnCalls": 1,
+        "fluxColumnCalls": 0
+      },
+      "singleColumnNonzeroRows": 2,
+      "wholeFilmResidualCallsDuringSingleLocalColumn": 0,
+      "passed": false
+    }
+  ],
+  "manufacturedSmoke": {
+    "status": "CONVERGED",
+    "numericalAccepted": true,
+    "wholeProfilesNonnegative": [
+      true,
+      true
+    ],
+    "normalizationDefects": [
+      2.220446049250313e-16,
+      2.220446049250313e-16
+    ],
+    "fullRank": true,
+    "scaledFluxError": 2.8502963606968218e-12
+  },
+  "realSavedCellRun": false,
+  "productionJobsRun": [],
+  "outcome": "FAIL",
+  "sourceHashes": {
+    "research/finite_film/sparse_collocation_v10.py": "640981ac1671a18bf04925e75ca842fbffa86894893d51c6987b8600893bfdef",
+    "research/finite_film/verify_sparse_collocation_v10.py": "88cccf36053aa32e9e2b4d1d4f00fe1119ccc113c16702336a3a85255ea17525",
+    "research/finite_film/solver.py": "29153e7dbca4fb03e565f863fd3ecfeeef65853308c4163f5b8a951edf92ebf2",
+    "research/finite_film/thermo_adapter.py": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f",
+    "research/finite_film/exact_cache.py": "317152837d99eaf33d1a78cf32098a2c379c793afb54e32b5fdc3f38681ac7c6",
+    "research/finite_film/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff"
+  }
+}

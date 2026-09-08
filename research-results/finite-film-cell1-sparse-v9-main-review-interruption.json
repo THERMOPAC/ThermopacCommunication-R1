@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "SPARSE_V9_MAIN_REVIEW_INTERRUPTION_ASSESSMENT",
+  "evidenceInputHashes": {
+    "rawV9": "c87f629f1bd22ef1ada766d60cb12ee17ef313786afcdcea3493a5d63e6daa80",
+    "priorAssessment": "be3d443d322f32fb5879ca67f5d8d7ab97ab4e26f98bb2c9168650498cdbd7cc",
+    "priorAssessmentV2": "67fc5a3d63ab39071f30e5e8d83aa1402d4f2686e1881e0191731791ac16ebd3"
+  },
+  "executedSourceSnapshots": {
+    "research-results/source-snapshots/finite-film-sparse-v9/attempt_cell1_sparse_v9.py": "3b87ad95e8ef633a25a9f49603b77b5a3cdaf9c5fb812076c367cf8d5a5b6664",
+    "research-results/source-snapshots/finite-film-sparse-v9/sparse_collocation_v9.py": "139b827dbc6826de81304234a3554c3d446de8fc89f51a8c3baf043e3d31843f",
+    "research-results/source-snapshots/finite-film-sparse-v9/verify_sparse_collocation_v9.py": "6d36c663a9aed2cb65fd4a60819e3dea619bd475178eeffc63f93bdc08bccbf3",
+    "research-results/source-snapshots/finite-film-sparse-v9/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff",
+    "research-results/source-snapshots/finite-film-sparse-v9/physical_collocation_v4.py": "9f7fa12a1c7375f651addd4b210b015ccfd4bc49a4518661319becf6db7b7bbf"
+  },
+  "interruption": {
+    "signal": "SIGINT",
+    "pid": 5147,
+    "actor": "MAIN",
+    "reason": "MAIN_REVIEW_GATE_INTERRUPTION",
+    "budgetExhaustionClaimRetracted": true
+  },
+  "completedIndependentStarts": 1,
+  "completedRefinements": 0,
+  "outcome": "V9_NUMERICAL_AND_PROVENANCE_HOLD_UNQUALIFIED",
+  "candidateHash": null,
+  "physicalAcceptance": false,
+  "rawEvidenceModified": false,
+  "productionJobsRun": [],
+  "columnContinuationRun": false
+}

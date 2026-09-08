@@ -1,0 +1,30 @@
+{
+  "classification": "NUMERICAL_AND_COLUMN_QUALIFICATION_HOLD_NOT_PROCESS_INFEASIBILITY",
+  "summary": "The completed 33-node local trial converged, with full reduced rank 391/391 and nonnegative Bernstein film profiles. Its independent constitutive defects were 1.648e-8 (continuous) and 1.834e-7 (dispersed), above the unchanged 1e-8 limit. A later driver result-processing NameError stopped the attempt after 338.12 seconds; this was not budget exhaustion or a physical-instability finding. That processing error was fixed and three native-free regression tests passed, but no further physical run was performed. Two qualifying successive refinements, independent final-root reproduction, exact-candidate stability and whole-column sizing remain uncompleted.",
+  "outcome": "SPARSE_V10_BOUNDED_HOLD",
+  "rawError": "NameError: name 'np' is not defined",
+  "elapsedSeconds": 338.1167511370004,
+  "completedNodeCounts": [
+    33
+  ],
+  "sourceBindingsVerifiedAgainstExecutedSnapshots": true,
+  "physicalAcceptance": false,
+  "columnSizingCalculated": false,
+  "processingFixRegressionTests": {
+    "passed": 3,
+    "scientificQualification": false
+  },
+  "evidence": {
+    "research-results/finite-film-cell1-sparse-v10-reviewed-run-2.json": "66f1c8944307ea3be22fe34d9d3f580cb5b5c6181c3e80c2fea6e6bbd2aa3ccb"
+  },
+  "executedSourceSnapshots": {
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/attempt_cell1_sparse_v10.py": "a5d15744bca0f737b52e3400e6eac506e48649de92e20c85e59033dbefd4e216",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/sparse_collocation_v10.py": "7af8356d6eed7c05440538ba57c5ec917994431e629296efdbbbdbe1b2f27544",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/solver.py": "29153e7dbca4fb03e565f863fd3ecfeeef65853308c4163f5b8a951edf92ebf2",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/thermo_adapter.py": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/exact_cache.py": "317152837d99eaf33d1a78cf32098a2c379c793afb54e32b5fdc3f38681ac7c6",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/boundary_adapter.py": "e444fd3111754a62acdefa3972379792fb590b94d9d933103036242edb9d78f8",
+    "research-results/source-snapshots/finite-film-sparse-v10-reviewed-run-2/verify_thermo.py": "40435f4baefa04d3779d968e4dd3238229d93ffce43f04e7d390d5004ba665a1"
+  }
+}

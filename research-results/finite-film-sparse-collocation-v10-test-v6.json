@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "SPARSE_COLLOCATION_V10_TEST_ONLY_V6",
+  "scope": "SYNTHETIC_TESTS_ONLY_NO_REAL_SAVED_CELL_RUN",
+  "cases": [
+    {
+      "name": "nonideal_positive",
+      "maximumLocalDenseJacobianDifference": 0.0,
+      "singleInteriorColumnInstrumentation": {
+        "fullResidualCalls": 0,
+        "endpointFieldCalls": 3,
+        "intervalCalls": 2,
+        "localColumnCalls": 1,
+        "fluxColumnCalls": 0
+      },
+      "singleColumnNonzeroRows": 12,
+      "wholeFilmResidualCallsDuringSingleLocalColumn": 0,
+      "passed": true
+    },
+    {
+      "name": "nonideal_literal_zero_fixed_boundary",
+      "maximumLocalDenseJacobianDifference": 0.0,
+      "singleInteriorColumnInstrumentation": {
+        "fullResidualCalls": 0,
+        "endpointFieldCalls": 3,
+        "intervalCalls": 2,
+        "localColumnCalls": 1,
+        "fluxColumnCalls": 0
+      },
+      "singleColumnNonzeroRows": 12,
+      "wholeFilmResidualCallsDuringSingleLocalColumn": 0,
+      "passed": true
+    }
+  ],
+  "manufacturedSmoke": {
+    "status": "CONVERGED",
+    "numericalAccepted": true,
+    "wholeProfilesNonnegative": [
+      true,
+      true
+    ],
+    "normalizationDefects": [
+      2.220446049250313e-16,
+      2.220446049250313e-16
+    ],
+    "fullRank": true,
+    "scaledFluxError": 2.8502963606968218e-12
+  },
+  "qualificationBookkeepingTest": {
+    "successiveQualifyingPair": [
+      65,
+      129
+    ],
+    "comparisonTargetRootHash": "159165f7687fdc5cc84a13fa417c8087390486975489f24d248e3b5601025703",
+    "independentFinalQualified": true,
+    "qualified": true
+  },
+  "qualificationRejectTests": {
+    "firstOfFinalPairDriftFails": true,
+    "nonfinite_maximumScaledFluxDriftFromPrevious": true,
+    "nonfinite_maximumInterfaceDriftFromPrevious": true,
+    "nonfinite_maximumCommonCoordinateProfileDriftFromPrevious": true,
+    "earlierPairCannotHideFailedFinal": true,
+    "wrongIndependentTarget": true
+  },
+  "realSavedCellRun": false,
+  "productionJobsRun": [],
+  "executedSourceSnapshotsPinnedBeforeScientificTests": {
+    "research-results/source-snapshots/finite-film-sparse-v10-test-v3/sparse_collocation_v10.py": "7af8356d6eed7c05440538ba57c5ec917994431e629296efdbbbdbe1b2f27544",
+    "research-results/source-snapshots/finite-film-sparse-v10-test-v3/verify_sparse_collocation_v10.py": "4acc1985d498f203d239429508a3c26c6dd1578de6be2e9712540796c6be25c4",
+    "research-results/source-snapshots/finite-film-sparse-v10-test-v3/solver.py": "29153e7dbca4fb03e565f863fd3ecfeeef65853308c4163f5b8a951edf92ebf2",
+    "research-results/source-snapshots/finite-film-sparse-v10-test-v3/thermo_adapter.py": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f",
+    "research-results/source-snapshots/finite-film-sparse-v10-test-v3/exact_cache.py": "317152837d99eaf33d1a78cf32098a2c379c793afb54e32b5fdc3f38681ac7c6",
+    "research-results/source-snapshots/finite-film-sparse-v10-test-v3/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff"
+  },
+  "outcome": "PASS",
+  "sourceHashes": {
+    "research/finite_film/sparse_collocation_v10.py": "7af8356d6eed7c05440538ba57c5ec917994431e629296efdbbbdbe1b2f27544",
+    "research/finite_film/verify_sparse_collocation_v10.py": "4acc1985d498f203d239429508a3c26c6dd1578de6be2e9712540796c6be25c4",
+    "research/finite_film/solver.py": "29153e7dbca4fb03e565f863fd3ecfeeef65853308c4163f5b8a951edf92ebf2",
+    "research/finite_film/thermo_adapter.py": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f",
+    "research/finite_film/exact_cache.py": "317152837d99eaf33d1a78cf32098a2c379c793afb54e32b5fdc3f38681ac7c6",
+    "research/finite_film/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff"
+  }
+}

@@ -1031,3 +1031,17 @@ mtime_ms = 1788864280576
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c8438d75-9ed6-4db2-8db0-1237b26a4d18/fdbfd690-0fdb-4081-8914-bb9eab51caa6"
 storage_version_token = "1788864306136217"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "lxmCPMtiKLU_dmoxMGBJF"
+uri = "file://research-results/prepilot-sizing-current-results.pdf"
+type = "pdf"
+title = "Project 236 — verified sizing basis and current results"
+description = "Current product-duty checks, saved RPM/diameter candidates and the latest numerical result. Explicitly identifies what remains unqualified; this is not an accepted column design."
+logical_id = "7c3da007-9b1b-4729-aeb3-886d394ca07b"
+content_hash = "sha256:24c83cd93b488f566cc9515ea4d2bc8eba393fa012a38b9a665d2ab5737b7c6b"
+size = 85203
+mtime_ms = 1788867077668
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7c3da007-9b1b-4729-aeb3-886d394ca07b/47ba8dee-980e-41db-9d24-3762473f1af8"
+storage_version_token = "1788867158053224"
+content_type = "application/pdf"

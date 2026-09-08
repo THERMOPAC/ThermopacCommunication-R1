@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8">
+    <title>Pre-pilot sizing — current basis and qualification</title>
+    <style>
+    body{font:13px/1.45 Arial,sans-serif;color:#243748;margin:0}
+    h1{font-size:26px;line-height:1.18;color:#173e50}
+    h2{font-size:18px;margin-top:23px;break-after:avoid}
+    .eyebrow,.muted{color:#637481;font-size:11px}
+    .hold{background:#fff1d5;border-left:4px solid #aa7417;padding:12px}
+    table{border-collapse:collapse;width:100%;font-size:11.5px;margin:12px 0}
+    th,td{border:1px solid #d2dce2;padding:7px;text-align:left}
+    th{background:#edf2f5}tr{break-inside:avoid}
+    .page{break-before:page}.source{font:9px/1.4 monospace;overflow-wrap:anywhere}
+    </style></head><body>
+    <div class="eyebrow">PROJECT 236 · PRE-PILOT · NOT FOR FABRICATION</div>
+    <h1>Column sizing: the actual basis<br>and what is still unqualified</h1>
+    <div class="hold"><b>No complete column design has been accepted.</b>
+    The effective-resistance transport model is authorized as a stated pre-pilot
+    assumption. That approval does not waive numerical, stability or product-duty checks.</div>
+    <p>Feed: <b>4000 L/h</b> · Temperature:
+    <b>25 °C</b> · Solvent/oil mass ratio:
+    <b>0.5</b> · Wet-solvent water:
+    <b>1.5 wt%</b>. Fresh RRBO NMP and water remain exactly zero.</p>
+    <table><thead><tr><th>Requested output</th><th>Current acceptance</th></tr></thead><tbody><tr><td>Active height</td><td>Not qualified</td></tr><tr><td>Physical compartment count</td><td>Not qualified</td></tr><tr><td>Overall efficiency</td><td>Not qualified</td></tr><tr><td>Selected operating RPM</td><td>Not qualified</td></tr><tr><td>Selected diameter</td><td>Not qualified</td></tr></tbody></table>
+    <h2>The saved equilibrium trial does not meet the full duty</h2>
+    <p>The recorded trial used 10 configured equilibrium stages. It is a reproduced
+    physical-LLE trial, not an accepted theoretical stage count or a global limit
+    on every possible process design.</p>
+    <table><thead><tr><th>Property</th><th>Recorded/recomputed</th><th>Target</th><th>Basis</th><th>Check</th></tr></thead><tbody><tr><td>Total aromatics, including PA</td><td>7.5036</td><td>≤ 5</td><td>wt% hydrocarbon</td><td>FAIL</td></tr><tr><td>Polar aromatics (subset)</td><td>0.1542</td><td>≤ 0.5</td><td>wt% hydrocarbon</td><td>PASS</td></tr><tr><td>Hydrocarbon recovery</td><td>88.7061</td><td>≥ 83</td><td>%</td><td>PASS</td></tr><tr><td>Saturates</td><td>92.4964</td><td>≥ 90</td><td>wt% hydrocarbon</td><td>PASS</td></tr><tr><td>NMP in wet raffinate</td><td>6.3825</td><td>≤ 7</td><td>wt% full phase</td><td>PASS</td></tr></tbody></table>
+    <p class="muted">The archived “total aromatics” value was 7.3494 wt% and excluded
+    PA. The inclusive value above is recomputed from its component mass record,
+    adding PA consistently with the current total-aromatics duty. Neither value
+    meets the 5 wt% target. Water and NMP are excluded from the hydrocarbon denominator.</p>
+    <div class="page"></div>
+    <h2>Hydraulic candidates—not final selections</h2>
+    <table><thead><tr><th>RPM</th><th>Diameter (m)</th><th>Hardware pitch (m)</th><th>Stored hydraulic-pass flag</th></tr></thead><tbody><tr><td>30</td><td>0.8687</td><td>0.4343</td><td>False</td></tr><tr><td>35</td><td>1.1988</td><td>0.5994</td><td>True</td></tr><tr><td>40</td><td>1.6470</td><td>0.8235</td><td>True</td></tr><tr><td>45</td><td>2.2722</td><td>1.1361</td><td>False</td></tr><tr><td>50</td><td>3.2030</td><td>1.6015</td><td>False</td></tr></tbody></table>
+    <p>These are saved in-range hydraulic trials. Their stored pass flags are
+    preserved literally; the table does not independently revalidate them or
+    recommend a final RPM/diameter. Local operating hydrodynamics and transport
+    must be recalculated and qualified for the ultimately selected column.</p>
+    <h2>Physical compartments and efficiency</h2>
+    <p>The recorded hardware relation is compartment pitch = 0.5 × diameter.
+    The seven finite-volume cells and ten configured equilibrium stages are
+    <b>not physical compartments</b>. The current theoretical-stage authority
+    is the explicitly labelled pre-pilot default N<sub>T</sub> = 7, not a calculated N<sub>T</sub>.</p>
+    <p>A physical integer count must satisfy the full duty at its exact hardware
+    height. Efficiency is then calculated as N<sub>T</sub>/physical count, retaining
+    that theoretical-stage provenance—not assumed to obtain a height.</p>
+    <h2>Numerical closeout</h2><p>The completed 33-node local trial converged, with full reduced rank 391/391 and nonnegative Bernstein film profiles. Its independent constitutive defects were 1.648e-8 (continuous) and 1.834e-7 (dispersed), above the unchanged 1e-8 limit. A later driver result-processing NameError stopped the attempt after 338.12 seconds; this was not budget exhaustion or a physical-instability finding. That processing error was fixed and three native-free regression tests passed, but no further physical run was performed. Two qualifying successive refinements, independent final-root reproduction, exact-candidate stability and whole-column sizing remain uncompleted.</p>
+    <h2>Sulfur remains a separate qualification</h2>
+    <p>The archived allocation-based sulfur post-processing reported
+    1163.2 ppm against
+    1000 ppm. This is a conditional family-retention
+    estimate, not independently species-resolved sulfur transport. Aromatic
+    transfer alone does not qualify the sulfur duty.</p>
+    <p><b>Decision boundary:</b> a qualified local film still needs a qualified
+    whole-column calculation, exact hardware-height replay and all applicable
+    product targets before any of the five requested outputs can be accepted.
+    No production A/B/C reruns or saved-input changes were made.</p>
+    <h2>Evidence</h2><p class="source">prepilot-sizing-current-basis-db.json<br>5e3223e8658f4424cd5d95ee3a7c22e07d9f6fdda7b33b73dc8cb9fb0d73931a</p><p class="source">prepilot-sizing-equilibrium-duty-db.json<br>cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3</p><p class="source">prepilot-sizing-authority-v1.readiness.json<br>3c6476e63b3a5a240500f69e8e7d8757921021b45c6de3458d162ffb50c7d096</p><p class="source">prepilot-sizing-numerical-closeout.json<br>0f77c0634fefa62730b113e66b721c9f7662e04ddeac238e0d5fcc07dff1ab2c</p>
+    </body></html>

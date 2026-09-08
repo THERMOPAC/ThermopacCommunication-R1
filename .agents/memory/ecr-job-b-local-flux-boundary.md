@@ -3,15 +3,22 @@ name: ECR Job-B state ownership
 description: Separate Stage-2 bulk authority and the distinction between algebraic interface closure and finite-film admissibility.
 ---
 
-Job B is bounded to seven-component interfacial flux and frozen local Stage-3
-coupling. Compartment count, height, efficiency, and final RPM are outside this
-authorization.
+Local Job-B evidence does not itself establish column dimensions. On 2026-09-08
+the user explicitly approved the effective-resistance transport model as a
+stated assumption for calculated pre-pilot sizing, conditional on unchanged
+numerical and stability checks. This supersedes the earlier isolated-cell-only
+scope, but does not authorize treating unqualified trials as design results.
 
-**Why:** The user explicitly separated local transfer validation from column
-sizing. A broader existing solver is not authority to expand that scope.
+**Why:** The requested destination is active height, physical compartment count,
+calculated efficiency, and selected RPM/diameter. Approval of a transport
+assumption permits predictive work; it is not experimental validation or
+fabrication-release approval.
 
 **How to apply:** Preserve NT=calculated-or-7 independently of equilibrium
-engine authority. Keep 7C-1.5.0 and its acceptance thresholds frozen.
+engine authority, exact-zero fresh-feed NMP/H2O, and frozen upstream runtimes.
+Qualify the new constitutive equations separately at the unchanged tolerances;
+do not inherit acceptance from the old endpoint-resistance law or require its
+different flux equations to qualify the new law.
 
 The user explicitly requires separate continuous/dispersed bulk compositions
 from governed Stage-2 state as simultaneous two-film interface boundary states.
@@ -135,3 +142,14 @@ alone are insufficient to claim reproducible qualification.
 **How to apply:** Preserve executed source snapshots and raw evidence before
 further edits. Treat an unresolved source-binding mismatch as a qualification
 hold; never replace a historical hash with the current file's hash to clear it.
+
+For a film field linear in flux, a zero-flux Jacobian comparison cannot qualify
+its composition-dependent local assembly.
+
+**Why:** At zero flux, the composition derivative vanishes even for a nonideal
+thermodynamic model. Agreement with a dense reference can therefore be vacuous
+and miss mistakes in endpoint and midpoint dependencies.
+
+**How to apply:** Compare local and full Jacobians at admissible nonzero flux,
+including both positive and literal-zero prescribed-boundary cases. Keep
+manufactured nonlinear solutions and independent profile checks separate.

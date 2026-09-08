@@ -1,0 +1,64 @@
+{
+  "schemaVersion": "RESEARCH_FINITE_FILM_SIZING_READINESS_V1",
+  "classification": "RESEARCH_ONLY_PRE_PILOT_NOT_A_DIMENSIONS_RESULT",
+  "status": "BASIS_PREPARED_COLUMN_IMPLEMENTATION_AND_QUALIFICATION_PENDING",
+  "designId": 269,
+  "projectNumber": 236,
+  "basisHash": "79dc38347407ce26a0124505a96d392ffe7c8d3c291bd93cf1c0a4730ebe0acc",
+  "stage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+  "theoreticalStageAuthority": {
+    "value": 7,
+    "provenance": "PRE_PILOT_DESIGN_DEFAULT",
+    "stage2Nt": null
+  },
+  "nonHardwareCounts": {
+    "recordedConfiguredEquilibriumStages": 10,
+    "finiteVolumeNumericalCells": 7,
+    "statement": "Neither count is a calculated physical compartment count."
+  },
+  "governingTargets": {
+    "totalAromaticsMaxWtPctNmpFreeHydrocarbon": 5,
+    "totalAromaticsDefinition": "MONO+DI+POLY+PA; PA is included and is also reported separately as a subset",
+    "polarAromaticsMaxWtPctNmpFreeHydrocarbon": 0.5,
+    "hydrocarbonRecoveryMinPct": 83,
+    "nmpMaxWtPctFullRaffinatePhase": 7,
+    "saturatesMinWtPctNmpFreeHydrocarbon": 90,
+    "sulfurMaxPpm": 1000
+  },
+  "calculatedInRangeHydraulicCandidates": [
+    {"ordinal": 1, "rpm": 30, "columnDiameterM": 0.8686867763858619, "pitchM": 0.43434338819293095, "hydraulicallyFeasible": false, "candidateSourceHash": "d9c36e01b328158da2f200446c07d8da6d0fb6747b100c729ff868cbbfc3a4df"},
+    {"ordinal": 2, "rpm": 35, "columnDiameterM": 1.1988032786369662, "pitchM": 0.5994016393184831, "hydraulicallyFeasible": true, "candidateSourceHash": "7c2e6123517320a44bd78a1456276cd40a3f6ff24b5c4d838cca49e250783f15"},
+    {"ordinal": 3, "rpm": 40, "columnDiameterM": 1.6470151968552038, "pitchM": 0.8235075984276019, "hydraulicallyFeasible": true, "candidateSourceHash": "b7ba7197fdeea5208fe85627d5ba489d2b42376ef5c82568333f3b014bb2f927"},
+    {"ordinal": 4, "rpm": 45, "columnDiameterM": 2.2722374687971563, "pitchM": 1.1361187343985781, "hydraulicallyFeasible": false, "candidateSourceHash": "dd79434aff62e0031b07f6a66a0fdf04310dd850e14e2b7f41cb419e91f56582"},
+    {"ordinal": 5, "rpm": 50, "columnDiameterM": 3.202987250980758, "pitchM": 1.601493625490379, "hydraulicallyFeasible": false, "candidateSourceHash": "c0eee5e39233aafbc638d39aeb69f12df2e6eeabe24f131d7f7a280ec4e65371"}
+  ],
+  "auditOnlyExcludedExtrapolatedRpm": [10, 15, 20, 25],
+  "recordedStage2TrialAudit": {
+    "sourceSha256": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+    "scope": "ONE_CONFIGURED_10_STAGE_RECORDED_PHYSICAL_LLE_TRIAL_NOT_A_GLOBAL_BOUND",
+    "branchReproduced": true,
+    "accepted": false,
+    "targetResults": {
+      "recordedAromaticsExcludingPaWtPctNmpFreeHydrocarbon": {"calculated": 7.349430690613482, "target": null, "status": "HISTORICAL_REPORTED_INTERMEDIATE"},
+      "sourceComputedGoverningTotalAromaticsIncludingPaWtPctNmpFreeHydrocarbon": {"calculated": 7.50362207745924, "method": "recorded aromatics excluding PA + separately recorded PA", "target": 5, "status": "FAIL"},
+      "polarAromaticsWtPctNmpFreeHydrocarbon": {"calculated": 0.1541913868457575, "target": 0.5, "status": "PASS"},
+      "hydrocarbonRecoveryPct": {"calculated": 88.70607405041983, "target": 83, "status": "PASS"},
+      "nmpWtPctFullRaffinatePhase": {"calculated": 6.382533300289593, "target": 7, "status": "PASS"},
+      "saturatesWtPctNmpFreeHydrocarbon": {"calculated": 92.49637792254077, "target": 90, "status": "PASS"},
+      "sulfurPpmHistoricalConditionalProxy": {"calculated": 1163.2028153208428, "target": 1000, "status": "FAIL"}
+    },
+    "sulfurProvenance": {
+      "basis": "GOVERNED_STAGE1_SULFUR_ALLOCATION_POST_PROCESSING",
+      "classification": "HISTORICAL_CONDITIONAL_PROXY_NOT_INDEPENDENT_SPECIES_RESOLVED_TRANSPORT",
+      "qualifiesIndependentSulfurDuty": false
+    }
+  },
+  "remainingBlockers": [
+    "Physical-design admission is disabled in the frozen basis until a genuine content-addressed qualified column package exists.",
+    "No matching qualified local finite-film evidence is bound to a selectable candidate and basis hash.",
+    "No whole-column finite-volume numerical grid, duty evaluation, and final-state constitutive and material closure package is supplied.",
+    "No accepted rerun at an integer pitch-quantized physical hardware height is supplied.",
+    "No independently species-resolved sulfur transport prediction is supplied; the recorded allocation post-processing remains audit-only.",
+    "Therefore no physical compartment count, active height, selected diameter, RPM, shaft power, or efficiency is claimed."
+  ]
+}
