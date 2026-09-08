@@ -1,0 +1,3672 @@
+{
+  "cases": [
+    {
+      "composition": [
+        7.080024598066372e-06,
+        5.950153875443155e-07,
+        2.8044726397244043e-07,
+        8.65484018591514e-08,
+        3.152131316798451e-08,
+        0.922675288193551,
+        0.07731663824948438
+      ],
+      "controls": {
+        "assembled": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        },
+        "fullyUnfloored": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        },
+        "nativeOnly_1e-08": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        },
+        "nativeOnly_1e-10": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        },
+        "nativeOnly_1e-12": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        },
+        "nativeOnly_1e-14": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        },
+        "outerOnly": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.983017210555864e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.804979787856098e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.308769372184565e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "second_order_forward",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.42416412183411e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.033934671787326e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "second_order_forward",
+                "3": "second_order_forward",
+                "4": "second_order_forward",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5224280192072115e-07
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 6.468829965698299e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.099794028052115e-08
+            }
+          ],
+          "value": [
+            4.0729426301515375,
+            0.5245202097647759,
+            0.5288589996580362,
+            0.5241560822814165,
+            -0.040200504646045576,
+            -0.016464668751383665,
+            -0.8395852565101805
+          ]
+        }
+      },
+      "dependentIndex": 5,
+      "fullyUnflooredDirectDefined": true,
+      "fullyUnflooredValue": [
+        4.0729426301515375,
+        0.5245202097647759,
+        0.5288589996580362,
+        0.5241560822814165,
+        -0.040200504646045576,
+        -0.016464668751383665,
+        -0.8395852565101805
+      ],
+      "minimumFraction": 3.152131316798451e-08,
+      "name": "cell1_continuous",
+      "qualificationUse": false,
+      "sourceGroundedProbe": {
+        "absentSpeciesHaveZeroMixtureNumeratorContribution": true,
+        "analyticCombinatorial": [
+          -0.38309194230513377,
+          -0.06755570432799551,
+          -0.07061661027715438,
+          -0.1923489471809674,
+          -1.1790290596837778,
+          -0.002100351408736323,
+          -0.7731391120555204
+        ],
+        "combinatorialConstantsFromPinnedAbi": {
+          "q0": 79.53,
+          "r0": 66.69,
+          "zCoordination": 10.0
+        },
+        "fullKernel": {
+          "fullKernelFiniteStrictlyPositive": true,
+          "fullKernelMaximum": 22662234.771424215,
+          "fullKernelMaximumAbsSymmetryError": 0.0,
+          "fullKernelMinimum": 9.51589552101647e-16,
+          "symmetryRoundoffTolerance": 3.220497258585086e-07
+        },
+        "maximumAbsCombinatorialAgreement": 0.0,
+        "mixtureProfileMinimum": 0.0,
+        "mixtureProfileNonnegative": true,
+        "mixtureProfileNormalizationAbsError": 2.220446049250313e-16,
+        "mixtureProfileSupportCount": 58,
+        "mixtureSegmentGammaFixedPoint": {
+          "activeEquationCount": 153,
+          "actualMaximumRelativeFixedPointResidual": 7.200136868183636e-09,
+          "declaredDampedIterationTolerance": 1e-08,
+          "derivedBoundFormula": "2*t+t^2",
+          "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+          "equationMode": "FULL_153_BY_153",
+          "inactiveEquationCount": 0,
+          "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+        },
+        "nativeCombinatorial": [
+          -0.38309194230513377,
+          -0.06755570432799551,
+          -0.07061661027715438,
+          -0.1923489471809674,
+          -1.1790290596837778,
+          -0.002100351408736323,
+          -0.7731391120555204
+        ],
+        "profileGeometryFromPinnedAbi": {
+          "areasA2": [
+            554.5597323559997,
+            360.9977319039999,
+            380.01120038400023,
+            479.03258180800015,
+            950.6524761980015,
+            273.59455063999985,
+            59.50887842
+          ],
+          "volumesA3": [
+            295.5977500000001,
+            198.89575000000005,
+            217.01725000000005,
+            281.9083750000001,
+            586.7901250000001,
+            146.85862500000005,
+            27.341625000000008
+          ]
+        },
+        "profileNormalizationRoundoffTolerance": 2.1742607714259066e-12,
+        "pureProfiles": [
+          {
+            "componentIndex": 0,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.368275872884303e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 1,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.320438335782336e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 2,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.3127352479751684e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 3,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.301808362116759e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 4,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 9.32975676081185e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 5,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 2.220446049250313e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.0446840153368751e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 6,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.381114093843878e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          }
+        ],
+        "qualificationStatus": "RESEARCH_UNQUALIFIED_SOURCE_GROUNDED_PENDING_INDEPENDENT_QUALIFICATION",
+        "residualReconstruction": {
+          "agreementWithinDeclaredGammaRelativeTolerance": true,
+          "declaredNative": [
+            0.6174307174014033,
+            0.38241722416122814,
+            0.38685871853297815,
+            0.49634825410217853,
+            0.9160317567404097,
+            0.0014337610197683037,
+            0.6873680847702128
+          ],
+          "declaredNativeGammaRelativeTolerance": 1e-08,
+          "formula": "Ai/AEFF*sum[pure_i*(log(Gamma_mix)-log(Gamma_pure_i))]",
+          "independent": [
+            0.6174307174013891,
+            0.3824172241612205,
+            0.3868587185329715,
+            0.4963482541021693,
+            0.9160317567403915,
+            0.0014337610197669597,
+            0.6873680847702122
+          ],
+          "maximumAbsAgreement": 1.8207657603852567e-14
+        },
+        "segmentGammaMaximum": 2313.4863913126437,
+        "segmentGammaMinimum": 0.3087802246900743,
+        "segmentGammaReturnedWithoutConvergenceException": true,
+        "segmentIterationSettingsFromPinnedAbi": {
+          "AEFFPRIME": 7.25,
+          "fastGamma": false,
+          "fastNHBLeftIndex": 0,
+          "fastNHBRightIndex": 50,
+          "gammaRelativeTolerance": 1e-08
+        }
+      }
+    },
+    {
+      "composition": [
+        0.8314091492606233,
+        0.09703211630006595,
+        0.046867260188424645,
+        0.01647558315782248,
+        0.008215891093063685,
+        1.719044952364148e-28,
+        2.505938900025761e-37
+      ],
+      "controls": {
+        "assembled": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 1.2935718485529063e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 5.9299854116900974e-05
+            },
+            {
+              "gibbsDuhemAbs": 4.466330899429851e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.00011860669168761717
+            },
+            {
+              "gibbsDuhemAbs": 5.2887902274674804e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.00023710094261186754
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 3.666481299804223e-06
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.318098643468768e-06
+            }
+          ],
+          "value": [
+            0.000543643023044416,
+            -0.0501948991920363,
+            0.011432022470780012,
+            0.1275674340003069,
+            0.2633912698023333,
+            2.6733630652376172,
+            -1.4152444461749085
+          ]
+        },
+        "fullyUnfloored": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 2.414672436374895e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 3.014353033847783e-08
+            },
+            {
+              "gibbsDuhemAbs": 2.1136322948330717e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 5.377095213532357e-08
+            },
+            {
+              "gibbsDuhemAbs": 4.951071842884269e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 9.143749113427191e-08
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.1904635512117532e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.977564906144716e-09
+            }
+          ],
+          "value": [
+            0.0005436430285371707,
+            -0.050194899234703785,
+            0.011432022437524775,
+            0.12756743399615955,
+            0.26339126994732437,
+            2.673363065265174,
+            -1.4152444461907299
+          ]
+        },
+        "nativeOnly_1e-08": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 4.0744274226743135e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.006328962075447642
+            },
+            {
+              "gibbsDuhemAbs": 1.5171798961850742e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.012657890809835592
+            },
+            {
+              "gibbsDuhemAbs": 1.1509223386547896e-07,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.02531579441607601
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 0.00038591441738593886
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 0.0007719078439827461
+            }
+          ],
+          "value": [
+            0.0005436425060309679,
+            -0.05019489512045069,
+            0.011432025650699024,
+            0.12756743428627512,
+            0.26339125531996516,
+            2.6733630632608145,
+            -1.4152444462758482
+          ]
+        },
+        "nativeOnly_1e-10": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 2.0367179691344272e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 6.330527324216462e-05
+            },
+            {
+              "gibbsDuhemAbs": 2.8983842809971324e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.0001266080799773306
+            },
+            {
+              "gibbsDuhemAbs": 2.4152510766621596e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.00025312361733575983
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 3.860511317700418e-06
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.71135011955416e-06
+            }
+          ],
+          "value": [
+            0.0005436430233130989,
+            -0.05019489919355685,
+            0.01143202246965525,
+            0.1275674339990629,
+            0.2633912698010513,
+            2.6733630652451414,
+            -1.4152444461915812
+          ]
+        },
+        "nativeOnly_1e-12": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 2.4579807880775362e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 6.552281774929725e-07
+            },
+            {
+              "gibbsDuhemAbs": 4.767071383461704e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 1.2636670145838025e-06
+            },
+            {
+              "gibbsDuhemAbs": 5.3986994359570506e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 2.481991066005662e-06
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 3.944667510101822e-08
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.31486344039457e-08
+            }
+          ],
+          "value": [
+            0.0005436430284956592,
+            -0.0501948992342807,
+            0.011432022437853009,
+            0.12756743399619874,
+            0.2633912699458945,
+            2.6733630652649887,
+            -1.4152444461907348
+          ]
+        },
+        "nativeOnly_1e-14": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 1.5086416565375746e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 2.104870056029995e-08
+            },
+            {
+              "gibbsDuhemAbs": 3.3329393829495186e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 2.0244331544461147e-08
+            },
+            {
+              "gibbsDuhemAbs": 7.653719612497208e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 8.596812495209605e-08
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 4.04335917420169e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.113587385098032e-09
+            }
+          ],
+          "value": [
+            0.0005436430285675135,
+            -0.050194899234672886,
+            0.011432022437553268,
+            0.1275674339961923,
+            0.26339126994736717,
+            2.6733630652651943,
+            -1.4152444461907274
+          ]
+        },
+        "outerOnly": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 2.4580096973934487e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 4.212164904870974e-06
+            },
+            {
+              "gibbsDuhemAbs": 4.767004509823131e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 8.422190353130077e-06
+            },
+            {
+              "gibbsDuhemAbs": 5.398950772156049e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 1.6836927902552645e-05
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 7.095724280323608e-07
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.4205741348725905e-06
+            }
+          ],
+          "value": [
+            0.0005436430282180945,
+            -0.0501948992327637,
+            0.011432022438975994,
+            0.12756743399743742,
+            0.2633912699471765,
+            2.6733630652574636,
+            -1.4152444461740625
+          ]
+        }
+      },
+      "dependentIndex": 0,
+      "fullyUnflooredDirectDefined": true,
+      "fullyUnflooredValue": [
+        0.0005436430285371707,
+        -0.050194899234703785,
+        0.011432022437524775,
+        0.12756743399615955,
+        0.26339126994732437,
+        2.673363065265174,
+        -1.4152444461907299
+      ],
+      "minimumFraction": 2.505938900025761e-37,
+      "name": "cell1_dispersed",
+      "qualificationUse": false,
+      "sourceGroundedProbe": {
+        "absentSpeciesHaveZeroMixtureNumeratorContribution": true,
+        "analyticCombinatorial": [
+          0.0005325054975067189,
+          -0.050337040171536174,
+          0.010866127664876046,
+          0.12714083716377722,
+          0.2603295888770525,
+          -0.17778093891275137,
+          -1.3952638941834246
+        ],
+        "combinatorialConstantsFromPinnedAbi": {
+          "q0": 79.53,
+          "r0": 66.69,
+          "zCoordination": 10.0
+        },
+        "fullKernel": {
+          "fullKernelFiniteStrictlyPositive": true,
+          "fullKernelMaximum": 22662234.771424215,
+          "fullKernelMaximumAbsSymmetryError": 0.0,
+          "fullKernelMinimum": 9.51589552101647e-16,
+          "symmetryRoundoffTolerance": 3.220497258585086e-07
+        },
+        "maximumAbsCombinatorialAgreement": 7.105427357601002e-15,
+        "mixtureProfileMinimum": 0.0,
+        "mixtureProfileNonnegative": true,
+        "mixtureProfileNormalizationAbsError": 2.220446049250313e-16,
+        "mixtureProfileSupportCount": 58,
+        "mixtureSegmentGammaFixedPoint": {
+          "activeEquationCount": 153,
+          "actualMaximumRelativeFixedPointResidual": 7.363524892310251e-09,
+          "declaredDampedIterationTolerance": 1e-08,
+          "derivedBoundFormula": "2*t+t^2",
+          "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+          "equationMode": "FULL_153_BY_153",
+          "inactiveEquationCount": 0,
+          "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+        },
+        "nativeCombinatorial": [
+          0.0005325054975067189,
+          -0.0503370401715415,
+          0.010866127664872494,
+          0.12714083716377367,
+          0.2603295888770454,
+          -0.17778093891275493,
+          -1.3952638941834254
+        ],
+        "profileGeometryFromPinnedAbi": {
+          "areasA2": [
+            554.5597323559997,
+            360.9977319039999,
+            380.01120038400023,
+            479.03258180800015,
+            950.6524761980015,
+            273.59455063999985,
+            59.50887842
+          ],
+          "volumesA3": [
+            295.5977500000001,
+            198.89575000000005,
+            217.01725000000005,
+            281.9083750000001,
+            586.7901250000001,
+            146.85862500000005,
+            27.341625000000008
+          ]
+        },
+        "profileNormalizationRoundoffTolerance": 2.1742607714259066e-12,
+        "pureProfiles": [
+          {
+            "componentIndex": 0,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.368275872884303e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 1,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.320438335782336e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 2,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.3127352479751684e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 3,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.301808362116759e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 4,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 9.32975676081185e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 5,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 2.220446049250313e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.0446840153368751e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 6,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.381114093843878e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          }
+        ],
+        "qualificationStatus": "RESEARCH_UNQUALIFIED_SOURCE_GROUNDED_PENDING_INDEPENDENT_QUALIFICATION",
+        "residualReconstruction": {
+          "agreementWithinDeclaredGammaRelativeTolerance": true,
+          "declaredNative": [
+            1.1137531030451715e-05,
+            0.0001421409368377152,
+            0.0005658947726522808,
+            0.00042659683238589427,
+            0.003061681070278979,
+            0.28433506981852086,
+            1.4624127811702095
+          ],
+          "declaredNativeGammaRelativeTolerance": 1e-08,
+          "formula": "Ai/AEFF*sum[pure_i*(log(Gamma_mix)-log(Gamma_pure_i))]",
+          "independent": [
+            1.1137531030441511e-05,
+            0.00014214093683770216,
+            0.0005658947726522806,
+            0.00042659683238587334,
+            0.0030616810702789447,
+            0.28433506981852075,
+            1.4624127811702095
+          ],
+          "maximumAbsAgreement": 1.1102230246251565e-16
+        },
+        "segmentGammaMaximum": 5460.723293743864,
+        "segmentGammaMinimum": 1.0000063338999088,
+        "segmentGammaReturnedWithoutConvergenceException": true,
+        "segmentIterationSettingsFromPinnedAbi": {
+          "AEFFPRIME": 7.25,
+          "fastGamma": false,
+          "fastNHBLeftIndex": 0,
+          "fastNHBRightIndex": 50,
+          "gammaRelativeTolerance": 1e-08
+        }
+      }
+    },
+    {
+      "composition": [
+        0.019286696568824674,
+        0.001333490121717873,
+        0.0006430576451355772,
+        0.00022430408265232876,
+        0.00010902723241521309,
+        0.9024120497795988,
+        0.07599137456965553
+      ],
+      "controls": {
+        "assembled": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.831850013753791e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5178396761683643e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.2165340679270997e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.7737174274354857e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.4483852791565041e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.643769543804706e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        },
+        "fullyUnfloored": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 2.8000227721689827e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.020320983258216e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 9.54944061326568e-09,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 2.3118659653320606e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.2986778469094134e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.6927405710580076e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        },
+        "nativeOnly_1e-08": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.833190802345055e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5193141855718295e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.2181296388247276e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.855943386810168e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.447930241368519e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.640129241506868e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        },
+        "nativeOnly_1e-10": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.833190802345055e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5193141855718295e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.2181296388247276e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.855943386810168e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.447930241368519e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.640129241506868e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        },
+        "nativeOnly_1e-12": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.833190802345055e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5193141855718295e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.2181296388247276e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.855943386810168e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.447930241368519e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.640129241506868e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        },
+        "nativeOnly_1e-14": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.833190802345055e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5193141855718295e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.2181296388247276e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.855943386810168e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.447930241368519e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.640129241506868e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        },
+        "outerOnly": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.831850013753791e-09,
+              "h": 2e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.5178396761683643e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.348146647765617e-09,
+              "h": 1e-06,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.496719415072789e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.2165340679270997e-08,
+              "h": 5e-07,
+              "methods": {
+                "0": "central",
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.7737174274354857e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.4483852791565041e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.643769543804706e-09
+            }
+          ],
+          "value": [
+            3.7561696081249307,
+            0.39751562891838715,
+            0.40077072154705495,
+            0.3981317192756269,
+            -0.151569711656292,
+            -0.008980089597461709,
+            -0.8872972170947764
+          ]
+        }
+      },
+      "dependentIndex": 5,
+      "fullyUnflooredDirectDefined": true,
+      "fullyUnflooredValue": [
+        3.7561696081249307,
+        0.39751562891838715,
+        0.40077072154705495,
+        0.3981317192756269,
+        -0.151569711656292,
+        -0.008980089597461709,
+        -0.8872972170947764
+      ],
+      "minimumFraction": 0.00010902723241521309,
+      "name": "cell1_interface_continuous",
+      "qualificationUse": false,
+      "sourceGroundedProbe": {
+        "absentSpeciesHaveZeroMixtureNumeratorContribution": true,
+        "analyticCombinatorial": [
+          -0.35711823854120794,
+          -0.05766119375126166,
+          -0.05773580196415118,
+          -0.1687263720818759,
+          -1.1049278815277823,
+          -0.0008322661119741781,
+          -0.7917046588899264
+        ],
+        "combinatorialConstantsFromPinnedAbi": {
+          "q0": 79.53,
+          "r0": 66.69,
+          "zCoordination": 10.0
+        },
+        "fullKernel": {
+          "fullKernelFiniteStrictlyPositive": true,
+          "fullKernelMaximum": 22662234.771424215,
+          "fullKernelMaximumAbsSymmetryError": 0.0,
+          "fullKernelMinimum": 9.51589552101647e-16,
+          "symmetryRoundoffTolerance": 3.220497258585086e-07
+        },
+        "maximumAbsCombinatorialAgreement": 0.0,
+        "mixtureProfileMinimum": 0.0,
+        "mixtureProfileNonnegative": true,
+        "mixtureProfileNormalizationAbsError": 2.220446049250313e-16,
+        "mixtureProfileSupportCount": 58,
+        "mixtureSegmentGammaFixedPoint": {
+          "activeEquationCount": 153,
+          "actualMaximumRelativeFixedPointResidual": 1.1058818715295963e-08,
+          "declaredDampedIterationTolerance": 1e-08,
+          "derivedBoundFormula": "2*t+t^2",
+          "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+          "equationMode": "FULL_153_BY_153",
+          "inactiveEquationCount": 0,
+          "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+        },
+        "nativeCombinatorial": [
+          -0.35711823854120794,
+          -0.05766119375126166,
+          -0.05773580196415118,
+          -0.1687263720818759,
+          -1.1049278815277823,
+          -0.0008322661119741781,
+          -0.7917046588899264
+        ],
+        "profileGeometryFromPinnedAbi": {
+          "areasA2": [
+            554.5597323559997,
+            360.9977319039999,
+            380.01120038400023,
+            479.03258180800015,
+            950.6524761980015,
+            273.59455063999985,
+            59.50887842
+          ],
+          "volumesA3": [
+            295.5977500000001,
+            198.89575000000005,
+            217.01725000000005,
+            281.9083750000001,
+            586.7901250000001,
+            146.85862500000005,
+            27.341625000000008
+          ]
+        },
+        "profileNormalizationRoundoffTolerance": 2.1742607714259066e-12,
+        "pureProfiles": [
+          {
+            "componentIndex": 0,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.368275872884303e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 1,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.320438335782336e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 2,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.3127352479751684e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 3,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.301808362116759e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 4,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 9.32975676081185e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 5,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 2.220446049250313e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.0446840153368751e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 6,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.381114093843878e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          }
+        ],
+        "qualificationStatus": "RESEARCH_UNQUALIFIED_SOURCE_GROUNDED_PENDING_INDEPENDENT_QUALIFICATION",
+        "residualReconstruction": {
+          "agreementWithinDeclaredGammaRelativeTolerance": true,
+          "declaredNative": [
+            0.5701464630176719,
+            0.3524205570636278,
+            0.35592921200940403,
+            0.45701841287164485,
+            0.8407829774731124,
+            -3.551737003017149e-05,
+            0.7112530654352084
+          ],
+          "declaredNativeGammaRelativeTolerance": 1e-08,
+          "formula": "Ai/AEFF*sum[pure_i*(log(Gamma_mix)-log(Gamma_pure_i))]",
+          "independent": [
+            0.5701464630176719,
+            0.3524205570636278,
+            0.3559292120094041,
+            0.45701841287164485,
+            0.8407829774731121,
+            -3.551737003042132e-05,
+            0.7112530654352085
+          ],
+          "maximumAbsAgreement": 2.498340618585504e-16
+        },
+        "segmentGammaMaximum": 2370.872867617866,
+        "segmentGammaMinimum": 0.319888883667542,
+        "segmentGammaReturnedWithoutConvergenceException": true,
+        "segmentIterationSettingsFromPinnedAbi": {
+          "AEFFPRIME": 7.25,
+          "fastGamma": false,
+          "fastNHBLeftIndex": 0,
+          "fastNHBRightIndex": 50,
+          "gammaRelativeTolerance": 1e-08
+        }
+      }
+    },
+    {
+      "composition": [
+        0.8596316122805464,
+        0.0017663562265905959,
+        0.000806705462403103,
+        0.00024924631736276606,
+        6.224238883347732e-05,
+        0.0594241418430333,
+        0.07805969548123062
+      ],
+      "controls": {
+        "assembled": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.780131367682815e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.225061707632591e-08
+            },
+            {
+              "gibbsDuhemAbs": 8.098468562423022e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.3485740302243698e-08
+            },
+            {
+              "gibbsDuhemAbs": 4.653564778612893e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.865657838275638e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 5.995204332975845e-15,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 8.498589236006723e-10
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.849251142737674e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340262,
+            0.11639649009375967,
+            0.17404646884062988,
+            0.2926927285260119,
+            0.40899171790582584,
+            2.7113905719602043,
+            -0.9141512364126406
+          ]
+        },
+        "fullyUnfloored": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.79874312841836e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.869641021647112e-09
+            },
+            {
+              "gibbsDuhemAbs": 7.3664508173402635e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.0862838628611371e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.7223966919388545e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 2.3314683517128287e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 0.0,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.519444742264707e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.7340555817264145e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340132,
+            0.11639649009376166,
+            0.17404646884063252,
+            0.2926927285260166,
+            0.40899171790581984,
+            2.7113905719602056,
+            -0.9141512364126423
+          ]
+        },
+        "nativeOnly_1e-08": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.7733256486842164e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.2278372651941538e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.137637548204429e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.219119607133507e-09
+            },
+            {
+              "gibbsDuhemAbs": 4.663441212045717e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.2411573869239874e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 2.914335439641036e-14,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 8.87058135758347e-10
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.860697053945671e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340009,
+            0.11639649009376858,
+            0.17404646884063846,
+            0.2926927285260228,
+            0.408991717905849,
+            2.7113905719602083,
+            -0.914151236412641
+          ]
+        },
+        "nativeOnly_1e-10": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.7733256486842164e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.2278372651941538e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.137637548204429e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.219119607133507e-09
+            },
+            {
+              "gibbsDuhemAbs": 4.663441212045717e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.2411573869239874e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 2.914335439641036e-14,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 8.87058135758347e-10
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.860697053945671e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340009,
+            0.11639649009376858,
+            0.17404646884063846,
+            0.2926927285260228,
+            0.408991717905849,
+            2.7113905719602083,
+            -0.914151236412641
+          ]
+        },
+        "nativeOnly_1e-12": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.7733256486842164e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.2278372651941538e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.137637548204429e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.219119607133507e-09
+            },
+            {
+              "gibbsDuhemAbs": 4.663441212045717e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.2411573869239874e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 2.914335439641036e-14,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 8.87058135758347e-10
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.860697053945671e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340009,
+            0.11639649009376858,
+            0.17404646884063846,
+            0.2926927285260228,
+            0.408991717905849,
+            2.7113905719602083,
+            -0.914151236412641
+          ]
+        },
+        "nativeOnly_1e-14": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.7733256486842164e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.2278372651941538e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.137637548204429e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.219119607133507e-09
+            },
+            {
+              "gibbsDuhemAbs": 4.663441212045717e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.2411573869239874e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 2.914335439641036e-14,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 8.87058135758347e-10
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.860697053945671e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340009,
+            0.11639649009376858,
+            0.17404646884063846,
+            0.2926927285260228,
+            0.408991717905849,
+            2.7113905719602083,
+            -0.914151236412641
+          ]
+        },
+        "outerOnly": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.780131367682815e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 1.225061707632591e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.140961019873137e-09,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 8.18442558170318e-09
+            },
+            {
+              "gibbsDuhemAbs": 4.653564778612893e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "central",
+                "6": "central"
+              },
+              "tangentIntegrabilityAbs": 3.2883418654705565e-08
+            }
+          ],
+          "positiveInteriorGammaAgreementAbs": 2.886579864025407e-14,
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 8.851504838602446e-10
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.849251142663669e-09
+            }
+          ],
+          "value": [
+            -0.04091877025340004,
+            0.1163964900937683,
+            0.17404646884063818,
+            0.2926927285260225,
+            0.4089917179058487,
+            2.7113905719602065,
+            -0.9141512364126397
+          ]
+        }
+      },
+      "dependentIndex": 0,
+      "fullyUnflooredDirectDefined": true,
+      "fullyUnflooredValue": [
+        -0.04091877025340132,
+        0.11639649009376166,
+        0.17404646884063252,
+        0.2926927285260166,
+        0.40899171790581984,
+        2.7113905719602056,
+        -0.9141512364126423
+      ],
+      "minimumFraction": 6.224238883347732e-05,
+      "name": "cell1_interface_dispersed",
+      "qualificationUse": false,
+      "sourceGroundedProbe": {
+        "absentSpeciesHaveZeroMixtureNumeratorContribution": true,
+        "analyticCombinatorial": [
+          -0.0059203847333790804,
+          -0.024788222976393826,
+          0.040614091236506056,
+          0.15364941992988257,
+          0.26784814606735097,
+          -0.14491034617620446,
+          -1.3376953901887694
+        ],
+        "combinatorialConstantsFromPinnedAbi": {
+          "q0": 79.53,
+          "r0": 66.69,
+          "zCoordination": 10.0
+        },
+        "fullKernel": {
+          "fullKernelFiniteStrictlyPositive": true,
+          "fullKernelMaximum": 22662234.771424215,
+          "fullKernelMaximumAbsSymmetryError": 0.0,
+          "fullKernelMinimum": 9.51589552101647e-16,
+          "symmetryRoundoffTolerance": 3.220497258585086e-07
+        },
+        "maximumAbsCombinatorialAgreement": 7.105427357601002e-15,
+        "mixtureProfileMinimum": 0.0,
+        "mixtureProfileNonnegative": true,
+        "mixtureProfileNormalizationAbsError": 0.0,
+        "mixtureProfileSupportCount": 58,
+        "mixtureSegmentGammaFixedPoint": {
+          "activeEquationCount": 153,
+          "actualMaximumRelativeFixedPointResidual": 5.6360434907106655e-09,
+          "declaredDampedIterationTolerance": 1e-08,
+          "derivedBoundFormula": "2*t+t^2",
+          "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+          "equationMode": "FULL_153_BY_153",
+          "inactiveEquationCount": 0,
+          "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+        },
+        "nativeCombinatorial": [
+          -0.005920384733375528,
+          -0.02478822297639205,
+          0.040614091236511385,
+          0.15364941992988967,
+          0.2678481460673545,
+          -0.14491034617620535,
+          -1.3376953901887694
+        ],
+        "profileGeometryFromPinnedAbi": {
+          "areasA2": [
+            554.5597323559997,
+            360.9977319039999,
+            380.01120038400023,
+            479.03258180800015,
+            950.6524761980015,
+            273.59455063999985,
+            59.50887842
+          ],
+          "volumesA3": [
+            295.5977500000001,
+            198.89575000000005,
+            217.01725000000005,
+            281.9083750000001,
+            586.7901250000001,
+            146.85862500000005,
+            27.341625000000008
+          ]
+        },
+        "profileNormalizationRoundoffTolerance": 2.1742607714259066e-12,
+        "pureProfiles": [
+          {
+            "componentIndex": 0,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.368275872884303e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 1,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.320438335782336e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 2,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.3127352479751684e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 3,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.301808362116759e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 4,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 9.32975676081185e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 5,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 2.220446049250313e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.0446840153368751e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 6,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.381114093843878e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          }
+        ],
+        "qualificationStatus": "RESEARCH_UNQUALIFIED_SOURCE_GROUNDED_PENDING_INDEPENDENT_QUALIFICATION",
+        "residualReconstruction": {
+          "agreementWithinDeclaredGammaRelativeTolerance": true,
+          "declaredNative": [
+            0.005870146156803441,
+            0.002576178642143568,
+            0.0020028260805393825,
+            0.002889523594165653,
+            0.002857320795917352,
+            0.22653472154981857,
+            1.376902931978651
+          ],
+          "declaredNativeGammaRelativeTolerance": 1e-08,
+          "formula": "Ai/AEFF*sum[pure_i*(log(Gamma_mix)-log(Gamma_pure_i))]",
+          "independent": [
+            0.005870146156803441,
+            0.002576178642143568,
+            0.0020028260805394016,
+            0.0028895235941656526,
+            0.0028573207959173533,
+            0.22653472154981857,
+            1.376902931978651
+          ],
+          "maximumAbsAgreement": 1.9081958235744878e-17
+        },
+        "segmentGammaMaximum": 4308.989481962459,
+        "segmentGammaMinimum": 1.0001119458584466,
+        "segmentGammaReturnedWithoutConvergenceException": true,
+        "segmentIterationSettingsFromPinnedAbi": {
+          "AEFFPRIME": 7.25,
+          "fastGamma": false,
+          "fastNHBLeftIndex": 0,
+          "fastNHBRightIndex": 50,
+          "gammaRelativeTolerance": 1e-08
+        }
+      }
+    },
+    {
+      "composition": [
+        0.8314095020619516,
+        0.09703193550453774,
+        0.046867166192086945,
+        0.016475538558928395,
+        0.008215857682495201,
+        0.0,
+        0.0
+      ],
+      "controls": {
+        "assembled": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.1379475363991434e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 5.931398094549678e-05
+            },
+            {
+              "gibbsDuhemAbs": 6.769152957006634e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.0001186025309536376
+            },
+            {
+              "gibbsDuhemAbs": 1.2352440675704708e-07,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.00023720965643114766
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 3.6657671919755416e-06
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.331447481005584e-06
+            }
+          ],
+          "value": [
+            0.0005436382908249513,
+            -0.05019490263686665,
+            0.011432044064939674,
+            0.1275674997048114,
+            0.2633915344210765,
+            2.6733643196040364,
+            -1.4152463518096363
+          ]
+        },
+        "fullyUnfloored": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.788214846312477e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 3.7587662760074636e-08
+            },
+            {
+              "gibbsDuhemAbs": 4.633748091042263e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 4.621021432171801e-08
+            },
+            {
+              "gibbsDuhemAbs": 5.589343885358465e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 5.311170347965799e-08
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.9892403091122615e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 2.2544182892205053e-09
+            }
+          ],
+          "value": [
+            0.0005436382963346342,
+            -0.0501949026795254,
+            0.011432044031694545,
+            0.12756749970067832,
+            0.2633915345660876,
+            2.6733643196316064,
+            -1.415246351825455
+          ]
+        },
+        "nativeOnly_1e-08": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.4834002028125246e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.006328983866881188
+            },
+            {
+              "gibbsDuhemAbs": 1.1128206976441972e-07,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.012657923488556655
+            },
+            {
+              "gibbsDuhemAbs": 1.373352071027217e-07,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.025315829939092538
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 0.0003859202432038304
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 0.0007719021199619897
+            }
+          ],
+          "value": [
+            0.0005436377738176861,
+            -0.050194898565281726,
+            0.01143204724486201,
+            0.12756749999078643,
+            0.26339151993870275,
+            2.6733643176272457,
+            -1.415246351910573
+          ]
+        },
+        "nativeOnly_1e-10": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 3.2355388805710404e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 6.331888260735496e-05
+            },
+            {
+              "gibbsDuhemAbs": 6.83020579382373e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.00012662984983524694
+            },
+            {
+              "gibbsDuhemAbs": 1.1037236659637061e-07,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 0.0002532276646398657
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 3.861352445143492e-06
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.722084125764699e-06
+            }
+          ],
+          "value": [
+            0.0005436382911007395,
+            -0.05019490263838365,
+            0.011432044063820238,
+            0.12756749970357273,
+            0.26339153441979807,
+            2.6733643196115633,
+            -1.4152463518263083
+          ]
+        },
+        "nativeOnly_1e-12": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.778066895605061e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 6.419948936908781e-07
+            },
+            {
+              "gibbsDuhemAbs": 3.121051343714655e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 1.3003436762915044e-06
+            },
+            {
+              "gibbsDuhemAbs": 6.341820967127202e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 2.530535025968561e-06
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 4.113989035658253e-08
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 7.716598220848298e-08
+            }
+          ],
+          "value": [
+            0.0005436382962894866,
+            -0.05019490267910949,
+            0.011432044032020906,
+            0.12756749970071213,
+            0.26339153456463316,
+            2.6733643196314056,
+            -1.4152463518254632
+          ]
+        },
+        "nativeOnly_1e-14": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 1.5781724557257563e-08,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 3.020004513132335e-08
+            },
+            {
+              "gibbsDuhemAbs": 1.8701988171270248e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 3.911123780397929e-08
+            },
+            {
+              "gibbsDuhemAbs": 3.671138233519163e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 5.085135867943791e-08
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 1.770286015113652e-09
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 4.367732698263588e-09
+            }
+          ],
+          "value": [
+            0.0005436382963604728,
+            -0.050194902679503245,
+            0.011432044031714637,
+            0.12756749970070033,
+            0.2633915345661097,
+            2.6733643196316077,
+            -1.4152463518254565
+          ]
+        },
+        "outerOnly": {
+          "oneSidedGrid": [
+            {
+              "gibbsDuhemAbs": 5.776293616165107e-09,
+              "h": 2e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 4.200132212694996e-06
+            },
+            {
+              "gibbsDuhemAbs": 3.1210157242445956e-08,
+              "h": 1e-06,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 8.4201532457584e-06
+            },
+            {
+              "gibbsDuhemAbs": 6.341650474114969e-08,
+              "h": 5e-07,
+              "methods": {
+                "1": "central",
+                "2": "central",
+                "3": "central",
+                "4": "central",
+                "5": "second_order_forward",
+                "6": "second_order_forward"
+              },
+              "tangentIntegrabilityAbs": 1.6877079703547793e-05
+            }
+          ],
+          "status": "DIAGNOSTIC_ONLY",
+          "stepConsistency": [
+            {
+              "coarseH": 2e-06,
+              "fineH": 1e-06,
+              "relativeChange": 7.095945713132956e-07
+            },
+            {
+              "coarseH": 1e-06,
+              "fineH": 5e-07,
+              "relativeChange": 1.4199891268864976e-06
+            }
+          ],
+          "value": [
+            0.000543638296011922,
+            -0.05019490267759249,
+            0.011432044033143894,
+            0.1275674997019508,
+            0.26339153456591513,
+            2.6733643196238814,
+            -1.4152463518087917
+          ]
+        }
+      },
+      "dependentIndex": 0,
+      "fullyUnflooredDirectDefined": true,
+      "fullyUnflooredValue": [
+        0.0005436382963346342,
+        -0.0501949026795254,
+        0.011432044031694545,
+        0.12756749970067832,
+        0.2633915345660876,
+        2.6733643196316064,
+        -1.415246351825455
+      ],
+      "minimumFraction": 0.0,
+      "name": "literal_zero_dry_inlet",
+      "qualificationUse": false,
+      "sourceGroundedProbe": {
+        "absentSpeciesHaveZeroMixtureNumeratorContribution": true,
+        "analyticCombinatorial": [
+          0.000532500821684323,
+          -0.05033704377918724,
+          0.010866148926076846,
+          0.12714090254257115,
+          0.2603298522662385,
+          -0.17778096628394024,
+          -1.3952639567556862
+        ],
+        "combinatorialConstantsFromPinnedAbi": {
+          "q0": 79.53,
+          "r0": 66.69,
+          "zCoordination": 10.0
+        },
+        "fullKernel": {
+          "fullKernelFiniteStrictlyPositive": true,
+          "fullKernelMaximum": 22662234.771424215,
+          "fullKernelMaximumAbsSymmetryError": 0.0,
+          "fullKernelMinimum": 9.51589552101647e-16,
+          "symmetryRoundoffTolerance": 3.220497258585086e-07
+        },
+        "maximumAbsCombinatorialAgreement": 7.105427357601002e-15,
+        "mixtureProfileMinimum": 0.0,
+        "mixtureProfileNonnegative": true,
+        "mixtureProfileNormalizationAbsError": 1.1102230246251565e-16,
+        "mixtureProfileSupportCount": 12,
+        "mixtureSegmentGammaFixedPoint": {
+          "activeEquationCount": 153,
+          "actualMaximumRelativeFixedPointResidual": 7.3635250933159544e-09,
+          "declaredDampedIterationTolerance": 1e-08,
+          "derivedBoundFormula": "2*t+t^2",
+          "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+          "equationMode": "FULL_153_BY_153",
+          "inactiveEquationCount": 0,
+          "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+        },
+        "nativeCombinatorial": [
+          0.0005325008216878757,
+          -0.050337043779185464,
+          0.010866148926082175,
+          0.1271409025425747,
+          0.2603298522662456,
+          -0.17778096628393758,
+          -1.3952639567556855
+        ],
+        "profileGeometryFromPinnedAbi": {
+          "areasA2": [
+            554.5597323559997,
+            360.9977319039999,
+            380.01120038400023,
+            479.03258180800015,
+            950.6524761980015,
+            273.59455063999985,
+            59.50887842
+          ],
+          "volumesA3": [
+            295.5977500000001,
+            198.89575000000005,
+            217.01725000000005,
+            281.9083750000001,
+            586.7901250000001,
+            146.85862500000005,
+            27.341625000000008
+          ]
+        },
+        "profileNormalizationRoundoffTolerance": 2.1742607714259066e-12,
+        "pureProfiles": [
+          {
+            "componentIndex": 0,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.368275872884303e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 1,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.320438335782336e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 2,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.3127352479751684e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 3,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 1.1102230246251565e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 7.301808362116759e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 4,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 9.32975676081185e-09,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 5,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 2.220446049250313e-16,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.0446840153368751e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          },
+          {
+            "componentIndex": 6,
+            "minimum": 0.0,
+            "nonnegative": true,
+            "normalizationAbsError": 0.0,
+            "normalizationRoundoffTolerance": 2.1742607714259066e-12,
+            "segmentGamma": {
+              "activeEquationCount": 153,
+              "actualMaximumRelativeFixedPointResidual": 1.381114093843878e-08,
+              "declaredDampedIterationTolerance": 1e-08,
+              "derivedBoundFormula": "2*t+t^2",
+              "derivedMaximumFixedPointResidualBound": 2.00000001e-08,
+              "equationMode": "FULL_153_BY_153",
+              "inactiveEquationCount": 0,
+              "inactiveReturnedGammaMaximumAbsFromOne": 0.0
+            }
+          }
+        ],
+        "qualificationStatus": "RESEARCH_UNQUALIFIED_SOURCE_GROUNDED_PENDING_INDEPENDENT_QUALIFICATION",
+        "residualReconstruction": {
+          "agreementWithinDeclaredGammaRelativeTolerance": true,
+          "declaredNative": [
+            1.1137474646758436e-05,
+            0.00014214109966006618,
+            0.0005658951056123703,
+            0.0004265971581036239,
+            0.003061682299842003,
+            0.28433507751158915,
+            1.4624127879773394
+          ],
+          "declaredNativeGammaRelativeTolerance": 1e-08,
+          "formula": "Ai/AEFF*sum[pure_i*(log(Gamma_mix)-log(Gamma_pure_i))]",
+          "independent": [
+            1.1137474662342307e-05,
+            0.00014214109966936475,
+            0.000565895105621547,
+            0.0004265971581155189,
+            0.003061682299865914,
+            0.2843350775115901,
+            1.4624127879773394
+          ],
+          "maximumAbsAgreement": 2.3910994711995315e-14
+        },
+        "segmentGammaMaximum": 5460.723378534822,
+        "segmentGammaMinimum": 1.0000063338949527,
+        "segmentGammaReturnedWithoutConvergenceException": true,
+        "segmentIterationSettingsFromPinnedAbi": {
+          "AEFFPRIME": 7.25,
+          "fastGamma": false,
+          "fastNHBLeftIndex": 0,
+          "fastNHBRightIndex": 50,
+          "gammaRelativeTolerance": 1e-08
+        }
+      }
+    }
+  ],
+  "controls": {
+    "assembled": "outer floor 1e-12, then historical native floor 1e-10; RK uses outer state",
+    "fullyUnfloored": "literal physical state passed to direct native and exact RK polynomial",
+    "nativeOnly": "direct native receives stated replaced state; RK receives unchanged physical state",
+    "outerOnly": "one 1e-12 replacement before direct native and RK"
+  },
+  "filmSolverCalls": [],
+  "lineage": {
+    "baseManifestSha256": "f4e6e0156e6dc82dfaa3bf012a67ff143eb8cb45dd7c8208d9f924cec0d023fc",
+    "engineIntegrity": {
+      "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+      "cascadeSolverChanged": false,
+      "cascadeSolverParent": "7C-1.2.0",
+      "fallbackPhaseModel": null,
+      "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+      "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+      "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+      "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+      "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+      "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+      "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+      "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "inheritedSixComponentResidualApplied": false,
+      "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+      "interactionPairCount": 8,
+      "interactionParameterCount": 48,
+      "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+      "nativeGibbsContributionRetained": true,
+      "profileSha256ByFamily": {
+        "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+        "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+        "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+        "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+        "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+        "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+        "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+      },
+      "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+      "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+      "singleStageIsMatrixMember": true,
+      "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+      "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+      "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+      "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+      "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+      "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+      "tpdThresholdsChanged": false
+    },
+    "jobBManifestSha256": "daa9e16e366b57bbd0c8ad71581cfde705127d9cd3594939c7a7f67d296662da",
+    "runtime": {
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+      "scipy": "1.14.1",
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+    },
+    "runtimeLoad": "PINNED_JOB_B_STAGE4_BASE_MANIFESTS_VERIFIED",
+    "stage4ManifestSha256": "dac309f1a4335f192eb3d261213090b3404bd02fe7c5c869dd949c7b7b189ec2"
+  },
+  "nativeOnlyFloors": [
+    1e-08,
+    1e-10,
+    1e-12,
+    1e-14
+  ],
+  "oneSidedSteps": [
+    2e-06,
+    1e-06,
+    5e-07
+  ],
+  "outcome": "DIAGNOSTIC_COMPLETE_RESEARCH_UNQUALIFIED",
+  "qualificationStatus": "RESEARCH_UNQUALIFIED_SOURCE_GROUNDED_PENDING_INDEPENDENT_QUALIFICATION",
+  "savedCellSolve": "NOT_ATTEMPTED",
+  "savedState": {
+    "cell1TotalMolarFluxMolM2S": -0.0033422123776529673,
+    "compositionSource": "verify_thermo.archived_state() unchanged vectors"
+  },
+  "schemaVersion": "FINITE_FILM_BOUNDARY_NATIVE_SEGMENT_PROOF_V1",
+  "sources": {
+    "archivedRawUrls": {
+      "COSMO.hpp": "https://raw.githubusercontent.com/usnistgov/COSMOSAC/1b82456be38026719b16cad4076109bef3fcb309/include/COSMO_SAC/COSMO.hpp",
+      "LICENSE": "https://raw.githubusercontent.com/usnistgov/COSMOSAC/1b82456be38026719b16cad4076109bef3fcb309/LICENSE",
+      "pybind11_interface.cxx": "https://raw.githubusercontent.com/usnistgov/COSMOSAC/1b82456be38026719b16cad4076109bef3fcb309/src/pybind11_interface.cxx"
+    },
+    "boundaryAdapterSha256": "e444fd3111754a62acdefa3972379792fb590b94d9d933103036242edb9d78f8",
+    "diagnosisSourceSha256": "c761e3d21246ce76b4cad2373136e48f3445dce035fc12b63dfd772c08224018",
+    "nistCosmosacCommit": "1b82456be38026719b16cad4076109bef3fcb309",
+    "pinnedCcosmoBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+    "provenanceChecks": {
+      "loadedEngineBinaryHashMatches": true,
+      "manifestBinaryHashMatches": true,
+      "manifestSourceCommitMatches": true,
+      "provenanceManifestSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e"
+    },
+    "sourceArchive": {
+      "COSMO.hpp": "88eba46ea1da365caea99820fc37e596f8d6a444a31f8a95fa51b910ca039fdb",
+      "LICENSE": "6d7ce940d10c2d4582fb1e5cba72cbaca4d91a0febf0237b21714cb06b8a112d",
+      "pybind11_interface.cxx": "1a169a1cf75f61520dfe8d796673342c6861ad06e5015f4e1ac7f67be8af54ac"
+    },
+    "task238Model": "dist/predictive-nt-runtime-7c-1-5/server/research/task-238-nmp-oil-interaction-model/model.py",
+    "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba"
+  },
+  "validationChecks": {
+    "invalidTemperature": "REJECTED",
+    "negative": "REJECTED",
+    "nonfinite": "REJECTED",
+    "notNormalized": "REJECTED",
+    "wrongDimension": "REJECTED"
+  }
+}

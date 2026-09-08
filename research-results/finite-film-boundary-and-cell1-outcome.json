@@ -1,0 +1,25 @@
+{
+  "scope": "ISOLATED_BOUNDARY_ADAPTER_AND_SAVED_CELL_1",
+  "derivativeGate": "QUALIFIED_EXCESS_ADAPTER_FOR_SAVED_CELL_ATTEMPT_ONLY",
+  "cellOutcome": "NO_ADMISSIBLE_NUMERICAL_CANDIDATE_FOUND",
+  "startOutcomeCounts": {
+    "negativeTrial": 4,
+    "timeBudget": 3
+  },
+  "physicalAcceptance": false,
+  "newAcceptedProfiles": null,
+  "newAcceptedFluxes": null,
+  "acceptedHeight": null,
+  "physicalStages": null,
+  "efficiency": null,
+  "finalRpm": null,
+  "finalDiameter": null,
+  "productionJobsRun": [],
+  "evidence": {
+    "research-results/finite-film-boundary-qualification.json": "64d54cc1adeb0bd39748de220f28a5e1b9f5f543a602b6d878793adcadcb2ee5",
+    "research-results/finite-film-boundary-qualification-initial-failed.json": "65911fc1e9dbf12c384fa3f5f9476aeb294abaeb53e143a03794ae6f5ad61f04",
+    "research-results/finite-film-boundary-native-segment-proof.json": "9daae07b6c9d8aed73e7466da40c3636f6070d5dff0115262069a466b1460713",
+    "research-results/finite-film-cell1-attempt.json": "0502f251dd0d60e67ffca0d359f426329fab1f71f6a63cc64658139272c458e7"
+  },
+  "interpretation": "Derivative gate cleared; numerical film solve unresolved, not proof of process infeasibility."
+}

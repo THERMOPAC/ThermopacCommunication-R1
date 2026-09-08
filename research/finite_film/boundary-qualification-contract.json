@@ -1,0 +1,62 @@
+{
+  "scope": "ISOLATED_EXCESS_BOUNDARY_ADAPTER_AT_SAVED_CELL_TEMPERATURE_ONLY",
+  "temperatureK": 298.15,
+  "physicalFeedAlterationAllowed": false,
+  "productionReplacementAllowed": false,
+  "sourceRequired": {
+    "repository": "https://github.com/usnistgov/COSMOSAC",
+    "commit": "1b82456be38026719b16cad4076109bef3fcb309",
+    "nativeBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+    "qualification": "SOURCE_EQUATIONS_PLUS_PINNED_BINARY_ABI_CHECKS_NOT_REPRODUCIBLE_BUILD_CERTIFICATION"
+  },
+  "thresholds": {
+    "muAgreementAbs": 2e-10,
+    "derivativeStepRelative": 0.002,
+    "gibbsDuhemAbs": 2e-6,
+    "tangentIntegrabilityAbs": 2e-5,
+    "syntheticDerivativeAbs": 2e-10,
+    "boundaryExcessLimitAbs": 2e-10,
+    "analyticCombinatorialAgreementAbs": 2e-10
+  },
+  "centralSteps": [2e-5, 1e-5, 5e-6],
+  "oneSidedSteps": [2e-6, 1e-6, 5e-7],
+  "boundaryApproachFractions": [0.001, 0.0001, 0.00001, 0.000001, 1e-7, 1e-8, 1e-9, 1e-10, 1e-12, 1e-14, 1e-16, 1e-18],
+  "boundaryApproachResolutionAnnotation": "The appended 1e-18 point is additional mathematical-limit resolution so the unchanged terminal-three gate assesses 1e-14, 1e-16, and 1e-18. The complete earlier curve, including the failed 1e-12 point, remains required evidence. No scientific threshold, case, feed, or physical model is altered.",
+  "additionalPhysicsEvidence": {
+    "acceptanceRequired": true,
+    "reportedWithoutAcceptanceCounts": false,
+    "checks": [
+      "actualGammaFixedPointResidual",
+      "pureAndMixtureNormalizedProfiles",
+      "independentNativeResidualReconstruction",
+      "analyticImplicitFunctionRegularity"
+    ]
+  },
+  "requiredCases": [
+    "Actual four saved cell-1 bulk/interface compositions",
+    "Literal-zero fresh dispersed inlet",
+    "One absent component at a time in a positive reference mixture",
+    "Seven pure-component corners",
+    "Deterministically seeded positive-interior states"
+  ],
+  "requiredEvidence": [
+    "Exact pinned runtime and archived state hashes",
+    "Analytically finite combinatorial, residual and polynomial excess terms",
+    "Numerical native ABI agreement with source-derived combinatorial expression",
+    "Literal zeros passed unchanged to the excess evaluator",
+    "Unsymmetrized Gibbs-Duhem and tangent-integrability checks at every refinement",
+    "True-boundary excess values agree with multiple positive approach paths",
+    "Invalid input refusal, no fallback model and no ideal-log differentiation"
+  ],
+  "stopRule": "Do not attempt saved cell 1 unless every required derivative/boundary gate passes.",
+  "savedCellAcceptance": {
+    "numericalBenchmarkEvidenceRequired": true,
+    "originalInterfaceChemistryStabilityAndMultistartGatesRequired": true,
+    "independentlyReconstructedScaledFilmFluxMaximum": 1e-8,
+    "filmFluxScale": "max(gc_i,gd_i,1e-12)",
+    "normalizationMaximum": 1e-12,
+    "acceptedNegativeProfileAllowed": false,
+    "twoSuccessiveRefinementProfileAndScaledFluxDriftMaximum": 1e-8,
+    "noCandidateOutcome": "NUMERICAL_OR_QUALIFICATION_HOLD_NOT_PROCESS_INFEASIBILITY"
+  }
+}

@@ -31,10 +31,36 @@ preservation and rejection of negative interpolated profiles between nodes.
 
 ## Saved-cell gate
 
-The current real-state derivative result is **not qualified**. Saved cell 1
-must not be passed to `solve_two_films` with those derivatives. The saved-cell
-attempt is stopped before solving; there are no new real-state profiles,
-component fluxes or total molar flux.
+The **original floored adapter** remains unqualified. Its original validation
+and report are historical evidence and have not been overwritten.
+
+A separate source-grounded boundary adapter now passes the independent
+qualification in `finite-film-boundary-qualification.json`, scoped to the
+frozen 298.15 K case and exact recorded source/runtime hashes. It preserves the
+underlying native plus RK equations, passes literal zeros unchanged, and keeps
+the ideal logarithm separate. Read the archived native proof and source caveat
+before using it; this is not an experimental transport qualification.
+
+The subsequent bounded cell-1 attempts did **not** produce an admissible
+numerical candidate. All seven starts were attempted with verified exact-state
+caching: four were rejected on negative numerical trial profiles, and three
+hit the time budget. No negative trial or timeout was accepted. Thus there is
+still no qualified new cell profile, flux, height or downstream design output.
+
+```sh
+OPENBLAS_NUM_THREADS=1 python -B research/finite_film/verify_boundary.py
+OPENBLAS_NUM_THREADS=1 timeout 195s python -B research/finite_film/attempt_cell1.py
+```
+
+The cell-attempt entry point checks the external qualification evidence and
+source/runtime hashes before loading the model. It enforces no zero-total-flux
+constraint: zero flux is only an initial numerical guess, with all seven
+component fluxes free. Its output is numerical evidence, not acceptance.
+
+The complete first failed boundary-approach check is retained. The pure-water
+corner's nonzero approach at epsilon 1e-12 missed the 2e-10 limit; adding epsilon
+1e-18 supplied three finer consecutive passing limit checks without changing
+that limit or any physical feed. The original point is not relabelled passed.
 
 The admitted positive interior checks pass, but the almost solvent-free
 dispersed-bulk tangent-integrability error increases under forward-step
@@ -43,10 +69,11 @@ argument at 1e-12. The separate original log-activity wrapper has its own 1e-10
 floor. Neither internal rule is a changed physical feed, and neither counts as
 proof of a true unfloored boundary derivative.
 
-The next scientific dependency is a qualified excess-activity boundary limit,
-not another column run or relaxed numerical threshold. The report distinguishes
-numerical derivative failure from independently unqualified boundary physics;
-it does not classify the real extraction process as infeasible.
+The next dependency is a domain-preserving, sufficiently efficient numerical
+film solve—not another column run or a relaxed acceptance threshold. There is
+no candidate yet on which to complete profile refinement, rank, independent
+reproduction or interface stability/TPD acceptance. A negative intermediate
+numerical trial does not show that every possible physical film is negative.
 
 ## Numerical representation and limits
 

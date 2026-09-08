@@ -989,3 +989,17 @@ mtime_ms = 1788856785275
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8d2a283f-905b-45b1-ae07-5e131ee46ad4/f9d93423-09aa-4e40-a65f-52fb54345b31"
 storage_version_token = "1788856898833217"
 content_type = "text/html"
+
+[[outputs]]
+id = "ZpANb5yswmDCWHPoraJwE"
+uri = "file://research-results/finite-film-boundary-and-cell1-report.html"
+type = "text"
+title = "Final boundary qualification and cell-1 report"
+description = "Boundary adapter passed qualification. Seven saved-cell starts yielded four rejected negative trials and three timeouts; no physical or sizing result is accepted."
+logical_id = "09340a90-e81c-4b70-9b28-7d3ac37fa071"
+content_hash = "sha256:eb184f2af831f48746c3a5ad784c2eac17c3216e6584519d1af0ea1c8cce3a13"
+size = 9236
+mtime_ms = 1788860928758
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/09340a90-e81c-4b70-9b28-7d3ac37fa071/c5218d09-9fc2-4444-8d50-5f417a70b7a2"
+storage_version_token = "1788860959210413"
+content_type = "text/html"

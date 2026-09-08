@@ -87,3 +87,21 @@ thermodynamic theory or extraction process is infeasible.
 **How to apply:** Keep thresholds fixed, record per-direction actual step
 sizes, and stop the real film solve when this qualification fails. Synthetic
 numerical BVP success must never override a failed real-state derivative gate.
+
+An unfloored native-excess extension may be admitted only with source-grounded
+zero-limit reasoning, pinned-binary agreement and independent numerical
+qualification; merely bypassing wrapper floors is not sufficient. Preserve
+the native excess and additive scalar-Gibbs correction, with ideal logs separate.
+
+**Why:** Nested floors can generate the apparent boundary inconsistency even
+when the underlying excess equations have a regular limit. Conversely, a
+positive segment-activity return alone does not establish convergence or
+differentiability. Exact-equation regularity and a finite-tolerance evaluator's
+numerical qualification are different claims.
+
+**How to apply:** Check profile support/normalization, the actual segment
+fixed-point residual against the derived stopping-rule implication, and
+independent excess reconstruction. Scope qualification to its source,
+temperature and numerical evidence; it never certifies a finite-film root.
+When a bounded solve stops, inspect exception causes: an operational timeout
+wrapped by a native evaluator must not be misreported as undefined physics.

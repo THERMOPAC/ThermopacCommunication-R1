@@ -1,0 +1,387 @@
+{
+  "scope": "ISOLATED_SAVED_CELL_1_ONLY",
+  "qualificationEvidenceSha256": "64d54cc1adeb0bd39748de220f28a5e1b9f5f543a602b6d878793adcadcb2ee5",
+  "sourceSha256": "e0a65f0f1d1d0a765427a46801550a270a3572a2cebfbdf22198014f9609b858",
+  "attempts": [
+    {
+      "start": "ARCHIVED_INTERFACES_NEW_FREE_FLUX",
+      "seedContinuous": [
+        0.019286696568824674,
+        0.001333490121717873,
+        0.0006430576451355772,
+        0.00022430408265232876,
+        0.00010902723241521309,
+        0.9024120497795988,
+        0.07599137456965553
+      ],
+      "seedDispersed": [
+        0.8596316122805464,
+        0.0017663562265905959,
+        0.000806705462403103,
+        0.00024924631736276606,
+        6.224238883347732e-05,
+        0.0594241418430333,
+        0.07805969548123062
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "BoundaryAdapterError",
+      "error": "Bounded attempt exceeded its wall-time budget.",
+      "errorChain": [
+        "BoundaryAdapterError: BOUNDARY_ADAPTER_NATIVE_RAW_LIMIT_UNDEFINED",
+        "TimeoutError: BOUNDED_LOCAL_CELL_ATTEMPT_EXHAUSTED"
+      ],
+      "stopReason": "NUMERICAL_TIME_BUDGET",
+      "elapsedSeconds": 30.002516139999898
+    },
+    {
+      "start": "ORIENTED_PHASE_TEMPLATE",
+      "seedContinuous": [
+        0.01,
+        0.01,
+        0.01,
+        0.005,
+        0.005,
+        0.88,
+        0.08
+      ],
+      "seedDispersed": [
+        0.72,
+        0.12,
+        0.06,
+        0.025,
+        0.015,
+        0.05,
+        0.01
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "FilmDomainError",
+      "error": "NEGATIVE_NUMERICAL_TRIAL_PROFILE",
+      "errorChain": [
+        "FilmDomainError: NEGATIVE_NUMERICAL_TRIAL_PROFILE"
+      ],
+      "elapsedSeconds": 17.266957503000413
+    },
+    {
+      "start": "FROZEN_BULK_BOUNDARIES",
+      "seedContinuous": [
+        7.080024598066372e-06,
+        5.950153875443155e-07,
+        2.8044726397244043e-07,
+        8.65484018591514e-08,
+        3.152131316798451e-08,
+        0.922675288193551,
+        0.07731663824948438
+      ],
+      "seedDispersed": [
+        0.8314091492606233,
+        0.09703211630006595,
+        0.046867260188424645,
+        0.01647558315782248,
+        0.008215891093063685,
+        1.719044952364148e-28,
+        2.505938900025761e-37
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "BoundaryAdapterError",
+      "error": "Bounded attempt exceeded its wall-time budget.",
+      "errorChain": [
+        "BoundaryAdapterError: BOUNDARY_ADAPTER_NATIVE_RAW_LIMIT_UNDEFINED",
+        "TimeoutError: BOUNDED_LOCAL_CELL_ATTEMPT_EXHAUSTED"
+      ],
+      "stopReason": "NUMERICAL_TIME_BUDGET",
+      "elapsedSeconds": 30.000383722999686
+    },
+    {
+      "start": "ORIENTED_TEMPLATE_BULK_C",
+      "seedContinuous": [
+        0.01,
+        0.01,
+        0.01,
+        0.005,
+        0.005,
+        0.88,
+        0.08
+      ],
+      "seedDispersed": [
+        0.8314091492606233,
+        0.09703211630006595,
+        0.046867260188424645,
+        0.01647558315782248,
+        0.008215891093063685,
+        1.719044952364148e-28,
+        2.505938900025761e-37
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "FilmDomainError",
+      "error": "NEGATIVE_NUMERICAL_TRIAL_PROFILE",
+      "errorChain": [
+        "FilmDomainError: NEGATIVE_NUMERICAL_TRIAL_PROFILE"
+      ],
+      "elapsedSeconds": 0.20322381999994832
+    },
+    {
+      "start": "ORIENTED_BULK_D_TEMPLATE",
+      "seedContinuous": [
+        7.080024598066372e-06,
+        5.950153875443155e-07,
+        2.8044726397244043e-07,
+        8.65484018591514e-08,
+        3.152131316798451e-08,
+        0.922675288193551,
+        0.07731663824948438
+      ],
+      "seedDispersed": [
+        0.72,
+        0.12,
+        0.06,
+        0.025,
+        0.015,
+        0.05,
+        0.01
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "BoundaryAdapterError",
+      "error": "Bounded attempt exceeded its wall-time budget.",
+      "errorChain": [
+        "BoundaryAdapterError: BOUNDARY_ADAPTER_NATIVE_RAW_LIMIT_UNDEFINED",
+        "TimeoutError: BOUNDED_LOCAL_CELL_ATTEMPT_EXHAUSTED"
+      ],
+      "stopReason": "NUMERICAL_TIME_BUDGET",
+      "elapsedSeconds": 30.003266458000326
+    },
+    {
+      "start": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS",
+      "seedContinuous": [
+        0.00963339874390287,
+        0.00971077502631065,
+        0.00978877280163475,
+        0.004933698530879688,
+        0.004973326419332026,
+        0.8823359780176059,
+        0.07862405046033415
+      ],
+      "seedDispersed": [
+        0.7237143414414685,
+        0.11965795398920377,
+        0.05935225461069735,
+        0.024533054496394525,
+        0.014602543817316129,
+        0.04828729834861399,
+        0.009852553296305553
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "FilmDomainError",
+      "error": "NEGATIVE_NUMERICAL_TRIAL_PROFILE",
+      "errorChain": [
+        "FilmDomainError: NEGATIVE_NUMERICAL_TRIAL_PROFILE"
+      ],
+      "elapsedSeconds": 17.329179973000464
+    },
+    {
+      "start": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS",
+      "seedContinuous": [
+        0.010379945941412725,
+        0.010297237648164833,
+        0.01021518838164124,
+        0.005066896445330421,
+        0.005026522982942238,
+        0.8776189346743597,
+        0.08139527392614869
+      ],
+      "seedDispersed": [
+        0.7162261015190614,
+        0.12032981513447577,
+        0.06064815724917464,
+        0.0254730368474486,
+        0.015406583074476485,
+        0.0517677668901979,
+        0.010148539285165074
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "physicalAcceptance": false,
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "FilmDomainError",
+      "error": "NEGATIVE_NUMERICAL_TRIAL_PROFILE",
+      "errorChain": [
+        "FilmDomainError: NEGATIVE_NUMERICAL_TRIAL_PROFILE"
+      ],
+      "elapsedSeconds": 17.27986602799956
+    }
+  ],
+  "productionJobsRun": [],
+  "columnContinuationRun": false,
+  "physicalFeedModified": false,
+  "physicalAcceptance": false,
+  "designOutputs": null,
+  "previousUncachedAttemptSha256": "52641b2ee1b6cdc9656e7543b50d9d95b305652af8bc900151bd99c7cd5df166",
+  "numericalBenchmarkEvidenceSha256": "eee38981e5228fdd792efe2d60ea1f995bd7f74f662cb21ab6b539baef4d9861",
+  "exactCache": {
+    "sourceSha256": "317152837d99eaf33d1a78cf32098a2c379c793afb54e32b5fdc3f38681ac7c6",
+    "allSavedStatesBitwiseEquivalentOnMissAndHit": true,
+    "compositionRounding": false,
+    "capacityPerTable": 8192,
+    "counts": {
+      "valueHits": 502,
+      "valueMisses": 124,
+      "derivativeHits": 9856,
+      "derivativeMisses": 3831
+    }
+  },
+  "input": {
+    "temperatureK": 298.15,
+    "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "continuousBulk": [
+      7.080024598066372e-06,
+      5.950153875443155e-07,
+      2.8044726397244043e-07,
+      8.65484018591514e-08,
+      3.152131316798451e-08,
+      0.922675288193551,
+      0.07731663824948438
+    ],
+    "dispersedBulk": [
+      0.8314091492606233,
+      0.09703211630006595,
+      0.046867260188424645,
+      0.01647558315782248,
+      0.008215891093063685,
+      1.719044952364148e-28,
+      2.505938900025761e-37
+    ],
+    "freshDispersedInlet": [
+      0.8314095020619516,
+      0.09703193550453774,
+      0.046867166192086945,
+      0.016475538558928395,
+      0.008215857682495201,
+      0.0,
+      0.0
+    ],
+    "continuousConductances": [
+      0.1449172280501945,
+      0.177063123200661,
+      0.17296173069273307,
+      0.15254022104851153,
+      0.11324113884325597,
+      0.18290381180994994,
+      0.2280973174333013
+    ],
+    "dispersedConductances": [
+      0.0020018748861023237,
+      0.002472408921142691,
+      0.002412099264728349,
+      0.0021129981173517768,
+      0.0015434166639340485,
+      0.002558428294435721,
+      0.003229089766778362
+    ],
+    "archivedTotalFluxForReferenceOnly": -0.0033422123776529673,
+    "sourceResponseSha256": "8b8becf718b037471f1e65cb48694cd76f1d9f40bb5cf5cac282eb3076ba1d16",
+    "sourceInputSha256": "0dbc7d01a56bcc565886828d4d4099c32c5e2ca16f7acda7294322b2386b594d",
+    "sourceStateSha256": "3c5543b3408732a3749e388e2ce3cba4a4f5efff7f0d0dae9660590290a0098f",
+    "zeroInitialFluxIsGuessOnly": true,
+    "totalFluxConstrainedToZero": false
+  },
+  "pinnedGates": {
+    "negativeTpdThreshold": -1e-08,
+    "maximumScaledEquationResidual": 1e-08,
+    "maximumOverallComponentBalanceResidualMol": 1e-08,
+    "maximumIsoactivityLogResidual": 2e-05,
+    "minimumStreamComponentMoles": 1e-12,
+    "minimumPhaseCompositionSeparation": 0.0001,
+    "minimumStageGibbsReduction": 1e-09,
+    "minimumLocalStabilityCurvature": -1e-06,
+    "hessianEigenvalueAbsoluteTolerance": 1e-07,
+    "hessianEigenvalueRelativeTolerance": 0.005,
+    "postSplitTpdThreshold": -1e-08,
+    "multistartProductRelativeTolerance": 1e-06
+  },
+  "numericalBudget": {
+    "perStartSeconds": 30,
+    "totalSeconds": 180,
+    "initialNodes": 17,
+    "maxNodes": 513,
+    "requestedTolerance": 1e-08,
+    "domainFailure": "REJECT_NOT_CLIP"
+  },
+  "outcome": "NO_ADMISSIBLE_NUMERICAL_CANDIDATE_FOUND",
+  "interpretation": "Only an isolated numerical attempt. No negative trial is accepted. This does not prove physical impossibility or authorize Job C.",
+  "elapsedSeconds": 145.25675609800055
+}
