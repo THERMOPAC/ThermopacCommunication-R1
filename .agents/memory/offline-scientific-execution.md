@@ -14,3 +14,9 @@ Inspect active scientific workers with bounded, nonblocking, out-of-process samp
 **Why:** Dependency installation can restart workflows and destroy the calculation being investigated. CPU activity and a renewed lease prove activity, not numerical convergence; a short live stack sample can distinguish expensive computation from waiting without changing the scientific model.
 
 **How to apply:** Keep diagnostic tools isolated from the project dependency environment, use the package firewall for downloads, avoid pausing the worker or collecting local-variable values, and correlate sampled stacks with the job record. State the sampling window explicitly; never turn hotspot percentages into percentage-complete estimates.
+
+Job-C qualification is intentionally allowed to finish without a wall-clock cap, independently of the nonlinear solver's bounded runtime.
+
+**Why:** The user explicitly requested removal of the qualification deadline after it stopped legitimate contact qualification before the column solver began. This trades bounded qualification time for potentially longer, cancellable runs, not weaker scientific acceptance.
+
+**How to apply:** Do not reintroduce an implicit qualification deadline through a whole-job watchdog. Keep cancellation and lease-loss termination active, and report elapsed time separately from convergence or acceptance.

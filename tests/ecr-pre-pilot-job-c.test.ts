@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import {
   mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
@@ -13,6 +13,43 @@ import {
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
+  it('allows unlimited qualification but arms and resets the solver-only watchdog', () => {
+    const source = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
+    const watchdog = source.match(/const updateSolverWatchdog = \(phase: string\) => \{[\s\S]*?\n    \};/)?.[0];
+    expect(watchdog).toBeDefined();
+    vi.useFakeTimers();
+    try {
+      const terminate = vi.fn();
+      const finish = vi.fn();
+      const update = new Function('setTimeout', 'clearTimeout', 'terminate', 'finish', `
+        let timer;
+        const options = {};
+        const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720000;
+        const JOB_C_TERMINATION_GRACE_MS = 30000;
+        const JobCError = Error;
+        ${watchdog!.replace('phase: string', 'phase')}
+        return updateSolverWatchdog;
+      `)(setTimeout, clearTimeout, terminate, finish);
+      vi.advanceTimersByTime(86400000);
+      expect(terminate).not.toHaveBeenCalled();
+      update('boundary interface qualification');
+      vi.advanceTimersByTime(86400000);
+      expect(terminate).not.toHaveBeenCalled();
+      update('nonlinear solver started');
+      vi.advanceTimersByTime(749999);
+      expect(terminate).not.toHaveBeenCalled();
+      update('boundary interface qualification');
+      vi.advanceTimersByTime(86400000);
+      expect(terminate).not.toHaveBeenCalled();
+      update('nonlinear solver started');
+      vi.advanceTimersByTime(750000);
+      expect(terminate).toHaveBeenCalledOnce();
+      expect(finish).toHaveBeenCalledWith(expect.objectContaining({ message: 'JOB_C_TIMEOUT' }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('fault-injects every optimizer timeout into a hashed, phase-classified block without a solve', () => {
     const rows = JSON.parse(execFileSync('python3',
       ['tests/job-c-timeout-injection.py'], { encoding: 'utf8', timeout: 10_000 }));
@@ -432,7 +469,13 @@ except namespace["JobCBlocked"] as error:
     solver_status = error.diagnostics["runtimeBudgets"]["nonlinearSolver"]["status"]
 print(json.dumps({"atLimit": at_limit, "expired": expired,
   "cancelActions": actions, "exitCode": exit_code,
-  "qualificationCode": qualification_code, "solverStatus": solver_status}))
+  "qualificationCode": qualification_code, "solverStatus": solver_status,
+  "unlimitedElapsed": namespace["require_runtime_budget"](
+    {"started": 0.0, "maximumSeconds": None}, 86400.0),
+  "unlimitedOperation": namespace["run_with_qualification_budget"](
+    {"started": time.monotonic()-86400.0, "maximumSeconds": None},
+    lambda: "completed", "MISS"),
+  "alarmRemaining": signal.getitimer(signal.ITIMER_REAL)[0]}))
 `], { encoding: 'utf8' }));
     expect(controlledClock).toEqual({
       atLimit: 5,
@@ -441,8 +484,12 @@ print(json.dumps({"atLimit": at_limit, "expired": expired,
       exitCode: 143,
       qualificationCode: 'JOB_C_QUALIFICATION_RUNTIME_BUDGET',
       solverStatus: 'NOT_STARTED',
+      unlimitedElapsed: 86400,
+      unlimitedOperation: 'completed',
+      alarmRemaining: 0,
     });
-    expect(worker).toContain('QUALIFICATION_BUDGET_SECONDS=600');
+    expect(worker).toContain('QUALIFICATION_BUDGET_SECONDS=None');
+    expect(worker).not.toContain('QUALIFICATION_BUDGET_SECONDS=600');
     expect(worker).toContain('NONLINEAR_SOLVER_BUDGET_SECONDS=720');
     expect(worker).toContain('"cacheStatus":"HIT_FULL_HASH_MATCH"');
     expect(worker).toContain('budget["started"]=time.monotonic()');
@@ -483,7 +530,12 @@ print(json.dumps({"atLimit": at_limit, "expired": expired,
     );
     expect(worker).toContain('"error":"JOB_C_INTERNAL_RUNTIME_BUDGET"');
     expect(worker).toContain('"classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED"');
-    expect(controller).toContain('const JOB_C_QUALIFICATION_BUDGET_MS = 600_000;');
+    expect(controller).not.toContain('JOB_C_QUALIFICATION_BUDGET_MS');
+    expect(controller).toContain("phase === 'boundary interface qualification'");
+    expect(controller).toContain("phase === 'nonlinear solver started'");
+    expect(controller).toContain('updateSolverWatchdog(progress.phase)');
+    expect(worker).toContain('progress("boundary interface qualification")');
+    expect(worker).toContain('progress("nonlinear solver started")');
     expect(controller).toContain('const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720_000;');
     expect(controller).toContain('JOB_C_QUALIFICATION_CACHE_DIR:');
   });

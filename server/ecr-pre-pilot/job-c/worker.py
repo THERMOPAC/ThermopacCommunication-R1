@@ -30,7 +30,7 @@ def require_runtime_budget(budget, now=None):
     """Raise at every expensive residual boundary once the budget is spent."""
     current=time.monotonic() if now is None else float(now)
     elapsed=current-budget["started"]
-    if elapsed>budget["maximumSeconds"]:
+    if budget["maximumSeconds"] is not None and elapsed>budget["maximumSeconds"]:
         raise TimeoutError("JOB_C_MONOLITHIC_INTERNAL_RUNTIME_BUDGET")
     return elapsed
 
@@ -42,7 +42,8 @@ job_b=importlib.util.module_from_spec(spec); spec.loader.exec_module(job_b)
 _profile_qualification_context=None
 _active_qualification_pool=None
 _active_runtime_budgets=None
-QUALIFICATION_BUDGET_SECONDS=600
+# Qualification has no wall-clock deadline; cancellation remains authoritative.
+QUALIFICATION_BUDGET_SECONDS=None
 NONLINEAR_SOLVER_BUDGET_SECONDS=720
 
 def terminate_descendants(signum, frame):
@@ -133,6 +134,8 @@ def qualification_budget_block(budget, cache_status):
 
 def run_with_qualification_budget(budget, operation, cache_status):
     """Interrupt a main-process qualifier at its independent deadline."""
+    if budget["maximumSeconds"] is None:
+        return operation()
     elapsed=require_runtime_budget(budget)
     remaining=budget["maximumSeconds"]-elapsed
     previous_handler=signal.getsignal(signal.SIGALRM)
@@ -427,6 +430,7 @@ def case(r, name, dc, dd, solvers):
     global _active_runtime_budgets
     _active_runtime_budgets={"caseStarted":case_started,
       "qualification":qualification_budget,"nonlinearSolver":budget}
+    progress("boundary interface qualification")
     accepted_by_height={}
     inlet_xc=np.asarray(feedc)/sum(feedc)
     inlet_xd=np.asarray(feedd)/sum(feedd)
@@ -525,6 +529,7 @@ def case(r, name, dc, dd, solvers):
       "cacheStatus":qualification_runtime["cacheStatus"],
       "cacheKeySha256":cache_key})
     budget["started"]=time.monotonic()
+    progress("nonlinear solver started")
     profile_flux=np.asarray(profile_flux,dtype=float)
     # At H=2 m, B is positive. Therefore existence/nonexistence of a positive
     # lambda interval has the same sign result at every positive height.

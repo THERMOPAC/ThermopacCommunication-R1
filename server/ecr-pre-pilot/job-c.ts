@@ -11,7 +11,6 @@ export const JOB_C_PRELIMINARY_SENSITIVITY_BASIS = Object.freeze({
   axialDispersionDispersedM2S: { nominal: 0.0010, minimum: 0.0003, maximum: 0.0030 },
   activeHeightSearchM: { minimum: 2, maximum: 20, use: 'NUMERICAL_SEARCH_ONLY' },
 });
-const JOB_C_QUALIFICATION_BUDGET_MS = 600_000;
 const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720_000;
 const JOB_C_TERMINATION_GRACE_MS = 30_000;
 
@@ -172,6 +171,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     const child = spawn(python, [worker],
       { cwd: process.cwd(), env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = ''; let stderr = ''; let progressBuffer = ''; let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (error?: Error, value?: Record<string, any>) => {
       if (settled) return; settled = true; clearTimeout(timer);
       options.signal?.removeEventListener('abort', abort);
@@ -184,14 +184,20 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     };
     const abort = () => { terminate(); finish(new JobCError('JOB_C_CANCELLED')); };
     options.signal?.addEventListener('abort', abort, { once: true });
-    const timer = setTimeout(() => {
-      terminate(); finish(new JobCError('JOB_C_TIMEOUT'));
-    }, Math.max(
-      options.timeoutMs ?? 0,
-      JOB_C_QUALIFICATION_BUDGET_MS
-        + JOB_C_NONLINEAR_SOLVER_BUDGET_MS
-        + JOB_C_TERMINATION_GRACE_MS,
-    ));
+    // No whole-job deadline: qualification may run until completion/cancellation.
+    // Arm the outer watchdog only when the separately bounded solver starts.
+    const updateSolverWatchdog = (phase: string) => {
+      if (phase === 'boundary interface qualification') {
+        clearTimeout(timer);
+        timer = undefined;
+      } else if (phase === 'nonlinear solver started') {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          terminate(); finish(new JobCError('JOB_C_TIMEOUT'));
+        }, Math.max(options.timeoutMs ?? 0,
+          JOB_C_NONLINEAR_SOLVER_BUDGET_MS + JOB_C_TERMINATION_GRACE_MS));
+      }
+    };
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', chunk => {
       const text = String(chunk);
@@ -204,6 +210,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         try {
           const progress = JSON.parse(line.slice('JOB_C_PROGRESS '.length));
           if (typeof progress.phase === 'string') {
+            updateSolverWatchdog(progress.phase);
             void Promise.resolve(
               options.onProgress?.(progress.phase, progress.completed, progress.total),
             ).catch(() => { /* lease heartbeat remains authoritative */ });
