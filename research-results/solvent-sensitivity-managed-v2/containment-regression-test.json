@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_MANAGED_V2_CONTAINMENT_TEST_V1",
+  "nativeCalculationRun": false,
+  "result": "PASS",
+  "regressionScenario": {
+    "runnerReceives": "SIGTERM",
+    "directScientificChild": "EXITS_ON_SIGTERM",
+    "grandchild": "SIGTERM_IMMUNE_WITH_STDIN_STDOUT_STDERR_CLOSED",
+    "grandchildProcessGroup": "SAME_DETACHED_SCIENTIFIC_GROUP"
+  },
+  "assertions": {
+    "directChildCloseTriggersUnconditionalGroupSigkill": "PASS",
+    "termImmuneGrandchildNotRunningAfterRunnerExit": "PASS",
+    "terminalStatus": "TERMINAL_EXTERNAL_STOP",
+    "containmentError": null,
+    "nonEsrchGroupSignalErrorsFailClosedAs": "FAILED_CONTAINMENT",
+    "fiveSecondEscalationRetained": true
+  },
+  "requestProtocolTestInheritedWithoutBehavioralChange": true
+}

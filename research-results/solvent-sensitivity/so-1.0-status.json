@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_STATUS_V1",
+  "id": "so-1.0",
+  "state": "RUNNING",
+  "runnerPid": 7446,
+  "childPid": 7468,
+  "startedAt": "2026-09-08T11:41:11.039Z",
+  "updatedAt": "2026-09-08T11:41:11.048Z",
+  "checkpointCount": 0,
+  "maximumScientificWallSeconds": 2400
+}

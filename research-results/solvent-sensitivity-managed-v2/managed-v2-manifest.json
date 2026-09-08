@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_MANAGED_LAUNCH_V2",
+  "classification": "RESEARCH_SENSITIVITY",
+  "runtimeRoot": "dist/predictive-nt-runtime-7c-1-5",
+  "worker": "dist/predictive-nt-runtime-7c-1-5/server/ecr-pre-pilot/predictive-nt-seven-component-v1-5/worker.py",
+  "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+  "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+  "deadlineSecondsPerCase": 2400,
+  "noResume": true,
+  "containmentRevision": "UNCONDITIONAL_RECORDED_PGID_SIGNAL_AND_CLOSE_TIME_SIGKILL",
+  "files": {
+    "run-case.mjs": {
+      "sha256": "592a51d364b3bc454369f3ec4a7005687c2e1d98b6165e5646cc22cbd36d57cd",
+      "bytes": 8712
+    },
+    "so-0.75-request.json": {
+      "sha256": "66c36eb0aec10e8389c0d70832c43f11769ffdbca87be3e49ebbb675e825d6be",
+      "bytes": 15782
+    },
+    "so-1.0-request.json": {
+      "sha256": "bcf6bf55e6475a01fbf6452d70cfcf4616f61755203ac815ddd381fb2aeef876",
+      "bytes": 15771
+    },
+    "so-0.75-input.json": {
+      "sha256": "aab47b3f5e65fa763f64807e51aa4c8946e7ae0d349821b975bc9841b383e619",
+      "bytes": 15640
+    },
+    "so-1.0-input.json": {
+      "sha256": "1cbba896bc179f618c5303f866339806b5833451a2c992ec23d2dc2155a18c21",
+      "bytes": 15629
+    },
+    "first-attempt-assessment.json": {
+      "sha256": "fdeb6771cef23d717e1dfc7c601fa7423f8a80ca552ee75d36d5e06ab3106757",
+      "bytes": 1023
+    },
+    "protocol-test-report.json": {
+      "sha256": "b578da8cbe968bd719e4548a74f373241a7fdf4f25771496b6a4a42528bfa62c",
+      "bytes": 598
+    },
+    "containment-regression-test.json": {
+      "sha256": "a6085e17134d269dd2dc7cfe9168fdc152385fd5dadb49b55a6a4f705a16173a",
+      "bytes": 779
+    }
+  },
+  "unchangedEvidence": {
+    "so075RequestMatchesOriginal": true,
+    "so100RequestMatchesOriginal": true,
+    "so075InputMatchesOriginal": true,
+    "so100InputMatchesOriginal": true
+  }
+}

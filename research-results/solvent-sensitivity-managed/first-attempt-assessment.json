@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_FIRST_ATTEMPT_ASSESSMENT_V1",
+  "classification": "EXTERNAL_PROCESS_LOSS_BEFORE_OUTPUT",
+  "modelRejection": false,
+  "scientificBudgetExhausted": false,
+  "oomEvidence": {
+    "oom": 0,
+    "oomKill": 0,
+    "max": 0,
+    "conclusion": "NO_CGROUP_OOM_EVENT"
+  },
+  "firstAttempt": {
+    "directory": "research-results/solvent-sensitivity",
+    "tasks": [
+      {
+        "label": "SS-SO075_NOT_A_SHELLEXEC_TASK_ID",
+        "runnerPid": 7445,
+        "childPid": 7473
+      },
+      {
+        "label": "SS-SO100_NOT_A_SHELLEXEC_TASK_ID",
+        "runnerPid": 7446,
+        "childPid": 7468
+      }
+    ],
+    "checkpointCount": 0,
+    "rawOutputBytes": [
+      0,
+      0
+    ],
+    "stderrBytes": [
+      0,
+      0
+    ],
+    "launcherLogBytes": [
+      0,
+      0
+    ],
+    "terminalStatusMissing": true
+  },
+  "conclusion": "Unmanaged background launcher lifecycle ended both process groups; exact cause external/unknown. No thermodynamic conclusion can be drawn."
+}

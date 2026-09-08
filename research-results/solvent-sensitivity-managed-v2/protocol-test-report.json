@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_MANAGED_PROTOCOL_TEST_V1",
+  "nativeCalculationRun": false,
+  "tests": {
+    "singleJsonLineRequest": "PASS",
+    "checkpointHashVerifiedAndFsyncedBeforeAck": "PASS",
+    "ackProtocol": "ACK_V3_ENGINE_CONTRACT_COMPATIBLE",
+    "strictTerminalOutputReport": "PASS",
+    "sigtermForwardedToDetachedScientificProcessGroup": "PASS",
+    "descendantTerminated": "PASS",
+    "boundedSigkillEscalationPresent": "PASS",
+    "noOverwriteOutputCreation": "PASS"
+  },
+  "completedCheckpointCount": 1,
+  "cancellationTerminalState": "TERMINAL_EXTERNAL_STOP"
+}

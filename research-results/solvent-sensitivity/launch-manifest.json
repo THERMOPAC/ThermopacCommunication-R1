@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_LAUNCH_MANIFEST_V1",
+  "taskIds": [
+    "SS-SO075",
+    "SS-SO100"
+  ],
+  "runnerPath": "research-results/solvent-sensitivity/run-case.mjs",
+  "runnerSha256": "3fea7ad26062572ad4e2b42da7ca962c85628dbb3dbabd4b32a35f7d99912039",
+  "preparePath": "research-results/solvent-sensitivity/prepare.mjs",
+  "prepareSha256": "166cc3c37221526b4f5bcf9e6444abe2ec7ca9aa504efb614ef082c2c9330759",
+  "manifestSha256": "c4b230708cd5a7c6e72ee177a4ac583c5c593d908d9adaaf55444ea459027c03",
+  "launchMode": "PARALLEL_INDEPENDENT_PROCESS_GROUPS",
+  "scientificDeadlineSecondsPerCase": 2400
+}

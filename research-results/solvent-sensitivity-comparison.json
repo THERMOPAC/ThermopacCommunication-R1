@@ -1,0 +1,204 @@
+{
+  "cases": [
+    {
+      "accepted": false,
+      "caseId": "archived-so-0.5",
+      "correctedProductChecks": {
+        "hydrocarbonRecoveryPct": {
+          "direction": "minimum",
+          "status": "PASS",
+          "target": 83.0,
+          "value": 88.70607405041984
+        },
+        "nmpWtPctFullWetRaffinateBasis": {
+          "direction": "maximum",
+          "status": "PASS",
+          "target": 7.0,
+          "value": 6.382533300289593
+        },
+        "polarAromaticsWtPctHydrocarbonBasis": {
+          "direction": "maximum",
+          "status": "PASS",
+          "target": 0.5,
+          "value": 0.15419138684575748
+        },
+        "saturatesWtPctHydrocarbonBasis": {
+          "direction": "minimum",
+          "status": "PASS",
+          "target": 90.0,
+          "value": 92.49637792254076
+        },
+        "totalAromaticsWtPctHydrocarbonBasis": {
+          "direction": "maximum",
+          "status": "FAIL",
+          "target": 5.0,
+          "value": 7.503622077459238
+        }
+      },
+      "metrics": {
+        "hydrocarbonRecoveryPct": 88.70607405041984,
+        "nmpWtPctFullWetRaffinateBasis": 6.382533300289593,
+        "polarAromaticsWtPctHydrocarbonBasis": 0.15419138684575748,
+        "saturatesWtPctHydrocarbonBasis": 92.49637792254076,
+        "totalAromaticsWtPctHydrocarbonBasis": 7.503622077459238,
+        "waterWtPctFullWetRaffinateBasis": 0.7240556715016749
+      },
+      "metricsAreDiagnostic": true,
+      "numericalPhaseQualification": "UNRESOLVED_IN_ARCHIVED_DB_RECORD",
+      "overallSulfurAcceptance": "UNRESOLVED_UNSPECIFIED_PRODUCT_MASS_BASIS",
+      "physicalDesignAcceptance": "UNRESOLVED_OUT_OF_SCOPE",
+      "recordClassification": "ARCHIVED_RECORDED_TRIAL",
+      "solventOilMassRatio": 0.5,
+      "sulfur": {
+        "feedBasisProxyPpmPerOriginalHydrocarbonFeedMass": 1163.2028153208428,
+        "fullWetRaffinateConditionalPpm": 1218.111368240146,
+        "hydrocarbonProductConditionalPpm": 1311.3000747386106,
+        "speciesResolvedSulfurQualification": false,
+        "status": "CONDITIONAL_GOVERNED_FAMILY_ALLOCATION_NOT_SPECIES_RESOLVED",
+        "targetDecision": "NOT_EVALUATED_BOTH_CONDITIONAL_BASES_REPORTED",
+        "targetPpm": 1000.0,
+        "targetProductMassBasis": "UNSPECIFIED"
+      },
+      "targetChecks": {
+        "hydrocarbonRecoveryPct": {
+          "direction": "minimum",
+          "status": "PASS",
+          "target": 83.0,
+          "value": 88.70607405041984
+        },
+        "nmpWtPctFullWetRaffinateBasis": {
+          "direction": "maximum",
+          "status": "PASS",
+          "target": 7.0,
+          "value": 6.382533300289593
+        },
+        "polarAromaticsWtPctHydrocarbonBasis": {
+          "direction": "maximum",
+          "status": "PASS",
+          "target": 0.5,
+          "value": 0.15419138684575748
+        },
+        "saturatesWtPctHydrocarbonBasis": {
+          "direction": "minimum",
+          "status": "PASS",
+          "target": 90.0,
+          "value": 92.49637792254076
+        },
+        "totalAromaticsWtPctHydrocarbonBasis": {
+          "direction": "maximum",
+          "status": "FAIL",
+          "target": 5.0,
+          "value": 7.503622077459238
+        }
+      },
+      "thermalGates": {
+        "branchReproduction": true,
+        "frozenWorkerAcceptance": false,
+        "localCurvature": "NOT_PRESENT_IN_ARCHIVED_DB_RECORD",
+        "phaseClassification": "PHYSICAL_LLE",
+        "postSplitTpd": "NOT_PRESENT_IN_ARCHIVED_DB_RECORD",
+        "rawResidualClosure": "NOT_PRESENT_IN_ARCHIVED_DB_RECORD"
+      },
+      "warnings": [
+        "Archived total-aromatics field excluded PA; governing value is recomputed as MONO+DI+POLY+PA.",
+        "Archived trial was not accepted and lacks the complete independent thermal-gate record."
+      ]
+    },
+    {
+      "caseId": "so-0.75",
+      "executionDisposition": {
+        "reason": null,
+        "state": "RUNNING",
+        "verifiedTerminal": false
+      },
+      "solventOilMassRatio": 0.75,
+      "sourceHashes": {
+        "derivedStage1SnapshotHash": "00485370e935a64add355a49c457702b5003b78980e6865fe59663c1d85efedd",
+        "engineSha256": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+        "equilibriumDutyCsvWrapperSha256": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+        "frozenWorkerSourceSha256": "aff19f8c42e846245aefa3ab86ba931a09b7cdbdff76d729c9cd7a18447f5156",
+        "inputSha256": "aab47b3f5e65fa763f64807e51aa4c8946e7ae0d349821b975bc9841b383e619",
+        "managedManifestSha256": "10df39d1e4370e6e7d4b70a4b2d1d5b5149e0e7c3ac900a99b43e98317c1c0df",
+        "managedRunnerSha256": "592a51d364b3bc454369f3ec4a7005687c2e1d98b6165e5646cc22cbd36d57cd",
+        "modelSha256": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+        "parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
+        "parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+        "requestSha256": "66c36eb0aec10e8389c0d70832c43f11769ffdbca87be3e49ebbb675e825d6be"
+      },
+      "state": "PENDING"
+    },
+    {
+      "caseId": "so-1.0",
+      "executionDisposition": {
+        "reason": null,
+        "state": "RUNNING",
+        "verifiedTerminal": false
+      },
+      "solventOilMassRatio": 1.0,
+      "sourceHashes": {
+        "derivedStage1SnapshotHash": "cac68f09a6c121fc2a292f80a952474cdc7e88bd22b9d0694ebc051c9d534dcc",
+        "engineSha256": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+        "equilibriumDutyCsvWrapperSha256": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+        "frozenWorkerSourceSha256": "aff19f8c42e846245aefa3ab86ba931a09b7cdbdff76d729c9cd7a18447f5156",
+        "inputSha256": "1cbba896bc179f618c5303f866339806b5833451a2c992ec23d2dc2155a18c21",
+        "managedManifestSha256": "10df39d1e4370e6e7d4b70a4b2d1d5b5149e0e7c3ac900a99b43e98317c1c0df",
+        "managedRunnerSha256": "592a51d364b3bc454369f3ec4a7005687c2e1d98b6165e5646cc22cbd36d57cd",
+        "modelSha256": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+        "parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
+        "parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+        "requestSha256": "bcf6bf55e6475a01fbf6452d70cfcf4616f61755203ac815ddd381fb2aeef876"
+      },
+      "state": "PENDING"
+    }
+  ],
+  "classification": "RESEARCH_SENSITIVITY_NOT_DESIGN_OR_RELEASE",
+  "decisionBoundaries": {
+    "acceptedHeight": null,
+    "completedDoesNotMeanAccepted": true,
+    "finalDiameter": null,
+    "finalRpm": null,
+    "historical35And40RpmDiameterCandidates": "APPLY_ONLY_TO_ARCHIVED_SO_0P5_AND_ARE_NOT_CARRIED_TO_NEW_TESTS",
+    "overallEfficiency": null,
+    "overallValidatedDutyOrDesignClaim": false,
+    "physicalCompartmentCount": null,
+    "speciesResolvedSulfurPassAvailable": false,
+    "sulfurTargetProductMassBasisUnspecified": true
+  },
+  "fixedBasis": {
+    "configuredEquilibriumStages": 10,
+    "feedLph": 4000,
+    "freshFeedNmpWtPct": 0,
+    "freshFeedWaterWtPct": 0,
+    "ratioDefinition": "TOTAL_WET_SOLVENT_MASS_DIVIDED_BY_OIL_MASS",
+    "temperatureC": 25,
+    "wetSolventWaterWtPct": 1.5
+  },
+  "reportStatus": "PREPARED_PENDING_FROZEN_OUTPUTS",
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_COMPARISON_V1",
+  "sourceSha256": {
+    "prepilot-sizing-equilibrium-duty-db.json": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+    "so-0.75:derivedStage1SnapshotHash": "00485370e935a64add355a49c457702b5003b78980e6865fe59663c1d85efedd",
+    "so-0.75:engineSha256": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+    "so-0.75:equilibriumDutyCsvWrapperSha256": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+    "so-0.75:frozenWorkerSourceSha256": "aff19f8c42e846245aefa3ab86ba931a09b7cdbdff76d729c9cd7a18447f5156",
+    "so-0.75:inputSha256": "aab47b3f5e65fa763f64807e51aa4c8946e7ae0d349821b975bc9841b383e619",
+    "so-0.75:managedManifestSha256": "10df39d1e4370e6e7d4b70a4b2d1d5b5149e0e7c3ac900a99b43e98317c1c0df",
+    "so-0.75:managedRunnerSha256": "592a51d364b3bc454369f3ec4a7005687c2e1d98b6165e5646cc22cbd36d57cd",
+    "so-0.75:modelSha256": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+    "so-0.75:parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
+    "so-0.75:parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+    "so-0.75:requestSha256": "66c36eb0aec10e8389c0d70832c43f11769ffdbca87be3e49ebbb675e825d6be",
+    "so-1.0:derivedStage1SnapshotHash": "cac68f09a6c121fc2a292f80a952474cdc7e88bd22b9d0694ebc051c9d534dcc",
+    "so-1.0:engineSha256": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+    "so-1.0:equilibriumDutyCsvWrapperSha256": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
+    "so-1.0:frozenWorkerSourceSha256": "aff19f8c42e846245aefa3ab86ba931a09b7cdbdff76d729c9cd7a18447f5156",
+    "so-1.0:inputSha256": "1cbba896bc179f618c5303f866339806b5833451a2c992ec23d2dc2155a18c21",
+    "so-1.0:managedManifestSha256": "10df39d1e4370e6e7d4b70a4b2d1d5b5149e0e7c3ac900a99b43e98317c1c0df",
+    "so-1.0:managedRunnerSha256": "592a51d364b3bc454369f3ec4a7005687c2e1d98b6165e5646cc22cbd36d57cd",
+    "so-1.0:modelSha256": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+    "so-1.0:parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
+    "so-1.0:parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
+    "so-1.0:requestSha256": "bcf6bf55e6475a01fbf6452d70cfcf4616f61755203ac815ddd381fb2aeef876",
+    "solvent-sensitivity-parent-input-db.json": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25"
+  }
+}

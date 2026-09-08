@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_MANAGED_STATUS_V1",
+  "caseId": "so-0.75",
+  "state": "RUNNING",
+  "runnerPid": 7786,
+  "scientificChildPid": 7797,
+  "scientificProcessGroupId": 7797,
+  "startedAt": "2026-09-08T11:48:43.278Z",
+  "updatedAt": "2026-09-08T11:48:43.301Z",
+  "deadlineSeconds": 2400,
+  "checkpointCount": 0,
+  "terminationReason": null
+}
