@@ -2,6 +2,7 @@ import { pool } from "./db";
 import {
   canonicalizeStage1Input,
   makeStage1Snapshot,
+  stage1ScientificContentHash,
   validateStage1Snapshot,
   makeStage1HydrodynamicProcessBasis,
   type EcrPrePilotStage1Snapshot,
@@ -214,8 +215,8 @@ export async function saveEcrPrePilotStage1(
   designId: number,
   rawInput: unknown,
 ): Promise<EcrPrePilotStage1Snapshot> {
-  const design = await pool.query<{ project_number: number }>(
-    `SELECT project_number
+  const design = await pool.query<{ project_number: number; input_data: unknown }>(
+    `SELECT project_number, input_data
        FROM ecr_pre_pilot_designs
       WHERE id = $1 AND created_by = $2`,
     [designId, userId],
@@ -223,6 +224,14 @@ export async function saveEcrPrePilotStage1(
   if (!design.rows[0]) throw new Error("ECR_PRE_PILOT_DESIGN_NOT_FOUND");
   const stage1 = canonicalizeStage1Input(rawInput, Number(design.rows[0].project_number));
   const snapshot = makeStage1Snapshot(stage1);
+  try {
+    const existing = validateStage1Snapshot(design.rows[0].input_data);
+    if (stage1ScientificContentHash(existing) === stage1ScientificContentHash(snapshot)) {
+      return existing;
+    }
+  } catch {
+    // Unsaved or invalid prior input cannot establish scientific equivalence.
+  }
   const updated = await pool.query(
     `UPDATE ecr_pre_pilot_designs
         SET input_data = $3, updated_at = NOW()

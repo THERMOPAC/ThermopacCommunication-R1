@@ -120,3 +120,4 @@
 - [Job-C positive-branch qualification](ecr-job-c-positive-branch.md) — pseudo-arclength candidates need two-start dense fixed-λ confirmation; Picard epsilon is not the strict-positive domain.
 - [Offline scientific execution](offline-scientific-execution.md) — use managed background tasks; stale RUNNING files and vanished processes do not prove resource exhaustion or scientific failure.
 - [Predictive N_T progress](predictive-nt-progress-semantics.md) — coupled-solve activity, recorded stage audits, calculation completion, and scientific acceptance remain distinct.
+- [Stage 1 idempotent saves](ecr-prepilot-stage1-idempotent-save.md) — identical scientific inputs preserve audit identity so metadata-only re-saves cannot invalidate downstream lineage.

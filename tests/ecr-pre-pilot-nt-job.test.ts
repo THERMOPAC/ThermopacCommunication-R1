@@ -28,7 +28,12 @@ import {
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../server/ecr-pre-pilot-service';
 import { pool } from '../server/db';
-import { canonicalizeStage1Input, makeStage1Snapshot } from '../server/ecr-pre-pilot/stage1';
+import {
+  canonicalizeStage1Input,
+  makeStage1Snapshot,
+  stage1ScientificContentHash,
+  stage1SnapshotHash,
+} from '../server/ecr-pre-pilot/stage1';
 
 function validStage1(projectNumber: number) {
   return {
@@ -920,6 +925,40 @@ print(json.dumps(events))
     stage1.polarAromaticsWt = '6';
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
     expect(() => derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber)).not.toThrow();
+  });
+
+  it('keeps lineage stable when identical Stage 1 scientific inputs are saved again', async () => {
+    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
+    if (!user.rows[0]) throw new Error('No user available for Stage 1 idempotency test');
+    const userId = Number(user.rows[0].id);
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-idempotency-${Date.now()}`);
+    const raw = validStage1(design.projectNumber);
+
+    const first = await saveEcrPrePilotStage1(userId, design.id, raw);
+    const second = await saveEcrPrePilotStage1(userId, design.id, raw);
+
+    expect(second.immutableHash).toBe(first.immutableHash);
+    expect(second.savedAt).toBe(first.savedAt);
+
+    const metadataOnlyResave = {
+      ...first,
+      savedAt: '2099-01-01T00:00:00.000Z',
+    };
+    metadataOnlyResave.immutableHash = stage1SnapshotHash(metadataOnlyResave);
+    expect(metadataOnlyResave.immutableHash).not.toBe(first.immutableHash);
+    expect(stage1ScientificContentHash(metadataOnlyResave))
+      .toBe(stage1ScientificContentHash(first));
+
+    const changedScientificInput = {
+      ...first,
+      stage1: {
+        ...first.stage1,
+        designFeedRateLph: first.stage1.designFeedRateLph + 1,
+      },
+    };
+    changedScientificInput.immutableHash = stage1SnapshotHash(changedScientificInput);
+    expect(stage1ScientificContentHash(changedScientificInput))
+      .not.toBe(stage1ScientificContentHash(first));
   });
 
   it('fails closed for an unsupported saved phase configuration', async () => {

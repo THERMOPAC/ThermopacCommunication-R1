@@ -360,19 +360,29 @@ export function makeStage1Snapshot(stage1: EcrPrePilotStage1Input): EcrPrePilotS
   return { ...snapshot, immutableHash: stage1SnapshotHash(snapshot) };
 }
 
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 export function stage1SnapshotHash(snapshot: Omit<EcrPrePilotStage1Snapshot, 'immutableHash'> | EcrPrePilotStage1Snapshot): string {
   const { immutableHash: _ignored, ...immutableSnapshot } = snapshot as EcrPrePilotStage1Snapshot;
-  const canonicalJson = (value: unknown): string => {
-    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-    if (value && typeof value === 'object') {
-      return `{${Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
-        .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
-        .join(',')}}`;
-    }
-    return JSON.stringify(value);
-  };
   return createHash('sha256').update(canonicalJson(immutableSnapshot)).digest('hex');
+}
+
+export function stage1ScientificContentHash(snapshot: EcrPrePilotStage1Snapshot): string {
+  const {
+    immutableHash: _immutableAuditIdentity,
+    savedAt: _savedAtAuditMetadata,
+    ...scientificSnapshot
+  } = snapshot;
+  return createHash('sha256').update(canonicalJson(scientificSnapshot)).digest('hex');
 }
 
 export function validateStage1Snapshot(rawSnapshot: unknown): EcrPrePilotStage1Snapshot {

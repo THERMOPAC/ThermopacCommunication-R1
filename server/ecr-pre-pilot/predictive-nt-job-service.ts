@@ -2877,7 +2877,6 @@ export async function enqueuePredictiveNtRuntimeTestJob(
 export async function enqueuePredictiveNtJobFromSavedStage1(
   userId: number,
   designId: number,
-  options?: { startWorker?: boolean },
 ) {
   const jobId = randomUUID();
   const client = await pool.connect();
@@ -2945,7 +2944,7 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
   } finally {
     client.release();
   }
-  if (options?.startWorker !== false) startPredictiveNtWorker();
+  startPredictiveNtWorker();
   return {
     jobId: job.id,
     status: job.status,
