@@ -115,6 +115,6 @@
 - [ECR mass-transfer admission](ecr-mass-transfer-admission.md) — use valid Stage-2 N_T else 7; extrapolation still calculates; Stage 3 owns operating holdup; final design is deterministic.
 - [ECR Job-A predictive closure](ecr-job-a-predictive-closure.md) — Laitinen K&H base route plus exact-identity Joback volumes closes 7C diffusivity/film inputs without inventing Kühni C2.
 - [Stage-2 local adapter authority](ecr-stage2-local-adapter-authority.md) — reuse the frozen 7C engine in a separate artifact; calculated duty is admitted only from a validated owned DB job.
-- [Job-B state ownership](ecr-job-b-local-flux-boundary.md) — separate Stage-2 bulk boundaries drive simultaneous interface solve; Stage-3 holdup is never thermodynamic composition.
+- [Job-B state and film boundaries](ecr-job-b-local-flux-boundary.md) — Stage-2 owns bulk states; zero-sum interface flux does not establish a nonnegative finite-film profile.
 - [Job-C qualification boundary](ecr-job-c-qualification-boundary.md) — Stage-2 feed-end bins reverse into FV worker cells; ten-to-seven mapping is exactly [9,10]…[1].
 - [Job-C positive-branch qualification](ecr-job-c-positive-branch.md) — pseudo-arclength candidates need two-start dense fixed-λ confirmation; Picard epsilon is not the strict-positive domain.
