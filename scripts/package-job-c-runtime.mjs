@@ -31,7 +31,7 @@ const manifest = {
     sha256: sha256(candidateBytes),
   },
   boundaryInterfaceQualifier: {
-    version: 'ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V1',
+    version: 'ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V2',
     path: qualifierRelative,
     bytes: qualifierBytes.length,
     sha256: sha256(qualifierBytes),

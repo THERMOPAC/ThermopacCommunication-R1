@@ -121,3 +121,4 @@
 - [Offline scientific execution](offline-scientific-execution.md) — use managed background tasks; stale RUNNING files and vanished processes do not prove resource exhaustion or scientific failure.
 - [Predictive N_T progress](predictive-nt-progress-semantics.md) — coupled-solve activity, recorded stage audits, calculation completion, and scientific acceptance remain distinct.
 - [Stage 1 idempotent saves](ecr-prepilot-stage1-idempotent-save.md) — identical scientific inputs preserve audit identity so metadata-only re-saves cannot invalidate downstream lineage.
+- [Job C boundary qualification](job-c-boundary-qualification.md) — reproduction needs directly agreeing, seed-independent endpoints; local stability cross-checks projected and scalar Hessians.

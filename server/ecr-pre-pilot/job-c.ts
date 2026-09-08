@@ -141,7 +141,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         || manifest.candidateInterface?.bytes !== candidateBytes.length
         || manifest.candidateInterface?.sha256
           !== createHash('sha256').update(candidateBytes).digest('hex')
-        || manifest.boundaryInterfaceQualifier?.version !== 'ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V1'
+        || manifest.boundaryInterfaceQualifier?.version !== 'ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V2'
         || manifest.boundaryInterfaceQualifier?.bytes !== qualifierBytes.length
         || manifest.boundaryInterfaceQualifier?.sha256
           !== createHash('sha256').update(qualifierBytes).digest('hex')

@@ -275,9 +275,49 @@ print(json.dumps({
     );
     expect(qualifier).toContain('found=root_class; break');
     expect(qualifier).toContain('found["_members"].append(candidate)');
-    expect(qualifier).toContain('"independentlyReproduced":len(members)>=2');
-    expect(qualifier).toContain('if len(members)>=2:');
+    expect(qualifier).toContain('"independentlyReproduced":len(independent_pairs)>0');
+    expect(qualifier).toContain('if independent_pairs:');
+    expect(qualifier).toContain('INDEPENDENT_START_MINIMUM_SCALED_SEPARATION = 2e-3');
+    expect(qualifier).toContain('"startStateSha256":digest(initial.tolist())');
+    expect(qualifier).toContain('"INDEPENDENT_HYBRID_FLUX_PLUS",oriented[0],xb_d');
+    expect(qualifier).toContain('.01*bound,"INPUT_DERIVED_HYBRID_NONZERO_FLUX_V1"');
+    expect(qualifier).toContain('if second is representative: continue');
+    expect(qualifier).toContain('state_of(representative),state_of(second)');
+    expect(qualifier).toContain('endpoint_difference>endpoint_tolerance');
+    expect(qualifier).toContain('initial_separation<INDEPENDENT_START_MINIMUM_SCALED_SEPARATION');
+    expect(qualifier).toContain('ECR_JOB_C_CROSS_QUALIFIED_LOG_RATIO_HESSIAN_V1');
+    expect(qualifier).toContain('"stepSizeConverged":bool(scalar_converged and projected_converged');
+    expect(qualifier).toContain('"crossReconstructionAgreement":{');
+    expect(qualifier).toContain('"symmetryAccepted":symmetry_converged');
     expect(qualifier).toContain('selected=min(selectable');
+  });
+
+  it('requires direct endpoint agreement and genuinely separated starts', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import importlib.util, json
+spec=importlib.util.spec_from_file_location(
+  "qualifier","server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py")
+module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+def check(endpoint,seed,primary_hash="a",witness_hash="b",
+          primary_lineage="primary",witness_lineage="witness"):
+  return module.independent_pair_evidence(
+    [0.0],[endpoint],[0.0],[seed],primary_hash,witness_hash,
+    primary_lineage,witness_lineage,1e-3) is not None
+print(json.dumps({
+  "accepted":check(9e-4,1e-2),
+  "endpointRejected":check(1.8e-3,1e-2),
+  "seedRejected":check(9e-4,1e-3),
+  "hashRejected":check(9e-4,1e-2,witness_hash="a"),
+  "lineageRejected":check(9e-4,1e-2,witness_lineage="primary"),
+}))
+`], { encoding: 'utf8' }));
+    expect(observed).toEqual({
+      accepted: true,
+      endpointRejected: false,
+      seedRejected: false,
+      hashRejected: false,
+      lineageRejected: false,
+    });
   });
 
   it('solves and qualifies the exact height reported after bisection', () => {
@@ -495,7 +535,7 @@ namespace = {
   "hashlib": __import__("hashlib"), "json": json, "math": __import__("math"),
   "os": os, "tempfile": tempfile, "Path": Path,
   "root": Path("dist/job-b-interface-runtime").resolve(),
-  "QUALIFIER_VERSION": "ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V1",
+  "QUALIFIER_VERSION": "ECR_JOB_C_BOUNDARY_INTERFACE_QUALIFIER_V2",
   "__file__": str(Path("server/ecr-pre-pilot/job-c/worker.py").resolve()),
 }
 exec(compile(ast.Module(body=nodes, type_ignores=[]), "cache-test", "exec"), namespace)
