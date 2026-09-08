@@ -11,8 +11,8 @@ export const JOB_C_PRELIMINARY_SENSITIVITY_BASIS = Object.freeze({
   axialDispersionDispersedM2S: { nominal: 0.0010, minimum: 0.0003, maximum: 0.0030 },
   activeHeightSearchM: { minimum: 2, maximum: 20, use: 'NUMERICAL_SEARCH_ONLY' },
 });
-const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720_000;
-const JOB_C_TERMINATION_GRACE_MS = 30_000;
+// This is a cancellation grace period, not a calculation runtime limit.
+const JOB_C_CANCELLATION_GRACE_MS = 30_000;
 
 const canonical = (value: unknown): string => Array.isArray(value)
   ? `[${value.map(canonical).join(',')}]`
@@ -59,6 +59,17 @@ export class JobCError extends Error {
   }
 }
 
+export interface JobCProgress {
+  phase: string;
+  completed?: number;
+  total?: number | null;
+  iteration?: number | null;
+  residual?: number | null;
+  residualKind?: string | null;
+  elapsedSeconds?: number;
+  heightCandidateM?: number | null;
+}
+
 export interface JobCWorkerRequest extends Record<string, unknown> {
   componentOrder: string[]; temperatureK: number;
   continuousFeedMolS: number[]; dispersedFeedMolS: number[];
@@ -91,8 +102,14 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
 }
 
 export async function runJobCWorker(request: JobCWorkerRequest, options: {
-  timeoutMs?: number; signal?: AbortSignal;
-  onProgress?: (phase: string, completed?: number, total?: number) => void | Promise<void>;
+  signal?: AbortSignal;
+  onProgress?: (
+    phase: string,
+    completed?: number,
+    total?: number | null,
+    diagnostics?: JobCProgress,
+  ) => void | Promise<void>;
+  onCheckpoint?: (checkpoint: Record<string, any>) => void | Promise<void>;
   /** Research capture only; never bypasses the response integrity check. */
   onRawResponse?: (raw: string) => void;
 } = {}) {
@@ -171,49 +188,51 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     const child = spawn(python, [worker],
       { cwd: process.cwd(), env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = ''; let stderr = ''; let progressBuffer = ''; let settled = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let cancellationRequested = false;
+    let cancellationTimer: ReturnType<typeof setTimeout> | undefined;
+    let callbackChain = Promise.resolve();
+    let checkpointCallbackError: Error | undefined;
     const finish = (error?: Error, value?: Record<string, any>) => {
-      if (settled) return; settled = true; clearTimeout(timer);
+      if (settled) return; settled = true; clearTimeout(cancellationTimer);
       options.signal?.removeEventListener('abort', abort);
       error ? reject(error) : resolve(value!);
     };
-    const terminate = () => {
+    const terminateForCancellation = () => {
+      if (cancellationRequested) return;
+      cancellationRequested = true;
       child.kill('SIGTERM');
-      const killTimer = setTimeout(() => child.kill('SIGKILL'), 5_000);
-      killTimer.unref();
+      cancellationTimer = setTimeout(() => child.kill('SIGKILL'), JOB_C_CANCELLATION_GRACE_MS);
+      cancellationTimer.unref();
     };
-    const abort = () => { terminate(); finish(new JobCError('JOB_C_CANCELLED')); };
+    const abort = () => { terminateForCancellation(); };
     options.signal?.addEventListener('abort', abort, { once: true });
-    // No whole-job deadline: qualification may run until completion/cancellation.
-    // Arm the outer watchdog only when the separately bounded solver starts.
-    const updateSolverWatchdog = (phase: string) => {
-      if (phase === 'boundary interface qualification') {
-        clearTimeout(timer);
-        timer = undefined;
-      } else if (phase === 'nonlinear solver started') {
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          terminate(); finish(new JobCError('JOB_C_TIMEOUT'));
-        }, Math.max(options.timeoutMs ?? 0,
-          JOB_C_NONLINEAR_SOLVER_BUDGET_MS + JOB_C_TERMINATION_GRACE_MS));
-      }
-    };
+    if (options.signal?.aborted) terminateForCancellation();
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', chunk => {
       const text = String(chunk);
-      stdout += text;
       progressBuffer += text;
       const lines = progressBuffer.split(/\r?\n/);
       progressBuffer = lines.pop() ?? '';
       for (const line of lines) {
-        if (!line.startsWith('JOB_C_PROGRESS ')) continue;
         try {
-          const progress = JSON.parse(line.slice('JOB_C_PROGRESS '.length));
-          if (typeof progress.phase === 'string') {
-            updateSolverWatchdog(progress.phase);
-            void Promise.resolve(
-              options.onProgress?.(progress.phase, progress.completed, progress.total),
-            ).catch(() => { /* lease heartbeat remains authoritative */ });
+          if (line.startsWith('JOB_C_PROGRESS ')) {
+            const progress = JSON.parse(line.slice('JOB_C_PROGRESS '.length)) as JobCProgress;
+            if (typeof progress.phase === 'string') {
+              callbackChain = callbackChain.then(() => options.onProgress?.(
+                progress.phase, progress.completed, progress.total, progress,
+              )).catch(() => { /* lease heartbeat remains authoritative */ });
+            }
+          } else if (line.startsWith('JOB_C_CHECKPOINT ')) {
+            const checkpoint = JSON.parse(line.slice('JOB_C_CHECKPOINT '.length));
+            if (checkpoint && typeof checkpoint === 'object') {
+              callbackChain = callbackChain.then(() => options.onCheckpoint?.(checkpoint))
+                .catch(error => {
+                  checkpointCallbackError = error instanceof Error
+                    ? error : new JobCError('JOB_C_CHECKPOINT_PERSISTENCE_FAILED');
+                });
+            }
+          } else {
+            stdout += `${line}\n`;
           }
         } catch { /* malformed progress never changes final scientific JSON */ }
       }
@@ -223,14 +242,22 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
       if (stderr.length < 4096) stderr += String(chunk).slice(0, 4096 - stderr.length);
     });
     child.on('error', () => finish(new JobCError('JOB_C_WORKER_START_FAILED')));
-    child.on('close', code => {
-      if (code !== 0) return finish(new JobCError('JOB_C_WORKER_FAILED', {
-        exitCode: code,
-        diagnostic: stderr.replaceAll(process.cwd(), '<workspace>').trim().slice(-2000),
-      }));
+    child.on('close', async code => {
+      clearTimeout(cancellationTimer);
+      await callbackChain;
+      if (checkpointCallbackError) return finish(checkpointCallbackError);
+      if (code !== 0) return finish(new JobCError(
+        cancellationRequested ? 'JOB_C_CANCELLED' : 'JOB_C_WORKER_FAILED',
+        {
+          exitCode: code,
+          diagnostic: stderr.replaceAll(process.cwd(), '<workspace>').trim().slice(-2000),
+        },
+      ));
       try {
+        if (progressBuffer) stdout += progressBuffer;
         const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
-        const finalLines = lines.filter(line => !line.startsWith('JOB_C_PROGRESS '));
+        const finalLines = lines.filter(line =>
+          !line.startsWith('JOB_C_PROGRESS ') && !line.startsWith('JOB_C_CHECKPOINT '));
         options.onRawResponse?.(finalLines.join('\n'));
         if (finalLines.length !== 1) throw new Error();
         const response = JSON.parse(finalLines[0]);
@@ -238,7 +265,11 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
           || JSON.stringify(response.componentOrder ?? JOB_C_COMPONENT_ORDER)
             !== JSON.stringify(JOB_C_COMPONENT_ORDER)
           || response.resultSha256 !== jobCResultHash(response)) throw new Error();
-        finish(undefined, response);
+        if (cancellationRequested || response.status === 'INTERRUPTED_PRELIMINARY_JOB_C') {
+          finish(new JobCError('JOB_C_CANCELLED', { workerResult: response }));
+        } else {
+          finish(undefined, response);
+        }
       } catch {
         finish(new JobCError('JOB_C_WORKER_RESPONSE_INTEGRITY_INVALID'));
       }

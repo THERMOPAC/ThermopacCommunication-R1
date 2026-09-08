@@ -25,7 +25,7 @@ describe('Job-C axial profile authority', () => {
     process.env.JOB_C_RUNTIME_ROOT = path.resolve('dist/job-c-runtime');
     process.env.JOB_B_INTERFACE_RUNTIME_ROOT = path.resolve('dist/job-b-interface-runtime');
 
-    const result = await runJobCWorker(fixture, { timeoutMs: 30_000 });
+    const result = await runJobCWorker(fixture);
 
     expect(result.status).toBe('FAILURE_INVALID_REQUEST');
     expect(result.error).toBe('JOB_C_AXIAL_LOCAL_CONTACT_PROFILE_AUTHORITY_INVALID');

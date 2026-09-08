@@ -11,8 +11,11 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_job_c_jobs (
   progress_phase varchar(80) NOT NULL DEFAULT 'queued',
   progress_completed integer NOT NULL DEFAULT 0,
   progress_total integer,
+  progress_snapshot jsonb,
   result_snapshot jsonb,
   result_hash varchar(64),
+  partial_result_snapshot jsonb,
+  partial_result_hash varchar(64),
   error text,
   worker_owner varchar(160),
   claim_token uuid,
@@ -44,11 +47,14 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_job_c_job_history (
   progress_phase varchar(80) NOT NULL,
   progress_completed integer NOT NULL,
   progress_total integer,
+  progress_snapshot jsonb,
   worker_owner varchar(160),
   claim_token uuid,
   attempt_count integer NOT NULL,
   result_snapshot jsonb,
   result_hash varchar(64),
+  partial_result_snapshot jsonb,
+  partial_result_hash varchar(64),
   error text,
   details jsonb NOT NULL DEFAULT '{}'::jsonb,
   recorded_at timestamp NOT NULL DEFAULT now(),
@@ -57,6 +63,18 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_job_c_job_history (
 );
 CREATE INDEX IF NOT EXISTS ecr_pre_pilot_job_c_history_job_idx
   ON ecr_pre_pilot_job_c_job_history(job_id, recorded_at);
+
+-- The queue predates resumable worker checkpoints.  Keep these ALTERs
+-- additive so installations which already created the tables retain the
+-- captured evidence rather than requiring a destructive migration.
+ALTER TABLE ecr_pre_pilot_job_c_jobs
+  ADD COLUMN IF NOT EXISTS progress_snapshot jsonb,
+  ADD COLUMN IF NOT EXISTS partial_result_snapshot jsonb,
+  ADD COLUMN IF NOT EXISTS partial_result_hash varchar(64);
+ALTER TABLE ecr_pre_pilot_job_c_job_history
+  ADD COLUMN IF NOT EXISTS progress_snapshot jsonb,
+  ADD COLUMN IF NOT EXISTS partial_result_snapshot jsonb,
+  ADD COLUMN IF NOT EXISTS partial_result_hash varchar(64);
 
 CREATE OR REPLACE FUNCTION protect_ecr_pre_pilot_job_c_evidence()
 RETURNS trigger LANGUAGE plpgsql AS $$

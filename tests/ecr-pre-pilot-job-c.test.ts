@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import {
   mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
@@ -13,71 +13,59 @@ import {
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
-  it('allows unlimited qualification but arms and resets the solver-only watchdog', () => {
-    const source = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
-    const watchdog = source.match(/const updateSolverWatchdog = \(phase: string\) => \{[\s\S]*?\n    \};/)?.[0];
-    expect(watchdog).toBeDefined();
-    vi.useFakeTimers();
-    try {
-      const terminate = vi.fn();
-      const finish = vi.fn();
-      const update = new Function('setTimeout', 'clearTimeout', 'terminate', 'finish', `
-        let timer;
-        const options = {};
-        const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720000;
-        const JOB_C_TERMINATION_GRACE_MS = 30000;
-        const JobCError = Error;
-        ${watchdog!.replace('phase: string', 'phase')}
-        return updateSolverWatchdog;
-      `)(setTimeout, clearTimeout, terminate, finish);
-      vi.advanceTimersByTime(86400000);
-      expect(terminate).not.toHaveBeenCalled();
-      update('boundary interface qualification');
-      vi.advanceTimersByTime(86400000);
-      expect(terminate).not.toHaveBeenCalled();
-      update('nonlinear solver started');
-      vi.advanceTimersByTime(749999);
-      expect(terminate).not.toHaveBeenCalled();
-      update('boundary interface qualification');
-      vi.advanceTimersByTime(86400000);
-      expect(terminate).not.toHaveBeenCalled();
-      update('nonlinear solver started');
-      vi.advanceTimersByTime(750000);
-      expect(terminate).toHaveBeenCalledOnce();
-      expect(finish).toHaveBeenCalledWith(expect.objectContaining({ message: 'JOB_C_TIMEOUT' }));
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('fault-injects every optimizer timeout into a hashed, phase-classified block without a solve', () => {
-    const rows = JSON.parse(execFileSync('python3',
-      ['tests/job-c-timeout-injection.py'], { encoding: 'utf8', timeout: 10_000 }));
-    expect(rows).toHaveLength(20);
-    const phases: Record<string, string> = {
-      fit: 'BOUNDED_FROZEN',
-      coupled_fit: 'COUPLED',
-      unconstrained_fit: 'UNBOUNDED_DIAGNOSTIC',
-      polish_fit: 'LAMBDA_ONE_POLISH',
+  it('waits for graceful cancellation, forwards the last checkpoint, and never completes it', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'job-c-cancel-'));
+    const workerDir = join(root, 'server/ecr-pre-pilot/job-c');
+    mkdirSync(workerDir, { recursive: true });
+    const interrupted = {
+      protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+      status: 'INTERRUPTED_PRELIMINARY_JOB_C',
+      interrupted: true,
+      complete: false,
     };
-    for (const { route, response, counts } of rows) {
-      expect(response).toMatchObject({
-        protocol: 'ECR_PRE_PILOT_JOB_C_V1',
-        status: 'BLOCKED_PRELIMINARY_JOB_C',
-        error: 'JOB_C_INTERNAL_RUNTIME_BUDGET',
-        diagnostics: {
-          classification: 'NUMERICAL_RUNTIME_BUDGET_EXHAUSTED',
-          phase: phases[route],
-          physicalInfeasibilityClaimed: false,
-          claimsEmitted: {
-            height: false, efficiency: false, finalRpm: false,
-            jobD: false, release: false,
-          },
+    const response = { ...interrupted, resultSha256: jobCResultHash(interrupted) };
+    writeFileSync(join(workerDir, 'worker.py'), `
+import json, signal, sys, time
+sys.stdin.readline()
+def stop(signum, frame):
+    print("JOB_C_CHECKPOINT "+json.dumps({"schemaVersion":"ECR_JOB_C_PARTIAL_V1","complete":False,"completedResults":[{"id":"contact-1","kind":"QUALIFIED_CONTACT"}]}), flush=True)
+    print(${JSON.stringify(JSON.stringify(response))}, flush=True)
+    sys.exit(0)
+signal.signal(signal.SIGTERM, stop)
+print("JOB_C_PROGRESS "+json.dumps({"phase":"nonlinear solve","completed":1,"total":7,"iteration":4,"residual":1e-5,"residualKind":"scaled","elapsedSeconds":12.5,"heightCandidateM":2.0}), flush=True)
+while True: time.sleep(0.05)
+`);
+    const previousRoot = process.env.JOB_C_RUNTIME_ROOT;
+    const previousPython = process.env.JOB_C_PYTHON;
+    process.env.JOB_C_RUNTIME_ROOT = root;
+    process.env.JOB_C_PYTHON = 'python3';
+    const controller = new AbortController();
+    let checkpoint: Record<string, any> | undefined;
+    try {
+      await expect(runJobCWorker({} as any, {
+        signal: controller.signal,
+        onProgress: (_phase, _completed, _total, diagnostics) => {
+          expect(diagnostics).toMatchObject({
+            iteration: 4, residual: 1e-5, elapsedSeconds: 12.5, heightCandidateM: 2,
+          });
+          controller.abort();
         },
+        onCheckpoint: value => { checkpoint = value; },
+      })).rejects.toMatchObject({
+        message: 'JOB_C_CANCELLED',
+        details: { workerResult: expect.objectContaining({ complete: false }) },
       });
-      expect(response.resultSha256).toBe(jobCResultHash(response));
-      expect(counts.after).toBe(0);
-      expect(response.sensitivityCases).toBeUndefined();
+      expect(checkpoint).toMatchObject({
+        schemaVersion: 'ECR_JOB_C_PARTIAL_V1',
+        complete: false,
+        completedResults: [{ id: 'contact-1', kind: 'QUALIFIED_CONTACT' }],
+      });
+    } finally {
+      if (previousRoot === undefined) delete process.env.JOB_C_RUNTIME_ROOT;
+      else process.env.JOB_C_RUNTIME_ROOT = previousRoot;
+      if (previousPython === undefined) delete process.env.JOB_C_PYTHON;
+      else process.env.JOB_C_PYTHON = previousPython;
+      rmSync(root, { recursive: true, force: true });
     }
   });
 
@@ -422,54 +410,26 @@ print(json.dumps({
     expect(nonzero.scaled).toBeCloseTo(0.075, 14);
   });
 
-  it('turns solver budget expiry and unavailable refresh evidence into governed diagnostics', () => {
+  it('has no qualification, nonlinear-solver, or outer wall-clock deadline', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     const controller = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
     const controlledClock = JSON.parse(execFileSync('python3', ['-c', `
 import ast, json, signal, time
 source = open("server/ecr-pre-pilot/job-c/worker.py").read()
 tree = ast.parse(source)
-selected = []
-for node in tree.body:
-    if isinstance(node, ast.ClassDef) and node.name == "JobCBlocked":
-        selected.append(node)
-    if isinstance(node, ast.FunctionDef) and node.name in (
-        "require_runtime_budget", "terminate_descendants",
-        "qualification_budget_block", "run_with_qualification_budget"):
-        selected.append(node)
-namespace = {"_active_qualification_pool": None, "time": time, "signal": signal,
-  "NONLINEAR_SOLVER_BUDGET_SECONDS": 720}
+selected = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+            and node.name in ("require_runtime_budget", "run_with_qualification_budget")]
+namespace = {"time": time, "signal": signal}
 exec(compile(ast.Module(body=selected, type_ignores=[]),
              "runtime-budget-test", "exec"), namespace)
-budget = {"started": 10.0, "maximumSeconds": 5.0}
-at_limit = namespace["require_runtime_budget"](budget, 15.0)
-expired = False
-try:
-    namespace["require_runtime_budget"](budget, 15.000001)
-except TimeoutError:
-    expired = True
-actions = []
-class Pool:
-    def terminate(self): actions.append("terminate")
-    def join(self): actions.append("join")
-namespace["_active_qualification_pool"] = Pool()
-exit_code = None
-try:
-    namespace["terminate_descendants"](15, None)
-except SystemExit as error:
-    exit_code = error.code
-qualification_code = None
-solver_status = None
-qualification_budget = {"started": time.monotonic(), "maximumSeconds": 0.02}
-try:
-    namespace["run_with_qualification_budget"](
-      qualification_budget, lambda: time.sleep(0.1), "NOT_CHECKED")
-except namespace["JobCBlocked"] as error:
-    qualification_code = error.code
-    solver_status = error.diagnostics["runtimeBudgets"]["nonlinearSolver"]["status"]
-print(json.dumps({"atLimit": at_limit, "expired": expired,
-  "cancelActions": actions, "exitCode": exit_code,
-  "qualificationCode": qualification_code, "solverStatus": solver_status,
+limits = {}
+for node in tree.body:
+    if isinstance(node, ast.Assign):
+        for target in node.targets:
+            if isinstance(target, ast.Name) and target.id in (
+              "QUALIFICATION_BUDGET_SECONDS", "NONLINEAR_SOLVER_BUDGET_SECONDS"):
+                limits[target.id] = ast.literal_eval(node.value)
+print(json.dumps({"limits": limits,
   "unlimitedElapsed": namespace["require_runtime_budget"](
     {"started": 0.0, "maximumSeconds": None}, 86400.0),
   "unlimitedOperation": namespace["run_with_qualification_budget"](
@@ -478,65 +438,45 @@ print(json.dumps({"atLimit": at_limit, "expired": expired,
   "alarmRemaining": signal.getitimer(signal.ITIMER_REAL)[0]}))
 `], { encoding: 'utf8' }));
     expect(controlledClock).toEqual({
-      atLimit: 5,
-      expired: true,
-      cancelActions: ['terminate', 'join'],
-      exitCode: 143,
-      qualificationCode: 'JOB_C_QUALIFICATION_RUNTIME_BUDGET',
-      solverStatus: 'NOT_STARTED',
+      limits: {
+        QUALIFICATION_BUDGET_SECONDS: null,
+        NONLINEAR_SOLVER_BUDGET_SECONDS: null,
+      },
       unlimitedElapsed: 86400,
       unlimitedOperation: 'completed',
       alarmRemaining: 0,
     });
     expect(worker).toContain('QUALIFICATION_BUDGET_SECONDS=None');
     expect(worker).not.toContain('QUALIFICATION_BUDGET_SECONDS=600');
-    expect(worker).toContain('NONLINEAR_SOLVER_BUDGET_SECONDS=720');
+    expect(worker).toContain('NONLINEAR_SOLVER_BUDGET_SECONDS=None');
+    expect(worker).not.toContain('NONLINEAR_SOLVER_BUDGET_SECONDS=720');
     expect(worker).toContain('"cacheStatus":"HIT_FULL_HASH_MATCH"');
     expect(worker).toContain('budget["started"]=time.monotonic()');
     expect(worker).toContain('run_with_qualification_budget(qualification_budget,');
-    expect(worker).toContain('signal.setitimer(signal.ITIMER_REAL,max(remaining,1e-6))');
     expect(worker).toContain('"jobBManifestSha256":file_sha256(job_b_manifest_path)');
     expect(worker).toContain('"thermodynamicInputSha256":digest(thermodynamic_input)');
     expect(worker).toContain('"qualificationRequestsSha256":digest(qualification_requests)');
     expect(worker).toContain('"branchCtC":branch["CtC"],"branchCtD":branch["CtD"]');
     expect(worker).toContain('"profileSha256":r["axialLocalContactProfileSha256"]');
     expect(worker).toContain('"sha256":file_sha256(qualifier_path)');
-    expect(worker).toContain('"error":"JOB_C_INTERNAL_RUNTIME_BUDGET"');
-    const coupledStart = worker.indexOf(
-      'coupled_starts=[("LAST_ACCEPTED_COUPLED_STATE",accepted_x)]',
-    );
-    const coupledEnd = worker.indexOf(
-      'unconstrained=None',
-      coupledStart,
-    );
-    const coupled = worker.slice(coupledStart, coupledEnd);
-    expect(coupled).toContain('except TimeoutError:');
-    expect(coupled).toContain('"terminatedBy":"INTERNAL_RUNTIME_BUDGET"');
-    expect(coupled).toContain('coupled_budget_exhausted=True');
-    expect(worker).toContain('"qualification":"NOT_RUN_INTERNAL_RUNTIME_BUDGET"');
     expect(worker).toContain(
       '"status":"NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE"',
     );
-    expect(worker).toContain('def frozen_scaled(flow_vector):\n'
-      + '                    require_runtime_budget(budget)');
     expect(worker).toContain('"phase":"BOUNDED_FROZEN_FV_SOLVE"');
     expect(worker).toContain('"phase":"UNBOUNDED_TERMINAL_DIAGNOSTIC"');
-    expect(worker).toContain('"qualification":"TERMINATED_INTERNAL_RUNTIME_BUDGET"');
     expect(worker).toContain(
       '"rejectedStepSourceRefreshMismatch":',
     );
     expect(worker).not.toContain(
       'last_accepted.get("integratedSourceMismatchRawMolS",0.0)',
     );
-    expect(worker).toContain('"error":"JOB_C_INTERNAL_RUNTIME_BUDGET"');
-    expect(worker).toContain('"classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED"');
-    expect(controller).not.toContain('JOB_C_QUALIFICATION_BUDGET_MS');
-    expect(controller).toContain("phase === 'boundary interface qualification'");
-    expect(controller).toContain("phase === 'nonlinear solver started'");
-    expect(controller).toContain('updateSolverWatchdog(progress.phase)');
+    expect(controller).not.toContain('JOB_C_TIMEOUT');
+    expect(controller).not.toContain('timeoutMs');
+    expect(controller).not.toContain('JOB_C_NONLINEAR_SOLVER_BUDGET_MS');
+    expect(controller.match(/setTimeout\(/g)).toHaveLength(1);
+    expect(controller).toContain("child.kill('SIGKILL')");
     expect(worker).toContain('progress("boundary interface qualification")');
     expect(worker).toContain('progress("nonlinear solver started")');
-    expect(controller).toContain('const JOB_C_NONLINEAR_SOLVER_BUDGET_MS = 720_000;');
     expect(controller).toContain('JOB_C_QUALIFICATION_CACHE_DIR:');
   });
 

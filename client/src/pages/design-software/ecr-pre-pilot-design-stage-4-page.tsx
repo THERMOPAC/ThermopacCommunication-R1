@@ -15,10 +15,18 @@ type JobCJob = {
   progress: {
     phase: string | null;
     message: string | null;
-    completed: number;
-    total: number;
+    completed: number | null;
+    total: number | null;
+    iteration: number | null;
+    residual: number | null;
+    residualKind: string | null;
+    elapsedSeconds: number | null;
+    heightCandidateM: number | null;
   };
   result: RecordValue | null;
+  scientificCompleted: boolean;
+  partialResult: RecordValue | null;
+  partialResultHash: string | null;
   diagnostics?: RecordValue | null;
   error: string | null;
 };
@@ -114,6 +122,34 @@ function parseObject(value: unknown): RecordValue {
   return object(value);
 }
 
+function optionalNumber(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function elapsedValue(seconds: number | null | undefined): string {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "Unavailable";
+  const wholeSeconds = Math.floor(seconds);
+  const hours = Math.floor(wholeSeconds / 3_600);
+  const minutes = Math.floor((wholeSeconds % 3_600) / 60);
+  const remainingSeconds = wholeSeconds % 60;
+  return hours > 0
+    ? `${hours}h ${String(minutes).padStart(2, "0")}m ${String(remainingSeconds).padStart(2, "0")}s`
+    : `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+}
+
+function residualValue(residual: number | null | undefined, kind: string | null | undefined): string {
+  if (residual == null || !Number.isFinite(residual)) return "Unavailable";
+  return `${residual.toExponential(3)}${kind ? ` (${kind})` : ""}`;
+}
+
+function heightCandidateValue(heightCandidateM: number | null | undefined): string {
+  return heightCandidateM == null || !Number.isFinite(heightCandidateM)
+    ? "Unavailable"
+    : `${heightCandidateM.toLocaleString(undefined, { maximumFractionDigits: 4 })} m`;
+}
+
 function normalizeJobCJob(value: unknown): JobCJob {
   const payload = object(value);
   const progress = object(read(payload, "progress"));
@@ -121,19 +157,32 @@ function normalizeJobCJob(value: unknown): JobCJob {
   const status: JobCStatus = ["pending", "running", "completed", "blocked", "failed", "cancelled"].includes(rawStatus)
     ? rawStatus as JobCStatus
     : "failed";
-  const completed = Number(read(progress, "completed") ?? read(payload, "progressCompleted"));
-  const total = Number(read(progress, "total") ?? read(payload, "progressTotal"));
+  const completed = optionalNumber(read(progress, "completed") ?? read(payload, "progressCompleted"));
+  const total = optionalNumber(read(progress, "total") ?? read(payload, "progressTotal"));
   const result = parseObject(read(payload, "result_snapshot", "result"));
+  const partialResult = parseObject(read(payload, "partialResult", "partial_result", "partialResultSnapshot"));
+  const scientificCompletedValue = read(payload, "scientificCompleted", "scientific_completed");
+  const residualKind = read(progress, "residualKind") ?? read(payload, "residualKind");
   return {
     jobId: stringValue(read(payload, "jobId", "id"), ""),
     status,
     progress: {
       phase: read(progress, "phase") == null ? null : String(read(progress, "phase")),
       message: read(progress, "message") == null ? null : String(read(progress, "message")),
-      completed: Number.isFinite(completed) ? completed : 0,
-      total: Number.isFinite(total) ? total : 0,
+      completed,
+      total,
+      iteration: optionalNumber(read(progress, "iteration") ?? read(payload, "iteration")),
+      residual: optionalNumber(read(progress, "residual") ?? read(payload, "residual")),
+      residualKind: residualKind == null ? null : String(residualKind),
+      elapsedSeconds: optionalNumber(read(progress, "elapsedSeconds") ?? read(payload, "elapsedSeconds")),
+      heightCandidateM: optionalNumber(read(progress, "heightCandidateM") ?? read(payload, "heightCandidateM")),
     },
     result: Object.keys(result).length ? result : null,
+    // Older jobs did not expose this field; their completed result remains
+    // displayable while new jobs require the explicit scientific completion.
+    scientificCompleted: typeof scientificCompletedValue === "boolean" ? scientificCompletedValue : status === "completed",
+    partialResult: Object.keys(partialResult).length ? partialResult : null,
+    partialResultHash: read(payload, "partialResultHash", "partial_result_hash") == null ? null : String(read(payload, "partialResultHash", "partial_result_hash")),
     diagnostics: (() => {
       const diagnostics = parseObject(read(payload, "scientificDiagnostics", "diagnostics", "details"));
       return Object.keys(diagnostics).length ? diagnostics : null;
@@ -196,13 +245,20 @@ export default function EcrPrePilotDesignStage4Page() {
   const [jobCSubmitting, setJobCSubmitting] = useState(false);
   const [jobCStopping, setJobCStopping] = useState(false);
   const jobCRunning = jobCSubmitting || jobCJob?.status === "pending" || jobCJob?.status === "running";
-  const running = activeJob !== null || jobCRunning;
+  const canStartJobC = Boolean(jobBEvaluation || jobCJob?.status === "cancelled");
+  const running = activeJob !== null || jobCRunning || jobCStopping;
 
   const applyJobCJob = useCallback((value: unknown) => {
     const job = normalizeJobCJob(value);
     setJobCJob(job);
-    if (job.status === "completed" && job.result) {
+    if (!["pending", "running"].includes(job.status)) setJobCStopping(false);
+    if (job.status === "completed" && job.scientificCompleted && job.result) {
       setJobCEvaluation(job.result);
+      setJobCDiagnostic(null);
+    } else if (job.status === "cancelled") {
+      // A checkpoint is useful for analysis/restart, but it is never a
+      // completed calculation or an accepted height result.
+      setJobCEvaluation(null);
       setJobCDiagnostic(null);
     } else if (job.status === "blocked") {
       setJobCEvaluation(null);
@@ -350,7 +406,7 @@ export default function EcrPrePilotDesignStage4Page() {
 
   const runJobCEvaluation = async () => {
     const id = Number(design?.id);
-    if (!Number.isFinite(id) || !jobBEvaluation || jobCRunning) return;
+    if (!Number.isFinite(id) || !canStartJobC || jobCRunning || jobCStopping) return;
     setJobCSubmitting(true);
     setError(null);
     setJobCEvaluation(null);
@@ -380,7 +436,7 @@ export default function EcrPrePilotDesignStage4Page() {
 
   const cancelJobC = async () => {
     const id = Number(design?.id);
-    if (!Number.isFinite(id) || !jobCJob?.jobId || !["pending", "running"].includes(jobCJob.status)) return;
+    if (!Number.isFinite(id) || !jobCJob?.jobId || !["pending", "running"].includes(jobCJob.status) || jobCStopping) return;
     setJobCStopping(true);
     try {
       const response = await fetch(
@@ -389,17 +445,18 @@ export default function EcrPrePilotDesignStage4Page() {
       );
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(stringValue(read(object(payload), "error", "message"), "Job C could not be cancelled."));
-      applyJobCJob(payload);
+      // Some compatible cancel endpoints acknowledge only the request. Keep
+      // the live record in that case so the status poll can observe cancelled.
+      if (read(object(payload), "status") !== undefined) applyJobCJob(payload);
       setJobCPollError(null);
-      toast({ title: "Job C cancelled", description: "The background calculation was cancelled." });
+      toast({ title: "Job C stop requested", description: "Polling continues until the calculation reports its terminal status." });
     } catch (cause: unknown) {
+      setJobCStopping(false);
       toast({
         title: "Job C could not be cancelled",
         description: cause instanceof Error ? cause.message : "The cancel request failed.",
         variant: "destructive",
       });
-    } finally {
-      setJobCStopping(false);
     }
   };
 
@@ -483,9 +540,12 @@ export default function EcrPrePilotDesignStage4Page() {
     ["Continuous phase", object(read(jobCDax, "axialDispersionContinuousM2S"))],
     ["Dispersed phase", object(read(jobCDax, "axialDispersionDispersedM2S"))],
   ] as Array<[string, RecordValue]>;
-  const jobCProgressPercent = jobCJob && jobCJob.progress.total > 0
+  const jobCProgressPercent = jobCJob
+    && jobCJob.progress.completed !== null
+    && jobCJob.progress.total !== null
+    && jobCJob.progress.total > 0
     ? Math.max(0, Math.min(100, (jobCJob.progress.completed / jobCJob.progress.total) * 100))
-    : 0;
+    : null;
   const hasPriorJobC = Boolean(jobCJob || jobCEvaluation || jobCDiagnostic);
   const jobCDiagnosticDetails = object(read(jobCDiagnostic ?? {}, "details"));
   const jobCScientificDiagnostics = object(read(jobCDiagnostic ?? {}, "scientificDiagnostics", "diagnostics"));
@@ -530,8 +590,8 @@ export default function EcrPrePilotDesignStage4Page() {
             <Button type="button" variant="outline" onClick={() => void loadDesign()} disabled={loading || running} className="h-8 gap-1.5 text-xs"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh design</Button>
             <Button type="button" onClick={() => void runEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-cyan-950 text-xs hover:bg-cyan-900"><Play className="h-3.5 w-3.5" />{activeJob === "A" ? "Evaluating Job-A…" : evaluation ? "Re-run Job-A" : "Evaluate Job-A"}</Button>
             <Button type="button" onClick={() => void runJobBEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-indigo-950 text-xs hover:bg-indigo-900"><Play className="h-3.5 w-3.5" />{activeJob === "B" ? "Evaluating Job-B…" : jobBEvaluation ? "Re-run Job-B" : "Test Job-B flux"}</Button>
-            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !jobBEvaluation || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{hasPriorJobC ? "Re-run Job C" : "Start Job C"}</Button>
-            {jobCRunning && <Button type="button" variant="destructive" onClick={() => void cancelJobC()} disabled={jobCStopping} className="h-8 gap-1.5 text-xs">{jobCStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}Stop</Button>}
+            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C" : hasPriorJobC ? "Re-run Job C" : "Start Job C"}</Button>
+            {jobCRunning && <Button type="button" variant="destructive" onClick={() => void cancelJobC()} disabled={jobCStopping} className="h-8 gap-1.5 text-xs">{jobCStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}{jobCStopping ? "Stopping" : "Stop"}</Button>}
           </div>
         </header>
 
@@ -544,7 +604,7 @@ export default function EcrPrePilotDesignStage4Page() {
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2">
                   {jobCRunning && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
-                  <p><span className="font-semibold">Job C:</span> {jobCJob.status}</p>
+                  <p><span className="font-semibold">Job C:</span> {jobCStopping ? "stop requested" : jobCJob.status}</p>
                 </div>
                 <p className="font-mono text-[10px]">Job ID: {jobCJob.jobId || "—"}</p>
               </div>
@@ -552,19 +612,35 @@ export default function EcrPrePilotDesignStage4Page() {
                 role="progressbar"
                 aria-label="Job C scientific calculation progress"
                 aria-valuemin={0}
-                aria-valuemax={jobCJob.progress.total || 100}
-                aria-valuenow={jobCJob.progress.total > 0 ? jobCJob.progress.completed : 0}
+                aria-valuemax={jobCJob.progress.total ?? undefined}
+                aria-valuenow={jobCProgressPercent === null ? undefined : jobCJob.progress.completed ?? undefined}
+                aria-valuetext={jobCProgressPercent === null ? "Total work is not yet known" : `${jobCJob.progress.completed} of ${jobCJob.progress.total}`}
                 className="mt-3 h-2 overflow-hidden rounded-full bg-violet-200"
               >
-                <div className="h-full bg-violet-700 transition-[width]" style={{ width: `${jobCProgressPercent}%` }} />
+                <div className={`h-full bg-violet-700 transition-[width] ${jobCProgressPercent === null && jobCRunning ? "animate-pulse" : ""}`} style={{ width: jobCProgressPercent === null ? (jobCRunning ? "40%" : "0%") : `${jobCProgressPercent}%` }} />
               </div>
-              <div className="mt-2 flex flex-wrap justify-between gap-2 text-[10px]">
-                <p>{jobCJob.progress.phase ?? "Queued"}{jobCJob.progress.message ? ` · ${jobCJob.progress.message}` : ""}</p>
-                <p className="font-mono">{jobCJob.progress.completed} / {jobCJob.progress.total || "—"}</p>
+              <div className="mt-2 grid gap-x-4 gap-y-1 text-[10px] sm:grid-cols-2 lg:grid-cols-3">
+                <p><span className="font-semibold">Current phase:</span> {jobCJob.progress.phase ?? "Unavailable"}{jobCJob.progress.message ? ` · ${jobCJob.progress.message}` : ""}</p>
+                <p className="font-mono"><span className="font-sans font-semibold">Work:</span> {jobCJob.progress.completed ?? "Unavailable"} / {jobCJob.progress.total ?? "Unavailable"}</p>
+                <p className="font-mono"><span className="font-sans font-semibold">Iteration:</span> {jobCJob.progress.iteration ?? "Unavailable"}</p>
+                <p className="font-mono"><span className="font-sans font-semibold">Residual:</span> {residualValue(jobCJob.progress.residual, jobCJob.progress.residualKind)}</p>
+                <p className="font-mono"><span className="font-sans font-semibold">Elapsed:</span> {elapsedValue(jobCJob.progress.elapsedSeconds)}</p>
+                <p className="font-mono"><span className="font-sans font-semibold">Height candidate:</span> {heightCandidateValue(jobCJob.progress.heightCandidateM)}</p>
               </div>
               {jobCJob.error && <p className="mt-2 font-mono text-[10px] text-red-800">{jobCJob.error}</p>}
+              {jobCJob.progress.heightCandidateM !== null && !jobCJob.scientificCompleted && <p className="mt-2 text-[10px] font-semibold text-violet-900">The height candidate is live calculation telemetry, not an accepted or final result.</p>}
               <p className="mt-2 text-[10px] font-semibold">Candidate qualification → Height qualification → Exact qualification</p>
               <p className="mt-1 text-[10px]">These labels report scientific calculation progress only; they do not indicate Stage 4 or downstream acceptance.</p>
+            </section>}
+            {jobCJob?.status === "cancelled" && <section role="status" aria-live="polite" className="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · interrupted</p>
+              <h2 className="mt-1 text-sm font-semibold">Interrupted — partial results saved; calculation not completed</h2>
+              <p className="mt-1 text-xs">Any partial record is retained for analysis and a subsequent Restart Job C request. It is not a completed scientific result and no partial height is rendered as accepted or final.</p>
+              <dl className="mt-3 grid gap-2 text-[10px] sm:grid-cols-2">
+                <div><dt className="font-semibold text-slate-600">Partial result</dt><dd className="font-mono">{jobCJob.partialResult ? "Saved" : "Unavailable"}</dd></div>
+                <div><dt className="font-semibold text-slate-600">Partial result hash</dt><dd className="break-all font-mono">{jobCJob.partialResultHash ?? "Unavailable"}</dd></div>
+              </dl>
+              {jobCJob.partialResult && <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold">Partial-result analysis record</summary><pre className="mt-2 max-h-64 overflow-auto rounded bg-white p-3 text-[10px] text-slate-900">{JSON.stringify(jobCJob.partialResult, null, 2)}</pre></details>}
             </section>}
             {Object.keys(jobCBranchContinuation).length > 0 && <section className="rounded-md border border-violet-300 bg-white p-3 text-violet-950">
               <div className="flex flex-wrap items-center justify-between gap-2">

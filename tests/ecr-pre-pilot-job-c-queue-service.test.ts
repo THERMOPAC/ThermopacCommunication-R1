@@ -4,6 +4,7 @@ const state = vi.hoisted(() => ({
   prepared: {} as any,
   prepareError: null as any,
   reusableRow: null as any,
+  resumableRow: null as any,
   activeRow: null as any,
   insertedRow: null as any,
   claimedRow: null as any,
@@ -36,6 +37,9 @@ vi.mock('../server/db', () => {
         && row.input_snapshot.prepared.responseBasis.dependencies
           .boundaryBranchSourceStateSha256 === values[7];
       return { rows: matches ? [row] : [] };
+    }
+    if (sql.includes("status='cancelled'")) {
+      return { rows: state.resumableRow ? [state.resumableRow] : [] };
     }
     if (sql.includes("status IN ('pending','running')")) {
       return { rows: state.activeRow ? [state.activeRow] : [] };
@@ -171,6 +175,7 @@ describe('Job C queue blocked-result reuse', () => {
     state.prepared = makePrepared();
     state.prepareError = null;
     state.reusableRow = makeRow(state.prepared);
+    state.resumableRow = null;
     state.activeRow = null;
     state.insertedRow = makeRow(state.prepared, 'pending');
     state.claimedRow = null;
@@ -293,6 +298,59 @@ describe('Job C queue blocked-result reuse', () => {
     });
     expect(state.queries.some(({ sql }) =>
       sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(true);
+  });
+
+  it('seeds a new immutable attempt only from a matching cancelled checkpoint', async () => {
+    state.reusableRow = null;
+    const cancelled = makeRow(state.prepared, 'cancelled');
+    const partial = {
+      schemaVersion: 'ECR_JOB_C_PARTIAL_V1',
+      complete: false,
+      requestSha256: jobCResultHash(state.prepared.workerRequest),
+      completedResults: [{ id: 'contact:1', kind: 'QUALIFIED_AXIAL_CONTACT', value: { index: 0 } }],
+      progress: { phase: 'axial contact qualification', completed: 1, total: 7 },
+    };
+    Object.assign(cancelled, {
+      result_snapshot: null,
+      result_hash: null,
+      partial_result_snapshot: partial,
+      partial_result_hash: jobCResultHash(partial),
+    });
+    state.resumableRow = cancelled;
+
+    const result = await enqueueJobC(11, 22);
+
+    expect(result.status).toBe('pending');
+    const insert = state.queries.find(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'));
+    expect(insert?.values[8]).toEqual(partial);
+    expect(insert?.values[9]).toBe(jobCResultHash(partial));
+  });
+
+  it('never seeds a restart from a checkpoint with a different request digest', async () => {
+    state.reusableRow = null;
+    const cancelled = makeRow(state.prepared, 'cancelled');
+    const partial = {
+      schemaVersion: 'ECR_JOB_C_PARTIAL_V1',
+      complete: false,
+      requestSha256: 'f'.repeat(64),
+      completedResults: [],
+      progress: { phase: 'initializing', completed: 0, total: null },
+    };
+    Object.assign(cancelled, {
+      result_snapshot: null,
+      result_hash: null,
+      partial_result_snapshot: partial,
+      partial_result_hash: jobCResultHash(partial),
+    });
+    state.resumableRow = cancelled;
+
+    await enqueueJobC(11, 22);
+
+    const insert = state.queries.find(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'));
+    expect(insert?.values[8]).toBeNull();
+    expect(insert?.values[9]).toBeNull();
   });
 
   it.each([

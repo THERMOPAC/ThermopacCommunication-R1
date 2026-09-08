@@ -33,7 +33,7 @@ describe('Job-C packaged design269 scientific regression', () => {
       contact.provenance.sourceStageFromFeedEnd)).toEqual([
       [9, 10], [8], [6, 7], [5], [3, 4], [2], [1],
     ]);
-    const result = await runJobCWorker(fixture, { timeoutMs: 1_400_000 });
+    const result = await runJobCWorker(fixture);
     expect(result.status).toBe('BLOCKED_PRELIMINARY_JOB_C');
     expect(result.error)
       .toBe('JOB_C_BRANCH_CONTINUATION_TERMINATED');

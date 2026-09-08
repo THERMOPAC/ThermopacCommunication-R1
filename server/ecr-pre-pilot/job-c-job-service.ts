@@ -8,15 +8,16 @@ import {
   currentJobCArtifactHashes,
   JobCError,
   jobCResultHash,
+  type JobCProgress,
 } from './job-c';
 import { validateStage1Snapshot } from './stage1';
 
 const OWNER = `job-c:${process.pid}:${randomUUID()}`;
 const POLL_MS = Number(process.env.JOB_C_POLL_MS ?? 1_000);
 const LEASE_MS = Number(process.env.JOB_C_LEASE_MS ?? 30_000);
-const TIMEOUT_MS = Math.max(Number(process.env.JOB_C_TIMEOUT_MS ?? 900_000), 600_000);
 let started = false;
 let busy = false;
+const activeControllers = new Map<string, AbortController>();
 
 type EnqueueReuse = {
   reused: boolean;
@@ -24,7 +25,34 @@ type EnqueueReuse = {
   evidence: Record<string, string>;
 };
 
+const PARTIAL_SCHEMA = 'ECR_JOB_C_PARTIAL_V1';
+
+function pristineRequestHash(snapshot: any) {
+  const request = { ...(snapshot?.prepared?.workerRequest ?? {}) };
+  delete request.resumeCheckpoint;
+  return jobCResultHash(request);
+}
+
+function validPartial(row: any) {
+  const partial = row?.partial_result_snapshot;
+  return partial != null
+    && typeof row.partial_result_hash === 'string'
+    && /^[a-f0-9]{64}$/.test(row.partial_result_hash)
+    && jobCResultHash(partial) === row.partial_result_hash
+    && partial.schemaVersion === PARTIAL_SCHEMA
+    && partial.complete === false
+    && partial.requestSha256 === pristineRequestHash(row.input_snapshot)
+    && Array.isArray(partial.completedResults)
+    && partial.progress && typeof partial.progress.phase === 'string';
+}
+
 function publicJob(row: any, reuse?: EnqueueReuse) {
+  const diagnostics = row.progress_snapshot && typeof row.progress_snapshot === 'object'
+    ? row.progress_snapshot : {};
+  const reportedElapsed = Number(diagnostics.elapsedSeconds);
+  const liveElapsed = row.status === 'running' && row.started_at
+    ? Math.max(0, (Date.now() - new Date(row.started_at).getTime()) / 1_000)
+    : Number.NaN;
   return {
     id: row.id,
     designId: Number(row.design_id),
@@ -34,6 +62,10 @@ function publicJob(row: any, reuse?: EnqueueReuse) {
       phase: row.progress_phase,
       completed: Number(row.progress_completed),
       total: row.progress_total == null ? null : Number(row.progress_total),
+      ...diagnostics,
+      elapsedSeconds: Number.isFinite(liveElapsed)
+        ? Math.max(Number.isFinite(reportedElapsed) ? reportedElapsed : 0, liveElapsed)
+        : Number.isFinite(reportedElapsed) ? reportedElapsed : null,
     },
     input: row.input_snapshot,
     inputHash: row.input_hash,
@@ -42,6 +74,9 @@ function publicJob(row: any, reuse?: EnqueueReuse) {
     jobBEngineHash: row.job_b_engine_hash,
     result: row.result_snapshot,
     resultHash: row.result_hash,
+    partialResult: row.partial_result_snapshot ?? null,
+    partialResultHash: row.partial_result_hash ?? null,
+    scientificCompleted: row.status === 'completed' || row.status === 'blocked',
     error: row.error,
     attemptCount: Number(row.attempt_count),
     cancelRequestedAt: row.cancel_requested_at?.toISOString?.() ?? row.cancel_requested_at ?? null,
@@ -57,12 +92,14 @@ async function history(client: any, row: any, details: Record<string, unknown>) 
     `INSERT INTO ecr_pre_pilot_job_c_job_history
       (job_id,input_snapshot,input_hash,implementation_hash,candidate_hash,job_b_engine_hash,
        status,progress_phase,progress_completed,progress_total,worker_owner,
-       claim_token,attempt_count,result_snapshot,result_hash,error,details)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+       claim_token,attempt_count,result_snapshot,result_hash,error,details,progress_snapshot,
+       partial_result_snapshot,partial_result_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
     [row.id, row.input_snapshot, row.input_hash, row.implementation_hash,
       row.candidate_hash, row.job_b_engine_hash, row.status, row.progress_phase,
-      row.progress_completed, row.progress_total, row.worker_owner, row.claim_token,
-      row.attempt_count, row.result_snapshot, row.result_hash, row.error, details],
+       row.progress_completed, row.progress_total, row.worker_owner, row.claim_token,
+       row.attempt_count, row.result_snapshot, row.result_hash, row.error, details,
+       row.progress_snapshot, row.partial_result_snapshot, row.partial_result_hash],
   );
 }
 
@@ -174,6 +211,25 @@ export async function enqueueJobC(userId: number, designId: number) {
       await client.query('COMMIT');
       return publicJob(reusableRow, reuse);
     }
+    // A stopped job is never a completed scientific result, but its immutable
+    // checkpoint can safely seed a new attempt only when every frozen lineage
+    // pin and the worker-request digest match this newly prepared request.
+    const resumable = await client.query(
+      `SELECT * FROM ecr_pre_pilot_job_c_jobs
+        WHERE created_by=$1 AND design_id=$2 AND status='cancelled'
+          AND input_hash=$3 AND implementation_hash=$4
+          AND candidate_hash=$5 AND job_b_engine_hash=$6
+          AND input_snapshot#>>'{prepared,responseBasis,dependencies,jobCBoundaryInterfaceQualifierSha256}'=$7
+          AND input_snapshot#>>'{prepared,responseBasis,dependencies,boundaryBranchSourceStateSha256}'=$8
+        ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE`,
+      [userId, designId, inputHash, artifacts.implementationHash, artifacts.candidateHash,
+        jobBEngineHash, boundaryQualifierHash, boundarySourceStateHash],
+    );
+    const resumeCheckpoint = validPartial(resumable.rows[0])
+      && jobCResultHash(resumable.rows[0].input_snapshot.prepared) === preparedInputHash
+      && jobCResultHash(resumable.rows[0].input_snapshot.prepared.responseBasis.dependencies)
+        === frozenDependencyLineageHash
+      ? resumable.rows[0].partial_result_snapshot : null;
     // An active job is deliberately not returned as a reusable result. Reject
     // the colliding enqueue instead, so concurrent first-time requests cannot
     // duplicate execution while preserving the pending/running job semantics.
@@ -203,12 +259,16 @@ export async function enqueueJobC(userId: number, designId: number) {
     const inserted = await client.query(
       `INSERT INTO ecr_pre_pilot_job_c_jobs
        (id,design_id,created_by,input_snapshot,input_hash,implementation_hash,
-        candidate_hash,job_b_engine_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+         candidate_hash,job_b_engine_hash,partial_result_snapshot,partial_result_hash)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10) RETURNING *`,
       [id, designId, userId, snapshot, inputHash, artifacts.implementationHash,
-        artifacts.candidateHash, jobBEngineHash],
+         artifacts.candidateHash, jobBEngineHash, resumeCheckpoint,
+         resumeCheckpoint ? jobCResultHash(resumeCheckpoint) : null],
     );
-    await history(client, inserted.rows[0], { event: 'enqueued' });
+    await history(client, inserted.rows[0], {
+      event: 'enqueued',
+      ...(resumeCheckpoint ? { resumedFromPartial: true } : {}),
+    });
     await client.query('COMMIT');
     startJobCWorker();
     return publicJob(inserted.rows[0], {
@@ -250,14 +310,18 @@ export async function cancelJobC(id: string, userId: number, designId: number) {
        SET cancel_requested_at=COALESCE(cancel_requested_at,NOW()),
            status=CASE WHEN status='pending' THEN 'cancelled' ELSE status END,
            completed_at=CASE WHEN status='pending' THEN NOW() ELSE completed_at END,
-           progress_phase=CASE WHEN status='pending' THEN 'terminal' ELSE progress_phase END,
+            progress_phase=CASE WHEN status='pending' THEN 'terminal' ELSE progress_phase END,
            updated_at=NOW()
        WHERE id=$1 AND created_by=$2 AND design_id=$3
          AND status IN ('pending','running') RETURNING *`,
       [id, userId, designId],
     );
-    if (changed.rows[0]) await history(client, changed.rows[0], { event: 'cancel_requested' });
+    if (changed.rows[0]) await history(client, changed.rows[0], {
+      event: 'stop_requested',
+      partialRetained: changed.rows[0].partial_result_snapshot != null,
+    });
     await client.query('COMMIT');
+    activeControllers.get(id)?.abort();
     return changed.rows[0] ? publicJob(changed.rows[0]) : getJobC(id, userId, designId);
   } catch (error) {
     await client.query('ROLLBACK'); throw error;
@@ -280,7 +344,8 @@ async function claim() {
        UPDATE ecr_pre_pilot_job_c_jobs j SET status='running',worker_owner=$1,
          claim_token=$2,lease_expires_at=NOW()+($3*INTERVAL '1 millisecond'),
          attempt_count=attempt_count+1,started_at=COALESCE(started_at,NOW()),
-         progress_phase='candidate 2m',updated_at=NOW()
+          progress_phase=CASE WHEN j.progress_phase='queued' THEN 'candidate 2m' ELSE j.progress_phase END,
+          updated_at=NOW()
        FROM candidate WHERE j.id=candidate.id
        RETURNING j.*,candidate.previous_status`,
       [OWNER, token, LEASE_MS],
@@ -305,6 +370,7 @@ async function guardedUpdate(id: string, token: string, sql: string, values: unk
 
 async function execute(row: any, token: string) {
   const controller = new AbortController();
+  activeControllers.set(row.id, controller);
   const heartbeat = setInterval(async () => {
     try {
       const state = await guardedUpdate(row.id, token,
@@ -371,15 +437,58 @@ async function execute(row: any, token: string) {
         currentPreparedHash,
       });
     }
-    const result = await executePreparedEcrPrePilotJobC(snapshot.prepared, {
-      timeoutMs: TIMEOUT_MS,
+    const resumeCheckpoint = validPartial(row) ? row.partial_result_snapshot : null;
+    const preparedForExecution = resumeCheckpoint
+      ? {
+        ...snapshot.prepared,
+        workerRequest: {
+          ...snapshot.prepared.workerRequest,
+          // This is intentionally not written into input_snapshot: its digest
+          // remains the pristine, immutable scientific request.
+          resumeCheckpoint,
+        },
+      }
+      : snapshot.prepared;
+    const result = await executePreparedEcrPrePilotJobC(preparedForExecution, {
       signal: controller.signal,
-      onProgress: async (phase, completed = 0, total) => {
+      onProgress: async (
+        phase: string,
+        completed = 0,
+        total?: number | null,
+        diagnostics?: JobCProgress,
+      ) => {
+        const progress = {
+          ...(diagnostics ?? {}),
+          phase,
+          completed,
+          total: total ?? null,
+        };
         const changed = await guardedUpdate(row.id, token,
           `progress_phase=$3,progress_completed=GREATEST(progress_completed,$4),
-           progress_total=$5,lease_expires_at=NOW()+($6*INTERVAL '1 millisecond')`,
-          [phase, completed, total ?? null, LEASE_MS]);
+           progress_total=$5,progress_snapshot=$6::jsonb,
+           lease_expires_at=NOW()+($7*INTERVAL '1 millisecond')`,
+          [phase, completed, total ?? null, progress, LEASE_MS]);
         if (changed.rows[0]) await history(pool, changed.rows[0], { event: 'progress' });
+        if (changed.rows[0]?.cancel_requested_at) controller.abort();
+      },
+      onCheckpoint: async (checkpoint: Record<string, any>) => {
+        if (checkpoint.schemaVersion !== PARTIAL_SCHEMA || checkpoint.complete !== false
+          || checkpoint.requestSha256 !== pristineRequestHash(snapshot)
+          || !Array.isArray(checkpoint.completedResults)
+          || !checkpoint.progress || typeof checkpoint.progress.phase !== 'string') {
+          throw new JobCError('JOB_C_CHECKPOINT_INVALID');
+        }
+        const progress = checkpoint.progress as JobCProgress;
+        const changed = await guardedUpdate(row.id, token,
+          `partial_result_snapshot=$3::jsonb,partial_result_hash=$4,
+           progress_phase=$5,progress_completed=GREATEST(progress_completed,$6),
+           progress_total=$7,progress_snapshot=$8::jsonb,
+           lease_expires_at=NOW()+($9*INTERVAL '1 millisecond')`,
+          [checkpoint, jobCResultHash(checkpoint), progress.phase,
+            progress.completed ?? 0, progress.total ?? null, progress, LEASE_MS]);
+        if (!changed.rows[0]) throw new JobCError('JOB_C_CANCELLED');
+        await history(pool, changed.rows[0], { event: 'checkpoint_committed' });
+        if (changed.rows[0].cancel_requested_at) controller.abort();
       },
     });
     const blocked = result.status === 'BLOCKED_PRELIMINARY_JOB_C';
@@ -406,8 +515,10 @@ async function execute(row: any, token: string) {
     const final = await guardedUpdate(row.id, token,
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,
        error=CASE WHEN cancel_requested_at IS NULL THEN $4 ELSE 'JOB_C_CANCELLED' END,
-       result_snapshot=CASE WHEN cancel_requested_at IS NULL THEN $5::jsonb ELSE NULL::jsonb END,
-       result_hash=CASE WHEN cancel_requested_at IS NULL THEN $6 ELSE NULL END,
+        result_snapshot=CASE WHEN cancel_requested_at IS NULL AND $3='blocked'
+          THEN $5::jsonb ELSE NULL::jsonb END,
+        result_hash=CASE WHEN cancel_requested_at IS NULL AND $3='blocked'
+          THEN $6 ELSE NULL END,
        progress_phase='terminal',
        completed_at=NOW(),lease_expires_at=NULL,claim_token=NULL`,
       [cancelled ? 'cancelled' : blocked ? 'blocked' : 'failed', error?.message ?? 'JOB_C_FAILED',
@@ -420,6 +531,7 @@ async function execute(row: any, token: string) {
     });
   } finally {
     clearInterval(heartbeat);
+    if (activeControllers.get(row.id) === controller) activeControllers.delete(row.id);
     busy = false;
   }
 }

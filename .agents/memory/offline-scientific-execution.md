@@ -15,8 +15,8 @@ Inspect active scientific workers with bounded, nonblocking, out-of-process samp
 
 **How to apply:** Keep diagnostic tools isolated from the project dependency environment, use the package firewall for downloads, avoid pausing the worker or collecting local-variable values, and correlate sampled stacks with the job record. State the sampling window explicitly; never turn hotspot percentages into percentage-complete estimates.
 
-Job-C qualification is intentionally allowed to finish without a wall-clock cap, independently of the nonlinear solver's bounded runtime.
+Job-C qualification and nonlinear solving are intentionally allowed to finish without wall-clock caps. Manual Stop is the only user-facing deadline.
 
-**Why:** The user explicitly requested removal of the qualification deadline after it stopped legitimate contact qualification before the column solver began. This trades bounded qualification time for potentially longer, cancellable runs, not weaker scientific acceptance.
+**Why:** The user explicitly requested removal of both deadlines after qualification stopped before the column solver began. This trades bounded runtime for potentially longer, cancellable runs, not weaker scientific acceptance.
 
-**How to apply:** Do not reintroduce an implicit qualification deadline through a whole-job watchdog. Keep cancellation and lease-loss termination active, and report elapsed time separately from convergence or acceptance.
+**How to apply:** Do not reintroduce an implicit deadline through worker helpers, service settings, or a whole-job watchdog. Keep lease/manual cancellation active; checkpoint only completed qualified evidence, label interruptions incomplete, and report elapsed time separately from convergence or acceptance.

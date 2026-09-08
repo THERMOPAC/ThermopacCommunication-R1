@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded, conservative finite-volume countercurrent Job-C kernel."""
+"""Conservative finite-volume countercurrent Job-C kernel."""
 from __future__ import annotations
 import hashlib, importlib.util, json, math, multiprocessing, os, signal, sys, tempfile, time
 from pathlib import Path
@@ -21,10 +21,46 @@ def hashed(v):
     if isinstance(v,list): return [hashed(x) for x in v]
     return {k:hashed(x) for k,x in v.items()}
 def digest(v): return hashlib.sha256(canonical(hashed(v)).encode()).hexdigest()
-def progress(phase, completed=0, total=None):
-    body={"phase":phase,"completed":completed}
-    if total is not None: body["total"]=total
-    print("JOB_C_PROGRESS "+json.dumps(body,separators=(",",":")),flush=True)
+_job_started=None
+_last_progress={"phase":"initializing","completed":0,"total":None,
+  "iteration":None,"residual":None,"residualKind":None,
+  "elapsedSeconds":0.0,"heightCandidateM":None}
+_last_progress_emit=0.0
+_completed_results=[]
+_request_sha256=None
+
+def progress(phase, completed=0, total=None, iteration=None, residual=None,
+             residual_kind=None, height_candidate_m=None, throttle=False):
+    """Emit an honest, machine-readable live state (never a guessed total)."""
+    global _last_progress,_last_progress_emit
+    now=time.monotonic()
+    if throttle and now-_last_progress_emit < 0.75:
+        return
+    finite_residual=(isinstance(residual,(int,float)) and not isinstance(residual,bool)
+      and math.isfinite(float(residual)))
+    _last_progress={"phase":phase,"completed":completed,"total":total,
+      "iteration":iteration if isinstance(iteration,int) else None,
+      "residual":float(residual) if finite_residual else None,
+      "residualKind":residual_kind if finite_residual else None,
+      "elapsedSeconds":max(0.0,now-_job_started) if _job_started is not None else 0.0,
+      "heightCandidateM":float(height_candidate_m)
+        if isinstance(height_candidate_m,(int,float)) and math.isfinite(height_candidate_m)
+        else None}
+    _last_progress_emit=now
+    print("JOB_C_PROGRESS "+json.dumps(_last_progress,separators=(",",":")),flush=True)
+
+def record_completed_result(identifier, kind, value, **metadata):
+    """Only append independently qualified, finite scientific evidence."""
+    global _completed_results
+    row={"id":identifier,"kind":kind,"value":value,**metadata}
+    _completed_results=[x for x in _completed_results if x["id"]!=identifier]
+    _completed_results.append(row)
+
+def checkpoint():
+    body={"schemaVersion":"ECR_JOB_C_PARTIAL_V1","complete":False,
+      "requestSha256":_request_sha256,"completedResults":_completed_results,
+      "progress":_last_progress}
+    print("JOB_C_CHECKPOINT "+canonical(body),flush=True)
 
 def require_runtime_budget(budget, now=None):
     """Raise at every expensive residual boundary once the budget is spent."""
@@ -41,18 +77,38 @@ job_b=importlib.util.module_from_spec(spec); spec.loader.exec_module(job_b)
 
 _profile_qualification_context=None
 _active_qualification_pool=None
+_active_qualification_jobs=None
 _active_runtime_budgets=None
 # Qualification has no wall-clock deadline; cancellation remains authoritative.
 QUALIFICATION_BUDGET_SECONDS=None
-NONLINEAR_SOLVER_BUDGET_SECONDS=720
+# Wall-clock limits are intentionally absent.  Solver iteration criteria remain
+# finite and conservative; orchestration cancellation is handled by SIGTERM.
+NONLINEAR_SOLVER_BUDGET_SECONDS=None
+
+class JobCInterrupted(BaseException):
+    pass
 
 def terminate_descendants(signum, frame):
-    """A cancelled lease must also terminate and reap forked qualifiers."""
+    """Cancellation reaps qualifiers, then preserves all completed evidence."""
     pool=_active_qualification_pool
+    jobs=_active_qualification_jobs
+    # Ready results are already complete in children.  Harvest them before
+    # terminating the remaining pool so a checkpoint cannot discard evidence.
+    if jobs is not None:
+        for index,job in enumerate(jobs):
+            if job.ready():
+                try:
+                    value=job.get()
+                    if "flux" in value:
+                        record_completed_result(f"contact:{index+1}",
+                          "QUALIFIED_AXIAL_CONTACT",value)
+                except BaseException:
+                    pass
     if pool is not None:
         pool.terminate()
         pool.join()
-    raise SystemExit(128+signum)
+    checkpoint()
+    raise JobCInterrupted()
 
 signal.signal(signal.SIGTERM,terminate_descendants)
 
@@ -105,6 +161,16 @@ def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
         require_runtime_budget(budget)
         result=residual(*values, **options)
         require_runtime_budget(budget)
+        # least_squares does not expose an iteration callback on every scipy
+        # version.  Report the available residual evaluation honestly instead.
+        try:
+            norm=float(math.sqrt(sum(float(x)*float(x) for x in result)))
+        except (TypeError,ValueError,OverflowError):
+            norm=None
+        # residualCalls is a function-evaluation count, not an optimizer
+        # iteration.  Keep iteration null rather than mislabeling it.
+        progress(phase, budget.get("residualCalls",0), None, None, norm,
+          "RESIDUAL_L2", budget.get("heightCandidateM"), throttle=True)
         return result
     try:
         require_runtime_budget(budget)
@@ -119,39 +185,9 @@ def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
           "claimsEmitted":{"height":False,"efficiency":False,
             "finalRpm":False,"jobD":False,"release":False}})
 
-def qualification_budget_block(budget, cache_status):
-    elapsed=time.monotonic()-budget["started"]
-    return JobCBlocked("JOB_C_QUALIFICATION_RUNTIME_BUDGET",
-      {"classification":"QUALIFICATION_RUNTIME_BUDGET_EXHAUSTED",
-       "physicalInfeasibilityClaimed":False,
-       "runtimeBudgets":{"qualification":{
-         "budgetSeconds":budget["maximumSeconds"],
-         "elapsedSeconds":elapsed,"cacheStatus":cache_status},
-         "nonlinearSolver":{"budgetSeconds":NONLINEAR_SOLVER_BUDGET_SECONDS,
-           "elapsedSeconds":0.0,"status":"NOT_STARTED"}},
-       "claimsEmitted":{"height":False,"efficiency":False,
-         "finalRpm":False,"jobD":False,"release":False}})
-
 def run_with_qualification_budget(budget, operation, cache_status):
-    """Interrupt a main-process qualifier at its independent deadline."""
-    if budget["maximumSeconds"] is None:
-        return operation()
-    elapsed=require_runtime_budget(budget)
-    remaining=budget["maximumSeconds"]-elapsed
-    previous_handler=signal.getsignal(signal.SIGALRM)
-    def deadline(signum,frame):
-        raise TimeoutError("JOB_C_QUALIFICATION_INTERNAL_RUNTIME_BUDGET")
-    signal.signal(signal.SIGALRM,deadline)
-    signal.setitimer(signal.ITIMER_REAL,max(remaining,1e-6))
-    try:
-        result=operation()
-        require_runtime_budget(budget)
-        return result
-    except TimeoutError:
-        raise qualification_budget_block(budget,cache_status)
-    finally:
-        signal.setitimer(signal.ITIMER_REAL,0.0)
-        signal.signal(signal.SIGALRM,previous_handler)
+    """Run qualification until completion or the process receives Stop."""
+    return operation()
 
 def qualify_profile_contact(index):
     """Fork-only independent contact qualification; results are reordered by index."""
@@ -425,7 +461,7 @@ def case(r, name, dc, dd, solvers):
     case_started=time.monotonic()
     qualification_budget={"started":case_started,
       "maximumSeconds":QUALIFICATION_BUDGET_SECONDS}
-    budget={"calls":0,"residualCalls":0,"started":None,
+    budget={"calls":0,"residualCalls":0,"started":None,"heightCandidateM":None,
             "maximumSeconds":NONLINEAR_SOLVER_BUDGET_SECONDS}
     global _active_runtime_budgets
     _active_runtime_budgets={"caseStarted":case_started,
@@ -470,36 +506,54 @@ def case(r, name, dc, dd, solvers):
       for i in (5,6)):
         raise JobCBlocked("JOB_C_BOUNDARY_INTERFACE_QUALIFIER_FAILED",
           {"gate":"EXACT_ZERO_SOLVENT_TANGENT_CONE","qualifier":inlet_qualifier})
+    record_completed_result("boundary-interface","QUALIFIED_BOUNDARY_INTERFACE",
+      inlet_qualifier,inputSha256=branch["sourceStateSha256"])
     # Reuse only a complete, hash-bound qualification set. Cache misses retain
     # the forked process tree so lease cancellation terminates every descendant.
     qualified,cache_identity,cache_key=load_qualification_cache(r)
     cache_hit=qualified is not None
     if cache_hit:
         progress("axial contact qualification cache",m,m)
+        for value in qualified:
+            record_completed_result(f"contact:{value['index']+1}",
+              "QUALIFIED_AXIAL_CONTACT",value,
+              inputSha256=digest(r["axialLocalContactProfile"][value["index"]]),
+              source="HASH_BOUND_CACHE_REPLAY")
     else:
-        global _profile_qualification_context,_active_qualification_pool
+        global _profile_qualification_context,_active_qualification_pool,_active_qualification_jobs
         _profile_qualification_context=(r,solvers[0].engine,branch)
         context=multiprocessing.get_context("fork")
         pool=context.Pool(processes=min(3,m))
         _active_qualification_pool=pool
         jobs=[pool.apply_async(qualify_profile_contact,(index,)) for index in range(m)]
+        _active_qualification_jobs=jobs
         try:
             completed=-1
+            collected=set()
             while completed<m:
                 require_runtime_budget(qualification_budget)
                 completed=sum(job.ready() for job in jobs)
                 progress("axial contact qualification",completed,m)
+                # Harvest each ready contact immediately.  If cancellation
+                # follows, this is recoverable qualified evidence, not an
+                # all-or-nothing pool result.
+                for index,job in enumerate(jobs):
+                    if index not in collected and job.ready():
+                        value=job.get()
+                        collected.add(index)
+                        if "flux" in value:
+                            record_completed_result(f"contact:{index+1}",
+                              "QUALIFIED_AXIAL_CONTACT",value,
+                              inputSha256=digest(r["axialLocalContactProfile"][index]))
                 if completed<m: time.sleep(1)
             qualified=[job.get() for job in jobs]
             pool.close(); pool.join()
-        except TimeoutError:
-            pool.terminate(); pool.join()
-            raise qualification_budget_block(qualification_budget,"MISS")
         except BaseException:
             pool.terminate(); pool.join()
             raise
         finally:
             _active_qualification_pool=None
+            _active_qualification_jobs=None
             _profile_qualification_context=None
     qualified.sort(key=lambda value:value["index"])
     profile_evidence=[]; profile_flux=[]; profile_unknowns=[]
@@ -520,11 +574,6 @@ def case(r, name, dc, dd, solvers):
       "elapsedSeconds":qualification_seconds,
       "cacheStatus":"HIT_FULL_HASH_MATCH" if cache_hit else "MISS_QUALIFIED_AND_STORED",
       "cacheKeySha256":cache_key}
-    try:
-        require_runtime_budget(qualification_budget)
-    except TimeoutError:
-        raise qualification_budget_block(qualification_budget,
-          qualification_runtime["cacheStatus"])
     qualification_budget.update({"ended":time.monotonic(),
       "cacheStatus":qualification_runtime["cacheStatus"],
       "cacheKeySha256":cache_key})
@@ -576,6 +625,7 @@ def case(r, name, dc, dd, solvers):
 
     def solve_height(h, warm=None):
         """Solve all 98 FV and 91 frozen Job-B equations simultaneously."""
+        budget["heightCandidateM"]=float(h)
         np,scipy=solvers[0].np,solvers[0].scipy
         if m != 7:
             raise JobCBlocked("JOB_C_REQUIRES_SEVEN_NUMERICAL_FV_CELLS",
@@ -1240,7 +1290,8 @@ def case(r, name, dc, dd, solvers):
             current_flows=x[:14*m].copy()
             current_interfaces=x[14*m:].copy()
             for outer in range(1,maximum_outer_iterations+1):
-                if time.monotonic()-budget["started"]>budget["maximumSeconds"]:
+                if (budget["maximumSeconds"] is not None and
+                    time.monotonic()-budget["started"]>budget["maximumSeconds"]):
                     step_error="INTERNAL_RUNTIME_BUDGET"
                     break
                 try:
@@ -1810,13 +1861,13 @@ def case(r, name, dc, dd, solvers):
           "scaledFvResidual":scaled,"numericalCells":evidence,
           "monolithicRuntimeSeconds":ev["monolithicRuntimeSeconds"]}
 
-    progress("candidate 2m")
+    progress("candidate 2m",height_candidate_m=2.0)
     low=solve_height(2.0)
     h2_benchmark=qualify_h2(low)
     h2_benchmark["outletDuty"]=outlet_duty_report(low)
-    progress("candidate20m")
+    progress("candidate20m",height_candidate_m=20.0)
     high=solve_height(20.0,low["solution"])
-    progress("height search")
+    progress("height search",height_candidate_m=20.0)
     flo,fhi=recovery(low)-r["minimumRecoveryPct"],recovery(high)-r["minimumRecoveryPct"]
     if flo*fhi>0: return {"name":name,"status":"BLOCKED_NO_HEIGHT_BRACKET",
       "daxContinuousM2S":dc,"daxDispersedM2S":dd,
@@ -1829,8 +1880,10 @@ def case(r, name, dc, dd, solvers):
         "gridIndependenceStatus":"PENDING_NOT_IMPLEMENTED",
         "interfaceCalls":budget["calls"]}}
     lo,hi=2.,20.; selected=low
-    for _ in range(10):
+    for search_iteration in range(10):
         mid=(lo+hi)/2
+        progress("height search",search_iteration,10,search_iteration,
+          None,None,mid)
         nearest=min(accepted_by_height,key=lambda x:abs(x-mid))
         selected=solve_height(mid,accepted_by_height[nearest]); fm=recovery(selected)-r["minimumRecoveryPct"]
         if flo*fm<=0: hi=mid
@@ -1839,6 +1892,7 @@ def case(r, name, dc, dd, solvers):
     # necessarily the last midpoint evaluated above. Solve that exact point so
     # no profile, recovery, or qualification is paired with another height.
     final_height=(lo+hi)/2
+    progress("height candidate final solve",10,10,None,None,None,final_height)
     nearest=min(accepted_by_height,key=lambda x:abs(x-final_height))
     selected=solve_height(final_height,accepted_by_height[nearest])
     if selected["height"] != final_height:
@@ -1952,6 +2006,11 @@ def exact_qualify(r, nominal):
             "candidateExactMaximumFluxErrorMolM2S":error,
             "candidateExactFluxToleranceMolM2S":flux_tolerance}})
         exact.append((rc,rd))
+        record_completed_result(f"exact-cell:{cell['numericalCell']}",
+          "EXACT_QUALIFIED_NUMERICAL_CELL",
+          {"numericalCell":cell["numericalCell"],
+           "exactBoundaryQualifier":cell["exactBoundaryQualifier"],
+           "continuousResidualMolS":rc,"dispersedResidualMolS":rd})
     feedc=r["continuousFeedMolS"]; feedd=r["dispersedFeedMolS"]
     cout=cells[-1]["continuousOutMolS"]; dout=cells[0]["dispersedOutMolS"]
     global_balance=[feedc[i]+feedd[i]-cout[i]-dout[i] for i in range(7)]
@@ -1984,12 +2043,32 @@ def exact_qualify(r, nominal):
       "exactQualifiedCellCount":len(cells)})
     selected["exactQualificationStatus"]=f"QUALIFIED_JOB_C_BOUNDARY_BRANCH_{len(cells)}_OF_{len(cells)}_REPLAYED"
     progress(f"exact qualification {len(cells)}/{len(cells)}",len(cells),len(cells))
+    record_completed_result("height-candidate","EXACT_QUALIFIED_HEIGHT_CANDIDATE",
+      {"heightM":height,"selected":selected})
     return nominal
 
 for line in sys.stdin:
  try:
     _active_runtime_budgets=None
+    _job_started=time.monotonic()
+    _last_progress={"phase":"initializing","completed":0,"total":None,
+      "iteration":None,"residual":None,"residualKind":None,
+      "elapsedSeconds":0.0,"heightCandidateM":None}
+    _last_progress_emit=0.0
+    _completed_results=[]
     r=json.loads(line)
+    _request_sha256=digest({k:v for k,v in r.items() if k!="resumeCheckpoint"})
+    resume=r.get("resumeCheckpoint")
+    resume_status="NOT_REQUESTED"
+    if resume is not None:
+        if (not isinstance(resume,dict) or
+            resume.get("schemaVersion")!="ECR_JOB_C_PARTIAL_V1" or
+            resume.get("requestSha256")!=_request_sha256):
+            raise ValueError("JOB_C_RESUME_CHECKPOINT_REQUEST_HASH_MISMATCH")
+        # Snapshots are deliberately retained only as analysis evidence.  A
+        # numerical state is never accepted from a checkpoint: the hash-bound
+        # qualification/cache path below replays every accepted local state.
+        resume_status="SNAPSHOT_ACCEPTED_REQUALIFICATION_REQUIRED"
     if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     validate_branch_request(r)
     temporary,engine,_,_=job_b.scientific.build_engine(r["temperatureK"],0.0)
@@ -2009,7 +2088,15 @@ for line in sys.stdin:
              "sha256":hashlib.sha256((Path(__file__).parent/"boundary_interface_qualifier.py").read_bytes()).hexdigest(),
              "qualification":"QUALIFIED_JOB_C_BOUNDARY_BRANCH"},
            "finalQualificationRequirement":"VERSIONED_JOB_C_BOUNDARY_QUALIFIER_EVERY_LOCAL_STATE",
+          "resume":{"status":resume_status,
+            "checkpointCompletedResultCount":len(resume.get("completedResults",[]))
+              if isinstance(resume,dict) else 0},
           "sensitivityCases":cases}
+ except JobCInterrupted:
+    body={"protocol":PROTOCOL,"status":"INTERRUPTED_PRELIMINARY_JOB_C",
+      "requestSha256":_request_sha256,"complete":False,
+      "completedResults":_completed_results,"progress":_last_progress,
+      "interruption":"SIGTERM_GRACEFUL_CHECKPOINT_EMITTED"}
  except JobCBlocked as e:
     diagnostics=dict(e.diagnostics)
     runtime_budgets=active_runtime_budget_report()
