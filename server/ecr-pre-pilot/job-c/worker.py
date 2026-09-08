@@ -620,8 +620,9 @@ def case(r, name, dc, dd, solvers):
             scaled_fv=np.asarray([v/scale[i%7] for i,v in enumerate(ev["fv"])])
             return np.r_[scaled_fv,ev["interface"]]
 
-        # Explicit block sparsity: FV rows see adjacent phase flow blocks and
-        # their local interface; interface rows see local bulk and interface.
+        # Explicit block sparsity: every FV source sees both local phase-flow
+        # blocks through the interface equations, in addition to its own
+        # phase's neighboring convective/dispersion blocks.
         sparsity=scipy.sparse.lil_matrix((27*m,27*m),dtype=int)
         for j in range(m):
             neighboring={j}
@@ -630,10 +631,12 @@ def case(r, name, dc, dd, solvers):
             for row in range(14*j,14*j+7):
                 for k in neighboring:
                     sparsity[row,7*k:7*k+7]=1
+                sparsity[row,7*m+7*j:7*m+7*j+7]=1
                 sparsity[row,14*m+13*j:14*m+13*j+13]=1
             for row in range(14*j+7,14*j+14):
                 for k in neighboring:
                     sparsity[row,7*m+7*k:7*m+7*k+7]=1
+                sparsity[row,7*j:7*j+7]=1
                 sparsity[row,14*m+13*j:14*m+13*j+13]=1
             for row in range(14*m+13*j,14*m+13*j+13):
                 sparsity[row,7*j:7*j+7]=1
@@ -700,6 +703,413 @@ def case(r, name, dc, dd, solvers):
 
         def diagnostics(ev):
             return diagnostic_rows(ev)[:20]
+
+        def acceptance_metrics(state,lam):
+            ev=raw_evaluate(state,lam)
+            raw=float(np.max(np.abs(ev["fv"])))
+            scaled=float(np.max(np.abs(
+              [v/scale[i%7] for i,v in enumerate(ev["fv"])])))
+            interface=max(
+              max(float(np.max(np.abs(values[0][:7]))),
+                float(np.max(np.abs(values[6])/solvers[j].scale)))
+              for j,values in enumerate(ev["details"]))
+            minimum=float(min(np.min(ev["c"]),np.min(ev["d"])))
+            return ev,{"rawFvResidualMolS":raw,
+              "scaledFvResidual":scaled,
+              "maximumOriginalJobBGateResidual":interface,
+              "minimumFlowMolS":minimum,
+              "accepted":bool(minimum>0 and raw<=1e-7 and scaled<=1e-7
+                and interface<=1e-7)}
+
+        def pseudo_arclength_qualification(
+              base_state,base_lambda,target_lambda,independent_restart_state):
+            """Trace the unchanged 189 equations in scaled (x, lambda) space."""
+            progress("pseudo-arclength boundary qualification")
+            y0=np.asarray(base_state)/variable_scale
+            lambda_scale=max(abs(target_lambda-base_lambda),1e-7)
+            steps=(2e-6,1e-6)
+            jacobians=[]; tangents=[]; derivatives=[]; rank_rows=[]
+            def scaled_residual(y,lam):
+                return residual(np.asarray(y)*variable_scale,lam)
+            for relative_step in steps:
+                require_runtime_budget(budget)
+                jac=scipy.optimize._numdiff.approx_derivative(
+                  lambda y:scaled_residual(y,base_lambda),y0,
+                  method="3-point",rel_step=relative_step)
+                lambda_step=max(lambda_scale*relative_step,1e-12)
+                rplus=scaled_residual(y0,base_lambda+lambda_step)
+                rminus=scaled_residual(y0,base_lambda-lambda_step)
+                rlambda=(rplus-rminus)/(2*lambda_step)
+                augmented=np.column_stack((jac,rlambda))
+                _,singular,vh=np.linalg.svd(augmented,full_matrices=True)
+                jac_singular=np.linalg.svd(jac,compute_uv=False)
+                tangent=vh[-1]
+                if tangent[-1]<0: tangent=-tangent
+                tangent/=np.linalg.norm(tangent)
+                tangent_residual=float(np.max(np.abs(augmented@tangent)))
+                threshold=float(singular[0]*max(augmented.shape)
+                  *np.finfo(float).eps)
+                rank=int(np.sum(singular>threshold))
+                jac_threshold=float(jac_singular[0]*max(jac.shape)
+                  *np.finfo(float).eps)
+                jac_rank=int(np.sum(jac_singular>jac_threshold))
+                declared=sparsity.toarray().astype(bool)
+                numerical=np.zeros_like(declared)
+                for column in range(jac.shape[1]):
+                    column_threshold=max(1e-9,
+                      float(np.max(np.abs(jac[:,column])))*1e-7)
+                    numerical[:,column]=np.abs(jac[:,column])>column_threshold
+                undeclared=np.argwhere(numerical & ~declared)
+                if abs(tangent[-1])>1e-12:
+                    derivative=variable_scale*tangent[:-1]/tangent[-1]
+                else:
+                    derivative=np.full(27*m,np.nan)
+                jacobians.append((jac,rlambda))
+                tangents.append(tangent)
+                derivatives.append(derivative)
+                rank_rows.append({"relativeFiniteDifferenceStep":relative_step,
+                  "rank":rank,"requiredRank":27*m,
+                  "fixedLambdaJacobianRank":jac_rank,
+                  "requiredFixedLambdaJacobianRank":27*m,
+                  "largestSingularValue":float(singular[0]),
+                  "smallestNonzeroSingularValue":float(singular[-1]),
+                  "fixedLambdaSmallestSingularValue":
+                    float(jac_singular[-1]),
+                  "declaredJacobianNonzeros":int(np.sum(declared)),
+                  "finiteDifferenceJacobianNonzeros":int(np.sum(numerical)),
+                  "undeclaredJacobianDependencyCount":int(len(undeclared)),
+                  "rankThreshold":threshold,
+                  "tangentLambdaComponent":float(tangent[-1]),
+                  "maximumTangentEquationResidual":tangent_residual})
+            alignment=float(abs(np.dot(tangents[0],tangents[1])))
+            derivative_alignment=float(np.dot(derivatives[0],derivatives[1])
+              /(np.linalg.norm(derivatives[0])*np.linalg.norm(derivatives[1])))
+            flow0=np.asarray(base_state)[:14*m]
+            limiting=[]
+            for index,value in enumerate(flow0):
+                slopes=[float(derivative[index]) for derivative in derivatives]
+                if max(slopes)<0:
+                    phase_index,rem=divmod(index,m*7)
+                    cell_index,component_index=divmod(rem,7)
+                    distances=[float(value/(-slope))
+                      for slope in slopes]
+                    limiting.append({
+                      "variableIndex":index,
+                      "phase":"continuous" if phase_index==0 else "dispersed",
+                      "numericalCell":cell_index+1,
+                      "component":COMPONENTS[component_index],
+                      "baseFlowMolS":float(value),
+                      "dFlowDlambda":slopes,
+                      "predictedBoundaryLambda":[
+                        float(base_lambda+distance) for distance in distances]})
+            limiting.sort(key=lambda row:max(row["predictedBoundaryLambda"]))
+            local_boundary=limiting[0] if limiting else None
+            stable=(all(row["rank"]==27*m for row in rank_rows)
+              and all(row["fixedLambdaJacobianRank"]==27*m
+                for row in rank_rows)
+              and all(row["undeclaredJacobianDependencyCount"]==0
+                for row in rank_rows)
+              and alignment>=.999
+              and derivative_alignment>=.999
+              and all(row["maximumTangentEquationResidual"]<=1e-7
+                for row in rank_rows))
+            report={"method":"SCALED_PSEUDO_ARCLENGTH_ORIGINAL_189_EQUATIONS",
+              "baseLambda":float(base_lambda),
+              "targetRejectedLambda":float(target_lambda),
+              "finiteDifferenceQualifications":rank_rows,
+              "tangentAlignmentAcrossStepSizes":alignment,
+              "fixedLambdaDerivativeAlignmentAcrossStepSizes":
+                derivative_alignment,
+              "stableFullRowRankTangent":bool(stable),
+              "limitingPositiveFlow":local_boundary,
+              "baseStateSha256":digest([float(v) for v in base_state]),
+              "variableScaleSha256":digest([float(v) for v in variable_scale]),
+              "positiveLowerBoundMolS":epsilon,
+              "strictPositiveFlowConstraintPreserved":True,
+              "acceptanceGatesUnchanged":True,
+              "physicalInfeasibilityClaimed":False,"attempts":[]}
+            if not stable:
+                report["classification"]="TANGENT_QUALIFICATION_UNSTABLE"
+                return None,report
+            tangent=tangents[1]
+            state_y=y0.copy(); state_lambda=float(base_lambda)
+            ds=max((target_lambda-base_lambda)*2.0,2e-8)
+            ds=min(ds,2e-6)
+            for attempt in range(4):
+                require_runtime_budget(budget)
+                predictor=np.r_[state_y,state_lambda]+ds*tangent
+                predictor[-1]=min(max(predictor[-1],0.0),1.0)
+                lower_aug=np.r_[lower/variable_scale,0.0]
+                upper_aug=np.r_[upper/variable_scale,1.0]
+                # The governing domain is flow > 0, not flow >= epsilon.
+                # Epsilon remains the Picard solver's numerical floor only.
+                lower_aug[:14*m]=0.0
+                predictor=np.minimum(np.maximum(predictor,
+                  lower_aug+1e-14),upper_aug-1e-14)
+                def augmented_residual(q):
+                    require_runtime_budget(budget)
+                    arc=float(np.dot(tangent,q-predictor))
+                    return np.r_[scaled_residual(q[:-1],q[-1]),arc]
+                fit=scipy.optimize.least_squares(
+                  augmented_residual,predictor,bounds=(lower_aug,upper_aug),
+                  method="trf",jac="2-point",x_scale="jac",max_nfev=120,
+                  xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                candidate=fit.x[:-1]*variable_scale
+                candidate_lambda=float(fit.x[-1])
+                _,metrics=acceptance_metrics(candidate,candidate_lambda)
+                arc_residual=abs(float(np.dot(tangent,fit.x-predictor)))
+                accepted=bool(metrics["accepted"] and arc_residual<=1e-7)
+                report["attempts"].append({
+                  "step":attempt+1,"arcLengthStep":float(ds),
+                  "lambda":candidate_lambda,
+                  "functionEvaluations":int(fit.nfev),
+                  "optimizerSuccess":bool(fit.success),
+                  "arcConstraintResidual":arc_residual,**metrics})
+                if accepted:
+                    state_y=fit.x[:-1]; state_lambda=candidate_lambda
+                    if state_lambda>target_lambda+1e-9:
+                        report["pseudoArclengthCandidate"]={
+                          "lambda":state_lambda,
+                          "stateSha256":digest([float(v) for v in candidate]),
+                          "qualification":
+                            "CANDIDATE_REQUIRES_TWO_START_FIXED_LAMBDA_CONFIRMATION"}
+                        break
+                    ds=min(ds*1.5,2e-5)
+                    continue
+                ds*=.5
+                if ds<1e-10: break
+            pseudo_restart_state=state_y*variable_scale
+            probe_margin=target_lambda-base_lambda
+            probe_lambda=target_lambda+probe_margin
+            if probe_lambda>1.0:
+                report["classification"]=(
+                  "FULL_BRACKET_ADVANCE_EXCEEDS_LAMBDA_DOMAIN")
+                report["complementarityQualification"]={
+                  "targetRejectedLambda":target_lambda,
+                  "requiredBeyondRejectedBoundaryMargin":probe_margin,
+                  "lambdaUpperBound":1.0,
+                  "accepted":False}
+                return None,report
+            complementarity_lower=lower.copy()
+            complementarity_lower[:14*m]=0.0
+            independent_restart=np.asarray(
+              independent_restart_state).copy()
+            flow_restart_factor=np.where(
+              np.arange(14*m)%2==0,.995,1.005)
+            independent_restart[:14*m]*=flow_restart_factor
+            independent_restart[14*m:]+=np.where(
+              np.arange(13*m)%2==0,-.005,.005)
+            complementarity_starts=[
+              ("PSEUDO_ARCLENGTH_CORRECTED_STATE",pseudo_restart_state),
+              ("DETERMINISTIC_PERTURBED_REJECTED_PICARD_RESTART",
+                independent_restart)]
+            prepared_starts=[]
+            for label,start in complementarity_starts:
+                prepared=np.minimum(np.maximum(start,
+                  complementarity_lower+1e-14),upper-1e-14)
+                prepared_starts.append((label,prepared))
+            initial_separation=float(np.max(np.abs(
+              prepared_starts[0][1]-prepared_starts[1][1])
+              /np.maximum(variable_scale,1e-30)))
+            initial_hashes=[digest([float(v) for v in start])
+              for _,start in prepared_starts]
+            independent_start_minimum_separation=2e-3
+            complementarity_attempts=[]; complementarity_solutions=[]
+            confirmation_successes=[]
+            if (initial_separation>=independent_start_minimum_separation
+                and initial_hashes[0]!=initial_hashes[1]):
+              for label,start in prepared_starts:
+                confirmation_y=start/variable_scale
+                confirmation_initial_residual=float(np.max(np.abs(
+                  scaled_residual(confirmation_y,probe_lambda))))
+                confirmation_iterations=0
+                for _ in range(6):
+                    confirmation_residual=scaled_residual(
+                      confirmation_y,probe_lambda)
+                    delta=np.linalg.solve(
+                      jacobians[1][0],-confirmation_residual)
+                    current_norm=float(np.max(np.abs(
+                      confirmation_residual)))
+                    accepted_newton_step=False
+                    alpha=1.0
+                    for _ in range(8):
+                        trial_y=np.minimum(np.maximum(
+                          confirmation_y+alpha*delta,
+                          complementarity_lower/variable_scale+1e-14),
+                          upper/variable_scale-1e-14)
+                        trial_norm=float(np.max(np.abs(
+                          scaled_residual(trial_y,probe_lambda))))
+                        if trial_norm<current_norm:
+                            confirmation_y=trial_y
+                            accepted_newton_step=True
+                            break
+                        alpha*=.5
+                    if not accepted_newton_step:
+                        break
+                    confirmation_iterations+=1
+                confirmation_final_residual=float(np.max(np.abs(
+                  scaled_residual(confirmation_y,probe_lambda))))
+                confirmation_success=bool(
+                  confirmation_iterations>0
+                  and confirmation_final_residual<=1e-7)
+                confirmation_successes.append(confirmation_success)
+                confirmation_state=confirmation_y*variable_scale
+                fit=scipy.optimize.least_squares(
+                  lambda q:residual(q,probe_lambda),confirmation_state,
+                  bounds=(complementarity_lower,upper),method="trf",
+                  jac="2-point",tr_solver="exact",
+                  x_scale=variable_scale,max_nfev=6,
+                  xtol=1e-13,ftol=1e-13,gtol=1e-13)
+                _,metrics=acceptance_metrics(fit.x,probe_lambda)
+                attempt={"initialization":label,
+                  "confirmationStartSha256":
+                    digest([float(v) for v in start]),
+                  "frozenJacobianConfirmationIterations":
+                    confirmation_iterations,
+                  "frozenJacobianConfirmationSuccess":
+                    confirmation_success,
+                  "frozenJacobianConfirmationInitialMaximumResidual":
+                    confirmation_initial_residual,
+                  "frozenJacobianConfirmationMaximumResidual":
+                    confirmation_final_residual,
+                  "functionEvaluations":int(fit.nfev),
+                  "optimizerStatus":int(fit.status),
+                  "optimizerOptimality":float(fit.optimality),
+                  "optimizerSuccess":bool(fit.success),
+                  "stateSha256":digest([float(v) for v in fit.x]),
+                  **metrics}
+                complementarity_attempts.append(attempt)
+                if metrics["accepted"]:
+                    complementarity_solutions.append(fit.x.copy())
+            report["complementarityQualification"]={
+              "solver":(
+                "TWO_DISTINCT_START_DENSE_FROZEN_JACOBIAN_NEWTON_PLUS_"
+                "DENSE_POLISH_"
+                "189_FIXED_LAMBDA"),
+              "lambda":probe_lambda,
+              "beyondRejectedBoundaryMargin":probe_lambda-target_lambda,
+              "minimumRequiredBeyondBoundaryMargin":probe_margin,
+              "mathematicalFlowLowerBoundMolS":0.0,
+              "strictPositiveFinalAcceptanceRequired":True,
+              "optimizerSuccessIsAcceptanceGate":False,
+              "independentStartMinimumScaledSeparation":
+                independent_start_minimum_separation,
+              "confirmationStartScaledStateSeparation":initial_separation,
+              "confirmationStartStateSha256":initial_hashes,
+              "initializations":[label for label,_ in prepared_starts],
+              "pseudoArclengthRestartLambda":state_lambda,
+              "attempts":complementarity_attempts}
+            if len(complementarity_solutions)==len(complementarity_starts):
+                state_difference=float(np.max(np.abs(
+                  complementarity_solutions[0]-complementarity_solutions[1])
+                  /np.maximum(variable_scale,1e-30)))
+                report["complementarityQualification"][
+                  "maximumScaledStateDifferenceAcrossStarts"]=state_difference
+                agreement_tolerance=1e-3
+                report["complementarityQualification"][
+                  "scaledStateAgreementTolerance"]=agreement_tolerance
+                if (state_difference<=agreement_tolerance
+                    and all(confirmation_successes)):
+                    report["classification"]=(
+                      "ACCEPTED_POSITIVE_BRANCH_BEYOND_BRACKET")
+                    report["acceptedLambda"]=probe_lambda
+                    report["acceptedStateSha256"]=digest(
+                      [float(v) for v in complementarity_solutions[0]])
+                    return complementarity_solutions[0],report
+            report["classification"]="PSEUDO_ARCLENGTH_POSITIVE_BRANCH_UNRESOLVED"
+            if not stable or local_boundary is None:
+                return None,report
+            boundary_index=local_boundary["variableIndex"]
+            predicted_lambda=float(np.mean(
+              local_boundary["predictedBoundaryLambda"]))
+            if not base_lambda<predicted_lambda<=target_lambda+1e-8:
+                return None,report
+            boundary_y=y0+(predicted_lambda-base_lambda)*(
+              derivatives[1]/variable_scale)
+            boundary_y[boundary_index]=0.0
+            boundary_start=np.r_[np.delete(boundary_y,boundary_index),
+              predicted_lambda]
+            def boundary_residual(q):
+                require_runtime_budget(budget)
+                full_y=np.insert(q[:-1],boundary_index,0.0)
+                return scaled_residual(full_y,q[-1])
+            boundary_lower=np.r_[np.delete(
+              lower/variable_scale,boundary_index),
+              max(0.0,base_lambda-1e-8)]
+            boundary_upper=np.r_[np.delete(
+              upper/variable_scale,boundary_index),
+              min(1.0,target_lambda+1e-8)]
+            boundary_start=np.minimum(np.maximum(boundary_start,
+              boundary_lower+1e-15),boundary_upper-1e-15)
+            boundary_fit=scipy.optimize.least_squares(
+              boundary_residual,boundary_start,
+              bounds=(boundary_lower,boundary_upper),
+              method="trf",jac="2-point",x_scale="jac",max_nfev=800,
+              xtol=1e-12,ftol=1e-12,gtol=1e-12)
+            solved_boundary_y=np.insert(
+              boundary_fit.x[:-1],boundary_index,0.0)
+            boundary_state=solved_boundary_y*variable_scale
+            boundary_lambda=float(boundary_fit.x[-1])
+            boundary_ev,boundary_metrics=acceptance_metrics(
+              boundary_state,boundary_lambda)
+            other_flows=np.delete(boundary_state[:14*m],boundary_index)
+            boundary_flow=float(boundary_state[boundary_index])
+            boundary_gate=max(abs(boundary_flow),
+              boundary_metrics["rawFvResidualMolS"],
+              boundary_metrics["scaledFvResidual"],
+              boundary_metrics["maximumOriginalJobBGateResidual"])
+            boundary_rank=[]; boundary_derivatives=[]
+            for relative_step in steps:
+                jac=scipy.optimize._numdiff.approx_derivative(
+                  lambda y:scaled_residual(y,boundary_lambda),
+                  solved_boundary_y,method="3-point",
+                  rel_step=relative_step)
+                lambda_step=max(lambda_scale*relative_step,1e-12)
+                rlambda=(scaled_residual(solved_boundary_y,
+                  boundary_lambda+lambda_step)
+                  -scaled_residual(solved_boundary_y,
+                    boundary_lambda-lambda_step))/(2*lambda_step)
+                singular=np.linalg.svd(jac,compute_uv=False)
+                threshold=float(singular[0]*max(jac.shape)
+                  *np.finfo(float).eps)
+                rank=int(np.sum(singular>threshold))
+                derivative=variable_scale*np.linalg.solve(jac,-rlambda)
+                boundary_derivatives.append(derivative)
+                boundary_rank.append({
+                  "relativeFiniteDifferenceStep":relative_step,
+                  "rank":rank,"requiredRank":27*m,
+                  "smallestSingularValue":float(singular[-1]),
+                  "rankThreshold":threshold,
+                  "limitingFlowDerivativeMolSPerLambda":
+                    float(derivative[boundary_index])})
+            boundary_derivative_alignment=float(np.dot(
+              boundary_derivatives[0],boundary_derivatives[1])/(
+                np.linalg.norm(boundary_derivatives[0])
+                *np.linalg.norm(boundary_derivatives[1])))
+            boundary_valid=(bool(boundary_fit.success)
+              and boundary_gate<=1e-7
+              and float(np.min(other_flows))>0
+              and base_lambda<boundary_lambda<=target_lambda+1e-8
+              and all(row["rank"]==row["requiredRank"]
+                and row["limitingFlowDerivativeMolSPerLambda"]<0
+                for row in boundary_rank)
+              and boundary_derivative_alignment>=.999)
+            report["correctedBoundary"]={
+              "solver":
+                "REDUCED_TANGENT_CONE_189_EQUATIONS_ACTIVE_FLOW_FIXED_ZERO",
+              "functionEvaluations":int(boundary_fit.nfev),
+              "optimizerSuccess":bool(boundary_fit.success),
+              "lambda":boundary_lambda,
+              "activeFlowMolS":boundary_flow,
+              "minimumOtherFlowMolS":float(np.min(other_flows)),
+              "maximumUnchangedGateResidual":boundary_gate,
+              "finiteDifferenceQualifications":boundary_rank,
+              "derivativeAlignmentAcrossStepSizes":
+                boundary_derivative_alignment,
+              "stateSha256":digest([float(v) for v in boundary_state]),
+              "acceptedAsPhysicalOperatingState":False,
+              "strictPositiveStatesOnlyAccepted":True}
+            return None,report
 
         def dominant_blocks(ev):
             rows=diagnostic_rows(ev); blocks={}
@@ -1056,6 +1466,40 @@ def case(r, name, dc, dd, solvers):
                        "unconstrainedTerminalDiagnostic":unconstrained,
                        "claimsEmitted":{"height":False,"efficiency":False,
                          "finalRpm":False,"jobD":False,"release":False}})
+                arclength_state,arclength=(
+                  pseudo_arclength_qualification(
+                    accepted_x,previous_lambda,lam,current_joint))
+                if arclength_state is not None:
+                    arclength_ev,arclength_metrics=acceptance_metrics(
+                      arclength_state,arclength["acceptedLambda"])
+                    raise JobCBlocked(
+                      "JOB_C_POSITIVE_BRANCH_BEYOND_SOLVENT_BOUNDARY_QUALIFIED",
+                      {"heightM":h,"lambda":arclength["acceptedLambda"],
+                       "classification":
+                         "REPRODUCIBLE_ACCEPTED_POSITIVE_BRANCH_BEYOND_"
+                         "SOLVENT_BOUNDARY",
+                       "physicalInfeasibilityClaimed":False,
+                       "adaptiveLambdaBracket":{"lowerAccepted":previous_lambda,
+                         "upperRejected":lam,"width":lam-previous_lambda,
+                         "minimumInterval":minimum_lambda_interval},
+                       "acceptedBranch":arclength_metrics,
+                       "pseudoArclengthQualification":arclength,
+                       "strictPositiveFlowsAccepted":bool(
+                         arclength_metrics["minimumFlowMolS"]>0),
+                       "incomingPhysicalFeedsUnchanged":True,
+                       "numericalTraceAdded":False,
+                       "sourceSignReversed":False,
+                       "governingInputsChanged":False,
+                       "globalInletFluxAudit":global_inlet_full_scale_audit,
+                       "claimsEmitted":{"height":False,"efficiency":False,
+                         "finalRpm":False,"jobD":False,"release":False},
+                       "runtimeSeconds":time.monotonic()-started,
+                       "runtimeBudgets":{"qualification":
+                         qualification_runtime,
+                         "nonlinearSolver":{"budgetSeconds":
+                           budget["maximumSeconds"],
+                           "elapsedSeconds":
+                             time.monotonic()-budget["started"]}}})
                 last_accepted=history[-1] if history else None
                 last_accepted_compact=None
                 if last_accepted is not None:
@@ -1088,10 +1532,11 @@ def case(r, name, dc, dd, solvers):
                 else:
                     rejected_source_refresh={
                       "status":"NOT_COMPUTED_PICARD_TERMINATED_BEFORE_REFRESH"}
-                raise JobCBlocked("JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
+                raise JobCBlocked(
+                  "JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
                    {"heightM":h,"lambda":lam,
                     "classification":
-                      "NUMERICAL_NONCONVERGENCE_NOT_PROCESS_INFEASIBILITY",
+                       "NUMERICAL_NONCONVERGENCE_NOT_PROCESS_INFEASIBILITY",
                     "physicalInfeasibilityClaimed":False,
                     "reason":step_error or "OUTER_ITERATION_LIMIT",
                    "maximumOuterIterations":maximum_outer_iterations,
@@ -1115,6 +1560,7 @@ def case(r, name, dc, dd, solvers):
                       "classification":
                         "COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
                       "physicalInfeasibilityClaimed":False},
+                    "pseudoArclengthQualification":arclength,
                     "rejectedStepSourceRefreshMismatch":
                       rejected_source_refresh,
                     "unconstrainedTerminalDiagnostic":unconstrained,

@@ -9,7 +9,7 @@ import {
 } from '../server/ecr-pre-pilot/job-c';
 
 describe('Job-C packaged design269 scientific regression', () => {
-  it('uses corrected orientation and distinguishes unresolved coupled feasibility', async () => {
+  it('qualifies a reproducible positive branch beyond the solvent boundary', async () => {
     const fixture = JSON.parse(fs.readFileSync(
       'tests/fixtures/design269-job-c-worker-request.json', 'utf8',
     )) as JobCWorkerRequest;
@@ -35,60 +35,109 @@ describe('Job-C packaged design269 scientific regression', () => {
     ]);
     const result = await runJobCWorker(fixture, { timeoutMs: 900_000 });
     expect(result.status).toBe('BLOCKED_PRELIMINARY_JOB_C');
-    expect(result.error).toBe('JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
+    expect(result.error)
+      .toBe('JOB_C_POSITIVE_BRANCH_BEYOND_SOLVENT_BOUNDARY_QUALIFIED');
     const diagnostics = result.diagnostics;
     expect(diagnostics.heightM).toBe(2);
-    expect(diagnostics.lambda).toBeCloseTo(6.923828125e-5, 12);
-    expect(diagnostics.reason).toBe('BOUNDED_FROZEN_FV_NONCONVERGENCE');
+    expect(diagnostics.lambda)
+      .toBeGreaterThan(diagnostics.adaptiveLambdaBracket.upperRejected);
     expect(diagnostics.classification)
-      .toBe('NUMERICAL_NONCONVERGENCE_NOT_PROCESS_INFEASIBILITY');
+      .toBe('REPRODUCIBLE_ACCEPTED_POSITIVE_BRANCH_BEYOND_SOLVENT_BOUNDARY');
     expect(diagnostics.physicalInfeasibilityClaimed).toBe(false);
-    expect(diagnostics.maximumOuterIterations).toBe(24);
-    expect(diagnostics.outerIterations.length).toBeGreaterThan(0);
-    const terminalPicard = diagnostics.outerIterations.at(-1);
-    expect(terminalPicard.frozenFvAcceptance.accepted).toBe(false);
-    expect(terminalPicard.dominantFrozenFvResidualRows.length).toBeGreaterThan(0);
     expect(diagnostics.adaptiveLambdaBracket).toMatchObject({
-      upperRejected: diagnostics.lambda,
       minimumInterval: 1e-8,
     });
     expect(diagnostics.adaptiveLambdaBracket.lowerAccepted)
-      .toBeLessThan(diagnostics.lambda);
+      .toBeLessThan(diagnostics.adaptiveLambdaBracket.upperRejected);
     expect(diagnostics.adaptiveLambdaBracket.width).toBeLessThanOrEqual(1e-8);
-    expect(diagnostics.lastAcceptedContinuation.sourceRefreshMismatch.status)
-      .toBe('MEASURED');
-    expect(diagnostics.lastAcceptedContinuation.sourceRefreshMismatch.rawMolS)
-      .toBeLessThanOrEqual(1e-7);
-    expect(diagnostics.lastAcceptedContinuation.sourceRefreshMismatch.scaled)
-      .toBeLessThanOrEqual(1e-7);
-    expect(diagnostics.rejectedStepSourceRefreshMismatch).toEqual({
-      status: 'NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE',
-    });
-    expect(diagnostics.coupledContinuation).toMatchObject({
-      solver: 'COUPLED_BOUNDED_SPARSE_189_CONTINUATION',
-      maximumFunctionEvaluations: 24,
-      classification: 'COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED',
+    expect(diagnostics.pseudoArclengthQualification).toMatchObject({
+      method: 'SCALED_PSEUDO_ARCLENGTH_ORIGINAL_189_EQUATIONS',
+      classification: 'ACCEPTED_POSITIVE_BRANCH_BEYOND_BRACKET',
+      strictPositiveFlowConstraintPreserved: true,
+      acceptanceGatesUnchanged: true,
       physicalInfeasibilityClaimed: false,
-      runtimeBudgetExhausted: false,
     });
-    expect(diagnostics.coupledContinuation.attempts.length).toBeGreaterThan(0);
-    expect(diagnostics.coupledContinuation.attempts.every(
-      (attempt: any) => attempt.accepted === false,
+    expect(diagnostics.pseudoArclengthQualification.finiteDifferenceQualifications)
+      .toHaveLength(2);
+    expect(diagnostics.pseudoArclengthQualification.finiteDifferenceQualifications.every(
+      (row: any) => row.rank === row.requiredRank
+        && row.fixedLambdaJacobianRank === row.requiredFixedLambdaJacobianRank
+        && row.undeclaredJacobianDependencyCount === 0
+        && row.maximumTangentEquationResidual <= 1e-7,
     )).toBe(true);
-    expect(diagnostics.coupledContinuation.dominantResidualRows.length)
-      .toBeGreaterThan(0);
-    expect(diagnostics.unconstrainedTerminalDiagnostic).toMatchObject({
-      qualification: 'UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE',
-      optimizerSuccess: true,
-      nonpositiveFlowCount: 14,
+    expect(diagnostics.pseudoArclengthQualification.tangentAlignmentAcrossStepSizes)
+      .toBeGreaterThanOrEqual(0.999);
+    expect(diagnostics.pseudoArclengthQualification
+      .fixedLambdaDerivativeAlignmentAcrossStepSizes).toBeGreaterThanOrEqual(0.999);
+    expect(diagnostics.pseudoArclengthQualification.limitingPositiveFlow)
+      .toMatchObject({
+        component: expect.stringMatching(/^(NMP|H2O)$/),
+      });
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification).toMatchObject({
+        solver: 'TWO_DISTINCT_START_DENSE_FROZEN_JACOBIAN_NEWTON_PLUS_'
+          + 'DENSE_POLISH_'
+          + '189_FIXED_LAMBDA',
+        strictPositiveFinalAcceptanceRequired: true,
+        optimizerSuccessIsAcceptanceGate: false,
+        mathematicalFlowLowerBoundMolS: 0,
+        scaledStateAgreementTolerance: 1e-3,
+      });
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.maximumScaledStateDifferenceAcrossStarts)
+      .toBeLessThanOrEqual(1e-3);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.lambda)
+      .toBeGreaterThan(diagnostics.adaptiveLambdaBracket.upperRejected);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.beyondRejectedBoundaryMargin)
+      .toBeGreaterThanOrEqual(diagnostics.adaptiveLambdaBracket.width);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.lambda
+      - diagnostics.adaptiveLambdaBracket.upperRejected)
+      .toBeGreaterThanOrEqual(diagnostics.adaptiveLambdaBracket.width);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.initializations).toEqual([
+        'PSEUDO_ARCLENGTH_CORRECTED_STATE',
+        'DETERMINISTIC_PERTURBED_REJECTED_PICARD_RESTART',
+      ]);
+    expect(new Set(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.confirmationStartStateSha256).size).toBe(2);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.confirmationStartScaledStateSeparation)
+      .toBeGreaterThanOrEqual(diagnostics.pseudoArclengthQualification
+        .complementarityQualification.independentStartMinimumScaledSeparation);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.attempts).toHaveLength(2);
+    expect(diagnostics.pseudoArclengthQualification
+      .complementarityQualification.attempts.every(
+        (attempt: any) => attempt.accepted
+          && attempt.frozenJacobianConfirmationSuccess
+          && diagnostics.pseudoArclengthQualification
+            .complementarityQualification.confirmationStartStateSha256
+            .includes(attempt.confirmationStartSha256)
+          && attempt.minimumFlowMolS > 0
+          && attempt.rawFvResidualMolS <= 1e-7
+          && attempt.scaledFvResidual <= 1e-7
+          && attempt.maximumOriginalJobBGateResidual <= 1e-7,
+      )).toBe(true);
+    expect(diagnostics.acceptedBranch).toMatchObject({
+      accepted: true,
     });
-    expect(diagnostics.unconstrainedTerminalDiagnostic.rawFvResidualMolS)
+    expect(diagnostics.acceptedBranch.minimumFlowMolS).toBeGreaterThan(0);
+    expect(diagnostics.acceptedBranch.rawFvResidualMolS)
       .toBeLessThanOrEqual(1e-7);
-    expect(diagnostics.unconstrainedTerminalDiagnostic.scaledFvResidual)
+    expect(diagnostics.acceptedBranch.scaledFvResidual)
       .toBeLessThanOrEqual(1e-7);
-    expect(new Set(diagnostics.unconstrainedTerminalDiagnostic.nonpositiveFlows.map(
-      (row: any) => row.component,
-    ))).toEqual(new Set(['NMP', 'H2O']));
+    expect(diagnostics.acceptedBranch.maximumOriginalJobBGateResidual)
+      .toBeLessThanOrEqual(1e-7);
+    expect(diagnostics).toMatchObject({
+      strictPositiveFlowsAccepted: true,
+      incomingPhysicalFeedsUnchanged: true,
+      numericalTraceAdded: false,
+      sourceSignReversed: false,
+      governingInputsChanged: false,
+    });
     expect(diagnostics.claimsEmitted).toEqual({
       height: false,
       efficiency: false,

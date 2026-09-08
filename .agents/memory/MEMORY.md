@@ -117,3 +117,4 @@
 - [Stage-2 local adapter authority](ecr-stage2-local-adapter-authority.md) — reuse the frozen 7C engine in a separate artifact; calculated duty is admitted only from a validated owned DB job.
 - [Job-B state ownership](ecr-job-b-local-flux-boundary.md) — separate Stage-2 bulk boundaries drive simultaneous interface solve; Stage-3 holdup is never thermodynamic composition.
 - [Job-C qualification boundary](ecr-job-c-qualification-boundary.md) — Stage-2 feed-end bins reverse into FV worker cells; ten-to-seven mapping is exactly [9,10]…[1].
+- [Job-C positive-branch qualification](ecr-job-c-positive-branch.md) — pseudo-arclength candidates need two-start dense fixed-λ confirmation; Picard epsilon is not the strict-positive domain.
