@@ -1,0 +1,572 @@
+{
+  "schemaVersion": "ISOLATED_SAVED_CELL_1_PHYSICAL_COLLOCATION_V3",
+  "scope": "ISOLATED_SAVED_CELL_1_ONLY",
+  "attempts": [
+    {
+      "start": "ORIENTED_PHASE_TEMPLATE",
+      "seedContinuous": [
+        0.01,
+        0.01,
+        0.01,
+        0.005,
+        0.005,
+        0.88,
+        0.08
+      ],
+      "seedDispersed": [
+        0.72,
+        0.12,
+        0.06,
+        0.025,
+        0.015,
+        0.05,
+        0.01
+      ],
+      "physicalAcceptance": false,
+      "status": "ITERATION_BUDGET_EXHAUSTED",
+      "iterations": 18,
+      "nodes": 5,
+      "flux": [
+        -0.002401874146970759,
+        -0.0003685685063518738,
+        -0.00017633994225246986,
+        -5.820500523960949e-05,
+        -2.5983567862447408e-05,
+        8.382183837973289e-05,
+        0.0002068316685346657
+      ],
+      "totalFlux": -0.002740317661762761,
+      "interfaceContinuous": [
+        0.019628953234584863,
+        0.002204502641642919,
+        0.0010806083367667363,
+        0.0004035479210078431,
+        0.0002400265679647392,
+        0.8984035472558052,
+        0.07803881404222768
+      ],
+      "interfaceDispersed": [
+        0.8568262245004927,
+        0.002920271271056642,
+        0.0013553227696163153,
+        0.0004484047177625409,
+        0.00013686809798432856,
+        0.059495674092566335,
+        0.07881723455052114
+      ],
+      "maximumPhysicalCollocationResidual": 0.00022703796970822976,
+      "maximumIsoactivityResidual": 0.009417155885118156,
+      "continuousAudit": {
+        "minimumNodeFraction": 3.152131316798451e-08,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 2.1332755111751132e-06
+      },
+      "dispersedAudit": {
+        "minimumNodeFraction": 2.505938900025761e-37,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 0.0005771835937779032
+      },
+      "backtrackingRejectedTrials": 71,
+      "iterationHistory": [
+        {
+          "iteration": 0,
+          "maximumPhysicalResidual": 2.227267031422607,
+          "acceptedAlpha": 0.25,
+          "backtrackingHalvings": 2
+        },
+        {
+          "iteration": 1,
+          "maximumPhysicalResidual": 2.012906800249187,
+          "acceptedAlpha": 0.25,
+          "backtrackingHalvings": 2
+        },
+        {
+          "iteration": 2,
+          "maximumPhysicalResidual": 1.863347121224325,
+          "acceptedAlpha": 0.25,
+          "backtrackingHalvings": 2
+        },
+        {
+          "iteration": 3,
+          "maximumPhysicalResidual": 1.6676337473044422,
+          "acceptedAlpha": 0.125,
+          "backtrackingHalvings": 3
+        },
+        {
+          "iteration": 4,
+          "maximumPhysicalResidual": 1.578527220064266,
+          "acceptedAlpha": 0.0625,
+          "backtrackingHalvings": 4
+        },
+        {
+          "iteration": 5,
+          "maximumPhysicalResidual": 1.5368114890787592,
+          "acceptedAlpha": 0.03125,
+          "backtrackingHalvings": 5
+        },
+        {
+          "iteration": 6,
+          "maximumPhysicalResidual": 1.499397649839744,
+          "acceptedAlpha": 0.5,
+          "backtrackingHalvings": 1
+        },
+        {
+          "iteration": 7,
+          "maximumPhysicalResidual": 0.840210542328472,
+          "acceptedAlpha": 0.5,
+          "backtrackingHalvings": 1
+        },
+        {
+          "iteration": 8,
+          "maximumPhysicalResidual": 0.49420164139234357,
+          "acceptedAlpha": 0.25,
+          "backtrackingHalvings": 2
+        },
+        {
+          "iteration": 9,
+          "maximumPhysicalResidual": 0.40896484204272227,
+          "acceptedAlpha": 0.03125,
+          "backtrackingHalvings": 5
+        },
+        {
+          "iteration": 10,
+          "maximumPhysicalResidual": 0.37237657948581915,
+          "acceptedAlpha": 0.03125,
+          "backtrackingHalvings": 5
+        },
+        {
+          "iteration": 11,
+          "maximumPhysicalResidual": 0.363241453818848,
+          "acceptedAlpha": 0.00390625,
+          "backtrackingHalvings": 8
+        },
+        {
+          "iteration": 12,
+          "maximumPhysicalResidual": 0.36055978423206403,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 13,
+          "maximumPhysicalResidual": 0.10645301445541455,
+          "acceptedAlpha": 0.5,
+          "backtrackingHalvings": 1
+        },
+        {
+          "iteration": 14,
+          "maximumPhysicalResidual": 0.045527308046342696,
+          "acceptedAlpha": 0.125,
+          "backtrackingHalvings": 3
+        },
+        {
+          "iteration": 15,
+          "maximumPhysicalResidual": 0.009532068538972704,
+          "acceptedAlpha": 0.0078125,
+          "backtrackingHalvings": 7
+        },
+        {
+          "iteration": 16,
+          "maximumPhysicalResidual": 0.009455398681774363,
+          "acceptedAlpha": 0.00390625,
+          "backtrackingHalvings": 8
+        },
+        {
+          "iteration": 17,
+          "maximumPhysicalResidual": 0.009419638715934653,
+          "acceptedAlpha": 0.000244140625,
+          "backtrackingHalvings": 12
+        }
+      ],
+      "numericalAccepted": false,
+      "resultStatus": "NO_NUMERICAL_CANDIDATE",
+      "elapsedSeconds": 32.6403678690001
+    },
+    {
+      "start": "ARCHIVED_INTERFACES",
+      "seedContinuous": [
+        0.019286696568824674,
+        0.001333490121717873,
+        0.0006430576451355772,
+        0.00022430408265232876,
+        0.00010902723241521309,
+        0.9024120497795988,
+        0.07599137456965553
+      ],
+      "seedDispersed": [
+        0.8596316122805464,
+        0.0017663562265905959,
+        0.000806705462403103,
+        0.00024924631736276606,
+        6.224238883347732e-05,
+        0.0594241418430333,
+        0.07805969548123062
+      ],
+      "physicalAcceptance": false,
+      "status": "CONVERGED",
+      "iterations": 8,
+      "nodes": 5,
+      "flux": [
+        -0.002397948791678122,
+        -0.00036822170017628507,
+        -0.000176167616085673,
+        -5.8140382457167325e-05,
+        -2.5949422709823763e-05,
+        8.399537859860705e-05,
+        0.00020981396343133614
+      ],
+      "totalFlux": -0.002732618571077128,
+      "interfaceContinuous": [
+        0.019590350142388843,
+        0.00220158240483991,
+        0.0010788584721298595,
+        0.00040277691648299397,
+        0.00023946370332297485,
+        0.8984597600905073,
+        0.07802720827032805
+      ],
+      "interfaceDispersed": [
+        0.8559391061561754,
+        0.0029150771463932984,
+        0.001352772308279879,
+        0.00044739008886569175,
+        0.0001367956778788371,
+        0.0600507862684516,
+        0.07915807235395522
+      ],
+      "maximumPhysicalCollocationResidual": 1.0949713358243685e-12,
+      "maximumIsoactivityResidual": 8.438804321997395e-09,
+      "continuousAudit": {
+        "minimumNodeFraction": 3.152131316798451e-08,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 3.4230687636341155e-13
+      },
+      "dispersedAudit": {
+        "minimumNodeFraction": 2.505938900025761e-37,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 5.892102626787935e-12
+      },
+      "backtrackingRejectedTrials": 0,
+      "iterationHistory": [
+        {
+          "iteration": 0,
+          "maximumPhysicalResidual": 0.02381644001836885,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 1,
+          "maximumPhysicalResidual": 0.0028949362173095287,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 2,
+          "maximumPhysicalResidual": 0.00023972822835721316,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 3,
+          "maximumPhysicalResidual": 6.377209530772365e-05,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 4,
+          "maximumPhysicalResidual": 3.6209968581224494e-05,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 5,
+          "maximumPhysicalResidual": 1.968285816644766e-05,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 6,
+          "maximumPhysicalResidual": 1.1704648873567258e-05,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 7,
+          "maximumPhysicalResidual": 8.438804321997395e-09
+        }
+      ],
+      "numericalAccepted": true,
+      "resultStatus": "NUMERICAL_CANDIDATE_REQUIRES_REFINEMENT",
+      "elapsedSeconds": 8.332593793999877
+    }
+  ],
+  "sourceSha256": "dcb7e1b4bd1dd7a6bc591de81286ebd67b2e164cb1b8c1aa2f072bcd9afe71eb",
+  "productionJobsRun": [],
+  "columnContinuationRun": false,
+  "tasksCreatedOrChanged": [],
+  "physicalFeedModified": false,
+  "boundaryAdapterModified": false,
+  "acceptanceGatesModified": false,
+  "physicalAcceptance": false,
+  "qualificationEvidenceSha256": "64d54cc1adeb0bd39748de220f28a5e1b9f5f543a602b6d878793adcadcb2ee5",
+  "validationEvidenceSha256": "140154ddec7da2392edbbbceb08161384f168af5de99959d1463bdadb4a63a9f",
+  "priorV2EvidenceSha256": "f2fbda39eadaf0c25284ee72c2c8f3a7da5b2f4f2b7ff2787dbceeedffb78c08",
+  "preservedV2NegativeDiagnosis": {
+    "phase": "dispersed",
+    "componentIndex": 1,
+    "component": "MONO",
+    "coordinate": 0.0,
+    "minimumRawCoordinate": -0.1688930317164224,
+    "rawCoordinateVector": [
+      1.2483073126791864,
+      -0.1688930317164224,
+      -0.07068085943967636,
+      -0.030407978488906875,
+      -0.025491609563992032,
+      -0.0016799040362273227,
+      0.048846070566037195
+    ],
+    "rawCoordinateSum": 0.9999999999999987,
+    "isSpatialEndpoint": true,
+    "isPrescribedDirichletEndpoint": false,
+    "magnitudeRelativeToMachineEpsilon": 760626594703553.2,
+    "status": "DIAGNOSTIC_NEGATIVE_TRIAL_CAPTURED"
+  },
+  "input": {
+    "continuousBulk": [
+      7.080024598066372e-06,
+      5.950153875443155e-07,
+      2.8044726397244043e-07,
+      8.65484018591514e-08,
+      3.152131316798451e-08,
+      0.922675288193551,
+      0.07731663824948438
+    ],
+    "dispersedBulk": [
+      0.8314091492606233,
+      0.09703211630006595,
+      0.046867260188424645,
+      0.01647558315782248,
+      0.008215891093063685,
+      1.719044952364148e-28,
+      2.505938900025761e-37
+    ],
+    "freshDispersedInlet": [
+      0.8314095020619516,
+      0.09703193550453774,
+      0.046867166192086945,
+      0.016475538558928395,
+      0.008215857682495201,
+      0.0,
+      0.0
+    ],
+    "continuousConductances": [
+      0.1449172280501945,
+      0.177063123200661,
+      0.17296173069273307,
+      0.15254022104851153,
+      0.11324113884325597,
+      0.18290381180994994,
+      0.2280973174333013
+    ],
+    "dispersedConductances": [
+      0.0020018748861023237,
+      0.002472408921142691,
+      0.002412099264728349,
+      0.0021129981173517768,
+      0.0015434166639340485,
+      0.002558428294435721,
+      0.003229089766778362
+    ],
+    "archivedTotalFluxForReferenceOnly": -0.0033422123776529673,
+    "fixedDirichletEndpointsExcludedFromNewtonUnknowns": true,
+    "sevenFluxesFree": true,
+    "totalFluxDefinition": "sum(componentFluxes)"
+  },
+  "pinnedGates": {
+    "negativeTpdThreshold": -1e-08,
+    "maximumScaledEquationResidual": 1e-08,
+    "maximumOverallComponentBalanceResidualMol": 1e-08,
+    "maximumIsoactivityLogResidual": 2e-05,
+    "minimumStreamComponentMoles": 1e-12,
+    "minimumPhaseCompositionSeparation": 0.0001,
+    "minimumStageGibbsReduction": 1e-09,
+    "minimumLocalStabilityCurvature": -1e-06,
+    "hessianEigenvalueAbsoluteTolerance": 1e-07,
+    "hessianEigenvalueRelativeTolerance": 0.005,
+    "postSplitTpdThreshold": -1e-08,
+    "multistartProductRelativeTolerance": 1e-06
+  },
+  "exactCacheCounts": {
+    "valueHits": 546,
+    "valueMisses": 214,
+    "derivativeHits": 2143,
+    "derivativeMisses": 913
+  },
+  "refinements": [
+    {
+      "status": "CONVERGED",
+      "iterations": 5,
+      "nodes": 7,
+      "flux": [
+        -0.0023981987999902245,
+        -0.0003687786393139287,
+        -0.0001764538421597893,
+        -5.82588071279151e-05,
+        -2.6032536274001494e-05,
+        8.444276004288777e-05,
+        0.00020977690677590927
+      ],
+      "totalFlux": -0.0027335029580470623,
+      "interfaceContinuous": [
+        0.019591284003448464,
+        0.0022050290654708105,
+        0.0010806707434719825,
+        0.0004036194561186836,
+        0.0002402426808152902,
+        0.8984525336147144,
+        0.07802662043596031
+      ],
+      "interfaceDispersed": [
+        0.8559290048711268,
+        0.0029196580917433606,
+        0.0013550532559905165,
+        0.0004483290234831198,
+        0.00013724229619205408,
+        0.06005390541231751,
+        0.07915680704914674
+      ],
+      "maximumPhysicalCollocationResidual": 5.024276949344708e-10,
+      "maximumIsoactivityResidual": 4.289019139847028e-11,
+      "continuousAudit": {
+        "minimumNodeFraction": 3.152131316798451e-08,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 1.746217159955672e-11
+      },
+      "dispersedAudit": {
+        "minimumNodeFraction": 2.505938900025761e-37,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 2.70362671041378e-09
+      },
+      "backtrackingRejectedTrials": 0,
+      "iterationHistory": [
+        {
+          "iteration": 0,
+          "maximumPhysicalResidual": 0.007322451571769532,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 1,
+          "maximumPhysicalResidual": 2.996794651237856e-05,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 2,
+          "maximumPhysicalResidual": 1.2139920545547328e-06,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 3,
+          "maximumPhysicalResidual": 3.569961497078278e-08,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 4,
+          "maximumPhysicalResidual": 5.024276949344708e-10
+        }
+      ],
+      "numericalAccepted": true
+    },
+    {
+      "status": "CONVERGED",
+      "iterations": 5,
+      "nodes": 9,
+      "flux": [
+        -0.0023982864204511313,
+        -0.0003689731833926352,
+        -0.00017655380655954151,
+        -5.830012528126314e-05,
+        -2.606145004583655e-05,
+        8.459892495155927e-05,
+        0.00020976430582185878
+      ],
+      "totalFlux": -0.0027338117549569898,
+      "interfaceContinuous": [
+        0.019591610016945493,
+        0.0022062332023293847,
+        0.0010813037791346403,
+        0.00040391346624592186,
+        0.0002405137195507895,
+        0.8984500116431332,
+        0.07802641417266054
+      ],
+      "interfaceDispersed": [
+        0.8559254777655175,
+        0.0029212585232522873,
+        0.0013558500122230748,
+        0.0004486566762746608,
+        0.00013739769848080717,
+        0.060054994804157893,
+        0.07915636452009378
+      ],
+      "maximumPhysicalCollocationResidual": 3.9929210805811355e-10,
+      "maximumIsoactivityResidual": 4.6599779590650314e-11,
+      "continuousAudit": {
+        "minimumNodeFraction": 3.152131316798451e-08,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 1.871814343974402e-11
+      },
+      "dispersedAudit": {
+        "minimumNodeFraction": 2.505938900025761e-37,
+        "allNodeFractionsPositive": true,
+        "maximumNormalizationDefect": 0.0,
+        "maximumScaledIndependentFluxDefect": 2.8479680304068245e-09
+      },
+      "backtrackingRejectedTrials": 0,
+      "iterationHistory": [
+        {
+          "iteration": 0,
+          "maximumPhysicalResidual": 0.005738912977071277,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 1,
+          "maximumPhysicalResidual": 2.2086847713678054e-05,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 2,
+          "maximumPhysicalResidual": 9.760646525391534e-07,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 3,
+          "maximumPhysicalResidual": 2.7984114747692246e-08,
+          "acceptedAlpha": 1.0,
+          "backtrackingHalvings": 0
+        },
+        {
+          "iteration": 4,
+          "maximumPhysicalResidual": 3.9929210805811355e-10
+        }
+      ],
+      "numericalAccepted": true
+    }
+  ],
+  "outcome": "NUMERICAL_CANDIDATE_REQUIRES_GLOBAL_RANK_STABILITY_QUALIFICATION",
+  "interpretation": "Numerical hold only; never process infeasibility.",
+  "elapsedSeconds": 59.271845587999906
+}

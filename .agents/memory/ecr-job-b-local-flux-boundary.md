@@ -105,3 +105,33 @@ independent excess reconstruction. Scope qualification to its source,
 temperature and numerical evidence; it never certifies a finite-film root.
 When a bounded solve stops, inspect exception causes: an operational timeout
 wrapped by a native evaluator must not be misreported as undefined physics.
+
+## Near-zero film coordinates and independent acceptance
+
+Positivity-preserving coordinates are not automatically a well-conditioned
+film solver. Prefer feasible physical-coordinate residuals with prescribed
+bulk endpoints eliminated exactly when logarithmic differential coordinates
+amplify trace-boundary stiffness.
+
+**Why:** The log-ratio differential equation divides a finite physical gradient
+by its component fraction. A positive but nearly dry archived bulk can therefore
+exhaust floating-point range without showing a failure of the physical model.
+This is distinct from a Newton trial leaving the simplex by a substantial amount.
+
+**How to apply:** Diagnose the failing state and location before choosing a
+remedy. Keep fresh zero inlet inventories distinct from stored positive local
+bulks. A midpoint collocation root is only a discrete seed: acceptance still
+requires independent complete-profile constitutive checks and actual differences
+between successive refinements, not merely convergence at each mesh.
+
+Scientific execution evidence must remain bound to the exact executed source;
+post-run explanations belong in a separate assessment, not rewritten run data.
+
+**Why:** Even a post-run exception-classification edit can make the declared
+runner hash disagree with the available source. If the executed bytes and
+original artifact identity cannot be recovered, unchanged numerical values
+alone are insufficient to claim reproducible qualification.
+
+**How to apply:** Preserve executed source snapshots and raw evidence before
+further edits. Treat an unresolved source-binding mismatch as a qualification
+hold; never replace a historical hash with the current file's hash to clear it.

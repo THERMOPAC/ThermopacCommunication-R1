@@ -1017,3 +1017,17 @@ mtime_ms = 1788861225416
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7aa0825f-8bb6-4836-bcfa-5d3267be0512/4ccd7b9b-2cd6-4378-bff2-3df0da65770f"
 storage_version_token = "1788861237636104"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "42pISv4XJa-Eo7xTvaqBF"
+uri = "file://research-results/finite-film-domain-solver-results.pdf"
+type = "pdf"
+title = "Single-cell results — fluxes, profiles and acceptance checks"
+description = "Three-page PDF with actual trial values and complete profile plots. Clearly identifies the remaining numerical and qualification holds; no column-sizing result is accepted."
+logical_id = "c8438d75-9ed6-4db2-8db0-1237b26a4d18"
+content_hash = "sha256:ca2c11eede9fdcc0e82e505e968a56fddadba504fe9ffb8dc631a4a25ccf8902"
+size = 98162
+mtime_ms = 1788864280576
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c8438d75-9ed6-4db2-8db0-1237b26a4d18/fdbfd690-0fdb-4081-8914-bb9eab51caa6"
+storage_version_token = "1788864306136217"
+content_type = "application/pdf"

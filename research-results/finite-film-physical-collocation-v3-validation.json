@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "ISOLATED_PHYSICAL_COLLOCATION_V3_VALIDATION",
+  "scope": "SYNTHETIC_ONLY",
+  "result": {
+    "status": "CONVERGED",
+    "iterations": 11,
+    "nodes": 5,
+    "flux": [
+      -9.999940486326557e-05,
+      -9.999976897008901e-06,
+      -4.999993535074796e-06,
+      -2.999996983420432e-06,
+      -1.9999964609303384e-06,
+      3.999890251923429e-05,
+      9.999698774942749e-06
+    ],
+    "totalFlux": -7.000076744552299e-05,
+    "interfaceContinuous": [
+      0.06844722248665472,
+      0.024225627080971153,
+      0.016940840190275933,
+      0.01113010936799414,
+      0.005810730777704272,
+      0.7721423326083663,
+      0.10130313748803355
+    ],
+    "interfaceDispersed": [
+      0.719999942417601,
+      0.10000002803895859,
+      0.05000000875048009,
+      0.030000004356983734,
+      0.020000004487474226,
+      0.04999999605642001,
+      0.030000015892082454
+    ],
+    "maximumPhysicalCollocationResidual": 3.5429298383959917e-13,
+    "maximumIsoactivityResidual": 5.2017501417367384e-11,
+    "continuousAudit": {
+      "minimumNodeFraction": 0.005,
+      "allNodeFractionsPositive": true,
+      "maximumNormalizationDefect": 1.1102230246251565e-16,
+      "maximumScaledIndependentFluxDefect": 1.0720557200218778e-12
+    },
+    "dispersedAudit": {
+      "minimumNodeFraction": 0.00798758808441069,
+      "allNodeFractionsPositive": true,
+      "maximumNormalizationDefect": 0.0,
+      "maximumScaledIndependentFluxDefect": 1.417180988446537e-12
+    },
+    "backtrackingRejectedTrials": 0,
+    "iterationHistory": [
+      {
+        "iteration": 0,
+        "maximumPhysicalResidual": 1.894269517734064,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 1,
+        "maximumPhysicalResidual": 0.8104755964277377,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 2,
+        "maximumPhysicalResidual": 0.43151254041548937,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 3,
+        "maximumPhysicalResidual": 0.1921361287859371,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 4,
+        "maximumPhysicalResidual": 0.1171111429833318,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 5,
+        "maximumPhysicalResidual": 0.08423822514612533,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 6,
+        "maximumPhysicalResidual": 0.029984597617988218,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 7,
+        "maximumPhysicalResidual": 0.0004630190405308099,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 8,
+        "maximumPhysicalResidual": 8.142999366356207e-06,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 9,
+        "maximumPhysicalResidual": 7.285124503653151e-09,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 10,
+        "maximumPhysicalResidual": 5.2017501417367384e-11
+      }
+    ],
+    "numericalAccepted": true
+  },
+  "scaledManufacturedFluxError": 5.48740382855104e-07,
+  "outcome": "PASS",
+  "productionJobsRun": [],
+  "sourceHashes": {
+    "research/finite_film/physical_collocation_v3.py": "d577d4b78646727b6c816e1c3fc2e82a88b137fb52c8b0f79f556eb141cf54f0",
+    "research/finite_film/verify_physical_collocation_v3.py": "0bbed3e3299a08e91d462fc047fbd648eef20ef4dd237e7ca8d725d126628d83"
+  }
+}

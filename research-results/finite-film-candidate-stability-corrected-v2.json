@@ -1,0 +1,3100 @@
+{
+  "blockers": [
+    "dispersed:EXPLICIT_MONO_RICH_BASIN"
+  ],
+  "candidate": {
+    "fileSha256": "7dcdd539594b762abe8e21283e73cb487f0b80da5cd8fceffb3cf1e6959bad9d",
+    "interfaceSourceSha256": "de4972cf95e8d4bff5cb8f0f8d8da67f379d3373cc4e555c71f032f0646a0070",
+    "interfaces": {
+      "continuous": [
+        0.019591610016945493,
+        0.0022062332023293847,
+        0.0010813037791346403,
+        0.00040391346624592186,
+        0.0002405137195507895,
+        0.8984500116431332,
+        0.07802641417266054
+      ],
+      "dispersed": [
+        0.8559254777655175,
+        0.0029212585232522873,
+        0.0013558500122230748,
+        0.0004486566762746608,
+        0.00013739769848080717,
+        0.060054994804157893,
+        0.07915636452009378
+      ]
+    },
+    "numericalAccepted": true,
+    "path": "research-results/finite-film-cell1-physical-v3-attempt.json",
+    "selector": "refinements[1]",
+    "sourceDocumentOutcome": "NUMERICAL_CANDIDATE_REQUIRES_GLOBAL_RANK_STABILITY_QUALIFICATION",
+    "sourceDocumentPhysicalAcceptance": false
+  },
+  "checkerSourceSha256": "c66ea243580d136f6c19b83d98c84e431cebe5b1a95a9db8deafc5a50e8587c8",
+  "columnContinuationRun": false,
+  "elapsedSeconds": 27.40607374299998,
+  "evaluationAudit": {
+    "boundaryAdapterNormalizesOrClips": false,
+    "engineLocalStabilityCalled": false,
+    "engineMuCalled": false,
+    "engineNormalizeCalled": false,
+    "engineRoutineTpdCalled": false,
+    "idealBoundaryConvention": "lim(x*log(x),x->0+)=0",
+    "literalZeroThermodynamicEvaluationCount": 722,
+    "thermodynamicEvaluationCount": 6640
+  },
+  "feedModified": false,
+  "lineage": {
+    "baseManifestSha256": "f4e6e0156e6dc82dfaa3bf012a67ff143eb8cb45dd7c8208d9f924cec0d023fc",
+    "boundaryAdapterSha256": "e444fd3111754a62acdefa3972379792fb590b94d9d933103036242edb9d78f8",
+    "engineIntegrity": {
+      "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+      "cascadeSolverChanged": false,
+      "cascadeSolverParent": "7C-1.2.0",
+      "fallbackPhaseModel": null,
+      "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+      "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+      "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+      "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+      "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+      "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+      "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+      "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "inheritedSixComponentResidualApplied": false,
+      "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+      "interactionPairCount": 8,
+      "interactionParameterCount": 48,
+      "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+      "nativeGibbsContributionRetained": true,
+      "profileSha256ByFamily": {
+        "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+        "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+        "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+        "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+        "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+        "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+        "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+      },
+      "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+      "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+      "singleStageIsMatrixMember": true,
+      "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+      "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+      "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+      "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+      "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+      "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+      "tpdThresholdsChanged": false
+    },
+    "jobBManifestSha256": "daa9e16e366b57bbd0c8ad71581cfde705127d9cd3594939c7a7f67d296662da",
+    "pinnedHistoricalEngineSha256": "cc11a0131096f43cecc871de7273f85a92adfbd5c03167ede1b77387fd442d74",
+    "pinnedRkEngineSha256": "0ce9e61f7bdb87a2ccaa1a70edc547343e6cf03585b557855eaeaced1ad0f2d6",
+    "runtime": {
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+      "scipy": "1.14.1",
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+    },
+    "runtimeLoad": "PINNED_JOB_B_STAGE4_BASE_MANIFESTS_VERIFIED",
+    "stage4ManifestSha256": "dac309f1a4335f192eb3d261213090b3404bd02fe7c5c869dd949c7b7b189ec2",
+    "verifyThermoSha256": "40435f4baefa04d3779d968e4dd3238229d93ffce43f04e7d390d5004ba665a1"
+  },
+  "outcome": "BLOCKED_CANDIDATE_INTERFACE_STABILITY",
+  "phases": {
+    "continuous": {
+      "accepted": true,
+      "composition": [
+        0.019591610016945493,
+        0.0022062332023293847,
+        0.0010813037791346403,
+        0.00040391346624592186,
+        0.0002405137195507895,
+        0.8984500116431332,
+        0.07802641417266054
+      ],
+      "explicitMonoRichBasinSearch": {
+        "accepted": true,
+        "allRequiredSearchesAccepted": true,
+        "historicalFalseBasinSeedIncluded": true,
+        "literalBoundaryCoverageRetained": true,
+        "minimizingComposition": [
+          0.34570336395280504,
+          0.49999999999867917,
+          0.0009080788554740643,
+          0.00032042486132606975,
+          0.00013480839929760238,
+          0.13488610470132717,
+          0.018047219231090882
+        ],
+        "minimum": 2.1271964569144686,
+        "negativeBasinFound": false,
+        "objectiveCompositionFloor": null,
+        "optimizerCoordinates": "six literal physical mole fractions plus exact dependent fraction with native x_MONO>=0.5 inequality",
+        "region": "x_MONO >= 0.5",
+        "searches": [
+          {
+            "accepted": true,
+            "composition": [
+              0.3457038401930234,
+              0.5000000000103868,
+              0.0009080794698529996,
+              0.00032042173462123975,
+              0.00013480884030322453,
+              0.13488564769481154,
+              0.018047202057000784
+            ],
+            "dependentComponentIndex": 1,
+            "minimum": 2.127196456981208,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 5.973888050903042e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0001822453299382687,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00039054537381844057,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.1857181902996672e-06,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 4.138911435802584e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694840843339932,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.6949003246486996,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695022755602963,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695231126701117,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841838099762,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694844538162158,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.0524029404641624e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00023241408797503027,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0004409983489495062,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.182076989740381e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.432987393305666e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00013017587008334885,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00018961721082177974,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005204858766205689,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013140155630253503,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013379963803572537,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0003512568014230055,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00041096459568734645,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0005333111730010387,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003526290370814422,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003552047544985726,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": -8.79296635503124e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.8899551902413805e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00018139267865535658,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00038982594929848347,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.2640556923979602e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 2.0117241206207837e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 6.145750575115017e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00018382628752533492,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0003923839031472198,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 3.1308289294429414e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": -8.79296635503124e-07,
+              "step": 1e-07
+            },
+            "replayDependentComponentIndex": 1,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.127196456981208,
+            "replayOptimizerSuccess": true,
+            "replayPhysicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 5.973888050903042e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0001822453299382687,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00039054537381844057,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.1857181902996672e-06,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 4.138911435802584e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694840843339932,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.6949003246486996,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695022755602963,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695231126701117,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841838099762,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694844538162158,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.0524029404641624e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00023241408797503027,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0004409983489495062,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.182076989740381e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.432987393305666e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00013017587008334885,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00018961721082177974,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005204858766205689,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013140155630253503,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013379963803572537,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0003512568014230055,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00041096459568734645,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0005333111730010387,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003526290370814422,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003552047544985726,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": -8.79296635503124e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.8899551902413805e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00018139267865535658,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00038982594929848347,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.2640556923979602e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 2.0117241206207837e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 6.145750575115017e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00018382628752533492,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0003923839031472198,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 3.1308289294429414e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": -8.79296635503124e-07,
+              "step": 1e-07
+            }
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.34570336395280504,
+              0.49999999999867917,
+              0.0009080788554740643,
+              0.00032042486132606975,
+              0.00013480839929760238,
+              0.13488610470132717,
+              0.018047219231090882
+            ],
+            "dependentComponentIndex": 1,
+            "minimum": 2.1271964569144686,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 6.0293992021343e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00017222667736405128,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0003941558190945216,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": -8.215650382226158e-07,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.935429677108914e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694841509473747,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694901354935666,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695013731710219,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69523551430251,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694840545800162,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694844031900459,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.026201677083009e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00022220003614847883,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00044427572731819964,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.935163389063746e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.275779813018744e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00014015899552077826,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0002000488663611577,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005340705655498823,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013928413977737364,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00014269918580112062,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00034773961488099303,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0004078337667579035,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0005197797747769073,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003469802223321494,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003504663226294724,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 1.2256862191861728e-06,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 6.132427898819515e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00017351009518051796,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00039545700047938226,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 4.192202140984591e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.348432642269472e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 6.30961949354969e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0001752731293436227,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00039747316549210154,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 2.566835632933362e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": -8.215650382226158e-07,
+              "step": 1e-07
+            },
+            "replayDependentComponentIndex": 1,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.1271964569144686,
+            "replayOptimizerSuccess": true,
+            "replayPhysicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 6.0293992021343e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00017222667736405128,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0003941558190945216,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": -8.215650382226158e-07,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.935429677108914e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694841509473747,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694901354935666,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695013731710219,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69523551430251,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694840545800162,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694844031900459,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.026201677083009e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00022220003614847883,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00044427572731819964,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.935163389063746e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.275779813018744e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00014015899552077826,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0002000488663611577,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005340705655498823,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013928413977737364,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00014269918580112062,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00034773961488099303,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0004078337667579035,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0005197797747769073,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003469802223321494,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003504663226294724,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 1.2256862191861728e-06,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 6.132427898819515e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00017351009518051796,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00039545700047938226,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 4.192202140984591e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.348432642269472e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 6.30961949354969e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0001752731293436227,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00039747316549210154,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 2.566835632933362e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": -8.215650382226158e-07,
+              "step": 1e-07
+            }
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.34570385707607737,
+              0.5000000000008387,
+              0.0009080687535941667,
+              0.0003204393665663989,
+              0.00013481030051705492,
+              0.1348856532096119,
+              0.018047171292794498
+            ],
+            "dependentComponentIndex": 1,
+            "minimum": 2.127196456926978,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 7.173373006708061e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00012730261289561895,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00037991831902672857,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.496580637194711e-06,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 6.150635556423367e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694840967684911,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694912283971121,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69496789726287,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695220539614354,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69484202461723,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69484667867215,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 3.8911096567062486e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00016576962025283137,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.000418580725636275,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.007016940477115e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.463096558993129e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00018531398637833263,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0002566746815091392,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005649747336633482,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001864375320792533,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00019112711413526995,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0003624034405902421,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00043376413572104866,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.000489359663902178,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00036352254539906426,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003682476545918689,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": -5.329070518200751e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 7.097877841033551e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00012659651105195735,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.0003793587666223175,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.377920331284258e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 4.3520742565306136e-07,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 7.16715575777016e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00012713385899587593,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0003800337822212896,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 1.5987211554602254e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": -5.329070518200751e-07,
+              "step": 1e-07
+            },
+            "replayDependentComponentIndex": 1,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.127196456926978,
+            "replayOptimizerSuccess": true,
+            "replayPhysicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 7.173373006708061e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00012730261289561895,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00037991831902672857,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.496580637194711e-06,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 6.150635556423367e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694840967684911,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694912283971121,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69496789726287,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695220539614354,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69484202461723,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.69484667867215,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 3.8911096567062486e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00016576962025283137,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.000418580725636275,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.007016940477115e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.463096558993129e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00018531398637833263,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0002566746815091392,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005649747336633482,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001864375320792533,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00019112711413526995,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0003624034405902421,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00043376413572104866,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.000489359663902178,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00036352254539906426,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003682476545918689,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": -5.329070518200751e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 7.097877841033551e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00012659651105195735,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.0003793587666223175,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.377920331284258e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 4.3520742565306136e-07,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 7.16715575777016e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00012713385899587593,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0003800337822212896,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 1.5987211554602254e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": -5.329070518200751e-07,
+              "step": 1e-07
+            }
+          }
+        ],
+        "seedCount": 3,
+        "threshold": -1e-08
+      },
+      "localCurvature": {
+        "accepted": true,
+        "coarseEigenvalues": [
+          0.0002398442006760732,
+          0.00040163016554852583,
+          0.0010647348863132206,
+          0.002142753292474276,
+          0.012943933162230354,
+          0.10477923515650328
+        ],
+        "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+        "dimension": 6,
+        "eigenvalues": [
+          0.00023986916889143676,
+          0.00040168691990462324,
+          0.0010646037190097741,
+          0.0021429556492025066,
+          0.012943990144817641,
+          0.10477924549215245
+        ],
+        "evaluationRoute": "UNFLOORED_DIRECT_NATIVE_PLUS_UNCHANGED_TASK238_RK",
+        "minimumEigenvalue": 0.00023986916889143676,
+        "stepSizeConverged": true,
+        "steps": [
+          0.0005,
+          0.00025
+        ],
+        "threshold": -1e-06
+      },
+      "minimumFraction": 0.0002405137195507895,
+      "routineTpd": {
+        "accepted": true,
+        "allRefinementsAccepted": true,
+        "ambiguityTriggered": false,
+        "classDisagreement": false,
+        "classMinima": {
+          "GLOBAL_SIMPLEX": 2.061367141115731e-13,
+          "PHASE_LOCAL_LOG_RATIO_PERTURBATION": 5.066104559461166e-14
+        },
+        "classification": "ROUTINE_STABLE",
+        "coarseLatticeLiteralZerosPreserved": true,
+        "coarseMinimum": 0.11657961073782754,
+        "conditionalEscalationDisposition": "NOT_REQUIRED",
+        "conditionalEscalationUsed": false,
+        "gridDenominator": 4,
+        "gridPointCount": 210,
+        "includeLocalSeeds": true,
+        "minimizingComposition": [
+          0.019591610016945493,
+          0.0022062332023293847,
+          0.0010813037791346403,
+          0.00040391346624592186,
+          0.0002405137195507895,
+          0.8984500116431332,
+          0.07802641417266054
+        ],
+        "minimum": 0.0,
+        "nearThreshold": false,
+        "objectiveCompositionFloor": null,
+        "optimizerCoordinates": "six literal physical mole fractions plus exact dependent fraction; no logit seed interiorization",
+        "referenceCompositionFloor": null,
+        "refineBestGlobalAndLocal": true,
+        "refinementSeedCount": 2,
+        "refinements": [
+          {
+            "acceptedByPhysicalKktRule": true,
+            "composition": [
+              0.01959158937624085,
+              0.002206239660476503,
+              0.0010812986170889538,
+              0.00040390497977933374,
+              0.00024050695058756613,
+              0.898450052352808,
+              0.07802640806301886
+            ],
+            "dependentComponentIndex": 5,
+            "maximumCompositionMovementFromSeed": 0.10154994764719205,
+            "message": "Optimization terminated successfully",
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 42,
+              "directions": [
+                {
+                  "derivative": 2.139590875513384e-05,
+                  "donor": 1,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.2723878689693506e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00014639916373838222,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00023768706124360688,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.1835518313407404e-06,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.3154655374738484e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.8724131815820962e-05,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 7.65811860302497e-05,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.00017046191646828343,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.00026174919781548034,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 2.5718511799343625e-05,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 2.6463230464478092e-05,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 4.4638999136409026e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 6.1217591604075e-05,
+                  "donor": 1,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0001862666604161302,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0002776514211896561,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.160399538648531e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.2310670464152465e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0001058428470170889,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001225249093126802,
+                  "donor": 1,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00015381227247916233,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00033891054598388326,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00010287086612068012,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00010363557103344697,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00018279064834780532,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00019953609796987824,
+                  "donor": 1,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00023083359971280665,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00032462370813721267,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00017980696014345394,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00018061871328082412,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 2.538644562590548e-06,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 1.969825319362534e-05,
+                  "donor": 1,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.089965488957399e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00014470729216616945,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00023601433879457802,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 1.1112940387924383e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.4045483079780806e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 2.030108227446366e-05,
+                  "donor": 1,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 5.14388548086954e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0001452585956386459,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0002366009772591168,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 8.56958722620588e-07,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 8.56958722620588e-07,
+              "step": 1e-07
+            },
+            "pureOrBoundarySeedDemonstrablyMobile": true,
+            "seedClass": "GLOBAL_SIMPLEX",
+            "status": 0,
+            "value": 2.061367141115731e-13
+          },
+          {
+            "acceptedByPhysicalKktRule": true,
+            "composition": [
+              0.019591614339022952,
+              0.002206232855188685,
+              0.0010813023240672406,
+              0.00040390894439547883,
+              0.0002405100989439006,
+              0.8984499985268966,
+              0.07802643291148514
+            ],
+            "dependentComponentIndex": 5,
+            "maximumCompositionMovementFromSeed": 2.367151357173566e-07,
+            "message": "Optimization terminated successfully",
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 42,
+              "directions": [
+                {
+                  "derivative": 2.5341360753810207e-05,
+                  "donor": 1,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.011580546377376e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0001375049950599371,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0002253634432411612,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.0624961535479703e-06,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.787737096056326e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.4776474701076473e-05,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 7.019088254209801e-05,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.00015748348426884416,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.00024557390252281735,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 2.2569491272853802e-05,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 2.2906852007170823e-05,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 4.712654249336919e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 6.773267055120238e-05,
+                  "donor": 1,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0001799172277220904,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00026794658062829596,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.494475862705985e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.5280443693964416e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00011480025721422732,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013543839730910373,
+                  "donor": 1,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00016021976659466504,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00033564656641657997,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001125438478056256,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00011299220138273158,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001949351990890908,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0002156736856469443,
+                  "donor": 1,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00024044065363499213,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003278276482645852,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00019286567491597195,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00019325102076317083,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 1.6582593688329403e-06,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 2.2841934291537108e-05,
+                  "donor": 1,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 4.7558611864777365e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00013496332274303723,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00022294140950189576,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 6.496948867635017e-07,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.0911805327735086e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 2.380730471169409e-05,
+                  "donor": 1,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 4.854647769414702e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00013592786060632128,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00022399524942528007,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 1.2802624327548698e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 6.496948867635017e-07,
+              "step": 1e-07
+            },
+            "pureOrBoundarySeedDemonstrablyMobile": true,
+            "seedClass": "PHASE_LOCAL_LOG_RATIO_PERTURBATION",
+            "status": 0,
+            "value": 5.066104559461166e-14
+          }
+        ],
+        "seedCount": 19,
+        "threshold": -1e-08
+      }
+    },
+    "dispersed": {
+      "accepted": false,
+      "composition": [
+        0.8559254777655175,
+        0.0029212585232522873,
+        0.0013558500122230748,
+        0.0004486566762746608,
+        0.00013739769848080717,
+        0.060054994804157893,
+        0.07915636452009378
+      ],
+      "explicitMonoRichBasinSearch": {
+        "accepted": false,
+        "allRequiredSearchesAccepted": false,
+        "historicalFalseBasinSeedIncluded": true,
+        "literalBoundaryCoverageRetained": true,
+        "minimizingComposition": [
+          0.34570351643173486,
+          0.4999999999556781,
+          0.0009080824648754161,
+          0.00032042396234730896,
+          0.00013480371705675617,
+          0.13488597502925037,
+          0.018047198439057166
+        ],
+        "minimum": 2.127196456670012,
+        "negativeBasinFound": false,
+        "objectiveCompositionFloor": null,
+        "optimizerCoordinates": "six literal physical mole fractions plus exact dependent fraction with native x_MONO>=0.5 inequality",
+        "region": "x_MONO >= 0.5",
+        "searches": [
+          {
+            "accepted": false,
+            "composition": [
+              0.34570351643173486,
+              0.4999999999556781,
+              0.0009080824648754161,
+              0.00032042396234730896,
+              0.00013480371705675617,
+              0.13488597502925037,
+              0.018047198439057166
+            ],
+            "dependentComponentIndex": 1,
+            "minimum": 2.127196456670012,
+            "optimizerMessage": "Positive directional derivative for linesearch",
+            "optimizerStatus": 8,
+            "optimizerSuccess": false,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 6,
+              "directions": [
+                {
+                  "derivative": 5.694841269665574,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694897451391512,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695016263018715,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.6952699267753815,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841038739185,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694845213177757,
+                  "donor": 6,
+                  "receiver": 1
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 5.694841038739185,
+              "step": 1e-07
+            },
+            "replayDependentComponentIndex": 1,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.127196456670012,
+            "replayOptimizerSuccess": false,
+            "replayPhysicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 6,
+              "directions": [
+                {
+                  "derivative": 5.694841269665574,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694897451391512,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695016263018715,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.6952699267753815,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841038739185,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694845213177757,
+                  "donor": 6,
+                  "receiver": 1
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 5.694841038739185,
+              "step": 1e-07
+            }
+          },
+          {
+            "accepted": false,
+            "composition": [
+              0.3457035318695826,
+              0.4999999999868512,
+              0.0009080823769005304,
+              0.0003204264564473134,
+              0.00013480828223510447,
+              0.13488593406901217,
+              0.018047216958971077
+            ],
+            "dependentComponentIndex": 1,
+            "minimum": 2.127196456847289,
+            "optimizerMessage": "Positive directional derivative for linesearch",
+            "optimizerStatus": 8,
+            "optimizerSuccess": false,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 6,
+              "directions": [
+                {
+                  "derivative": 5.6948412607837895,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694897353691886,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695008362671672,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695235945069044,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841154202379,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694844040782243,
+                  "donor": 6,
+                  "receiver": 1
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 5.694841154202379,
+              "step": 1e-07
+            },
+            "replayDependentComponentIndex": 1,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.127196456847289,
+            "replayOptimizerSuccess": false,
+            "replayPhysicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 6,
+              "directions": [
+                {
+                  "derivative": 5.6948412607837895,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694897353691886,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695008362671672,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695235945069044,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841154202379,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694844040782243,
+                  "donor": 6,
+                  "receiver": 1
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 5.694841154202379,
+              "step": 1e-07
+            }
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.34570356812844266,
+              0.49999999999960887,
+              0.0009080837877168336,
+              0.0003204222057618699,
+              0.00013479958270847637,
+              0.1348859089730857,
+              0.018047217322675533
+            ],
+            "dependentComponentIndex": 1,
+            "minimum": 2.1271964569204993,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 5.488942633746774e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00018056667272503546,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0004594369329424808,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 6.217248937900877e-08,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.993161274389422e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694841167525055,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694895763852514,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695021649820831,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695300373531609,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841185288624,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694843983050646,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.5635496210015845e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00023572255258841324,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0005147970938423896,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.554223747594733e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.821121362714621e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00013163692358375556,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00018622881015062376,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005910161249289558,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001318323228360896,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013432810419544694,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00028251179173821583,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00033707703295249303,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00046280757004524276,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00028268054563795886,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00028537616714174874,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 3.730349362740526e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.524469770534779e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.000180837567143044,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00045991654928911885,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.4772185131259903e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.135269821541442e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 5.74384984020071e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00018320012173944633,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0004622791038855212,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 3.1796787425264483e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 6.217248937900877e-08,
+              "step": 1e-07
+            },
+            "replayDependentComponentIndex": 1,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.1271964569204993,
+            "replayOptimizerSuccess": true,
+            "replayPhysicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 36,
+              "directions": [
+                {
+                  "derivative": 5.488942633746774e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00018056667272503546,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0004594369329424808,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 6.217248937900877e-08,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.993161274389422e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.694841167525055,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694895763852514,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695021649820831,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.695300373531609,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694841185288624,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.694843983050646,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.5635496210015845e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00023572255258841324,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0005147970938423896,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.554223747594733e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.821121362714621e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00013163692358375556,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00018622881015062376,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005910161249289558,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001318323228360896,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00013432810419544694,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00028251179173821583,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00033707703295249303,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00046280757004524276,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00028268054563795886,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00028537616714174874,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 3.730349362740526e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.524469770534779e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.000180837567143044,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00045991654928911885,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.4772185131259903e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.135269821541442e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 5.74384984020071e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00018320012173944633,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0004622791038855212,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 3.1796787425264483e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 6.217248937900877e-08,
+              "step": 1e-07
+            }
+          }
+        ],
+        "seedCount": 3,
+        "threshold": -1e-08
+      },
+      "localCurvature": {
+        "accepted": true,
+        "coarseEigenvalues": [
+          0.0001371215199901197,
+          0.00044617028091770557,
+          0.0013329520294647409,
+          0.0028256435217289128,
+          0.025282856318314496,
+          0.16938041460359776
+        ],
+        "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+        "dimension": 6,
+        "eigenvalues": [
+          0.0001374103048607238,
+          0.00044639129032042946,
+          0.0013332722085049454,
+          0.00282584362295368,
+          0.025283349703430928,
+          0.16938043064644737
+        ],
+        "evaluationRoute": "UNFLOORED_DIRECT_NATIVE_PLUS_UNCHANGED_TASK238_RK",
+        "minimumEigenvalue": 0.0001374103048607238,
+        "stepSizeConverged": true,
+        "steps": [
+          0.0005,
+          0.00025
+        ],
+        "threshold": -1e-06
+      },
+      "minimumFraction": 0.00013739769848080717,
+      "routineTpd": {
+        "accepted": true,
+        "allRefinementsAccepted": true,
+        "ambiguityTriggered": false,
+        "classDisagreement": false,
+        "classMinima": {
+          "GLOBAL_SIMPLEX": 4.988021387716111e-13,
+          "PHASE_LOCAL_LOG_RATIO_PERTURBATION": 1.1344184061824172e-13
+        },
+        "classification": "ROUTINE_STABLE",
+        "coarseLatticeLiteralZerosPreserved": true,
+        "coarseMinimum": 0.11657961073783518,
+        "conditionalEscalationDisposition": "NOT_REQUIRED",
+        "conditionalEscalationUsed": false,
+        "gridDenominator": 4,
+        "gridPointCount": 210,
+        "includeLocalSeeds": true,
+        "minimizingComposition": [
+          0.8559254777655175,
+          0.0029212585232522873,
+          0.0013558500122230748,
+          0.0004486566762746608,
+          0.00013739769848080717,
+          0.060054994804157893,
+          0.07915636452009378
+        ],
+        "minimum": 0.0,
+        "nearThreshold": false,
+        "objectiveCompositionFloor": null,
+        "optimizerCoordinates": "six literal physical mole fractions plus exact dependent fraction; no logit seed interiorization",
+        "referenceCompositionFloor": null,
+        "refineBestGlobalAndLocal": true,
+        "refinementSeedCount": 2,
+        "refinements": [
+          {
+            "acceptedByPhysicalKktRule": true,
+            "composition": [
+              0.019591561512507964,
+              0.002206226350990519,
+              0.0010813003629163971,
+              0.0004039102471986417,
+              0.0002404994377728748,
+              0.8984500557792976,
+              0.078026446309316
+            ],
+            "dependentComponentIndex": 5,
+            "maximumCompositionMovementFromSeed": 0.1015499442207024,
+            "message": "Optimization terminated successfully",
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 42,
+              "directions": [
+                {
+                  "derivative": 2.6088199639655005e-05,
+                  "donor": 1,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 4.972605671848664e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00013204337122448562,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0002675889241733302,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.3993671047072808e-07,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 6.260527004388594e-07,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 2.3923866318298637e-05,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 6.8908107237742e-05,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.00015132948699525498,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.000286969171646834,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 1.996017446795211e-05,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 1.996630903220715e-05,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 4.7484181172852296e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 6.884857817950503e-05,
+                  "donor": 1,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0001748271860250394,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00031054160639255244,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.342533997397364e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 4.350691070660257e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.00012020176132362054,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00014162355552556368,
+                  "donor": 1,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00016515669905480765,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.000383201883475493,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00011614160215087274,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00011624123153527815,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0001527229357067872,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00017427911978589564,
+                  "donor": 1,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00019788200253366908,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00028025140434935925,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0001487488453504976,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0001489049418452024,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 3.468518974883559e-06,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 2.5428261913935555e-05,
+                  "donor": 1,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 4.9043020405486706e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00013133969292380114,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.000267005703091639,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.016060644285273e-07,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 5.154281728473886e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 2.6716148228429456e-05,
+                  "donor": 1,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 5.025341332834317e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00013262656633167982,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0002683149605542884,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 1.5851121858004952e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 1.3993671047072808e-07,
+              "step": 1e-07
+            },
+            "pureOrBoundarySeedDemonstrablyMobile": true,
+            "seedClass": "GLOBAL_SIMPLEX",
+            "status": 0,
+            "value": 4.988021387716111e-13
+          },
+          {
+            "acceptedByPhysicalKktRule": true,
+            "composition": [
+              0.8559254683503225,
+              0.002921258266944109,
+              0.001355848987962272,
+              0.00044865375951407926,
+              0.0001373924725012702,
+              0.06005500287057374,
+              0.0791563752921821
+            ],
+            "dependentComponentIndex": 0,
+            "maximumCompositionMovementFromSeed": 1.320841931536337e-07,
+            "message": "Optimization terminated successfully",
+            "optimizerSuccess": true,
+            "physicalDirectionalKkt": {
+              "acceptanceTolerance": 2e-05,
+              "accepted": true,
+              "directionCount": 42,
+              "directions": [
+                {
+                  "derivative": 1.725186518740113e-05,
+                  "donor": 1,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 3.7619488543869015e-05,
+                  "donor": 2,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.00011793794819132066,
+                  "donor": 3,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 0.0004020287127320601,
+                  "donor": 4,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 5.487372291969637e-07,
+                  "donor": 5,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.2063320073227364e-06,
+                  "donor": 6,
+                  "receiver": 0
+                },
+                {
+                  "derivative": 1.7165619964949653e-05,
+                  "donor": 0,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 5.472917248094761e-05,
+                  "donor": 2,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.00013513162108877433,
+                  "donor": 3,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 0.0004194327231917978,
+                  "donor": 4,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 1.7824328211725163e-05,
+                  "donor": 5,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 1.7837919064872166e-05,
+                  "donor": 6,
+                  "receiver": 1
+                },
+                {
+                  "derivative": 3.6067619828931615e-05,
+                  "donor": 0,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 5.3381057254920324e-05,
+                  "donor": 1,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0001541072923556124,
+                  "donor": 3,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0004381359917571492,
+                  "donor": 4,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 3.687315175610182e-05,
+                  "donor": 5,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 3.6898014040083466e-05,
+                  "donor": 6,
+                  "receiver": 2
+                },
+                {
+                  "derivative": 0.0001050950769615133,
+                  "donor": 0,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00012229854850515998,
+                  "donor": 1,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00014271295800660243,
+                  "donor": 2,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0005072663111557049,
+                  "donor": 4,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.00010569039784542777,
+                  "donor": 5,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.000105800710960754,
+                  "donor": 6,
+                  "receiver": 3
+                },
+                {
+                  "derivative": 0.0003258090903086157,
+                  "donor": 0,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00034307920996791414,
+                  "donor": 1,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003635294260888676,
+                  "donor": 2,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0004438815450694725,
+                  "donor": 3,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.0003264986888138621,
+                  "donor": 5,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 0.00032676444582947653,
+                  "donor": 6,
+                  "receiver": 4
+                },
+                {
+                  "derivative": 5.272977953628331e-07,
+                  "donor": 0,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 1.8074969959997683e-05,
+                  "donor": 1,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 3.8627826166394595e-05,
+                  "donor": 2,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.00011879480160734764,
+                  "donor": 3,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 0.0004029942421564354,
+                  "donor": 4,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 1.7363124753420555e-06,
+                  "donor": 6,
+                  "receiver": 5
+                },
+                {
+                  "derivative": 1.8372708725734972e-06,
+                  "donor": 0,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 1.85297252039342e-05,
+                  "donor": 1,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 3.874887612992887e-05,
+                  "donor": 2,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.00011917558818790619,
+                  "donor": 3,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 0.0004034834846801194,
+                  "donor": 4,
+                  "receiver": 6
+                },
+                {
+                  "derivative": 2.091918142244794e-06,
+                  "donor": 5,
+                  "receiver": 6
+                }
+              ],
+              "method": "all feasible ordered pair transfers e_i-e_j",
+              "minimumFeasibleDirectionalDerivative": 5.272977953628331e-07,
+              "step": 1e-07
+            },
+            "pureOrBoundarySeedDemonstrablyMobile": true,
+            "seedClass": "PHASE_LOCAL_LOG_RATIO_PERTURBATION",
+            "status": 0,
+            "value": 1.1344184061824172e-13
+          }
+        ],
+        "seedCount": 19,
+        "threshold": -1e-08
+      }
+    }
+  },
+  "productionRuns": [],
+  "qualificationIsFormalGlobalStabilityCertificate": false,
+  "qualificationIsTransportCertification": false,
+  "qualified": false,
+  "runtimeOrModelSourcesModified": false,
+  "schemaVersion": "FINITE_FILM_CANDIDATE_STABILITY_UNFLOORED_V1",
+  "scope": "ISOLATED_RESEARCH_CANDIDATE_INTERFACE_STABILITY_ONLY",
+  "supersededLimitedSearchEvidence": {
+    "assessment": "LIMITED_SEARCH_INVALID_AS_GLOBAL_PASS: pure-NMP logit refinement was numerically immobile",
+    "path": "research-results/finite-film-candidate-stability.json",
+    "preservedWithoutOverwrite": true
+  },
+  "thresholds": {
+    "minimumLocalStabilityCurvature": -1e-06,
+    "postSplitTpdThreshold": -1e-08
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "ISOLATED_SAVED_CELL_1_PHYSICAL_SHOOTING_V8",
+  "scope": "ISOLATED_SAVED_CELL_1_ONLY",
+  "sourceSha256": "d7a22cc6cd6daaf5db4b68a67eaf18db08658dd18f012799b7b173ef292c4f2e",
+  "helperSha256": "3e3c81906165e68104db52974f2ab6ff612c88bf36f058959d4ca09f348885d1",
+  "attempts": [],
+  "refinements": [],
+  "productionJobsRun": [],
+  "columnContinuationRun": false,
+  "tasksCreatedOrChanged": [],
+  "physicalFeedModified": false,
+  "qualifiedAdapterModified": false,
+  "originalSolverModified": false,
+  "frozenRuntimeModified": false,
+  "physicalAcceptance": false,
+  "qualificationEvidenceSha256": "64d54cc1adeb0bd39748de220f28a5e1b9f5f543a602b6d878793adcadcb2ee5",
+  "initialCandidateEvidenceSha256": "81cd9295dea730da37ddca9c9ff87451f85ba70df3f4803c37bd41c2c82bd394",
+  "runtimeLineage": {
+    "runtimeLoad": "PINNED_JOB_B_STAGE4_BASE_MANIFESTS_VERIFIED",
+    "jobBManifestSha256": "daa9e16e366b57bbd0c8ad71581cfde705127d9cd3594939c7a7f67d296662da",
+    "stage4ManifestSha256": "dac309f1a4335f192eb3d261213090b3404bd02fe7c5c869dd949c7b7b189ec2",
+    "baseManifestSha256": "f4e6e0156e6dc82dfaa3bf012a67ff143eb8cb45dd7c8208d9f924cec0d023fc",
+    "engineIntegrity": {
+      "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+      "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+      "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+      "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+      "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+      "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+      "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+      "profileSha256ByFamily": {
+        "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2",
+        "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+        "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+        "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+        "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+        "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+        "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1"
+      },
+      "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+      "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+      "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+      "inheritedSixComponentResidualApplied": false,
+      "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+      "nativeGibbsContributionRetained": true,
+      "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+      "interactionPairCount": 8,
+      "interactionParameterCount": 48,
+      "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+      "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+      "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+      "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+      "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+      "cascadeSolverParent": "7C-1.2.0",
+      "cascadeSolverChanged": false,
+      "tpdThresholdsChanged": false,
+      "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+      "singleStageIsMatrixMember": true,
+      "fallbackPhaseModel": null
+    },
+    "runtime": {
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python",
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "scipy": "1.14.1",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]"
+    }
+  },
+  "input": {
+    "continuousBulk": [
+      7.080024598066372e-06,
+      5.950153875443155e-07,
+      2.8044726397244043e-07,
+      8.65484018591514e-08,
+      3.152131316798451e-08,
+      0.922675288193551,
+      0.07731663824948438
+    ],
+    "dispersedBulk": [
+      0.8314091492606233,
+      0.09703211630006595,
+      0.046867260188424645,
+      0.01647558315782248,
+      0.008215891093063685,
+      1.719044952364148e-28,
+      2.505938900025761e-37
+    ],
+    "freshDispersedInletForContrastOnly": [
+      0.8314095020619516,
+      0.09703193550453774,
+      0.046867166192086945,
+      0.016475538558928395,
+      0.008215857682495201,
+      0.0,
+      0.0
+    ],
+    "continuousConductances": [
+      0.1449172280501945,
+      0.177063123200661,
+      0.17296173069273307,
+      0.15254022104851153,
+      0.11324113884325597,
+      0.18290381180994994,
+      0.2280973174333013
+    ],
+    "dispersedConductances": [
+      0.0020018748861023237,
+      0.002472408921142691,
+      0.002412099264728349,
+      0.0021129981173517768,
+      0.0015434166639340485,
+      0.002558428294435721,
+      0.003229089766778362
+    ],
+    "initialFlux": [
+      -0.0023983991352362626,
+      -0.0003692230294931398,
+      -0.00017668217477451864,
+      -5.835315235557659e-05,
+      -2.6098495503997784e-05,
+      8.479940112895098e-05,
+      0.0002097483832678753
+    ],
+    "archivedTotalFluxForReferenceOnly": -0.0033422123776529673,
+    "bulkTraceValuesPreservedNotFreshZeros": true,
+    "sevenFreeComponentFluxes": true,
+    "totalFluxDefinition": "sum(componentFluxes)"
+  },
+  "method": {
+    "continuous": "x(0)=saved bulk; dx/ds=f(x,N); shoot to s=1",
+    "dispersed": "x(0)=saved bulk; dx/du=-f(x,N), u=1-s0; shoot to u=1",
+    "physicalFluxSignChangedForDispersed": false,
+    "coordinateType": "SEVEN_PHYSICAL_MOLE_FRACTIONS",
+    "logOdeUsed": false,
+    "floorsOrClippingUsed": false,
+    "independentOfPhysicalCollocationHelper": true
+  },
+  "thermodynamicStabilityGate": {
+    "evidencePath": "research-results/finite-film-candidate-stability-corrected-v2.json",
+    "evidenceSha256": "be974df4c78bda33bb13d48b755cbc1071722c7ca9a798bddac52c2fb08f64e2",
+    "reportedOutcome": "BLOCKED_CANDIDATE_INTERFACE_STABILITY",
+    "finalMatchingThermodynamicStabilityAvailable": false,
+    "forcesPhysicalAcceptanceFalse": true
+  },
+  "initialFixedFluxEvidence": {
+    "flux": [
+      -0.0023983991352362626,
+      -0.0003692230294931398,
+      -0.00017668217477451864,
+      -5.835315235557659e-05,
+      -2.6098495503997784e-05,
+      8.479940112895098e-05,
+      0.0002097483832678753
+    ],
+    "totalFlux": -0.002734208202966669,
+    "interfaceContinuous": [
+      0.019592028240353974,
+      0.002207779770553446,
+      0.0010821167594405113,
+      0.00040429083120105473,
+      0.00024086101929216865,
+      0.8984467748363358,
+      0.07802614854282322
+    ],
+    "interfaceDispersed": [
+      0.8559209625470803,
+      0.0029233083843396308,
+      0.0013568700654230303,
+      0.0004490754764449405,
+      0.00013759344420817186,
+      0.06005639302682706,
+      0.07915579705567703
+    ],
+    "isoactivityResidual": [
+      -2.5795731870004168e-08,
+      1.939405264675398e-06,
+      2.3364022211369573e-06,
+      3.876215079412493e-06,
+      2.4573964511276358e-05,
+      -5.1856401839245336e-08,
+      1.8708399940337017e-08
+    ],
+    "maximumIsoactivityResidual": 2.4573964511276358e-05,
+    "notARefinedFluxRoot": true
+  },
+  "outcome": "EVIDENCE_OR_EXECUTION_HOLD",
+  "error": "BoundaryAdapterError: BOUNDARY_ADAPTER_NATIVE_RAW_LIMIT_UNDEFINED",
+  "elapsedScientificSeconds": 235.00481479100017,
+  "within240SecondScientificBudget": true
+}

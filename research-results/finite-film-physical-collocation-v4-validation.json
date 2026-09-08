@@ -1,0 +1,212 @@
+{
+  "schemaVersion": "ISOLATED_LOBATTO_V4_VALIDATION",
+  "scope": "SYNTHETIC_ONLY",
+  "result": {
+    "status": "CONVERGED",
+    "iterations": 12,
+    "nodes": 5,
+    "dependentComponents": {
+      "continuous": 5,
+      "dispersed": 0
+    },
+    "flux": [
+      -0.00010000000000058306,
+      -9.999999999825683e-06,
+      -4.999999999880766e-06,
+      -2.9999999999230166e-06,
+      -1.9999999999583195e-06,
+      4.000000000568233e-05,
+      1.00000000015966e-05
+    ],
+    "totalFlux": -6.999999999289192e-05,
+    "interfaceContinuous": [
+      0.06844722795725089,
+      0.02422562028831382,
+      0.016940837225447515,
+      0.011130107751527108,
+      0.005810729473920687,
+      0.7721423934787587,
+      0.10130308382478134
+    ],
+    "interfaceDispersed": [
+      0.7200000000003788,
+      0.09999999999982533,
+      0.049999999999945755,
+      0.02999999999997307,
+      0.0199999999999721,
+      0.05000000000000562,
+      0.029999999999899326
+    ],
+    "maximumLobattoResidual": 1.6930901125533637e-15,
+    "maximumIsoactivityResidual": 3.7125857943465235e-13,
+    "minimumLobattoMidpointFraction": 0.0051028997430395415,
+    "continuousAudit": {
+      "minimumBernsteinControlFraction": 0.005,
+      "maximumBernsteinControlFraction": 0.82,
+      "allBernsteinControlsNonnegative": true,
+      "wholeCurveNonnegativeByConvexHull": true,
+      "literalEndpointsEvaluatedAuthoritatively": true,
+      "maximumNormalizationDefect": 1.1102230246251565e-16,
+      "maximumScaledConstitutiveDefect": 2.5689985485048347e-10,
+      "probeCount": 25,
+      "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+    },
+    "dispersedAudit": {
+      "minimumBernsteinControlFraction": 0.00798758808441069,
+      "maximumBernsteinControlFraction": 0.7679038076094996,
+      "allBernsteinControlsNonnegative": true,
+      "wholeCurveNonnegativeByConvexHull": true,
+      "literalEndpointsEvaluatedAuthoritatively": true,
+      "maximumNormalizationDefect": 2.220446049250313e-16,
+      "maximumScaledConstitutiveDefect": 2.058697762502386e-09,
+      "probeCount": 25,
+      "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+    },
+    "reducedJacobian": {
+      "dimension": 55,
+      "rank": 55,
+      "fullRank": true,
+      "singularValues": [
+        17.949814790053093,
+        9.636959050454458,
+        6.316587447470517,
+        4.374141187992372,
+        3.6340941067025123,
+        2.34584258945305,
+        1.9838410267410884,
+        1.8804169108557587,
+        1.8802744150526765,
+        1.8801998796164843,
+        1.879819605399414,
+        1.8795044790375657,
+        1.8475654541970599,
+        1.847027035914808,
+        1.8459477020890533,
+        1.8435879868202802,
+        1.8412111930652757,
+        1.819361798446737,
+        1.7440706413410765,
+        1.5417113254410348,
+        1.5402247167998122,
+        1.5395463945716101,
+        1.535849925195618,
+        1.532673584764061,
+        1.413689549618042,
+        1.4123021583677637,
+        1.4095933613554388,
+        1.4039605178635826,
+        1.3988865079003008,
+        1.363889176037453,
+        1.297146650730156,
+        1.2024743336456964,
+        1.1841502889982165,
+        1.1808970920341848,
+        1.1355642913290636,
+        1.042216327819623,
+        0.9976844055715262,
+        0.9479167208892197,
+        0.9349540230115361,
+        0.9306028012116512,
+        0.9302679517962749,
+        0.8245331014014429,
+        0.7649166702581314,
+        0.7636503417409424,
+        0.7611884528477648,
+        0.7561144245615823,
+        0.7516829840047403,
+        0.7184416277925806,
+        0.6960511241633514,
+        0.44399150149118416,
+        0.3434656270580939,
+        0.25417414555543544,
+        0.24796829785217162,
+        0.23549722908492718,
+        0.22536296403102135
+      ],
+      "declaredRankTolerance": 1.7949814790053094e-09,
+      "criterion": "singular_value > maximum_singular_value * 1e-10"
+    },
+    "backtrackingRejectedTrials": 0,
+    "iterationHistory": [
+      {
+        "iteration": 0,
+        "maximumPhysicalResidual": 1.894269517734064,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 1,
+        "maximumPhysicalResidual": 0.8104838975834987,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 2,
+        "maximumPhysicalResidual": 0.44409892159800446,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 3,
+        "maximumPhysicalResidual": 0.20514114595632194,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 4,
+        "maximumPhysicalResidual": 0.12345390583199878,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 5,
+        "maximumPhysicalResidual": 0.08622202678155855,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 6,
+        "maximumPhysicalResidual": 0.04217528505814361,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 7,
+        "maximumPhysicalResidual": 0.0009025044218016198,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 8,
+        "maximumPhysicalResidual": 2.1747193020171807e-05,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 9,
+        "maximumPhysicalResidual": 2.048177005775642e-08,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 10,
+        "maximumPhysicalResidual": 2.361506545867087e-10,
+        "acceptedAlpha": 1.0,
+        "backtrackingHalvings": 0
+      },
+      {
+        "iteration": 11,
+        "maximumPhysicalResidual": 3.7125857943465235e-13
+      }
+    ],
+    "numericalAccepted": true
+  },
+  "scaledFluxError": 2.8411619573936314e-12,
+  "productionJobsRun": [],
+  "outcome": "PASS",
+  "sourceHashes": {
+    "research/finite_film/physical_collocation_v4.py": "9f7fa12a1c7375f651addd4b210b015ccfd4bc49a4518661319becf6db7b7bbf",
+    "research/finite_film/bernstein_profile_v5.py": "a9df81803b545f6d896468b42e1ac556a0f19053979e730236fd8debbec5bbff",
+    "research/finite_film/verify_physical_collocation_v4.py": "802cbcd2ec3773f4308b20bfd7c40ed6ed67fb458bacf2019bbe68dbc93969e0"
+  }
+}

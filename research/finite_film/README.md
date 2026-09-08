@@ -75,6 +75,34 @@ no candidate yet on which to complete profile refinement, rank, independent
 reproduction or interface stability/TPD acceptance. A negative intermediate
 numerical trial does not show that every possible physical film is negative.
 
+The version-2 isolated attempt uses six additive log ratios per phase, so
+finite Newton iterates map to the open simplex without clipping or an epsilon
+feed. Its synthetic manufactured two-film cases passed from two starts,
+including an extreme-positive-boundary round trip. On the saved cell, the
+legacy negative was localized to the *unprescribed* dispersed interface at
+`s=0`: MONO reached -0.168893, about 7.6e14 machine epsilons, so it was not
+Dirichlet roundoff. All three transformed saved-cell starts subsequently drove
+a log ratio beyond double-precision interior representability and were
+rejected. No candidate or refinement resulted. See
+`finite-film-domain-solver-v2-validation.json` and
+`finite-film-cell1-domain-v2-attempt.json`; prior evidence is preserved.
+
+The later physical-coordinate work is retained as progressive numerical
+evidence, not as an accepted profile. The original midpoint v3 outputs are
+explicitly discrete seeds only. Dominant-component gauges (continuous NMP,
+dispersed SAT) remove the tiny-H2O subtraction, and Lobatto defects converge,
+but the historical power-basis endpoint override is not used for positivity.
+The authoritative v5 representation stores cubic Hermite segments as Bernstein
+controls and evaluates them by de Casteljau; the completed 17-node profile has
+nonnegative controls (minimum dispersed control 2.506e-37) and a full-rank
+199-by-199 reduced Jacobian under its recorded criterion. It nevertheless
+misses the unchanged independent profile gate: scaled defects are 3.66e-8
+(continuous) and 1.300e-6 (dispersed), while common-coordinate profile drift
+from 13 nodes is 1.145e-7. The 33-node refinement did not complete inside the
+300 s outer budget. Therefore two successive <=1e-8 refinements do not exist
+and `finite-film-cell1-lobatto-v7-final-hold.json` records an honest numerical
+hold, not process infeasibility.
+
 ## Numerical representation and limits
 
 The solver uses full composition coordinates with a normalization gauge.

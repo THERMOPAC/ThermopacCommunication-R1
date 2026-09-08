@@ -1,0 +1,6 @@
+{
+  "summary": "The final auxiliary high-order shooting attempt did not produce a completed refined root. It encountered a bounded-execution interruption, and a post-run runner edit left an unresolved source-binding mismatch. That auxiliary evidence is excluded from qualification; it supplies no accepted profile or design result. The raw numerical record and the separate source-binding assessment are preserved.",
+  "evidence": {
+    "research-results/finite-film-cell1-shooting-v8-source-binding-assessment.json": "3b153e160e60ce0a955fafac4b994debe3aaddc5d5b86662c1d2996331e9e186"
+  }
+}

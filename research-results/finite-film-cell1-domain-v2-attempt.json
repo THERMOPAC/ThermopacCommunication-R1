@@ -1,0 +1,225 @@
+{
+  "schemaVersion": "ISOLATED_SAVED_CELL_1_DOMAIN_SOLVER_V2_ATTEMPT",
+  "scope": "ISOLATED_SAVED_CELL_1_ONLY",
+  "sourceSha256": "25ed9dd48942661b7d60bee7113673aa1d73e2654d26651cb7a3085692bf3cc9",
+  "attempts": [
+    {
+      "start": "ARCHIVED_INTERFACES",
+      "seedContinuous": [
+        0.019286696568824674,
+        0.001333490121717873,
+        0.0006430576451355772,
+        0.00022430408265232876,
+        0.00010902723241521309,
+        0.9024120497795988,
+        0.07599137456965553
+      ],
+      "seedDispersed": [
+        0.8596316122805464,
+        0.0017663562265905959,
+        0.000806705462403103,
+        0.00024924631736276606,
+        6.224238883347732e-05,
+        0.0594241418430333,
+        0.07805969548123062
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "ValueError",
+      "error": "LOG_RATIO_COORDINATE_OUTSIDE_FLOATING_POINT_INTERIOR",
+      "elapsedSeconds": 24.65661825799998
+    },
+    {
+      "start": "ORIENTED_PHASE_TEMPLATE",
+      "seedContinuous": [
+        0.01,
+        0.01,
+        0.01,
+        0.005,
+        0.005,
+        0.88,
+        0.08
+      ],
+      "seedDispersed": [
+        0.72,
+        0.12,
+        0.06,
+        0.025,
+        0.015,
+        0.05,
+        0.01
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "ValueError",
+      "error": "LOG_RATIO_COORDINATE_OUTSIDE_FLOATING_POINT_INTERIOR",
+      "elapsedSeconds": 23.09767234800006
+    },
+    {
+      "start": "FROZEN_BULKS",
+      "seedContinuous": [
+        7.080024598066372e-06,
+        5.950153875443155e-07,
+        2.8044726397244043e-07,
+        8.65484018591514e-08,
+        3.152131316798451e-08,
+        0.922675288193551,
+        0.07731663824948438
+      ],
+      "seedDispersed": [
+        0.8314091492606233,
+        0.09703211630006595,
+        0.046867260188424645,
+        0.01647558315782248,
+        0.008215891093063685,
+        1.719044952364148e-28,
+        2.505938900025761e-37
+      ],
+      "seedFlux": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "status": "NUMERICAL_ATTEMPT_STOPPED_NO_CANDIDATE",
+      "errorType": "ValueError",
+      "error": "LOG_RATIO_COORDINATE_OUTSIDE_FLOATING_POINT_INTERIOR",
+      "elapsedSeconds": 2.064465675999827
+    }
+  ],
+  "productionJobsRun": [],
+  "columnContinuationRun": false,
+  "tasksCreatedOrChanged": [],
+  "physicalFeedModified": false,
+  "boundaryAdapterModified": false,
+  "acceptanceGatesModified": false,
+  "physicalAcceptance": false,
+  "designOutputs": null,
+  "qualificationEvidenceSha256": "64d54cc1adeb0bd39748de220f28a5e1b9f5f543a602b6d878793adcadcb2ee5",
+  "numericalBenchmarkEvidenceSha256": "f8ec803b1d976e8e3133a74bf93c313e398cb2521ac09e043156160fb059b66a",
+  "input": {
+    "temperatureK": 298.15,
+    "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "continuousBulk": [
+      7.080024598066372e-06,
+      5.950153875443155e-07,
+      2.8044726397244043e-07,
+      8.65484018591514e-08,
+      3.152131316798451e-08,
+      0.922675288193551,
+      0.07731663824948438
+    ],
+    "dispersedBulk": [
+      0.8314091492606233,
+      0.09703211630006595,
+      0.046867260188424645,
+      0.01647558315782248,
+      0.008215891093063685,
+      1.719044952364148e-28,
+      2.505938900025761e-37
+    ],
+    "freshDispersedInlet": [
+      0.8314095020619516,
+      0.09703193550453774,
+      0.046867166192086945,
+      0.016475538558928395,
+      0.008215857682495201,
+      0.0,
+      0.0
+    ],
+    "continuousConductances": [
+      0.1449172280501945,
+      0.177063123200661,
+      0.17296173069273307,
+      0.15254022104851153,
+      0.11324113884325597,
+      0.18290381180994994,
+      0.2280973174333013
+    ],
+    "dispersedConductances": [
+      0.0020018748861023237,
+      0.002472408921142691,
+      0.002412099264728349,
+      0.0021129981173517768,
+      0.0015434166639340485,
+      0.002558428294435721,
+      0.003229089766778362
+    ],
+    "archivedTotalFluxForReferenceOnly": -0.0033422123776529673,
+    "sevenComponentFluxesFree": true,
+    "totalFluxDefinition": "sum(componentFluxes)"
+  },
+  "pinnedGates": {
+    "negativeTpdThreshold": -1e-08,
+    "maximumScaledEquationResidual": 1e-08,
+    "maximumOverallComponentBalanceResidualMol": 1e-08,
+    "maximumIsoactivityLogResidual": 2e-05,
+    "minimumStreamComponentMoles": 1e-12,
+    "minimumPhaseCompositionSeparation": 0.0001,
+    "minimumStageGibbsReduction": 1e-09,
+    "minimumLocalStabilityCurvature": -1e-06,
+    "hessianEigenvalueAbsoluteTolerance": 1e-07,
+    "hessianEigenvalueRelativeTolerance": 0.005,
+    "postSplitTpdThreshold": -1e-08,
+    "multistartProductRelativeTolerance": 1e-06
+  },
+  "priorAlgorithmNegativeTrialDiagnosis": {
+    "phase": "dispersed",
+    "componentIndex": 1,
+    "component": "MONO",
+    "coordinate": 0.0,
+    "minimumRawCoordinate": -0.1688930317164224,
+    "rawCoordinateVector": [
+      1.2483073126791864,
+      -0.1688930317164224,
+      -0.07068085943967636,
+      -0.030407978488906875,
+      -0.025491609563992032,
+      -0.0016799040362273227,
+      0.048846070566037195
+    ],
+    "rawCoordinateSum": 0.9999999999999987,
+    "isSpatialEndpoint": true,
+    "isPrescribedDirichletEndpoint": false,
+    "magnitudeRelativeToMachineEpsilon": 760626594703553.2,
+    "status": "DIAGNOSTIC_NEGATIVE_TRIAL_CAPTURED"
+  },
+  "exactCacheCounts": {
+    "valueHits": 214,
+    "valueMisses": 58,
+    "derivativeHits": 4111,
+    "derivativeMisses": 1516
+  },
+  "refinements": [],
+  "outcome": "NO_ADMISSIBLE_NUMERICAL_CANDIDATE_FOUND",
+  "interpretation": "A numerical hold is not process infeasibility. No production or column run occurred.",
+  "elapsedSeconds": 89.83896778600001
+}

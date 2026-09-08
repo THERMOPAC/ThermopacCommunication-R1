@@ -1,0 +1,488 @@
+{
+  "blockers": [],
+  "candidate": {
+    "fileSha256": "7dcdd539594b762abe8e21283e73cb487f0b80da5cd8fceffb3cf1e6959bad9d",
+    "interfaceSourceSha256": "de4972cf95e8d4bff5cb8f0f8d8da67f379d3373cc4e555c71f032f0646a0070",
+    "interfaces": {
+      "continuous": [
+        0.019591610016945493,
+        0.0022062332023293847,
+        0.0010813037791346403,
+        0.00040391346624592186,
+        0.0002405137195507895,
+        0.8984500116431332,
+        0.07802641417266054
+      ],
+      "dispersed": [
+        0.8559254777655175,
+        0.0029212585232522873,
+        0.0013558500122230748,
+        0.0004486566762746608,
+        0.00013739769848080717,
+        0.060054994804157893,
+        0.07915636452009378
+      ]
+    },
+    "numericalAccepted": true,
+    "path": "research-results/finite-film-cell1-physical-v3-attempt.json",
+    "selector": "refinements[1]",
+    "sourceDocumentOutcome": "NUMERICAL_CANDIDATE_REQUIRES_GLOBAL_RANK_STABILITY_QUALIFICATION",
+    "sourceDocumentPhysicalAcceptance": false
+  },
+  "checkerSourceSha256": "56768759c9a3382e025923daee2aac81600b50e78434f650975fc68793fa265d",
+  "columnContinuationRun": false,
+  "elapsedSeconds": 44.793249414,
+  "evaluationAudit": {
+    "boundaryAdapterNormalizesOrClips": false,
+    "engineLocalStabilityCalled": false,
+    "engineMuCalled": false,
+    "engineNormalizeCalled": false,
+    "engineRoutineTpdCalled": false,
+    "idealBoundaryConvention": "lim(x*log(x),x->0+)=0",
+    "literalZeroThermodynamicEvaluationCount": 432,
+    "thermodynamicEvaluationCount": 11114
+  },
+  "feedModified": false,
+  "lineage": {
+    "baseManifestSha256": "f4e6e0156e6dc82dfaa3bf012a67ff143eb8cb45dd7c8208d9f924cec0d023fc",
+    "boundaryAdapterSha256": "e444fd3111754a62acdefa3972379792fb590b94d9d933103036242edb9d78f8",
+    "engineIntegrity": {
+      "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+      "cascadeSolverChanged": false,
+      "cascadeSolverParent": "7C-1.2.0",
+      "fallbackPhaseModel": null,
+      "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+      "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+      "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+      "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+      "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+      "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+      "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+      "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "inheritedSixComponentResidualApplied": false,
+      "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+      "interactionPairCount": 8,
+      "interactionParameterCount": 48,
+      "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+      "nativeGibbsContributionRetained": true,
+      "profileSha256ByFamily": {
+        "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+        "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+        "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+        "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+        "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+        "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+        "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+      },
+      "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+      "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+      "singleStageIsMatrixMember": true,
+      "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+      "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+      "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+      "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+      "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+      "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+      "tpdThresholdsChanged": false
+    },
+    "jobBManifestSha256": "daa9e16e366b57bbd0c8ad71581cfde705127d9cd3594939c7a7f67d296662da",
+    "pinnedHistoricalEngineSha256": "cc11a0131096f43cecc871de7273f85a92adfbd5c03167ede1b77387fd442d74",
+    "pinnedRkEngineSha256": "0ce9e61f7bdb87a2ccaa1a70edc547343e6cf03585b557855eaeaced1ad0f2d6",
+    "runtime": {
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+      "scipy": "1.14.1",
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+    },
+    "runtimeLoad": "PINNED_JOB_B_STAGE4_BASE_MANIFESTS_VERIFIED",
+    "stage4ManifestSha256": "dac309f1a4335f192eb3d261213090b3404bd02fe7c5c869dd949c7b7b189ec2",
+    "verifyThermoSha256": "40435f4baefa04d3779d968e4dd3238229d93ffce43f04e7d390d5004ba665a1"
+  },
+  "outcome": "PASS_CANDIDATE_INTERFACE_STABILITY_ONLY",
+  "phases": {
+    "continuous": {
+      "accepted": true,
+      "composition": [
+        0.019591610016945493,
+        0.0022062332023293847,
+        0.0010813037791346403,
+        0.00040391346624592186,
+        0.0002405137195507895,
+        0.8984500116431332,
+        0.07802641417266054
+      ],
+      "explicitMonoRichBasinSearch": {
+        "accepted": true,
+        "allRequiredSearchesAccepted": true,
+        "historicalFalseBasinSeedIncluded": true,
+        "minimizingComposition": [
+          0.34570397457391716,
+          0.49999999999987177,
+          0.0009086171057561166,
+          0.00032025014788249824,
+          0.00013501745052043603,
+          0.13488733561616179,
+          0.018044805105890186
+        ],
+        "minimum": 2.1271964574657707,
+        "negativeBasinFound": false,
+        "objectiveCompositionFloor": null,
+        "region": "x_MONO >= 0.5",
+        "searches": [
+          {
+            "accepted": true,
+            "composition": [
+              0.34570397457391716,
+              0.49999999999987177,
+              0.0009086171057561166,
+              0.00032025014788249824,
+              0.00013501745052043603,
+              0.13488733561616179,
+              0.018044805105890186
+            ],
+            "minimum": 2.1271964574657707,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.1271964574657707,
+            "replayOptimizerSuccess": true
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.3457047852049741,
+              0.49999999999984057,
+              0.0009094226753543888,
+              0.0003208728520040779,
+              0.00013629648099648559,
+              0.1348876117087311,
+              0.018041011078099328
+            ],
+            "minimum": 2.127196467510791,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.127196467510791,
+            "replayOptimizerSuccess": true
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.3457042336932989,
+              0.4999999999999878,
+              0.0009071730927423631,
+              0.00031988570722530946,
+              0.0001343085402674349,
+              0.13488341045198926,
+              0.01805098851448888
+            ],
+            "minimum": 2.1271964592116097,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.1271964592116097,
+            "replayOptimizerSuccess": true
+          }
+        ],
+        "seedCount": 3,
+        "threshold": -1e-08
+      },
+      "localCurvature": {
+        "accepted": true,
+        "coarseEigenvalues": [
+          0.0002398442006760732,
+          0.00040163016554852583,
+          0.0010647348863132206,
+          0.002142753292474276,
+          0.012943933162230354,
+          0.10477923515650328
+        ],
+        "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+        "dimension": 6,
+        "eigenvalues": [
+          0.00023986916889143676,
+          0.00040168691990462324,
+          0.0010646037190097741,
+          0.0021429556492025066,
+          0.012943990144817641,
+          0.10477924549215245
+        ],
+        "evaluationRoute": "UNFLOORED_DIRECT_NATIVE_PLUS_UNCHANGED_TASK238_RK",
+        "minimumEigenvalue": 0.00023986916889143676,
+        "stepSizeConverged": true,
+        "steps": [
+          0.0005,
+          0.00025
+        ],
+        "threshold": -1e-06
+      },
+      "minimumFraction": 0.0002405137195507895,
+      "routineTpd": {
+        "accepted": true,
+        "allRefinementsAccepted": true,
+        "coarseLatticeLiteralZerosPreserved": true,
+        "coarseMinimum": 0.11657961073782754,
+        "gridDenominator": 4,
+        "gridPointCount": 210,
+        "includeLocalSeeds": true,
+        "minimizingComposition": [
+          0.019591610016945493,
+          0.0022062332023293847,
+          0.0010813037791346403,
+          0.00040391346624592186,
+          0.0002405137195507895,
+          0.8984500116431332,
+          0.07802641417266054
+        ],
+        "minimum": 0.0,
+        "objectiveCompositionFloor": null,
+        "referenceCompositionFloor": null,
+        "refineBestGlobalAndLocal": true,
+        "refinementSeedCount": 2,
+        "refinements": [
+          {
+            "acceptedByPinnedGradientRule": true,
+            "composition": [
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              0.99999999999994,
+              1.0000000000000027e-14
+            ],
+            "gradientInfinityNorm": 0.0,
+            "message": "Optimization terminated successfully.",
+            "optimizerSuccess": true,
+            "seedClass": "GLOBAL_SIMPLEX",
+            "status": 0,
+            "value": 0.11657961073617762
+          },
+          {
+            "acceptedByPinnedGradientRule": true,
+            "composition": [
+              0.019591676010302064,
+              0.002206236809666339,
+              0.0010813029785745514,
+              0.00040391541490360705,
+              0.00024027566357256828,
+              0.8984498290273353,
+              0.07802676409564566
+            ],
+            "gradientInfinityNorm": 7.701486346434194e-07,
+            "message": "Desired error not necessarily achieved due to precision loss.",
+            "optimizerSuccess": false,
+            "seedClass": "PHASE_LOCAL_LOG_RATIO_PERTURBATION",
+            "status": 2,
+            "value": 1.1894992563795174e-10
+          }
+        ],
+        "seedCount": 19,
+        "seedInteriorizationForFiniteLogitsOnly": 1e-14,
+        "threshold": -1e-08
+      }
+    },
+    "dispersed": {
+      "accepted": true,
+      "composition": [
+        0.8559254777655175,
+        0.0029212585232522873,
+        0.0013558500122230748,
+        0.0004486566762746608,
+        0.00013739769848080717,
+        0.060054994804157893,
+        0.07915636452009378
+      ],
+      "explicitMonoRichBasinSearch": {
+        "accepted": true,
+        "allRequiredSearchesAccepted": true,
+        "historicalFalseBasinSeedIncluded": true,
+        "minimizingComposition": [
+          0.34570382266559074,
+          0.4999999999999991,
+          0.00090849742082599,
+          0.0003201574089685397,
+          0.00013452543506210408,
+          0.13488529763670593,
+          0.018047699432847692
+        ],
+        "minimum": 2.1271964574438575,
+        "negativeBasinFound": false,
+        "objectiveCompositionFloor": null,
+        "region": "x_MONO >= 0.5",
+        "searches": [
+          {
+            "accepted": true,
+            "composition": [
+              0.3457087194986041,
+              0.499999999999998,
+              0.0009089393388934588,
+              0.00032285969302374765,
+              0.00013784817871427996,
+              0.13488276194792184,
+              0.018038871342844657
+            ],
+            "minimum": 2.127196502544962,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.127196502544962,
+            "replayOptimizerSuccess": true
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.34570680509649043,
+              0.4999999999992839,
+              0.0009082022443750718,
+              0.0003213552661146179,
+              0.00013614060246786648,
+              0.1348854551967865,
+              0.018042041594481566
+            ],
+            "minimum": 2.1271964655966267,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.1271964655966267,
+            "replayOptimizerSuccess": true
+          },
+          {
+            "accepted": true,
+            "composition": [
+              0.34570382266559074,
+              0.4999999999999991,
+              0.00090849742082599,
+              0.0003201574089685397,
+              0.00013452543506210408,
+              0.13488529763670593,
+              0.018047699432847692
+            ],
+            "minimum": 2.1271964574438575,
+            "optimizerMessage": "Optimization terminated successfully",
+            "optimizerStatus": 0,
+            "optimizerSuccess": true,
+            "replayMaximumCompositionDifference": 0.0,
+            "replayMinimum": 2.1271964574438575,
+            "replayOptimizerSuccess": true
+          }
+        ],
+        "seedCount": 3,
+        "threshold": -1e-08
+      },
+      "localCurvature": {
+        "accepted": true,
+        "coarseEigenvalues": [
+          0.0001371215199901197,
+          0.00044617028091770557,
+          0.0013329520294647409,
+          0.0028256435217289128,
+          0.025282856318314496,
+          0.16938041460359776
+        ],
+        "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+        "dimension": 6,
+        "eigenvalues": [
+          0.0001374103048607238,
+          0.00044639129032042946,
+          0.0013332722085049454,
+          0.00282584362295368,
+          0.025283349703430928,
+          0.16938043064644737
+        ],
+        "evaluationRoute": "UNFLOORED_DIRECT_NATIVE_PLUS_UNCHANGED_TASK238_RK",
+        "minimumEigenvalue": 0.0001374103048607238,
+        "stepSizeConverged": true,
+        "steps": [
+          0.0005,
+          0.00025
+        ],
+        "threshold": -1e-06
+      },
+      "minimumFraction": 0.00013739769848080717,
+      "routineTpd": {
+        "accepted": true,
+        "allRefinementsAccepted": true,
+        "coarseLatticeLiteralZerosPreserved": true,
+        "coarseMinimum": 0.11657961073783518,
+        "gridDenominator": 4,
+        "gridPointCount": 210,
+        "includeLocalSeeds": true,
+        "minimizingComposition": [
+          0.8559254777655175,
+          0.0029212585232522873,
+          0.0013558500122230748,
+          0.0004486566762746608,
+          0.00013739769848080717,
+          0.060054994804157893,
+          0.07915636452009378
+        ],
+        "minimum": 0.0,
+        "objectiveCompositionFloor": null,
+        "referenceCompositionFloor": null,
+        "refineBestGlobalAndLocal": true,
+        "refinementSeedCount": 2,
+        "refinements": [
+          {
+            "acceptedByPinnedGradientRule": true,
+            "composition": [
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              1.0000000000000027e-14,
+              0.99999999999994,
+              1.0000000000000027e-14
+            ],
+            "gradientInfinityNorm": 0.0,
+            "message": "Optimization terminated successfully.",
+            "optimizerSuccess": true,
+            "seedClass": "GLOBAL_SIMPLEX",
+            "status": 0,
+            "value": 0.11657961073618527
+          },
+          {
+            "acceptedByPinnedGradientRule": true,
+            "composition": [
+              0.8559256041512856,
+              0.002921258905710786,
+              0.0013558502705377402,
+              0.00044865675931477666,
+              0.0001372603842226576,
+              0.060055001623067615,
+              0.07915636790586053
+            ],
+            "gradientInfinityNorm": 1.2470460275526563e-06,
+            "message": "Desired error not necessarily achieved due to precision loss.",
+            "optimizerSuccess": false,
+            "seedClass": "PHASE_LOCAL_LOG_RATIO_PERTURBATION",
+            "status": 2,
+            "value": 6.86276607258691e-11
+          }
+        ],
+        "seedCount": 19,
+        "seedInteriorizationForFiniteLogitsOnly": 1e-14,
+        "threshold": -1e-08
+      }
+    }
+  },
+  "productionRuns": [],
+  "qualificationIsTransportCertification": false,
+  "qualified": true,
+  "runtimeOrModelSourcesModified": false,
+  "schemaVersion": "FINITE_FILM_CANDIDATE_STABILITY_UNFLOORED_V1",
+  "scope": "ISOLATED_RESEARCH_CANDIDATE_INTERFACE_STABILITY_ONLY",
+  "thresholds": {
+    "minimumLocalStabilityCurvature": -1e-06,
+    "postSplitTpdThreshold": -1e-08
+  }
+}

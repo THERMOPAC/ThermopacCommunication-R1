@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "ISOLATED_FINITE_FILM_DOMAIN_SOLVER_V2_VALIDATION",
+  "scope": "SYNTHETIC_ONLY",
+  "cases": [
+    {
+      "start": "bulk",
+      "success": true,
+      "accepted": true,
+      "scaledFluxError": 2.710505431213761e-15,
+      "isoactivity": 4.440892098500626e-16,
+      "minimumFractions": [
+        0.005,
+        0.00798758808441069
+      ]
+    },
+    {
+      "start": "independent",
+      "success": true,
+      "accepted": true,
+      "scaledFluxError": 2.7172816947917955e-15,
+      "isoactivity": 1.6653345369377348e-15,
+      "minimumFractions": [
+        0.005,
+        0.00798758808441069
+      ]
+    }
+  ],
+  "extremePositiveBoundaryRoundtripMaximumAbsError": 4.440892098500626e-16,
+  "noClippingOrEpsilonFeed": true,
+  "productionJobsRun": [],
+  "outcome": "PASS",
+  "sourceHashes": {
+    "research/finite_film/domain_solver_v2.py": "b6db145bffecafb3592299bd851de2608f005de5075c6faafa40621f947e0497",
+    "research/finite_film/verify_domain_solver_v2.py": "c33729416f594b1c7b679bdf8ff115c7e4c0f2e84a3f15bdff92afa372159152"
+  }
+}

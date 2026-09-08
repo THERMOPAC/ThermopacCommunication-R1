@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "FINITE_FILM_CELL1_SHOOTING_V8_SOURCE_BINDING_ASSESSMENT_V1",
+  "scope": "POST_RUN_PROVENANCE_CHECK_ONLY_NO_SCIENTIFIC_COMPUTATION",
+  "assessedArtifact": "research-results/finite-film-cell1-shooting-v8.json",
+  "assessedArtifactSha256": "df1f1f64a557031d8983e4d5ce2691b5ab0627d8f1d85382e23d80775b81fb5e",
+  "artifactDeclaredAttemptSource": {
+    "path": "research/finite_film/attempt_cell1_shooting_v8.py",
+    "sha256": "d7a22cc6cd6daaf5db4b68a67eaf18db08658dd18f012799b7b173ef292c4f2e"
+  },
+  "currentAttemptSource": {
+    "path": "research/finite_film/attempt_cell1_shooting_v8.py",
+    "sha256": "9fcd8ee91ead16d93714df8c7554d706dd3b4d5c9f4b0c115cc09bfc0e88f8b4"
+  },
+  "attemptSourceBinding": "FAIL_MISMATCH",
+  "executedSourceRecoveredAsByteIdenticalFile": false,
+  "attemptPostRunEdit": {
+    "location": "run exception handling after the explicit TimeoutError branch",
+    "change": "The original generic exception branch, which recorded EVIDENCE_OR_EXECUTION_HOLD and an error string, was replaced with an elapsed-time check. At or after 234 seconds the new branch classifies an adapter-wrapped interruption as BOUNDED_PARTIAL_SHOOTING_EVIDENCE and records stopReason plus wrappedInterruption; earlier exceptions retain the original behavior.",
+    "scientificEquationsChanged": false,
+    "numericalResultsChangedBySourceEdit": false,
+    "provenanceBindingChanged": true
+  },
+  "artifactPostRunEditHistory": {
+    "temporarilyChanged": true,
+    "changes": [
+      "Outcome was temporarily changed from EVIDENCE_OR_EXECUTION_HOLD to BOUNDED_PARTIAL_SHOOTING_EVIDENCE.",
+      "The generated error field was temporarily replaced by stopReason and wrappedInterruption.",
+      "A post-execution source hash and a partial-evidence-limitations object were temporarily added."
+    ],
+    "currentState": "RUNNER_EMITTED_OUTCOME_ERROR_AND_SCIENTIFIC_VALUES_RESTORED",
+    "originalArtifactByteIdentityIndependentlyPinned": false
+  },
+  "artifactDeclaredHelper": {
+    "path": "research/finite_film/physical_shooting_v8.py",
+    "sha256": "3e3c81906165e68104db52974f2ab6ff612c88bf36f058959d4ca09f348885d1"
+  },
+  "currentHelper": {
+    "path": "research/finite_film/physical_shooting_v8.py",
+    "sha256": "3e3c81906165e68104db52974f2ab6ff612c88bf36f058959d4ca09f348885d1"
+  },
+  "helperSourceBinding": "PASS_EXACT_MATCH",
+  "rawResultFactsRetained": {
+    "outcome": "EVIDENCE_OR_EXECUTION_HOLD",
+    "error": "BoundaryAdapterError: BOUNDARY_ADAPTER_NATIVE_RAW_LIMIT_UNDEFINED",
+    "elapsedScientificSeconds": 235.00481479100017,
+    "within240SecondScientificBudget": true,
+    "maximumInitialFixedFluxIsoactivityResidual": 0.000024573964511276358,
+    "physicalAcceptance": false,
+    "attemptCount": 0,
+    "refinementCount": 0
+  },
+  "qualificationDisposition": "SOURCE_BINDING_HOLD_EXCLUDE_V8_FROM_QUALIFICATION",
+  "reproducibilityClaim": false,
+  "scientificRunsPerformedForThisAssessment": []
+}
