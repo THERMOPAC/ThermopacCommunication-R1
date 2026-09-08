@@ -245,7 +245,9 @@ export default function EcrPrePilotDesignStage4Page() {
   const [jobCSubmitting, setJobCSubmitting] = useState(false);
   const [jobCStopping, setJobCStopping] = useState(false);
   const jobCRunning = jobCSubmitting || jobCJob?.status === "pending" || jobCJob?.status === "running";
-  const canStartJobC = Boolean(jobBEvaluation || jobCJob?.status === "cancelled");
+  // The server owns all Job B lineage and prerequisite validation. Requiring
+  // Job B React state here incorrectly disables Job C after a page reload.
+  const canStartJobC = Boolean(design);
   const running = activeJob !== null || jobCRunning || jobCStopping;
 
   const applyJobCJob = useCallback((value: unknown) => {

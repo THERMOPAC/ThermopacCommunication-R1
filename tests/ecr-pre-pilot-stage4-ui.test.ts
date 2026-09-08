@@ -372,9 +372,10 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).not.toContain("Kc [m/s]");
   });
 
-  it("gates Job C on Job B and renders only the server-returned preliminary result", () => {
+  it("allows direct Job C submission and renders only the server-returned preliminary result", () => {
     const gatedMarkup = renderWithStates([design, null, null, false, null, null, null, null, null]);
-    expect(gatedMarkup).toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Start Job C/);
+    expect(visibleText(gatedMarkup)).toContain("Start Job C");
+    expect(gatedMarkup).not.toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Start Job C/);
 
     const markup = renderWithStates([
       design,
