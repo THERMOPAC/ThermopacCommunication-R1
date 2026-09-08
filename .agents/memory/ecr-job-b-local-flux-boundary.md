@@ -73,3 +73,17 @@ positive mobility construction is a new constitutive assumption, not
 experimental transport validation. Distinguish formula checks from numerical
 film qualification and never transfer historical Job-B acceptance to changed
 equations automatically.
+
+Derivative refinement must vary the actual one-sided boundary step, not only
+the nominal central step. Check unsymmetrized tangent integrability separately
+from Gibbs–Duhem and relative derivative drift.
+
+**Why:** A capped one-sided step can make two nominally refined calculations
+identical. Through a floored excess-activity API, near-dry integrability error
+can instead grow roughly inversely with step even while Gibbs–Duhem passes.
+That is failed boundary derivative evidence, not proof that the unfloored
+thermodynamic theory or extraction process is infeasible.
+
+**How to apply:** Keep thresholds fixed, record per-direction actual step
+sizes, and stop the real film solve when this qualification fails. Synthetic
+numerical BVP success must never override a failed real-state derivative gate.

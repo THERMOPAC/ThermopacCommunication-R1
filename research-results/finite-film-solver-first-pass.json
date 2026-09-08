@@ -1,0 +1,675 @@
+{
+  "schemaVersion": "ISOLATED_FINITE_FILM_NUMERICAL_VERIFICATION_V1",
+  "scope": "SYNTHETIC_NUMERICAL_BVP_BENCHMARKS_NOT_PROJECT_PHYSICS",
+  "thresholds": {
+    "scaledFlux": 1e-08,
+    "profile": 1e-08,
+    "normalization": 1e-12,
+    "isoactivity": 1e-07,
+    "refinement": 1e-08
+  },
+  "cases": [
+    {
+      "name": "equal_g_non_equimolar_Pe_-8",
+      "refinements": [
+        {
+          "requestedTolerance": 1e-08,
+          "initialNodes": 17,
+          "scipySuccess": true,
+          "nodes": 447,
+          "scaledFluxError": 4.762596567120525e-11,
+          "profileError": 3.365252521092543e-11,
+          "flux": [
+            -0.01152161076105929,
+            -0.0019201073840706161,
+            -0.0012799999999999982,
+            -0.0008000536920353083,
+            -0.00047999999999999925,
+            1.2349168121171506e-06,
+            5.369203530944133e-07
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 1.4432899320127035e-15,
+            "probeCount": 2850,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 1.8327185255517797e-08,
+            "maximumAbsoluteConstitutiveDefect": 3.6654370511035594e-11,
+            "maximumDiffusiveSumDefect": 9.24959978401696e-18,
+            "maximumTotalFluxIdentityDefect": 6.938893903907228e-18,
+            "status": "CONSTITUTIVE_DEFECT_NOT_RESOLVED"
+          }
+        },
+        {
+          "requestedTolerance": 1e-10,
+          "initialNodes": 33,
+          "scipySuccess": true,
+          "nodes": 1940,
+          "scaledFluxError": 1.726049858596923e-13,
+          "profileError": 1.0047518372857667e-13,
+          "flux": [
+            -0.011521610760964383,
+            -0.0019201073840642898,
+            -0.0012799999999999988,
+            -0.0008000536920321451,
+            -0.00047999999999999947,
+            1.2349167393571123e-06,
+            5.369203214596141e-07
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 1.1102230246251565e-15,
+            "probeCount": 12417,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 2.3854702935199867e-10,
+            "maximumAbsoluteConstitutiveDefect": 4.770940587039973e-13,
+            "maximumDiffusiveSumDefect": 9.893344823930228e-18,
+            "maximumTotalFluxIdentityDefect": 1.0408340855860843e-17,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        },
+        {
+          "requestedTolerance": 2e-12,
+          "initialNodes": 65,
+          "scipySuccess": false,
+          "nodes": 3510,
+          "scaledFluxError": 4.336808689942018e-15,
+          "profileError": 4.052314039881821e-15,
+          "flux": [
+            -0.011521610760964047,
+            -0.0019201073840642662,
+            -0.001279999999999998,
+            -0.0008000536920321334,
+            -0.0004799999999999992,
+            1.234916739096613e-06,
+            5.369203213463535e-07
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 1.6653345369377348e-15,
+            "probeCount": 22038,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 7.073855390338224e-11,
+            "maximumAbsoluteConstitutiveDefect": 1.4147710780676448e-13,
+            "maximumDiffusiveSumDefect": 7.6029677345546e-18,
+            "maximumTotalFluxIdentityDefect": 6.938893903907228e-18,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        }
+      ],
+      "fineFluxDrift": 1.682681771697503e-13,
+      "status": "FAIL"
+    },
+    {
+      "name": "equal_g_non_equimolar_Pe_-1",
+      "refinements": [
+        {
+          "requestedTolerance": 1e-08,
+          "initialNodes": 17,
+          "scipySuccess": true,
+          "nodes": 65,
+          "scaledFluxError": 2.2865498557067543e-11,
+          "profileError": 7.29681315370101e-11,
+          "flux": [
+            -0.001789186024167327,
+            -0.00026327906827782176,
+            -0.00016,
+            -0.00011163953413891091,
+            -6e-05,
+            0.00026770928519495064,
+            0.00011639534138910898
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 3.3306690738754696e-16,
+            "maximumAffineBoundaryLift": 1.1102230246251565e-16,
+            "probeCount": 390,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 1.4404554046949791e-08,
+            "maximumAbsoluteConstitutiveDefect": 2.8809108093899582e-11,
+            "maximumDiffusiveSumDefect": 7.453889935837843e-19,
+            "maximumTotalFluxIdentityDefect": 8.673617379884035e-19,
+            "status": "CONSTITUTIVE_DEFECT_NOT_RESOLVED"
+          }
+        },
+        {
+          "requestedTolerance": 1e-10,
+          "initialNodes": 33,
+          "scipySuccess": true,
+          "nodes": 385,
+          "scaledFluxError": 1.7672495411513722e-14,
+          "profileError": 5.6565863104651726e-14,
+          "flux": [
+            -0.0017891860241216312,
+            -0.00026327906827477537,
+            -0.00015999999999999999,
+            -0.0001116395341373877,
+            -5.999999999999999e-05,
+            0.0002677092851599172,
+            0.00011639534137387707
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 3.3306690738754696e-16,
+            "probeCount": 2400,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 6.712848592965726e-11,
+            "maximumAbsoluteConstitutiveDefect": 1.342569718593145e-13,
+            "maximumDiffusiveSumDefect": 1.043544591017298e-18,
+            "maximumTotalFluxIdentityDefect": 1.3010426069826053e-18,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        },
+        {
+          "requestedTolerance": 2e-12,
+          "initialNodes": 65,
+          "scipySuccess": true,
+          "nodes": 1251,
+          "scaledFluxError": 1.0842021724855044e-16,
+          "profileError": 7.216449660063518e-16,
+          "flux": [
+            -0.0017891860241215961,
+            -0.0002632790682747731,
+            -0.00016,
+            -0.00011163953413738655,
+            -6e-05,
+            0.0002677092851598904,
+            0.00011639534137386541
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 1.1102230246251565e-16,
+            "probeCount": 5991,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 2.4744746182636668e-12,
+            "maximumAbsoluteConstitutiveDefect": 4.9489492365273335e-15,
+            "maximumDiffusiveSumDefect": 1.1655173354219173e-18,
+            "maximumTotalFluxIdentityDefect": 1.3010426069826053e-18,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        }
+      ],
+      "fineFluxDrift": 1.7564075194265172e-14,
+      "status": "PASS"
+    },
+    {
+      "name": "equal_g_non_equimolar_Pe_0",
+      "refinements": [
+        {
+          "requestedTolerance": 1e-08,
+          "initialNodes": 17,
+          "scipySuccess": true,
+          "nodes": 17,
+          "scaledFluxError": 5.421010862427522e-17,
+          "profileError": 2.220446049250313e-16,
+          "flux": [
+            -0.0006000000000000001,
+            -3.999999999999998e-05,
+            -7.046636495022923e-21,
+            -2.0000000000000005e-05,
+            -3.436582073684502e-21,
+            0.00046,
+            0.00019999999999999998
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 0.0,
+            "probeCount": 97,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 7.047314121155779e-16,
+            "maximumAbsoluteConstitutiveDefect": 1.4094628242311558e-18,
+            "maximumDiffusiveSumDefect": 2.710505431213761e-19,
+            "maximumTotalFluxIdentityDefect": 2.439454888092385e-19,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        },
+        {
+          "requestedTolerance": 1e-10,
+          "initialNodes": 33,
+          "scipySuccess": true,
+          "nodes": 33,
+          "scaledFluxError": 6.776263578034403e-18,
+          "profileError": 2.220446049250313e-16,
+          "flux": [
+            -0.0006,
+            -3.9999999999999996e-05,
+            -1.1102230250623522e-20,
+            -2.0000000000000012e-05,
+            -4.163336343983822e-21,
+            0.00046,
+            0.0002
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 3.3306690738754696e-16,
+            "maximumAffineBoundaryLift": 0.0,
+            "probeCount": 196,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 2.3310346708438345e-15,
+            "maximumAbsoluteConstitutiveDefect": 4.662069341687669e-18,
+            "maximumDiffusiveSumDefect": 2.710505431213761e-19,
+            "maximumTotalFluxIdentityDefect": 2.981555974335137e-19,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        },
+        {
+          "requestedTolerance": 2e-12,
+          "initialNodes": 65,
+          "scipySuccess": true,
+          "nodes": 65,
+          "scaledFluxError": 6.776263578034403e-18,
+          "profileError": 2.220446049250313e-16,
+          "flux": [
+            -0.0006,
+            -3.9999999999999996e-05,
+            -1.110223025044729e-20,
+            -2.0000000000000012e-05,
+            -4.16333634391773e-21,
+            0.00046,
+            0.0002
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 1.1102230246251565e-16,
+            "probeCount": 385,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 3.74049749507499e-15,
+            "maximumAbsoluteConstitutiveDefect": 7.48099499014998e-18,
+            "maximumDiffusiveSumDefect": 2.710505431213761e-19,
+            "maximumTotalFluxIdentityDefect": 2.981555974335137e-19,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        }
+      ],
+      "fineFluxDrift": 8.81158088540232e-29,
+      "status": "PASS"
+    },
+    {
+      "name": "equal_g_non_equimolar_Pe_1",
+      "refinements": [
+        {
+          "requestedTolerance": 1e-08,
+          "initialNodes": 17,
+          "scipySuccess": true,
+          "nodes": 65,
+          "scaledFluxError": 2.2865552767176167e-11,
+          "profileError": 7.296818704816133e-11,
+          "flux": [
+            0.000490813975832673,
+            0.00017672093172217825,
+            0.00016000000000000004,
+            6.836046586108911e-05,
+            6.000000000000001e-05,
+            0.0007277092851949508,
+            0.000316395341389109
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 3.3306690738754696e-16,
+            "maximumAffineBoundaryLift": 2.220446049250313e-16,
+            "probeCount": 432,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 1.427298394491433e-08,
+            "maximumAbsoluteConstitutiveDefect": 2.854596788982866e-11,
+            "maximumDiffusiveSumDefect": 7.589415207398531e-19,
+            "maximumTotalFluxIdentityDefect": 4.336808689942018e-19,
+            "status": "CONSTITUTIVE_DEFECT_NOT_RESOLVED"
+          }
+        },
+        {
+          "requestedTolerance": 1e-10,
+          "initialNodes": 33,
+          "scipySuccess": true,
+          "nodes": 385,
+          "scaledFluxError": 1.7618285302889447e-14,
+          "profileError": 5.6621374255882984e-14,
+          "flux": [
+            0.0004908139758783689,
+            0.00017672093172522462,
+            0.00016,
+            6.836046586261228e-05,
+            6e-05,
+            0.0007277092851599172,
+            0.00031639534137387705
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 4.6615556625272736e-20,
+            "probeCount": 1818,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 6.642928394862135e-11,
+            "maximumAbsoluteConstitutiveDefect": 1.328585678972427e-13,
+            "maximumDiffusiveSumDefect": 8.673617379884035e-19,
+            "maximumTotalFluxIdentityDefect": 8.673617379884035e-19,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        },
+        {
+          "requestedTolerance": 2e-12,
+          "initialNodes": 65,
+          "scipySuccess": true,
+          "nodes": 1251,
+          "scaledFluxError": 1.6263032587282567e-16,
+          "profileError": 8.881784197001252e-16,
+          "flux": [
+            0.0004908139758784038,
+            0.0001767209317252269,
+            0.00016,
+            6.836046586261345e-05,
+            5.9999999999999995e-05,
+            0.0007277092851598904,
+            0.00031639534137386545
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 1.1102230246251565e-16,
+            "probeCount": 6972,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 2.4958876111702555e-12,
+            "maximumAbsoluteConstitutiveDefect": 4.991775222340511e-15,
+            "maximumDiffusiveSumDefect": 9.75781955236954e-19,
+            "maximumTotalFluxIdentityDefect": 8.673617379884035e-19,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        }
+      ],
+      "fineFluxDrift": 1.745565497701662e-14,
+      "status": "PASS"
+    },
+    {
+      "name": "equal_g_non_equimolar_Pe_8",
+      "refinements": [
+        {
+          "requestedTolerance": 1e-08,
+          "initialNodes": 17,
+          "scipySuccess": true,
+          "nodes": 447,
+          "scaledFluxError": 4.762292990512229e-11,
+          "profileError": 3.365230316632051e-11,
+          "flux": [
+            0.006718389238940716,
+            0.0015998926159293812,
+            0.00128,
+            0.0006399463079646906,
+            0.00048,
+            0.0036812349168121174,
+            0.0016005369203530944
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 2.220446049250313e-16,
+            "probeCount": 2517,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 1.78557993044115e-08,
+            "maximumAbsoluteConstitutiveDefect": 3.5711598608823e-11,
+            "maximumDiffusiveSumDefect": 5.095750210681871e-18,
+            "maximumTotalFluxIdentityDefect": 6.938893903907228e-18,
+            "status": "CONSTITUTIVE_DEFECT_NOT_RESOLVED"
+          }
+        },
+        {
+          "requestedTolerance": 1e-10,
+          "initialNodes": 33,
+          "scipySuccess": true,
+          "nodes": 1940,
+          "scaledFluxError": 1.704365815147213e-13,
+          "profileError": 1.0047518372857667e-13,
+          "flux": [
+            0.006718389239035621,
+            0.0015998926159357081,
+            0.00128,
+            0.0006399463079678541,
+            0.00048,
+            0.0036812349167393574,
+            0.0016005369203214597
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 3.3306690738754696e-16,
+            "maximumAffineBoundaryLift": 4.9666922507404286e-20,
+            "probeCount": 9266,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 2.341694546603712e-10,
+            "maximumAbsoluteConstitutiveDefect": 4.683389093207424e-13,
+            "maximumDiffusiveSumDefect": 6.938893903907228e-18,
+            "maximumTotalFluxIdentityDefect": 6.938893903907228e-18,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        },
+        {
+          "requestedTolerance": 2e-12,
+          "initialNodes": 65,
+          "scipySuccess": false,
+          "nodes": 3510,
+          "scaledFluxError": 1.3010426069826053e-15,
+          "profileError": 3.774758283725532e-15,
+          "flux": [
+            0.006718389239035959,
+            0.001599892615935731,
+            0.00128,
+            0.0006399463079678654,
+            0.00048,
+            0.003681234916739097,
+            0.0016005369203213468
+          ],
+          "audit": {
+            "minimumPolynomialFraction": 0.0,
+            "maximumPolynomialFraction": 0.72,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 7.771561172376096e-16,
+            "probeCount": 21280,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 7.069518581648282e-11,
+            "maximumAbsoluteConstitutiveDefect": 1.4139037163296564e-13,
+            "maximumDiffusiveSumDefect": 5.7462715141731735e-18,
+            "maximumTotalFluxIdentityDefect": 6.938893903907228e-18,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          }
+        }
+      ],
+      "fineFluxDrift": 1.691355389077387e-13,
+      "status": "FAIL"
+    },
+    {
+      "name": "unequal_binary_equimolar",
+      "scaledFluxError": 2.1684043449710089e-16,
+      "audit": {
+        "minimumPolynomialFraction": 0.0,
+        "maximumPolynomialFraction": 0.9,
+        "minimumIncludesAllCubicStationaryPoints": true,
+        "maximumNormalizationDefect": 2.220446049250313e-16,
+        "maximumAffineBoundaryLift": 1.1102230246251565e-16,
+        "probeCount": 13217,
+        "profileRoundoffDomainCertified": false,
+        "maximumScaledConstitutiveDefect": 7.451721531492872e-12,
+        "maximumAbsoluteConstitutiveDefect": 1.4903443062985744e-14,
+        "maximumDiffusiveSumDefect": 8.673617379884035e-19,
+        "maximumTotalFluxIdentityDefect": 8.673617379884035e-19,
+        "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+      },
+      "scipySuccess": true,
+      "status": "PASS"
+    },
+    {
+      "name": "coupled_two_film_independent_starts",
+      "starts": [
+        {
+          "start": "bulk_initialization",
+          "scipySuccess": true,
+          "scaledFluxError": 5.421010862427522e-17,
+          "flux": [
+            -9.999999999999998e-05,
+            -9.999999999999969e-06,
+            -4.999999999999986e-06,
+            -2.9999999999999967e-06,
+            -1.999999999999995e-06,
+            4.000000000000011e-05,
+            1.0000000000000016e-05
+          ],
+          "totalFlux": -6.999999999999979e-05,
+          "maximumIsoactivityResidual": 1.3322676295501878e-15,
+          "maximumScaledFilmFluxDisagreement": 2.710505431213761e-17,
+          "continuousAudit": {
+            "minimumPolynomialFraction": 0.005,
+            "maximumPolynomialFraction": 0.82,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 0.0,
+            "probeCount": 509,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 4.364591370611959e-14,
+            "maximumAbsoluteConstitutiveDefect": 8.729182741223918e-17,
+            "maximumDiffusiveSumDefect": 5.082197683525802e-20,
+            "maximumTotalFluxIdentityDefect": 6.776263578034403e-20,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          },
+          "dispersedAudit": {
+            "minimumPolynomialFraction": 0.00798758808441069,
+            "maximumPolynomialFraction": 0.7679038076094996,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 4.440892098500626e-16,
+            "maximumAffineBoundaryLift": 1.1102230246251565e-16,
+            "probeCount": 509,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 3.3885383648318834e-13,
+            "maximumAbsoluteConstitutiveDefect": 3.3885383648318834e-16,
+            "maximumDiffusiveSumDefect": 4.404571325722362e-20,
+            "maximumTotalFluxIdentityDefect": 4.0657581468206416e-20,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          },
+          "passed": true
+        },
+        {
+          "start": "independent_oriented_template",
+          "scipySuccess": true,
+          "scaledFluxError": 2.580909390283853e-15,
+          "flux": [
+            -9.999999999999565e-05,
+            -9.999999999997616e-06,
+            -4.999999999999686e-06,
+            -2.9999999999948383e-06,
+            -1.999999999999801e-06,
+            4.000000000000077e-05,
+            1.0000000000000536e-05
+          ],
+          "totalFlux": -6.999999999998629e-05,
+          "maximumIsoactivityResidual": 3.8624659026709196e-13,
+          "maximumScaledFilmFluxDisagreement": 1.3552527156068805e-17,
+          "continuousAudit": {
+            "minimumPolynomialFraction": 0.005,
+            "maximumPolynomialFraction": 0.82,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 0.0,
+            "probeCount": 285,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 1.4436151926644492e-13,
+            "maximumAbsoluteConstitutiveDefect": 2.8872303853288983e-16,
+            "maximumDiffusiveSumDefect": 4.743384504624082e-20,
+            "maximumTotalFluxIdentityDefect": 5.421010862427522e-20,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          },
+          "dispersedAudit": {
+            "minimumPolynomialFraction": 0.00798758808441069,
+            "maximumPolynomialFraction": 0.7679038076094996,
+            "minimumIncludesAllCubicStationaryPoints": true,
+            "maximumNormalizationDefect": 2.220446049250313e-16,
+            "maximumAffineBoundaryLift": 1.3877787807814457e-17,
+            "probeCount": 285,
+            "profileRoundoffDomainCertified": false,
+            "maximumScaledConstitutiveDefect": 1.1236264739825086e-12,
+            "maximumAbsoluteConstitutiveDefect": 1.1236264739825086e-15,
+            "maximumDiffusiveSumDefect": 4.743384504624082e-20,
+            "maximumTotalFluxIdentityDefect": 4.0657581468206416e-20,
+            "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+          },
+          "passed": true
+        }
+      ],
+      "scaledIndependentAgreement": 2.5792153243893445e-15,
+      "status": "PASS"
+    },
+    {
+      "name": "nonideal_numeric_vs_analytic_derivative",
+      "scaledFluxDifference": 2.7105054312137606e-16,
+      "numericAudit": {
+        "minimumPolynomialFraction": 0.05,
+        "maximumPolynomialFraction": 0.25,
+        "minimumIncludesAllCubicStationaryPoints": true,
+        "maximumNormalizationDefect": 2.220446049250313e-16,
+        "maximumAffineBoundaryLift": 0.0,
+        "probeCount": 97,
+        "profileRoundoffDomainCertified": false,
+        "maximumScaledConstitutiveDefect": 8.821272163249405e-12,
+        "maximumAbsoluteConstitutiveDefect": 1.764254432649881e-14,
+        "maximumDiffusiveSumDefect": 6.098637220230962e-20,
+        "maximumTotalFluxIdentityDefect": 6.776263578034403e-20,
+        "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+      },
+      "analyticAudit": {
+        "minimumPolynomialFraction": 0.05,
+        "maximumPolynomialFraction": 0.25,
+        "minimumIncludesAllCubicStationaryPoints": true,
+        "maximumNormalizationDefect": 2.220446049250313e-16,
+        "maximumAffineBoundaryLift": 1.3877787807814457e-17,
+        "probeCount": 97,
+        "profileRoundoffDomainCertified": false,
+        "maximumScaledConstitutiveDefect": 8.821319597094451e-12,
+        "maximumAbsoluteConstitutiveDefect": 1.7642639194188903e-14,
+        "maximumDiffusiveSumDefect": 5.421010862427522e-20,
+        "maximumTotalFluxIdentityDefect": 5.421010862427522e-20,
+        "status": "NUMERICAL_PROFILE_CHECKS_PASSED"
+      },
+      "status": "PASS"
+    }
+  ],
+  "outcome": "FAIL",
+  "sourceHashes": {
+    "research/finite_film/verify_solver.py": "4e7130caa1383d9da28c8d489b2b79b59434a37f8a1591478957a25505053a02",
+    "research/finite_film/solver.py": "9d5e6955a4ca7c18f4c4ec03ed8eedabf8525c73ba51dc535c6a7b4a70fc5abc",
+    "research/finite_film/thermo_adapter.py": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f"
+  },
+  "actualThermodynamicEngineCalled": false,
+  "savedCellSolved": false,
+  "productionJobsRun": [],
+  "profileIntervalRoundoffCertification": false
+}

@@ -1,0 +1,1126 @@
+{
+  "cases": [
+    {
+      "composition": [
+        7.080024598066372e-06,
+        5.950153875443155e-07,
+        2.8044726397244043e-07,
+        8.65484018591514e-08,
+        3.152131316798451e-08,
+        0.922675288193551,
+        0.07731663824948438
+      ],
+      "currentDerivativeNumericalStatus": "PASS_NUMERICAL_REFINEMENT",
+      "dependentIndex": 5,
+      "derivativeDetails": {
+        "coarse": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "1": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "2": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "3": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "4": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "fine": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "1": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "2": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "3": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "4": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            }
+          },
+          "stepRequested": 1e-05
+        }
+      },
+      "derivativeStepRelative": 2.713579970240149e-10,
+      "minimumFraction": 3.152131316798451e-08,
+      "muAgreementAdmittedAwayFromEngineFloor": true,
+      "muMinusLnXAgreementAbs": 1.0547118733938987e-15,
+      "name": "cell1_continuous",
+      "numericalStatus": "PASS",
+      "qualificationStatus": "PASS_POSITIVE_INTERIOR",
+      "secondOrderForwardRefinement": {
+        "convergence": [
+          {
+            "coarseStep": 2e-06,
+            "fineStep": 1e-06,
+            "maximumRelativeChange": 1.4986755902586247e-08,
+            "perDirection": [
+              {
+                "componentIndex": 0,
+                "relativeChange": 7.704809884077804e-10
+              },
+              {
+                "componentIndex": 1,
+                "relativeChange": 1.3655738774390618e-09
+              },
+              {
+                "componentIndex": 2,
+                "relativeChange": 1.4986755902586247e-08
+              },
+              {
+                "componentIndex": 3,
+                "relativeChange": 2.847409687610715e-09
+              },
+              {
+                "componentIndex": 4,
+                "relativeChange": 1.2872741336220064e-08
+              },
+              {
+                "componentIndex": 6,
+                "relativeChange": 0.0
+              }
+            ]
+          },
+          {
+            "coarseStep": 1e-06,
+            "fineStep": 5e-07,
+            "maximumRelativeChange": 2.5479638504653913e-08,
+            "perDirection": [
+              {
+                "componentIndex": 0,
+                "relativeChange": 6.1866581909850685e-09
+              },
+              {
+                "componentIndex": 1,
+                "relativeChange": 1.7666130860603596e-08
+              },
+              {
+                "componentIndex": 2,
+                "relativeChange": 2.5479638504653913e-08
+              },
+              {
+                "componentIndex": 3,
+                "relativeChange": 3.4383814977451887e-09
+              },
+              {
+                "componentIndex": 4,
+                "relativeChange": 1.1220949231132106e-08
+              },
+              {
+                "componentIndex": 6,
+                "relativeChange": 0.0
+              }
+            ]
+          }
+        ],
+        "grid": [
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 0,
+                "derivativeVectorInfinityNorm": 16.426806995761822,
+                "gibbsDuhemAbs": 1.7525644824852225e-09,
+                "step": 2e-06
+              },
+              {
+                "componentIndex": 1,
+                "derivativeVectorInfinityNorm": 7.073173018401491,
+                "gibbsDuhemAbs": 1.5367424127200722e-09,
+                "step": 2e-06
+              },
+              {
+                "componentIndex": 2,
+                "derivativeVectorInfinityNorm": 7.090408397747439,
+                "gibbsDuhemAbs": 1.577062534445948e-09,
+                "step": 2e-06
+              },
+              {
+                "componentIndex": 3,
+                "derivativeVectorInfinityNorm": 6.974449235697122,
+                "gibbsDuhemAbs": 3.411761664001235e-09,
+                "step": 2e-06
+              },
+              {
+                "componentIndex": 4,
+                "derivativeVectorInfinityNorm": 6.175216720638588,
+                "gibbsDuhemAbs": 3.983017205498874e-09,
+                "step": 2e-06
+              }
+            ],
+            "requestedForwardStep": 2e-06,
+            "tangentIntegrabilityAbs": 1.804979787856098e-08,
+            "unsymmetrizedGibbsDuhemAbs": 3.983017210555864e-09
+          },
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 0,
+                "derivativeVectorInfinityNorm": 16.42680698310528,
+                "gibbsDuhemAbs": 7.441354806015384e-09,
+                "step": 1e-06
+              },
+              {
+                "componentIndex": 1,
+                "derivativeVectorInfinityNorm": 7.073173025506918,
+                "gibbsDuhemAbs": 5.511632109158875e-11,
+                "step": 1e-06
+              },
+              {
+                "componentIndex": 2,
+                "derivativeVectorInfinityNorm": 7.09040848700937,
+                "gibbsDuhemAbs": 3.371773639309058e-09,
+                "step": 1e-06
+              },
+              {
+                "componentIndex": 3,
+                "derivativeVectorInfinityNorm": 6.974449247465486,
+                "gibbsDuhemAbs": 4.3644490814667945e-10,
+                "step": 1e-06
+              },
+              {
+                "componentIndex": 4,
+                "derivativeVectorInfinityNorm": 6.175216800130556,
+                "gibbsDuhemAbs": 5.308769371417509e-09,
+                "step": 1e-06
+              }
+            ],
+            "requestedForwardStep": 1e-06,
+            "tangentIntegrabilityAbs": 7.40778967056599e-08,
+            "unsymmetrizedGibbsDuhemAbs": 7.441354837878222e-09
+          },
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 0,
+                "derivativeVectorInfinityNorm": 16.42680700619792,
+                "gibbsDuhemAbs": 8.646211222835133e-09,
+                "step": 5e-07
+              },
+              {
+                "componentIndex": 1,
+                "derivativeVectorInfinityNorm": 7.073173090788032,
+                "gibbsDuhemAbs": 2.0792629084597016e-08,
+                "step": 5e-07
+              },
+              {
+                "componentIndex": 2,
+                "derivativeVectorInfinityNorm": 7.090408352894428,
+                "gibbsDuhemAbs": 5.818507940473088e-09,
+                "step": 5e-07
+              },
+              {
+                "componentIndex": 3,
+                "derivativeVectorInfinityNorm": 6.9744492714463036,
+                "gibbsDuhemAbs": 2.2628211698738184e-09,
+                "step": 5e-07
+              },
+              {
+                "componentIndex": 4,
+                "derivativeVectorInfinityNorm": 6.175216828552266,
+                "gibbsDuhemAbs": 1.0339346715629902e-08,
+                "step": 5e-07
+              }
+            ],
+            "requestedForwardStep": 5e-07,
+            "tangentIntegrabilityAbs": 1.5224280192072115e-07,
+            "unsymmetrizedGibbsDuhemAbs": 2.0792629076837876e-08
+          }
+        ],
+        "purpose": "numerical refinement of clipped-engine directional evaluations; not evidence of true unfloored boundary physics",
+        "status": "PASS_NUMERICAL_REFINEMENT"
+      },
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "tangentIntegrabilityAbs": 1.804979787856098e-08,
+      "trueBoundaryQualification": "NOT_APPLICABLE_POSITIVE_ADMITTED_INTERIOR",
+      "unsymmetrizedGibbsDuhemAbs": 3.983017210555864e-09
+    },
+    {
+      "composition": [
+        0.8314091492606233,
+        0.09703211630006595,
+        0.046867260188424645,
+        0.01647558315782248,
+        0.008215891093063685,
+        1.719044952364148e-28,
+        2.505938900025761e-37
+      ],
+      "currentDerivativeNumericalStatus": "FAIL_NUMERICAL_REFINEMENT",
+      "dependentIndex": 0,
+      "derivativeDetails": {
+        "coarse": {
+          "dependentIndex": 0,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "5": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "6": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "fine": {
+          "dependentIndex": 0,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "1": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "5": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "6": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            }
+          },
+          "stepRequested": 1e-05
+        }
+      },
+      "derivativeStepRelative": 1.4280713424916808e-10,
+      "limitation": "composition at/below engine normalization floor; no clipped comparison counted as evidence",
+      "minimumFraction": 2.505938900025761e-37,
+      "muAgreementAdmittedAwayFromEngineFloor": false,
+      "muMinusLnXAgreementAbs": null,
+      "name": "cell1_dispersed",
+      "numericalStatus": "FAIL",
+      "qualificationStatus": "FAIL",
+      "secondOrderForwardRefinement": {
+        "convergence": [
+          {
+            "coarseStep": 2e-06,
+            "fineStep": 1e-06,
+            "maximumRelativeChange": 5.253890095655868e-06,
+            "perDirection": [
+              {
+                "componentIndex": 1,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 2,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 3,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 4,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 5,
+                "relativeChange": 5.253890095655868e-06
+              },
+              {
+                "componentIndex": 6,
+                "relativeChange": 3.666481299804223e-06
+              }
+            ]
+          },
+          {
+            "coarseStep": 1e-06,
+            "fineStep": 5e-07,
+            "maximumRelativeChange": 1.0483913037619983e-05,
+            "perDirection": [
+              {
+                "componentIndex": 1,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 2,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 3,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 4,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 5,
+                "relativeChange": 1.0483913037619983e-05
+              },
+              {
+                "componentIndex": 6,
+                "relativeChange": 7.318098643468768e-06
+              }
+            ]
+          }
+        ],
+        "grid": [
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 5,
+                "derivativeVectorInfinityNorm": 8.781600530971545,
+                "gibbsDuhemAbs": 1.2935718496365212e-08,
+                "step": 2e-06
+              },
+              {
+                "componentIndex": 6,
+                "derivativeVectorInfinityNorm": 17.113139660740462,
+                "gibbsDuhemAbs": 5.286944992910492e-09,
+                "step": 2e-06
+              }
+            ],
+            "requestedForwardStep": 2e-06,
+            "tangentIntegrabilityAbs": 5.9296630859684285e-05,
+            "unsymmetrizedGibbsDuhemAbs": 1.2935718485529063e-08
+          },
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 5,
+                "derivativeVectorInfinityNorm": 8.781587692352488,
+                "gibbsDuhemAbs": 4.466330899566273e-08,
+                "step": 1e-06
+              },
+              {
+                "componentIndex": 6,
+                "derivativeVectorInfinityNorm": 17.113119941902788,
+                "gibbsDuhemAbs": 2.6816871168122702e-08,
+                "step": 1e-06
+              }
+            ],
+            "requestedForwardStep": 1e-06,
+            "tangentIntegrabilityAbs": 0.00011861101539967223,
+            "unsymmetrizedGibbsDuhemAbs": 4.466330899429851e-08
+          },
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 5,
+                "derivativeVectorInfinityNorm": 8.781562090831585,
+                "gibbsDuhemAbs": 3.2076924783019933e-08,
+                "step": 5e-07
+              },
+              {
+                "componentIndex": 6,
+                "derivativeVectorInfinityNorm": 17.113080486019783,
+                "gibbsDuhemAbs": 5.28879023908857e-08,
+                "step": 5e-07
+              }
+            ],
+            "requestedForwardStep": 5e-07,
+            "tangentIntegrabilityAbs": 0.0002371131591525355,
+            "unsymmetrizedGibbsDuhemAbs": 5.2887902274674804e-08
+          }
+        ],
+        "purpose": "numerical refinement of clipped-engine directional evaluations; not evidence of true unfloored boundary physics",
+        "status": "FAIL_NUMERICAL_REFINEMENT"
+      },
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "tangentIntegrabilityAbs": 5.929695011364089e-05,
+      "trueBoundaryQualification": "FAIL_OR_UNAVAILABLE_ENGINE_FLOOR_DOMAIN",
+      "unsymmetrizedGibbsDuhemAbs": 1.2935718485529063e-08
+    },
+    {
+      "composition": [
+        0.019286696568824674,
+        0.001333490121717873,
+        0.0006430576451355772,
+        0.00022430408265232876,
+        0.00010902723241521309,
+        0.9024120497795988,
+        0.07599137456965553
+      ],
+      "currentDerivativeNumericalStatus": "PASS",
+      "dependentIndex": 5,
+      "derivativeDetails": {
+        "coarse": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "fine": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "1": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            }
+          },
+          "stepRequested": 1e-05
+        }
+      },
+      "derivativeStepRelative": 8.45141683912653e-10,
+      "minimumFraction": 0.00010902723241521309,
+      "muAgreementAdmittedAwayFromEngineFloor": true,
+      "muMinusLnXAgreementAbs": 4.718447854656915e-16,
+      "name": "cell1_interface_continuous",
+      "numericalStatus": "PASS",
+      "qualificationStatus": "PASS_POSITIVE_INTERIOR",
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "tangentIntegrabilityAbs": 5.278069536984731e-09,
+      "trueBoundaryQualification": "NOT_APPLICABLE_POSITIVE_ADMITTED_INTERIOR",
+      "unsymmetrizedGibbsDuhemAbs": 2.55061051595696e-09
+    },
+    {
+      "composition": [
+        0.8596316122805464,
+        0.0017663562265905959,
+        0.000806705462403103,
+        0.00024924631736276606,
+        6.224238883347732e-05,
+        0.0594241418430333,
+        0.07805969548123062
+      ],
+      "currentDerivativeNumericalStatus": "PASS",
+      "dependentIndex": 0,
+      "derivativeDetails": {
+        "coarse": {
+          "dependentIndex": 0,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "5": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "fine": {
+          "dependentIndex": 0,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "1": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "5": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            }
+          },
+          "stepRequested": 1e-05
+        }
+      },
+      "derivativeStepRelative": 9.278818862397756e-10,
+      "minimumFraction": 6.224238883347732e-05,
+      "muAgreementAdmittedAwayFromEngineFloor": true,
+      "muMinusLnXAgreementAbs": 7.771561172376096e-16,
+      "name": "cell1_interface_dispersed",
+      "numericalStatus": "PASS",
+      "qualificationStatus": "PASS_POSITIVE_INTERIOR",
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "tangentIntegrabilityAbs": 2.8605589008634524e-09,
+      "trueBoundaryQualification": "NOT_APPLICABLE_POSITIVE_ADMITTED_INTERIOR",
+      "unsymmetrizedGibbsDuhemAbs": 2.933782225005011e-09
+    },
+    {
+      "composition": [
+        0.8314095020619516,
+        0.09703193550453774,
+        0.046867166192086945,
+        0.016475538558928395,
+        0.008215857682495201,
+        0.0,
+        0.0
+      ],
+      "currentDerivativeNumericalStatus": "FAIL_NUMERICAL_REFINEMENT",
+      "dependentIndex": 0,
+      "derivativeDetails": {
+        "coarse": {
+          "dependentIndex": 0,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "5": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "6": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "fine": {
+          "dependentIndex": 0,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "1": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 1e-05
+            },
+            "5": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "6": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            }
+          },
+          "stepRequested": 1e-05
+        }
+      },
+      "derivativeStepRelative": 1.7378503451442426e-10,
+      "limitation": "composition at/below engine normalization floor; no clipped comparison counted as evidence",
+      "minimumFraction": 0.0,
+      "muAgreementAdmittedAwayFromEngineFloor": false,
+      "muMinusLnXAgreementAbs": null,
+      "name": "literal_zero_dry_inlet",
+      "numericalStatus": "FAIL",
+      "qualificationStatus": "FAIL",
+      "secondOrderForwardRefinement": {
+        "convergence": [
+          {
+            "coarseStep": 2e-06,
+            "fineStep": 1e-06,
+            "maximumRelativeChange": 5.25106315114667e-06,
+            "perDirection": [
+              {
+                "componentIndex": 1,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 2,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 3,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 4,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 5,
+                "relativeChange": 5.25106315114667e-06
+              },
+              {
+                "componentIndex": 6,
+                "relativeChange": 3.6657671919755416e-06
+              }
+            ]
+          },
+          {
+            "coarseStep": 1e-06,
+            "fineStep": 5e-07,
+            "maximumRelativeChange": 1.0502934502786984e-05,
+            "perDirection": [
+              {
+                "componentIndex": 1,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 2,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 3,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 4,
+                "relativeChange": 0.0
+              },
+              {
+                "componentIndex": 5,
+                "relativeChange": 1.0502934502786984e-05
+              },
+              {
+                "componentIndex": 6,
+                "relativeChange": 7.331447481005584e-06
+              }
+            ]
+          }
+        ],
+        "grid": [
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 5,
+                "derivativeVectorInfinityNorm": 8.781605367769174,
+                "gibbsDuhemAbs": 3.1379475295967296e-08,
+                "step": 2e-06
+              },
+              {
+                "componentIndex": 6,
+                "derivativeVectorInfinityNorm": 17.113153244319168,
+                "gibbsDuhemAbs": 1.699519136533212e-08,
+                "step": 2e-06
+              }
+            ],
+            "requestedForwardStep": 2e-06,
+            "tangentIntegrabilityAbs": 5.931131487635355e-05,
+            "unsymmetrizedGibbsDuhemAbs": 3.1379475363991434e-08
+          },
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 5,
+                "derivativeVectorInfinityNorm": 8.781592539808258,
+                "gibbsDuhemAbs": 6.769152960384162e-08,
+                "step": 1e-06
+              },
+              {
+                "componentIndex": 6,
+                "derivativeVectorInfinityNorm": 17.113133525148427,
+                "gibbsDuhemAbs": 4.5148551675033843e-08,
+                "step": 1e-06
+              }
+            ],
+            "requestedForwardStep": 1e-06,
+            "tangentIntegrabilityAbs": 0.00011860541537611624,
+            "unsymmetrizedGibbsDuhemAbs": 6.769152957006634e-08
+          },
+          {
+            "forwardDirections": [
+              {
+                "componentIndex": 5,
+                "derivativeVectorInfinityNorm": 8.781566888327319,
+                "gibbsDuhemAbs": 1.235244067587793e-07,
+                "step": 5e-07
+              },
+              {
+                "componentIndex": 6,
+                "derivativeVectorInfinityNorm": 17.113094082032987,
+                "gibbsDuhemAbs": 8.011386831707767e-08,
+                "step": 5e-07
+              }
+            ],
+            "requestedForwardStep": 5e-07,
+            "tangentIntegrabilityAbs": 0.00023721609985560832,
+            "unsymmetrizedGibbsDuhemAbs": 1.2352440675704708e-07
+          }
+        ],
+        "purpose": "numerical refinement of clipped-engine directional evaluations; not evidence of true unfloored boundary physics",
+        "status": "FAIL_NUMERICAL_REFINEMENT"
+      },
+      "steps": [
+        2e-05,
+        1e-05
+      ],
+      "tangentIntegrabilityAbs": 5.931223307076294e-05,
+      "trueBoundaryQualification": "FAIL_OR_UNAVAILABLE_ENGINE_FLOOR_DOMAIN",
+      "unsymmetrizedGibbsDuhemAbs": 3.1379475363991434e-08
+    }
+  ],
+  "interfaceContract": {
+    "excess": "ndarray(7), dimensionless ln(gamma); stateful evaluator",
+    "excessJacobianFull": "ndarray(7,7) directional extension; column dependentIndex is zero and column j is d/d(e_j-e_dependent)",
+    "idealTerm": "analytic ln(x) remains separate; no physical composition is floored",
+    "notAClaim": "the 7x7 extension is not an unconstrained Hessian; symmetry is tested on tangent coordinates",
+    "pinnedLoader": "load_pinned_adapter() returns (adapter, engine, temporary, lineage); caller must cleanup temporary",
+    "solverUse": "GammaFull @ xp is the simplex-tangent excess derivative when sum(xp)=0"
+  },
+  "literalZeroBoundary": {
+    "distModelPath": "dist/predictive-nt-runtime-7c-1-5/server/research/ecr-pre-pilot-seven-component-rk-cascade/model.py",
+    "distModelSha256": "cc317aba248636f1b1cf457d806a4ab6e139930871deab6294406214bc60f193",
+    "inspectedEvidence": "pinned assembled NativePlusRkModel.wet_lngamma applies maximum(x,1e-12) then normalizes",
+    "numericalOneSidedResultIsQualificationEvidence": false,
+    "physicalComposition": [
+      0.8314095020619516,
+      0.09703193550453774,
+      0.046867166192086945,
+      0.016475538558928395,
+      0.008215857682495201,
+      0.0,
+      0.0
+    ],
+    "status": "FAIL_TRUE_LIMIT_UNQUALIFIED",
+    "trueBoundaryQualification": "FAIL_INDEPENDENT_OF_NUMERICAL_REFINEMENT"
+  },
+  "outcome": "FAIL_SAVED_CELL_DERIVATIVE_AND_BOUNDARY_LIMIT_UNQUALIFIED",
+  "positiveInteriorStatus": "PASS",
+  "productionJobsRun": [],
+  "qualificationStatus": "NOT_SAFE_FOR_SAVED_CELL_SOLVE",
+  "savedCellSolve": "STOPPED_DERIVATIVE_QUALIFICATION_FAILED",
+  "savedState": {
+    "cell1TotalMolarFluxMolM2S": -0.0033422123776529673,
+    "compositionSource": "hashed continuation startingState; c/d normalized and u transformed without solve"
+  },
+  "schemaVersion": "FINITE_FILM_THERMO_VALIDATION_V1",
+  "sources": {
+    "adapterSourceSha256": "e95f25bef93dfbe005f4773e872e063c7ec9469371185295245ce63f9297407f",
+    "auditPrefix": "scripts/audit-job-c-axial-nmp.py before output = Path",
+    "auditSourceSha256": "18b3670ab5fcc0c6b2f66ba324fccd351612831b61f1e4dcbec087c792a9e7cd",
+    "baseManifestSha256": "f4e6e0156e6dc82dfaa3bf012a67ff143eb8cb45dd7c8208d9f924cec0d023fc",
+    "engineIntegrity": {
+      "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+      "cascadeSolverChanged": false,
+      "cascadeSolverParent": "7C-1.2.0",
+      "fallbackPhaseModel": null,
+      "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+      "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+      "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+      "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+      "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+      "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+      "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+      "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+      "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+      "inheritedSixComponentResidualApplied": false,
+      "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+      "interactionPairCount": 8,
+      "interactionParameterCount": 48,
+      "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+      "nativeGibbsContributionRetained": true,
+      "profileSha256ByFamily": {
+        "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+        "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+        "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+        "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+        "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+        "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+        "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+      },
+      "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+      "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+      "singleStageIsMatrixMember": true,
+      "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+      "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+      "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+      "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+      "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+      "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+      "tpdThresholdsChanged": false
+    },
+    "jobBManifestSha256": "daa9e16e366b57bbd0c8ad71581cfde705127d9cd3594939c7a7f67d296662da",
+    "runtime": {
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+      "scipy": "1.14.1",
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+    },
+    "runtimeLoad": "PINNED_JOB_B_STAGE4_BASE_MANIFESTS_VERIFIED",
+    "snapshot": "research-results/job-c-final-continuation.json",
+    "snapshotSha256": "513d2eb50348db3403d1e7575062c680aee74a48474821b39247f5fde71c5d46",
+    "sourceInputSha256": "0dbc7d01a56bcc565886828d4d4099c32c5e2ca16f7acda7294322b2386b594d",
+    "sourceResponseSha256": "8b8becf718b037471f1e65cb48694cd76f1d9f40bb5cf5cac282eb3076ba1d16",
+    "sourceStateSha256": "3c5543b3408732a3749e388e2ce3cba4a4f5efff7f0d0dae9660590290a0098f",
+    "stage4ManifestSha256": "dac309f1a4335f192eb3d261213090b3404bd02fe7c5c869dd949c7b7b189ec2",
+    "verifierSourceSha256": "40435f4baefa04d3779d968e4dd3238229d93ffce43f04e7d390d5004ba665a1"
+  },
+  "stopReasons": [
+    "PINNED_WET_LNGAMMA_CLIPS_LITERAL_ZEROS_SO_TRUE_BOUNDARY_LIMIT_IS_UNQUALIFIED",
+    "SAVED_CELL_BULK_NOT_QUALIFIED:cell1_dispersed"
+  ],
+  "synthetic": {
+    "constantValue": true,
+    "constantZero": true,
+    "idealZero": true,
+    "refusals": {
+      "negative": true,
+      "notNormalized": true,
+      "zeroDependent": true
+    },
+    "regularSolution": [
+      {
+        "derivativeDetails": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "maximumAbsError": 4.1630587865881807e-13,
+        "name": "interior",
+        "status": "PASS"
+      },
+      {
+        "derivativeDetails": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "maximumAbsError": 1.3499451556597819e-11,
+        "name": "tinyPositive",
+        "status": "PASS"
+      },
+      {
+        "derivativeDetails": {
+          "dependentIndex": 5,
+          "extension": "columns_j_are_d/d(e_j-e_d); column_d_is_zero",
+          "schemes": {
+            "0": {
+              "method": "second_order_forward_when_central_step_infeasible",
+              "step": 2e-06
+            },
+            "1": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "2": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "3": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "4": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            },
+            "6": {
+              "method": "equal_step_central",
+              "step": 2e-05
+            }
+          },
+          "stepRequested": 2e-05
+        },
+        "maximumAbsError": 4.715644541519737e-12,
+        "name": "literalZero",
+        "status": "PASS"
+      }
+    ]
+  },
+  "thresholds": {
+    "derivativeStepRelative": 0.002,
+    "gibbsDuhemAbs": 2e-06,
+    "muAgreementAbs": 2e-10,
+    "syntheticDerivativeAbs": 2e-10,
+    "tangentIntegrabilityAbs": 2e-05
+  }
+}

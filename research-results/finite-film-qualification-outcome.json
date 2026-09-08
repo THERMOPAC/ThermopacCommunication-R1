@@ -1,0 +1,23 @@
+{
+  "scope": "ISOLATED_FILM_IMPLEMENTATION_AND_QUALIFICATION",
+  "thermodynamicQualification": "NOT_SAFE_FOR_SAVED_CELL_SOLVE",
+  "numericalBenchmarkOutcome": "PASS",
+  "savedCellOutcome": "NOT_ATTEMPTED_DERIVATIVE_QUALIFICATION_STOP",
+  "savedCellProfiles": null,
+  "savedCellNewComponentFluxes": null,
+  "productionJobsRun": [],
+  "acceptedHeightM": null,
+  "physicalStages": null,
+  "efficiency": null,
+  "finalRpm": null,
+  "finalDiameterM": null,
+  "evidence": {
+    "research-results/finite-film-thermo-validation.json": "75ba6f8dba686815189d78155139a62f43ab202074f271dadc13b13fba131c18",
+    "research-results/finite-film-solver-validation.json": "eee38981e5228fdd792efe2d60ea1f995bd7f74f662cb21ab6b539baef4d9861"
+  },
+  "stopReasons": [
+    "PINNED_WET_LNGAMMA_CLIPS_LITERAL_ZEROS_SO_TRUE_BOUNDARY_LIMIT_IS_UNQUALIFIED",
+    "SAVED_CELL_BULK_NOT_QUALIFIED:cell1_dispersed"
+  ],
+  "note": "No new real-state result may be inferred from synthetic benchmark profiles."
+}

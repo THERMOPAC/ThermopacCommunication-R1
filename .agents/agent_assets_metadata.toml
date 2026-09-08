@@ -975,3 +975,17 @@ mtime_ms = 1788853398057
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/51705fa3-4f7c-4de6-b791-f98514a5ef4b/3a69c3a6-89e4-4c12-a3da-d5447d916001"
 storage_version_token = "1788853445654810"
 content_type = "text/html"
+
+[[outputs]]
+id = "Gy50cnJWu9C1OEDeBPz0m"
+uri = "file://research-results/finite-film-implementation-report.html"
+type = "text"
+title = "Finite-film implementation and qualification results"
+description = "Eight numerical benchmark scenarios and four guardrail tests passed. The real saved-cell solve was stopped by failed derivative qualification; no production jobs or inputs changed."
+logical_id = "8d2a283f-905b-45b1-ae07-5e131ee46ad4"
+content_hash = "sha256:110947db8fe0db5216e3726fead894faad778eb984f0110ca1db3a0cca68e437"
+size = 8124
+mtime_ms = 1788856785275
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8d2a283f-905b-45b1-ae07-5e131ee46ad4/f9d93423-09aa-4e40-a65f-52fb54345b31"
+storage_version_token = "1788856898833217"
+content_type = "text/html"
