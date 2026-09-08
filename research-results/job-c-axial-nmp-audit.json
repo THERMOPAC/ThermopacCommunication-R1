@@ -1,0 +1,158 @@
+{
+  "sourceSnapshot": "research-results/job-c-final-continuation.json",
+  "sourceResponseSha256": "8b8becf718b037471f1e65cb48694cd76f1d9f40bb5cf5cac282eb3076ba1d16",
+  "sourceInputSha256": "0dbc7d01a56bcc565886828d4d4099c32c5e2ca16f7acda7294322b2386b594d",
+  "sourceStateSha256": "3c5543b3408732a3749e388e2ce3cba4a4f5efff7f0d0dae9660590290a0098f",
+  "heightM": 2.0,
+  "lambda": 6.924682617187502e-05,
+  "stateQualification": "ARCHIVED_TOLERANCE_ACCEPTED_STATE_NOT_PHYSICALLY_RESOLVED",
+  "evaluation": "ARCHIVED_FLUX_EXPRESSIONS_AT_SAVED_BULKS_AND_INTERFACES_NO_SOLVER_RERUN",
+  "signConvention": "POSITIVE_NC_REMOVES_FROM_CONTINUOUS_AND_ADDS_TO_DISPERSED",
+  "overallDispersedNmp": {
+    "sumIntegratedTransferMolS": -6.999299042901965e-07,
+    "inletMolS": 0.0,
+    "storedOutletMolS": 1.006552499501332e-27,
+    "outletRequiredForExactOverallClosureMolS": -6.999299042901965e-07,
+    "residualInletMinusOutletPlusTransferMolS": -6.999299042901965e-07,
+    "sumCellResidualsMolS": -6.999299042901965e-07,
+    "telescopingIdentityDifferenceMolS": 0.0,
+    "closed": false,
+    "nonnegativeOutletConsistentWithFrozenTransfers": false
+  },
+  "axialNmpFluxSignChanges": [],
+  "dispersedFilmNmpFluxSignChanges": [],
+  "exactZeroFluxCells": [],
+  "maximumFilmNmpFluxDisagreementMolM2S": 1.0906812996161475e-11,
+  "maximumReconstructedRawFvResidualMolS": 9.999166779345626e-08,
+  "cells": [
+    {
+      "numericalCell": 1,
+      "cellSpanZMFromContinuousInlet": [
+        0.0,
+        0.2857142857142857
+      ],
+      "cellCenterZMFromContinuousInlet": 0.14285714285714285,
+      "sourceStagesFromFeedEnd": [
+        9,
+        10
+      ],
+      "continuousSideNmpFluxMolM2S": -5.056204335858504e-05,
+      "dispersedSideNmpFluxMolM2S": -5.0562032452316694e-05,
+      "integratedNmpTransferMolS": -9.999607939899978e-08,
+      "dispersedNmpFlowMolS": 1.006552499501332e-27,
+      "dispersedNmpFvResidualMolS": -9.998618803341116e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    },
+    {
+      "numericalCell": 2,
+      "cellSpanZMFromContinuousInlet": [
+        0.2857142857142857,
+        0.5714285714285714
+      ],
+      "cellCenterZMFromContinuousInlet": 0.42857142857142855,
+      "sourceStagesFromFeedEnd": [
+        8
+      ],
+      "continuousSideNmpFluxMolM2S": -5.0560644345272725e-05,
+      "dispersedSideNmpFluxMolM2S": -5.056063343900237e-05,
+      "integratedNmpTransferMolS": -9.999331258348035e-08,
+      "dispersedNmpFlowMolS": 4.17897596181782e-12,
+      "dispersedNmpFvResidualMolS": -9.998932533971283e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    },
+    {
+      "numericalCell": 3,
+      "cellSpanZMFromContinuousInlet": [
+        0.5714285714285714,
+        0.8571428571428571
+      ],
+      "cellCenterZMFromContinuousInlet": 0.7142857142857142,
+      "sourceStagesFromFeedEnd": [
+        6,
+        7
+      ],
+      "continuousSideNmpFluxMolM2S": -5.055946272514199e-05,
+      "dispersedSideNmpFluxMolM2S": -5.0559451818847325e-05,
+      "integratedNmpTransferMolS": -9.999097570441923e-08,
+      "dispersedNmpFlowMolS": 8.276947513777994e-12,
+      "dispersedNmpFvResidualMolS": -9.999062740419444e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    },
+    {
+      "numericalCell": 4,
+      "cellSpanZMFromContinuousInlet": [
+        0.8571428571428571,
+        1.1428571428571428
+      ],
+      "cellCenterZMFromContinuousInlet": 1.0,
+      "sourceStagesFromFeedEnd": [
+        5
+      ],
+      "continuousSideNmpFluxMolM2S": -5.0558504454632607e-05,
+      "dispersedSideNmpFluxMolM2S": -5.055849354830528e-05,
+      "integratedNmpTransferMolS": -9.998908054181153e-08,
+      "dispersedNmpFlowMolS": 1.0790749539067051e-11,
+      "dispersedNmpFvResidualMolS": -9.999055326537631e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    },
+    {
+      "numericalCell": 5,
+      "cellSpanZMFromContinuousInlet": [
+        1.1428571428571428,
+        1.4285714285714284
+      ],
+      "cellCenterZMFromContinuousInlet": 1.2857142857142856,
+      "sourceStagesFromFeedEnd": [
+        3,
+        4
+      ],
+      "continuousSideNmpFluxMolM2S": -5.055777523668226e-05,
+      "dispersedSideNmpFluxMolM2S": -5.055776433027524e-05,
+      "integratedNmpTransferMolS": -9.998763837430367e-08,
+      "dispersedNmpFlowMolS": 1.1620277888128126e-11,
+      "dispersedNmpFvResidualMolS": -9.99906181449271e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    },
+    {
+      "numericalCell": 6,
+      "cellSpanZMFromContinuousInlet": [
+        1.4285714285714284,
+        1.7142857142857142
+      ],
+      "cellCenterZMFromContinuousInlet": 1.5714285714285714,
+      "sourceStagesFromFeedEnd": [
+        2
+      ],
+      "continuousSideNmpFluxMolM2S": -5.0557280680079125e-05,
+      "dispersedSideNmpFluxMolM2S": -5.0557269773525415e-05,
+      "integratedNmpTransferMolS": -9.998666029434352e-08,
+      "dispersedNmpFlowMolS": 1.0840442066247145e-11,
+      "dispersedNmpFvResidualMolS": -9.999092430911839e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    },
+    {
+      "numericalCell": 7,
+      "cellSpanZMFromContinuousInlet": [
+        1.7142857142857142,
+        2.0
+      ],
+      "cellCenterZMFromContinuousInlet": 1.857142857142857,
+      "sourceStagesFromFeedEnd": [
+        1
+      ],
+      "continuousSideNmpFluxMolM2S": -5.055702639283248e-05,
+      "dispersedSideNmpFluxMolM2S": -5.055701548601949e-05,
+      "integratedNmpTransferMolS": -9.998615739283843e-08,
+      "dispersedNmpFlowMolS": 8.588559584772314e-12,
+      "dispersedNmpFvResidualMolS": -9.999166779345626e-08,
+      "direction": "DISPERSED_TO_CONTINUOUS"
+    }
+  ],
+  "limits": [
+    "Only the archived last-qualified numerical state is audited, not lambda=1.",
+    "No interpolation is used to invent between-cell roots or claim sub-cell resolution.",
+    "The overall defect is recomputed including the actual nonzero FV residuals.",
+    "Local flux contributions are not decomposed in this report.",
+    "Negative closure-required outlet is diagnostic and never an accepted physical state."
+  ]
+}
