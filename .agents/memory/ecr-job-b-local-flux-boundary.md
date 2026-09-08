@@ -53,3 +53,23 @@ positive transport coefficients. Preserve exact-zero feeds and original
 gates; do not infer process infeasibility or silently reinterpret dilute
 film inputs as Maxwell–Stefan coefficients. Qualify the transport closure
 before treating interface algebra alone as physical branch evidence.
+
+## Candidate derivation boundary
+
+Treat a distributed representation of Job-A conductances as an explicit
+effective-resistance model, not a proven molecular film thickness or a measured
+Maxwell–Stefan matrix. Integrated concentration-gradient Fick transport is an
+ideal benchmark; nonideal thermodynamic consistency needs its own assessment.
+
+**Why:** Correcting the endpoint approximation alone does not establish
+nonnegative Gibbs dissipation for a nonideal liquid. Also, differentiating
+a floored log-activity evaluator would suppress the true zero-component
+ideal limit, even while the physical feed remains exactly zero.
+
+**How to apply:** For the proposed nonideal candidate, separate the ideal
+logarithm analytically and qualify excess-activity derivatives and boundary
+limits independently, without changing upstream physical states. A symmetric
+positive mobility construction is a new constitutive assumption, not
+experimental transport validation. Distinguish formula checks from numerical
+film qualification and never transfer historical Job-B acceptance to changed
+equations automatically.

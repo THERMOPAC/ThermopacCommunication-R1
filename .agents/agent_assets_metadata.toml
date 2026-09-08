@@ -961,3 +961,17 @@ mtime_ms = 1788846781241
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/86a102e0-1161-4e5a-9d14-c0c57ccff92e/6189aed3-b007-4540-8d93-adad9be976b3"
 storage_version_token = "1788846930387921"
 content_type = "text/html"
+
+[[outputs]]
+id = "5fvq7veV3uHF0GNodcp40"
+uri = "file://research-results/job-b-finite-film-closure-proposal.html"
+type = "text"
+title = "Finite-film equations and verification contract"
+description = "Proposed research formulation, source boundaries, exact benchmarks and qualification gates. Nine formula checks passed; no saved-cell solve or Job A/B/C rerun."
+logical_id = "51705fa3-4f7c-4de6-b791-f98514a5ef4b"
+content_hash = "sha256:6ed6a1d03be85f985933f4d3a230110341a2b90431a5cc9d9271bed0bb2d5b0c"
+size = 18197
+mtime_ms = 1788853398057
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/51705fa3-4f7c-4de6-b791-f98514a5ef4b/3a69c3a6-89e4-4c12-a3da-d5447d916001"
+storage_version_token = "1788853445654810"
+content_type = "text/html"
