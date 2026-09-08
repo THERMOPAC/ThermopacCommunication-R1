@@ -218,7 +218,7 @@ class PostprocessTests(unittest.TestCase):
         self.assertEqual(data["cases"][1]["state"], "TERMINAL_PARTIAL_TIMEOUT")
         self.assertEqual(data["cases"][2]["metrics"], legitimate_metrics)
         rendered = p.report_html(data)
-        self.assertIn("TERMINAL_PARTIAL_TIMEOUT: deadline; no values reported.",
+        self.assertIn("Timed out; no completed trial or outlet prediction.",
                       rendered)
         self.assertNotIn("so-0.75</th><td colspan='4'>Pending", rendered)
 

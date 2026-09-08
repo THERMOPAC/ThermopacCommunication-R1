@@ -1045,3 +1045,17 @@ mtime_ms = 1788867077668
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7c3da007-9b1b-4729-aeb3-886d394ca07b/47ba8dee-980e-41db-9d24-3762473f1af8"
 storage_version_token = "1788867158053224"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "OAGvKYjIdL1JydfjwCPC5"
+uri = "file://research-results/solvent-sensitivity-report.pdf"
+type = "pdf"
+title = "S/O 0.75 and 1.0 — offline sensitivity closeout"
+description = "Both 25°C cases timed out after 40 minutes without a completed trial. Includes the unchanged 0.5 baseline, corrected sulfur mass bases and source-bound evidence. No duty-meeting basis or column dimensions were established."
+logical_id = "8f9c13b4-3136-4025-a191-89d95b0e9422"
+content_hash = "sha256:d798be8795d013c7ac78d16be4a71f7d382f9dc8d236b395da3fb684dd8705fa"
+size = 97058
+mtime_ms = 1788870767739
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8f9c13b4-3136-4025-a191-89d95b0e9422/47adf861-3d85-4de5-ad69-6d18c89361db"
+storage_version_token = "1788870822593178"
+content_type = "application/pdf"

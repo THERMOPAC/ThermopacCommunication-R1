@@ -105,12 +105,18 @@
       ]
     },
     {
+      "accepted": false,
+      "blockedReason": "SCIENTIFIC_DEADLINE_EXCEEDED",
       "caseId": "so-0.75",
+      "correctedProductChecks": "UNRESOLVED",
       "executionDisposition": {
-        "reason": null,
-        "state": "RUNNING",
-        "verifiedTerminal": false
+        "reason": "SCIENTIFIC_DEADLINE_EXCEEDED",
+        "state": "TERMINAL_PARTIAL_TIMEOUT",
+        "verifiedTerminal": true
       },
+      "numericalPhaseQualification": "UNRESOLVED",
+      "overallSulfurAcceptance": "UNRESOLVED",
+      "physicalDesignAcceptance": "UNRESOLVED",
       "solventOilMassRatio": 0.75,
       "sourceHashes": {
         "derivedStage1SnapshotHash": "00485370e935a64add355a49c457702b5003b78980e6865fe59663c1d85efedd",
@@ -123,17 +129,26 @@
         "modelSha256": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
         "parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
         "parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
-        "requestSha256": "66c36eb0aec10e8389c0d70832c43f11769ffdbca87be3e49ebbb675e825d6be"
+        "requestSha256": "66c36eb0aec10e8389c0d70832c43f11769ffdbca87be3e49ebbb675e825d6be",
+        "runnerStderrSha256": "db53bf9c5f2af7870b82548c965f59fffdacff5c23ac65a2390f06cd3deaa4ec",
+        "runnerStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       },
-      "state": "PENDING"
+      "state": "TERMINAL_PARTIAL_TIMEOUT",
+      "verifiedCheckpointProvenance": []
     },
     {
+      "accepted": false,
+      "blockedReason": "SCIENTIFIC_DEADLINE_EXCEEDED",
       "caseId": "so-1.0",
+      "correctedProductChecks": "UNRESOLVED",
       "executionDisposition": {
-        "reason": null,
-        "state": "RUNNING",
-        "verifiedTerminal": false
+        "reason": "SCIENTIFIC_DEADLINE_EXCEEDED",
+        "state": "TERMINAL_PARTIAL_TIMEOUT",
+        "verifiedTerminal": true
       },
+      "numericalPhaseQualification": "UNRESOLVED",
+      "overallSulfurAcceptance": "UNRESOLVED",
+      "physicalDesignAcceptance": "UNRESOLVED",
       "solventOilMassRatio": 1.0,
       "sourceHashes": {
         "derivedStage1SnapshotHash": "cac68f09a6c121fc2a292f80a952474cdc7e88bd22b9d0694ebc051c9d534dcc",
@@ -146,9 +161,12 @@
         "modelSha256": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
         "parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
         "parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
-        "requestSha256": "bcf6bf55e6475a01fbf6452d70cfcf4616f61755203ac815ddd381fb2aeef876"
+        "requestSha256": "bcf6bf55e6475a01fbf6452d70cfcf4616f61755203ac815ddd381fb2aeef876",
+        "runnerStderrSha256": "f244e64d79551af7c09c46d3ff49a8d6d654140470f73d4aa379d66b51cca704",
+        "runnerStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       },
-      "state": "PENDING"
+      "state": "TERMINAL_PARTIAL_TIMEOUT",
+      "verifiedCheckpointProvenance": []
     }
   ],
   "classification": "RESEARCH_SENSITIVITY_NOT_DESIGN_OR_RELEASE",
@@ -173,7 +191,7 @@
     "temperatureC": 25,
     "wetSolventWaterWtPct": 1.5
   },
-  "reportStatus": "PREPARED_PENDING_FROZEN_OUTPUTS",
+  "reportStatus": "FINALIZED_FROM_TERMINAL_FILES",
   "schemaVersion": "OFFLINE_SOLVENT_SENSITIVITY_COMPARISON_V1",
   "sourceSha256": {
     "prepilot-sizing-equilibrium-duty-db.json": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
@@ -188,6 +206,8 @@
     "so-0.75:parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
     "so-0.75:parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
     "so-0.75:requestSha256": "66c36eb0aec10e8389c0d70832c43f11769ffdbca87be3e49ebbb675e825d6be",
+    "so-0.75:runnerStderrSha256": "db53bf9c5f2af7870b82548c965f59fffdacff5c23ac65a2390f06cd3deaa4ec",
+    "so-0.75:runnerStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "so-1.0:derivedStage1SnapshotHash": "cac68f09a6c121fc2a292f80a952474cdc7e88bd22b9d0694ebc051c9d534dcc",
     "so-1.0:engineSha256": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
     "so-1.0:equilibriumDutyCsvWrapperSha256": "cd4309f8a182a32ac3d540cac9fb262d956fde58e20e48711ac99551dd8a61a3",
@@ -199,6 +219,8 @@
     "so-1.0:parentCsvWrapperSha256": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25",
     "so-1.0:parentStage1SnapshotHash": "a717f993f983648c72bbbe82c1edcf7a3b3d0f8ec334301aaff24a20a426d3f3",
     "so-1.0:requestSha256": "bcf6bf55e6475a01fbf6452d70cfcf4616f61755203ac815ddd381fb2aeef876",
+    "so-1.0:runnerStderrSha256": "f244e64d79551af7c09c46d3ff49a8d6d654140470f73d4aa379d66b51cca704",
+    "so-1.0:runnerStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "solvent-sensitivity-parent-input-db.json": "c0d7c4d863e69adc9f68084b15c63f560369f916c14c6b2d8e403ec9ffef8a25"
   }
 }

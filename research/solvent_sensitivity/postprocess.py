@@ -831,6 +831,14 @@ def esc(value):
     return html.escape(str(value))
 
 
+def outcome_text(case):
+    if case.get("state") == "TERMINAL_PARTIAL_TIMEOUT":
+        return "Timed out; no completed trial or outlet prediction."
+    if case.get("state") == "PENDING":
+        return "Still running or not yet verified; no values reported."
+    return f"{case.get('state', 'UNRESOLVED')}: {case.get('blockedReason', 'no values reported')}"
+
+
 def report_html(data):
     pending = data["reportStatus"].startswith("PREPARED")
     rows = []
@@ -843,12 +851,8 @@ def report_html(data):
     }
     for case in data["cases"]:
         if "metrics" not in case:
-            state = case.get("state", "PENDING")
-            reason = case.get("blockedReason", "no values reported")
-            message = ("Pending—no values reported." if state == "PENDING"
-                       else f"{state}: {reason}; no values reported.")
-            rows.append(f"<tr><th>{esc(case['caseId'])}</th><td colspan='4'>"
-                        f"{esc(message)}</td></tr>")
+            rows.append(f"<tr><th>{esc(case['caseId'].removeprefix('so-'))}</th><td colspan='4'>"
+                        f"{esc(outcome_text(case))}</td></tr>")
             continue
         for key, label in metric_labels.items():
             check = case["targetChecks"][key]
@@ -861,9 +865,9 @@ def report_html(data):
     for case in data["cases"]:
         sulfur = case.get("sulfur")
         if sulfur is None or "feedBasisProxyPpmPerOriginalHydrocarbonFeedMass" not in sulfur:
-            sulfur_rows.append(f"<tr><th>{esc(case['caseId'])}</th>"
-                               f"<td colspan='3'>{esc(case.get('state', 'UNRESOLVED'))}: "
-                               f"{esc((sulfur or {}).get('status', case.get('blockedReason', 'no values')))}</td></tr>")
+            sulfur_rows.append(f"<tr><th>{esc(case['caseId'].removeprefix('so-'))}</th>"
+                               f"<td colspan='3'>{esc(outcome_text(case))} "
+                               f"{esc((sulfur or {}).get('status', ''))}</td></tr>")
         else:
             sulfur_rows.append(
                 f"<tr><th>{case['solventOilMassRatio']}</th>"
@@ -874,8 +878,8 @@ def report_html(data):
     for case in data["cases"][1:]:
         gates = case.get("thermalGates")
         if gates is None:
-            gate_rows.append(f"<tr><th>{esc(case['caseId'])}</th><td colspan='6'>"
-                             f"{esc(case.get('state'))}: {esc(case.get('blockedReason', 'no metrics'))}</td></tr>")
+            gate_rows.append(f"<tr><th>{esc(case['caseId'].removeprefix('so-'))}</th><td colspan='8'>"
+                              f"{esc(outcome_text(case))}</td></tr>")
         else:
             gate_rows.append("<tr>" + f"<th>{case['solventOilMassRatio']}</th>" + "".join(
                 f"<td>{esc(gates[key])}</td>" for key in (
@@ -885,7 +889,11 @@ def report_html(data):
                      f"<td>{esc(case['overallSulfurAcceptance'])}</td></tr>")
     hold = ("Prepared template: both managed cases are not terminal; no pending-case "
             "numbers are displayed." if pending else
-            "Terminal files processed. COMPLETED was independently distinguished from acceptance.")
+             "Both attempts have finished. Computational completion is separate from scientific acceptance.")
+    if not pending and all(case.get("state") == "TERMINAL_PARTIAL_TIMEOUT"
+                           for case in data["cases"][1:]):
+        hold = ("Both sensitivity runs reached the time limit without a completed trial. "
+                "No new product-quality values were obtained. This is not a finding of process infeasibility.")
     return f"""<!doctype html><html><head><meta charset="utf-8">
 <title>Offline solvent/oil sensitivity</title><style>
 @page{{size:A4;margin:14mm}}body{{font:11px/1.42 Arial;color:#243748;margin:0}}
@@ -897,7 +905,7 @@ tr{{break-inside:avoid}}.page{{break-before:page}}code{{font-size:8px;overflow-w
 </style></head><body>
 <div class="muted">PROJECT 236 · OFFLINE RESEARCH SENSITIVITY · NOT FOR DESIGN OR RELEASE</div>
 <h1>Wet-solvent/oil ratio sensitivity<br>archived 0.5 vs approved 0.75 and 1.0</h1>
-<div class="hold"><b>{esc(hold)}</b> No simulation, database, application, or worker is run by this report.</div>
+<div class="hold"><b>{esc(hold)}</b> The saved S/O = 0.5 design remains unchanged.</div>
 <p>Fixed basis: 25 °C; 4000 L/h feed; 1.5 wt% water in wet NMP; fresh-feed
 NMP and H₂O exactly zero; exactly 10 configured equilibrium stages. Ratio means
 total wet-solvent mass/oil mass.</p>
@@ -947,7 +955,7 @@ def write_outputs(data, make_pdf):
                 "PDF_FINALIZATION_REQUIRES_BOTH_TERMINAL_CASES")
         pdf_path = RESULTS / "solvent-sensitivity-report.pdf"
         subprocess.run([
-            "chromium", "--headless", "--no-sandbox", "--disable-gpu",
+            "chromium", "--headless", "--no-sandbox", "--disable-gpu", "--no-pdf-header-footer",
             f"--print-to-pdf={pdf_path}", html_path.resolve().as_uri(),
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         paths.append(pdf_path)
