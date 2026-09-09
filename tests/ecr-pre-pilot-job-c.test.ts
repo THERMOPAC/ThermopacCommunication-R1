@@ -184,15 +184,15 @@ print(json.dumps({
     expect(worker).toContain('BLOCKED_EXACT_QUALIFICATION_FAILED');
     expect(worker).toContain('jac_sparsity=sparsity');
     expect(worker).toContain('(27*m,27*m)');
-    expect(worker).toContain('LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV');
+    expect(worker).toContain('COUPLED_BOUNDED_SPARSE_189_CONTINUATION');
     expect(worker).toContain('JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
-    expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED');
+    expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_REPLAY_FAILED');
     expect(worker).toContain('"dominantResidualRows":diagnostics(ev)');
     expect(worker).toContain('np.asarray(profile_unknowns).reshape(-1)');
     expect(worker).toContain('JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID');
     expect(worker).toContain('max_nfev=40');
-    expect(worker).toContain('progress(f"local flux Picard lambda {lam:g}")');
-    expect(worker).toContain('progress("lambda 1 monolithic polish")');
+    expect(worker).toContain('progress(f"direct coupled lambda {lam:g}")');
+    expect(worker).toContain('progress("lambda 1 monolithic replay")');
     expect(worker).toContain('flows=x[:14*m].reshape(2,m,7)');
     expect(worker).toContain('np.full(14*m,epsilon)');
     expect(worker).toContain('np.tile(scale,2*m)');
@@ -225,7 +225,7 @@ print(json.dumps({
     );
     expect(source).toBeGreaterThan(-1);
     expect(gate).toBeGreaterThan(source);
-    expect(profileSeed).toBeGreaterThan(gate);
+    expect(profileSeed).toBe(-1);
   });
 
   it('records the governed design-269 branch and global-pair flux classifications', () => {
@@ -363,93 +363,6 @@ print(json.dumps({
     expect(Math.abs(fvResidual(transferSource))).toBeLessThan(1e-15);
   });
 
-  it('uses bounded Picard predictors and a coupled continuation fallback', () => {
-    const donorFeed = 2e-3;
-    const receivingFeed = 0;
-    const lambda = 0.00125;
-    const fullFluxTransfer = 1.026475e-4;
-    const transfer = lambda * fullFluxTransfer;
-    const donorOut = donorFeed - transfer;
-    const receiverOut = receivingFeed + transfer;
-    expect(receiverOut).toBeGreaterThan(0);
-    expect(donorOut).toBeLessThan(donorFeed);
-    expect(donorOut + receiverOut).toBeCloseTo(donorFeed + receivingFeed, 15);
-
-    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
-    expect(worker).toContain('frozen_flow_evaluate');
-    expect(worker).toContain('frozen_conservative_seed');
-    expect(worker).toContain('audit_frozen_flow_sparsity');
-    expect(worker).toContain('JOB_C_FROZEN_FV_JACOBIAN_SPARSITY_MISMATCH');
-    expect(worker).toContain('frozenFvAcceptance');
-    expect(worker).toContain('tr_solver="exact"');
-    expect(worker).toContain('"missingDependencyCount":0');
-    expect(worker).toContain('GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY');
-    expect(worker).toContain('UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE');
-    expect(worker).toContain('"unconstrainedTerminalDiagnostic":unconstrained');
-    expect(worker).not.toContain('predicted_flows=unconstrained_fit.x');
-    expect(worker).not.toContain('predicted_flows=unconstrained_fit.x');
-    expect(worker).toContain('UNCLIPPED_CONSERVATIVE_PROFILE');
-    expect(worker).toContain('refreshedRawFvResidualMolS');
-    expect(worker).toContain('integratedSourceMismatchRawMolS');
-    expect(worker).toContain('activePositiveLowerBoundFlows');
-    expect(worker).toContain('dominantFrozenFvResidualRows');
-    expect(worker).toContain('max_nfev=160');
-    expect(worker).toContain('return np.r_[scaled_fv,ev["interface"]]');
-    expect(worker).toContain('COUPLED_BOUNDED_SPARSE_189_CONTINUATION');
-    expect(worker).toContain('COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
-    expect(worker).toContain('"physicalInfeasibilityClaimed":False');
-  });
-
-  it('orders Picard sources correctly and computes pure source-mismatch metrics', () => {
-    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
-    const preInterface = worker.indexOf(
-      'local_u,frozen_nc,pre_gate=solve_local_interfaces(',
-    );
-    const frozenFv = worker.indexOf(
-      'fit=budgeted_least_squares(',
-      preInterface,
-    );
-    const refreshedInterface = worker.indexOf(
-      'solve_local_interfaces(solved_flows,local_u)',
-      frozenFv,
-    );
-    const refreshedFv = worker.indexOf(
-      'physical_fv=frozen_flow_evaluate(',
-      refreshedInterface,
-    );
-    expect(preInterface).toBeGreaterThan(-1);
-    expect(frozenFv).toBeGreaterThan(preInterface);
-    expect(refreshedInterface).toBeGreaterThan(frozenFv);
-    expect(refreshedFv).toBeGreaterThan(refreshedInterface);
-    expect(worker.match(/lambda q:residual\(q,lam\)/g)).toHaveLength(1);
-    expect(worker.match(/lambda q:residual\(q,1\.0\)/g)).toHaveLength(1);
-
-    const metric = (
-      frozen: number[],
-      refreshed: number[],
-      lambda: number,
-      area: number,
-      scales: number[],
-    ) => {
-      const integrated = refreshed.map(
-        (flux, index) => lambda * (flux - frozen[index]) * area,
-      );
-      return {
-        raw: Math.max(...integrated.map(Math.abs)),
-        scaled: Math.max(...integrated.map(
-          (value, index) => Math.abs(value / scales[index]),
-        )),
-      };
-    };
-    expect(metric([1, -2], [1.1, -1.8], 0, 3, [2, 4])).toEqual({
-      raw: 0,
-      scaled: 0,
-    });
-    const nonzero = metric([1, -2], [1.1, -1.8], 0.5, 3, [2, 4]);
-    expect(nonzero.raw).toBeCloseTo(0.3, 14);
-    expect(nonzero.scaled).toBeCloseTo(0.075, 14);
-  });
-
   it('has no qualification, nonlinear-solver, or outer wall-clock deadline', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     const controller = readFileSync('server/ecr-pre-pilot/job-c.ts', 'utf8');
@@ -499,14 +412,10 @@ print(json.dumps({"limits": limits,
     expect(worker).toContain('"branchCtC":branch["CtC"],"branchCtD":branch["CtD"]');
     expect(worker).toContain('"profileSha256":r["axialLocalContactProfileSha256"]');
     expect(worker).toContain('"sha256":file_sha256(qualifier_path)');
-    expect(worker).toContain(
-      '"status":"NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE"',
-    );
-    expect(worker).toContain('"phase":"BOUNDED_FROZEN_FV_SOLVE"');
-    expect(worker).toContain('"phase":"UNBOUNDED_TERMINAL_DIAGNOSTIC"');
-    expect(worker).toContain(
-      '"rejectedStepSourceRefreshMismatch":',
-    );
+    expect(worker).not.toContain('BOUNDED_FROZEN_FV_SOLVE');
+    expect(worker).not.toContain('UNBOUNDED_TERMINAL_DIAGNOSTIC');
+    expect(worker).not.toContain('rejectedStepSourceRefreshMismatch');
+    expect(worker).toContain('"phase":"DIRECT_COUPLED_189_EQUATION_SOLVE"');
     expect(worker).not.toContain(
       'last_accepted.get("integratedSourceMismatchRawMolS",0.0)',
     );
@@ -642,15 +551,16 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(continuousOutlet.slice(0, 5).every(flow => flow > 0)).toBe(true);
   });
 
-  it('qualifies an axial profile before a boundary-aware positive continuation', () => {
+  it('qualifies an axial profile before globally conservative coupled continuation', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     expect(worker).toContain('positiveGlobalOutletNecessaryConditionPassed');
     expect(worker).toContain('sourceSignReversalWouldResolveAllBoundaries');
     expect(worker).toContain('"physicalInfeasibilityClaimed":False');
-    expect(worker).toContain('frozen_acceptance=require_positive_frozen_solution(');
     expect(worker).toContain('GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY');
-    expect(worker).toContain('LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV');
-    expect(worker).toContain('current_flows=x[:14*m].copy()');
+    expect(worker).toContain('DIRECT_COUPLED_189_EQUATION_SOLVE');
+    expect(worker).not.toContain('require_positive_frozen_solution');
+    expect(worker).not.toContain('current_flows=x[:14*m].copy()');
+    expect(worker).not.toContain('LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV');
     expect(worker).not.toContain(
       'if not inlet_flux_audit[\n                      "positiveGlobalOutletNecessaryConditionPassed"]',
     );
@@ -660,13 +570,114 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL');
     expect(worker).toContain('allHydrocarbonPrefixesAndSolventSuffixesAdmitted');
     expect(worker).toContain('qualifiedLocalContacts');
-    expect(worker).toContain('initial_lambda=min(1e-5,upper*.25)');
-    expect(worker).toContain('transfer=initial_lambda*profile_flux*av*A*dz');
-    expect(worker).toContain('lambda_targets=sorted(set([initial_lambda');
+    expect(worker).toContain('profile_interval_probe_lambda=(');
+    expect(worker).toContain('bootstrap_lambda=1e-8');
+    expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
+    expect(worker).toContain('lambda_targets=sorted(set([bootstrap_lambda');
     expect(worker).toContain('lambda_targets.insert(');
     expect(worker).toContain('minimum_lambda_interval=1e-8');
     expect(worker).toContain('"literalPhysicalFeedFacesPreserved":True');
     expect(worker).not.toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
     expect(worker).not.toContain('zeroFeedPositiveBoundSeeds');
+  });
+
+  it('uses an inventory-conservative positive seed and direct coupled homotopy', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const seed = worker.indexOf('flows,_=globally_conservative_interior_seed(');
+    const coupled = worker.indexOf(
+      'COUPLED_BOUNDED_SPARSE_189_CONTINUATION',
+      seed,
+    );
+    expect(seed).toBeGreaterThan(-1);
+    expect(worker).toContain('globally_conservative_interior_seed(');
+    expect(worker.indexOf('seed_interfaces,_,seed_gate=solve_local_interfaces(', seed))
+      .toBeGreaterThan(seed);
+    expect(worker.indexOf('raw_evaluate(coupled_fit.x,lam)', coupled))
+      .toBeGreaterThan(coupled);
+    expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
+    expect(worker).toContain('raw_evaluate(x,lam)');
+    expect(worker).toContain('raw<=1e-7');
+    expect(worker).toContain('scaled<=1e-7');
+  });
+
+  it('executes the conservative seed and coupled warm-state contracts', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json, numpy as np
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+selected = [
+  node for node in tree.body
+  if ((isinstance(node, ast.ClassDef) and node.name == "JobCBlocked")
+      or (isinstance(node, ast.FunctionDef) and node.name in {
+        "globally_conservative_interior_seed", "split_coupled_warm_state"
+      }))
+]
+namespace = {
+  "COMPONENTS": ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"),
+  "np": np,
+}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
+             "job-c-seed-contract", "exec"), namespace)
+feedc = np.asarray([0, 0, 0, 0, 0, 4.846724298541135, 0.4061367165354447])
+feedd = np.asarray([
+  4.868190306515299, 0.5681555559253281, 0.27442347433402103,
+  0.0964699788831831, 0.04810668945981338, 0, 0,
+])
+cells = 7
+epsilon = (float(np.sum(feedc) + np.sum(feedd))) * 1e-13
+flows, transfer = namespace["globally_conservative_interior_seed"](
+  np, feedc, feedd, cells, 1e-8, epsilon)
+c, d = flows.reshape(2, cells, 7)
+interfaces = np.linspace(-1.0, 1.0, 13 * cells)
+warm = np.r_[flows, interfaces]
+warm_flows, warm_interfaces = namespace["split_coupled_warm_state"](
+  np, warm, cells)
+invalid_code = None
+try:
+  namespace["split_coupled_warm_state"](np, warm[:-1], cells)
+except namespace["JobCBlocked"] as error:
+  invalid_code = error.code
+print(json.dumps({
+  "unknownCount": int(warm.size),
+  "flowCount": int(warm_flows.size),
+  "interfaceCount": int(warm_interfaces.size),
+  "warmFlowsUnchanged": bool(np.array_equal(warm_flows, flows)),
+  "warmInterfacesUnchanged": bool(np.array_equal(warm_interfaces, interfaces)),
+  "minimumFlowMolS": float(np.min(flows)),
+  "epsilonMolS": float(epsilon),
+  "globalClosure": (c[-1] + d[0] - feedc - feedd).tolist(),
+  "continuousOutlet": c[-1].tolist(),
+  "dispersedOutlet": d[0].tolist(),
+  "perCellTransfer": transfer.tolist(),
+  "invalidCode": invalid_code,
+}))
+`], { encoding: 'utf8' }));
+    expect(observed).toMatchObject({
+      unknownCount: 189,
+      flowCount: 98,
+      interfaceCount: 91,
+      warmFlowsUnchanged: true,
+      warmInterfacesUnchanged: true,
+      invalidCode: 'JOB_C_WARM_START_STATE_INVALID',
+    });
+    expect(observed.minimumFlowMolS).toBeGreaterThan(observed.epsilonMolS);
+    expect(Math.max(...observed.globalClosure.map(Math.abs))).toBeLessThan(1e-14);
+    expect(observed.perCellTransfer).toHaveLength(7);
+    expect(observed.perCellTransfer.every(
+      (row: number[]) => row.length === 7 && row.every(Number.isFinite),
+    )).toBe(true);
+  });
+
+  it('replays lambda one with the unchanged strict-positive bounds', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const replay = worker.indexOf('progress("lambda 1 monolithic replay")');
+    const result = worker.indexOf('lambda1MonolithicReplay', replay);
+    expect(replay).toBeGreaterThan(-1);
+    expect(worker.indexOf('bounds=(lower,upper)', replay)).toBeGreaterThan(replay);
+    expect(worker.indexOf('bounds=(lower,upper)', replay)).toBeLessThan(result);
+    expect(worker.slice(replay, result)).not.toContain('[:14*m]=0.0');
+    expect(worker).toContain('COUPLED_BOUNDED_SPARSE_189_LAMBDA_ONE_REPLAY');
+    expect(worker).not.toContain('LIMITED_189_EQUATION_POLISH_AFTER_PICARD');
   });
 });

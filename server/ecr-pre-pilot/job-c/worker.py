@@ -5,7 +5,6 @@ import hashlib, importlib.util, json, math, multiprocessing, os, signal, sys, te
 from pathlib import Path
 from candidate_interface import CandidateInterfaceSolver, CandidateFailure, VERSION as CANDIDATE_VERSION
 from boundary_interface_qualifier import qualify as qualify_boundary, VERSION as QUALIFIER_VERSION
-from branch_continuation import BranchContinuation, dispersed_cell1_balance
 
 sys.dont_write_bytecode = True
 PROTOCOL = "ECR_PRE_PILOT_JOB_C_V1"
@@ -150,6 +149,52 @@ class JobCBlocked(RuntimeError):
     def __init__(self, code, diagnostics):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
+
+def globally_conservative_interior_seed(np, feedc, feedd, cells, fraction,
+                                        epsilon):
+    """Create a positive counter-current interior without changing feed faces."""
+    continuous=np.asarray(feedc,dtype=float)
+    dispersed=np.asarray(feedd,dtype=float)
+    transfer=np.zeros(7)
+    for i in range(7):
+        if continuous[i]>0.0 and dispersed[i]==0.0:
+            transfer[i]=fraction*continuous[i]
+        elif dispersed[i]>0.0 and continuous[i]==0.0:
+            transfer[i]=-fraction*dispersed[i]
+        elif continuous[i]==0.0 and dispersed[i]==0.0:
+            raise JobCBlocked("JOB_C_BOOTSTRAP_COMPONENT_INVENTORY_ABSENT",
+              {"component":COMPONENTS[i],"physicalInfeasibilityClaimed":False})
+    per_cell=np.tile(transfer/cells,(cells,1))
+    c=np.asarray([continuous-np.sum(per_cell[:j+1],axis=0)
+      for j in range(cells)])
+    d=np.asarray([dispersed+np.sum(per_cell[j:],axis=0)
+      for j in range(cells)])
+    flows=np.r_[c.reshape(-1),d.reshape(-1)]
+    closure=c[-1]+d[0]-continuous-dispersed
+    closure_limit=max(float(np.finfo(float).eps)
+      *max(float(np.sum(continuous)+np.sum(dispersed)),1.0)*64.0,1e-18)
+    if float(np.max(np.abs(closure)))>closure_limit:
+        raise JobCBlocked("JOB_C_BOOTSTRAP_GLOBAL_INVENTORY_CLOSURE_FAILED",
+          {"globalComponentBalanceResidualMolS":closure.tolist(),
+           "physicalInfeasibilityClaimed":False})
+    if float(np.min(flows))<=epsilon:
+        raise JobCBlocked("JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID",
+          {"minimumFlowMolS":float(np.min(flows)),
+           "physicalInfeasibilityClaimed":False})
+    return flows,per_cell
+
+def split_coupled_warm_state(np, warm, cells):
+    """Validate and split one accepted 27m coupled state without clipping."""
+    state=np.asarray(warm,dtype=float)
+    expected=27*cells
+    if (state.ndim!=1 or state.size!=expected
+        or not bool(np.all(np.isfinite(state)))):
+        raise JobCBlocked("JOB_C_WARM_START_STATE_INVALID",
+          {"expectedUnknownCount":expected,
+           "observedUnknownCount":int(state.size),
+           "finite":bool(np.all(np.isfinite(state))),
+           "physicalInfeasibilityClaimed":False})
+    return state[:14*cells].copy(),state[14*cells:].copy()
 
 def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
     """Guard optimizer entry, callbacks, and return with one fail-closed contract.
@@ -364,15 +409,6 @@ def frozen_boundary_audit(np, feedc, feedd, nc, nd, transfer):
       "negativeFlowOrigin":
          "FIXED_GLOBAL_INLET_FLUX_APPROXIMATION_DIAGNOSTIC_ONLY",
       "physicalInfeasibilityClaimed":False}
-
-def require_positive_frozen_solution(np, flow_vector, raw_max, scaled_max):
-    minimum=float(np.min(flow_vector))
-    accepted=(minimum>0 and raw_max<=1e-7 and scaled_max<=1e-7)
-    return {"accepted":accepted,"minimumFlowMolS":minimum,
-      "rawFvResidualMolS":raw_max,"scaledFvResidual":scaled_max,
-      "maximumAllowedRawFvResidualMolS":1e-7,
-      "maximumAllowedScaledFvResidual":1e-7,
-      "requiredBefore":"INTERFACE_REFRESH_OR_189_EQUATION_SOLVE"}
 
 def validate_branch_request(r):
     branch=r.get("boundaryBranchQualificationRequest")
@@ -618,13 +654,15 @@ def case(r, name, dc, dd, solvers):
     if not interval_exists:
         raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
           profile_audit)
-    initial_lambda=min(1e-5,upper*.25) if math.isfinite(upper) else 1e-5
-    if not initial_lambda>0.0:
+    profile_interval_probe_lambda=(
+      min(1e-5,upper*.25) if math.isfinite(upper) else 1e-5)
+    if not profile_interval_probe_lambda>0.0:
         raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
           profile_audit)
+    bootstrap_lambda=1e-8
 
     def solve_height(h, warm=None):
-        """Solve all 98 FV and 91 frozen Job-B equations simultaneously."""
+        """Solve the unchanged 98 FV and 91 Job-B equations simultaneously."""
         budget["heightCandidateM"]=float(h)
         np,scipy=solvers[0].np,solvers[0].scipy
         if m != 7:
@@ -638,19 +676,18 @@ def case(r, name, dc, dd, solvers):
 
         def initial():
             if warm is not None:
-                return np.asarray(warm).copy()
-            transfer=initial_lambda*profile_flux*av*A*dz
-            c=np.asarray([np.asarray(feedc)-np.sum(transfer[:j+1],axis=0)
-              for j in range(m)])
-            d=np.asarray([np.asarray(feedd)+np.sum(transfer[j:],axis=0)
-              for j in range(m)])
-            flows=np.r_[c.reshape(-1),d.reshape(-1)]
-            if (np.min(flows)<=epsilon or np.any(flows>upper[:14*m])):
+                return split_coupled_warm_state(np,warm,m)
+            # Build a boundary-consistent numerical interior from the two
+            # global feed inventories only.  This transfer is an initializer,
+            # never a frozen physical source in the coupled equations.
+            flows,_=globally_conservative_interior_seed(
+              np,feedc,feedd,m,bootstrap_lambda,epsilon)
+            if np.any(flows>upper[:14*m]):
                 raise JobCBlocked("JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID",
-                  {"heightM":h,"lambda":initial_lambda,
+                  {"heightM":h,"lambda":bootstrap_lambda,
                    "minimumFlowMolS":float(np.min(flows)),
                    "profileIntervalQualification":profile_audit})
-            return np.r_[flows,np.asarray(profile_unknowns).reshape(-1)]
+            return flows,np.asarray(profile_unknowns).reshape(-1)
 
         def unpack(x):
             # Direct bound-constrained molar-flow coordinates avoid the
@@ -679,21 +716,6 @@ def case(r, name, dc, dd, solvers):
             fv=np.asarray([v for j in range(m) for v in np.r_[rc[j],rd[j]]])
             return {"c":c,"d":d,"u":u,"fc":fc,"fd":fd,"tr":tr,"rc":rc,"rd":rd,
                     "fv":fv,"interface":np.asarray(interface),"details":details}
-
-        def frozen_flow_evaluate(flow_vector,lam,nc):
-            c,d=flow_vector.reshape(2,m,7)
-            cc=c/c.sum(axis=1)[:,None]*r["continuousTotalConcentrationMolM3"]
-            cd=d/d.sum(axis=1)[:,None]*r["dispersedTotalConcentrationMolM3"]
-            fc=np.zeros((m+1,7)); fd=np.zeros((m+1,7))
-            fc[0]=feedc; fd[m]=-np.asarray(feedd)
-            for j in range(1,m):
-                fc[j]=(c[j-1]+c[j])/2-dc*A*(cc[j]-cc[j-1])/dz
-                fd[j]=-(d[j-1]+d[j])/2-dd*A*(cd[j]-cd[j-1])/dz
-            fc[m]=c[m-1]; fd[0]=-d[0]
-            transfer=lam*np.asarray(nc)*av*A*dz
-            rc=fc[:-1]-fc[1:]-transfer
-            rd=fd[:-1]-fd[1:]+transfer
-            return np.asarray([v for j in range(m) for v in np.r_[rc[j],rd[j]]])
 
         def residual(x,lam):
             budget["residualCalls"]+=1
@@ -725,50 +747,9 @@ def case(r, name, dc, dd, solvers):
                 sparsity[row,7*m+7*j:7*m+7*j+7]=1
                 sparsity[row,14*m+13*j:14*m+13*j+13]=1
         sparsity=sparsity.tocsr()
-        flow_sparsity=sparsity[:14*m,:14*m]
         lower=np.r_[np.full(14*m,epsilon),np.full(13*m,-35.0)]
         upper=np.r_[np.full(14*m,upper_flow),np.full(13*m,35.0)]
         variable_scale=np.r_[np.tile(scale,2*m),np.ones(13*m)]
-        flow_scale=np.tile(scale,2*m)
-
-        def frozen_conservative_seed(base_flows,lam,nc):
-            """Unclipped plug-flow balance seed; dispersion is closed by solver."""
-            c,d=np.asarray(base_flows).reshape(2,m,7).copy()
-            transfer=lam*np.asarray(nc)*av*A*dz
-            for j in range(m):
-                c[j]=np.asarray(feedc)-np.sum(transfer[:j+1],axis=0)
-                d[j]=np.asarray(feedd)+np.sum(transfer[j:],axis=0)
-            return np.r_[c.reshape(-1),d.reshape(-1)]
-
-        def audit_frozen_flow_sparsity(flow_vector,lam,nc):
-            """Prove the declared 98x98 mask covers numerical dependencies."""
-            baseline=frozen_flow_evaluate(flow_vector,lam,nc)
-            declared=flow_sparsity.toarray().astype(bool)
-            missing=[]; actual_nonzeros=0
-            for column in range(14*m):
-                component=column%7
-                step=max(abs(float(flow_vector[column]))*1e-7,
-                  float(scale[component])*1e-8,epsilon*10)
-                perturbed=np.asarray(flow_vector).copy()
-                if perturbed[column]+step>upper[column]:
-                    step=-step
-                perturbed[column]+=step
-                derivative=(frozen_flow_evaluate(perturbed,lam,nc)-baseline)/step
-                threshold=max(1e-10,float(np.max(np.abs(derivative)))*1e-9)
-                rows=np.flatnonzero(np.abs(derivative)>threshold)
-                actual_nonzeros+=len(rows)
-                for row in rows:
-                    if not declared[row,column]:
-                        missing.append({"row":int(row),"column":int(column),
-                          "derivative":float(derivative[row])})
-            if missing:
-                raise JobCBlocked("JOB_C_FROZEN_FV_JACOBIAN_SPARSITY_MISMATCH",
-                  {"heightM":h,"lambda":lam,"missingDependencyCount":len(missing),
-                   "missingDependencies":missing[:20]})
-            return {"declaredNonzeros":int(flow_sparsity.nnz),
-              "finiteDifferenceNonzeros":int(actual_nonzeros),
-              "missingDependencyCount":0,
-              "qualification":"NUMERICAL_JACOBIAN_COVERAGE_AUDIT"}
 
         def diagnostic_rows(ev):
             rows=[]
@@ -786,428 +767,6 @@ def case(r, name, dc, dd, solvers):
         def diagnostics(ev):
             return diagnostic_rows(ev)[:20]
 
-        def acceptance_metrics(state,lam):
-            ev=raw_evaluate(state,lam)
-            raw=float(np.max(np.abs(ev["fv"])))
-            scaled=float(np.max(np.abs(
-              [v/scale[i%7] for i,v in enumerate(ev["fv"])])))
-            interface=max(
-              max(float(np.max(np.abs(values[0][:7]))),
-                float(np.max(np.abs(values[6])/solvers[j].scale)))
-              for j,values in enumerate(ev["details"]))
-            minimum=float(min(np.min(ev["c"]),np.min(ev["d"])))
-            return ev,{"rawFvResidualMolS":raw,
-              "scaledFvResidual":scaled,
-              "maximumOriginalJobBGateResidual":interface,
-              "minimumFlowMolS":minimum,
-              "accepted":bool(minimum>0 and raw<=1e-7 and scaled<=1e-7
-                and interface<=1e-7)}
-
-        def pseudo_arclength_qualification(
-              base_state,base_lambda,target_lambda,independent_restart_state):
-            """Trace the unchanged 189 equations in scaled (x, lambda) space."""
-            progress("pseudo-arclength boundary qualification")
-            y0=np.asarray(base_state)/variable_scale
-            lambda_scale=max(abs(target_lambda-base_lambda),1e-7)
-            steps=(2e-6,1e-6)
-            jacobians=[]; tangents=[]; derivatives=[]; rank_rows=[]
-            def scaled_residual(y,lam):
-                return residual(np.asarray(y)*variable_scale,lam)
-            for relative_step in steps:
-                require_runtime_budget(budget)
-                jac=scipy.optimize._numdiff.approx_derivative(
-                  lambda y:scaled_residual(y,base_lambda),y0,
-                  method="3-point",rel_step=relative_step)
-                lambda_step=max(lambda_scale*relative_step,1e-12)
-                rplus=scaled_residual(y0,base_lambda+lambda_step)
-                rminus=scaled_residual(y0,base_lambda-lambda_step)
-                rlambda=(rplus-rminus)/(2*lambda_step)
-                augmented=np.column_stack((jac,rlambda))
-                _,singular,vh=np.linalg.svd(augmented,full_matrices=True)
-                jac_singular=np.linalg.svd(jac,compute_uv=False)
-                tangent=vh[-1]
-                if tangent[-1]<0: tangent=-tangent
-                tangent/=np.linalg.norm(tangent)
-                tangent_residual=float(np.max(np.abs(augmented@tangent)))
-                threshold=float(singular[0]*max(augmented.shape)
-                  *np.finfo(float).eps)
-                rank=int(np.sum(singular>threshold))
-                jac_threshold=float(jac_singular[0]*max(jac.shape)
-                  *np.finfo(float).eps)
-                jac_rank=int(np.sum(jac_singular>jac_threshold))
-                declared=sparsity.toarray().astype(bool)
-                numerical=np.zeros_like(declared)
-                for column in range(jac.shape[1]):
-                    column_threshold=max(1e-9,
-                      float(np.max(np.abs(jac[:,column])))*1e-7)
-                    numerical[:,column]=np.abs(jac[:,column])>column_threshold
-                undeclared=np.argwhere(numerical & ~declared)
-                if abs(tangent[-1])>1e-12:
-                    derivative=variable_scale*tangent[:-1]/tangent[-1]
-                else:
-                    derivative=np.full(27*m,np.nan)
-                jacobians.append((jac,rlambda))
-                tangents.append(tangent)
-                derivatives.append(derivative)
-                rank_rows.append({"relativeFiniteDifferenceStep":relative_step,
-                  "rank":rank,"requiredRank":27*m,
-                  "fixedLambdaJacobianRank":jac_rank,
-                  "requiredFixedLambdaJacobianRank":27*m,
-                  "largestSingularValue":float(singular[0]),
-                  "smallestNonzeroSingularValue":float(singular[-1]),
-                  "fixedLambdaSmallestSingularValue":
-                    float(jac_singular[-1]),
-                  "declaredJacobianNonzeros":int(np.sum(declared)),
-                  "finiteDifferenceJacobianNonzeros":int(np.sum(numerical)),
-                  "undeclaredJacobianDependencyCount":int(len(undeclared)),
-                  "rankThreshold":threshold,
-                  "tangentLambdaComponent":float(tangent[-1]),
-                  "maximumTangentEquationResidual":tangent_residual})
-            alignment=float(abs(np.dot(tangents[0],tangents[1])))
-            derivative_alignment=float(np.dot(derivatives[0],derivatives[1])
-              /(np.linalg.norm(derivatives[0])*np.linalg.norm(derivatives[1])))
-            flow0=np.asarray(base_state)[:14*m]
-            limiting=[]
-            for index,value in enumerate(flow0):
-                slopes=[float(derivative[index]) for derivative in derivatives]
-                if max(slopes)<0:
-                    phase_index,rem=divmod(index,m*7)
-                    cell_index,component_index=divmod(rem,7)
-                    distances=[float(value/(-slope))
-                      for slope in slopes]
-                    limiting.append({
-                      "variableIndex":index,
-                      "phase":"continuous" if phase_index==0 else "dispersed",
-                      "numericalCell":cell_index+1,
-                      "component":COMPONENTS[component_index],
-                      "baseFlowMolS":float(value),
-                      "dFlowDlambda":slopes,
-                      "predictedBoundaryLambda":[
-                        float(base_lambda+distance) for distance in distances]})
-            limiting.sort(key=lambda row:max(row["predictedBoundaryLambda"]))
-            local_boundary=limiting[0] if limiting else None
-            stable=(all(row["rank"]==27*m for row in rank_rows)
-              and all(row["fixedLambdaJacobianRank"]==27*m
-                for row in rank_rows)
-              and all(row["undeclaredJacobianDependencyCount"]==0
-                for row in rank_rows)
-              and alignment>=.999
-              and derivative_alignment>=.999
-              and all(row["maximumTangentEquationResidual"]<=1e-7
-                for row in rank_rows))
-            report={"method":"SCALED_PSEUDO_ARCLENGTH_ORIGINAL_189_EQUATIONS",
-              "baseLambda":float(base_lambda),
-              "targetRejectedLambda":float(target_lambda),
-              "finiteDifferenceQualifications":rank_rows,
-              "tangentAlignmentAcrossStepSizes":alignment,
-              "fixedLambdaDerivativeAlignmentAcrossStepSizes":
-                derivative_alignment,
-              "stableFullRowRankTangent":bool(stable),
-              "limitingPositiveFlow":local_boundary,
-              "baseStateSha256":digest([float(v) for v in base_state]),
-              "variableScaleSha256":digest([float(v) for v in variable_scale]),
-              "positiveLowerBoundMolS":epsilon,
-              "strictPositiveFlowConstraintPreserved":True,
-              "acceptanceGatesUnchanged":True,
-              "physicalInfeasibilityClaimed":False,"attempts":[]}
-            if not stable:
-                report["classification"]="TANGENT_QUALIFICATION_UNSTABLE"
-                return None,report
-            tangent=tangents[1]
-            def colored_dense_jacobian(fun, point, pattern):
-                # Rank/dependency qualification above remains independently
-                # dense. Coloring only avoids repeated thermodynamic calls in
-                # the correctors; linear algebra still uses the dense matrix.
-                jac=scipy.optimize._numdiff.approx_derivative(
-                  fun,point,method="2-point",sparsity=pattern)
-                return jac.toarray() if hasattr(jac,"toarray") else jac
-            augmented_pattern=np.column_stack((declared,np.ones(27*m)))
-            state_y=y0.copy(); state_lambda=float(base_lambda)
-            ds=max((target_lambda-base_lambda)*2.0,2e-8)
-            ds=min(ds,2e-6)
-            for attempt in range(4):
-                require_runtime_budget(budget)
-                predictor=np.r_[state_y,state_lambda]+ds*tangent
-                predictor[-1]=min(max(predictor[-1],0.0),1.0)
-                lower_aug=np.r_[lower/variable_scale,0.0]
-                upper_aug=np.r_[upper/variable_scale,1.0]
-                # The governing domain is flow > 0, not flow >= epsilon.
-                # Epsilon remains the Picard solver's numerical floor only.
-                lower_aug[:14*m]=0.0
-                predictor=np.minimum(np.maximum(predictor,
-                  lower_aug+1e-14),upper_aug-1e-14)
-                def augmented_residual(q):
-                    require_runtime_budget(budget)
-                    arc=float(np.dot(tangent,q-predictor))
-                    return np.r_[scaled_residual(q[:-1],q[-1]),arc]
-                def augmented_jacobian(q):
-                    physical=colored_dense_jacobian(
-                      lambda z:scaled_residual(z[:-1],z[-1]),
-                      q,augmented_pattern)
-                    return np.vstack((physical,tangent))
-                fit=scipy.optimize.least_squares(
-                  augmented_residual,predictor,bounds=(lower_aug,upper_aug),
-                  method="trf",jac=augmented_jacobian,x_scale="jac",max_nfev=120,
-                  xtol=1e-11,ftol=1e-11,gtol=1e-11)
-                candidate=fit.x[:-1]*variable_scale
-                candidate_lambda=float(fit.x[-1])
-                _,metrics=acceptance_metrics(candidate,candidate_lambda)
-                arc_residual=abs(float(np.dot(tangent,fit.x-predictor)))
-                accepted=bool(metrics["accepted"] and arc_residual<=1e-7)
-                report["attempts"].append({
-                  "step":attempt+1,"arcLengthStep":float(ds),
-                  "lambda":candidate_lambda,
-                  "functionEvaluations":int(fit.nfev),
-                  "optimizerSuccess":bool(fit.success),
-                  "arcConstraintResidual":arc_residual,**metrics})
-                if accepted:
-                    state_y=fit.x[:-1]; state_lambda=candidate_lambda
-                    if state_lambda>target_lambda+1e-9:
-                        report["pseudoArclengthCandidate"]={
-                          "lambda":state_lambda,
-                          "stateSha256":digest([float(v) for v in candidate]),
-                          "qualification":
-                            "CANDIDATE_REQUIRES_TWO_START_FIXED_LAMBDA_CONFIRMATION"}
-                        break
-                    ds=min(ds*1.5,2e-5)
-                    continue
-                ds*=.5
-                if ds<1e-10: break
-            pseudo_restart_state=state_y*variable_scale
-            probe_margin=target_lambda-base_lambda
-            probe_lambda=target_lambda+probe_margin
-            if probe_lambda>1.0:
-                report["classification"]=(
-                  "FULL_BRACKET_ADVANCE_EXCEEDS_LAMBDA_DOMAIN")
-                report["complementarityQualification"]={
-                  "targetRejectedLambda":target_lambda,
-                  "requiredBeyondRejectedBoundaryMargin":probe_margin,
-                  "lambdaUpperBound":1.0,
-                  "accepted":False}
-                return None,report
-            complementarity_lower=lower.copy()
-            complementarity_lower[:14*m]=0.0
-            independent_restart=np.asarray(
-              independent_restart_state).copy()
-            flow_restart_factor=np.where(
-              np.arange(14*m)%2==0,.995,1.005)
-            independent_restart[:14*m]*=flow_restart_factor
-            independent_restart[14*m:]+=np.where(
-              np.arange(13*m)%2==0,-.005,.005)
-            complementarity_starts=[
-              ("PSEUDO_ARCLENGTH_CORRECTED_STATE",pseudo_restart_state),
-              ("DETERMINISTIC_PERTURBED_REJECTED_PICARD_RESTART",
-                independent_restart)]
-            prepared_starts=[]
-            for label,start in complementarity_starts:
-                prepared=np.minimum(np.maximum(start,
-                  complementarity_lower+1e-14),upper-1e-14)
-                prepared_starts.append((label,prepared))
-            initial_separation=float(np.max(np.abs(
-              prepared_starts[0][1]-prepared_starts[1][1])
-              /np.maximum(variable_scale,1e-30)))
-            initial_hashes=[digest([float(v) for v in start])
-              for _,start in prepared_starts]
-            independent_start_minimum_separation=2e-3
-            complementarity_attempts=[]; complementarity_solutions=[]
-            confirmation_successes=[]
-            if (initial_separation>=independent_start_minimum_separation
-                and initial_hashes[0]!=initial_hashes[1]):
-              for label,start in prepared_starts:
-                confirmation_y=start/variable_scale
-                confirmation_initial_residual=float(np.max(np.abs(
-                  scaled_residual(confirmation_y,probe_lambda))))
-                confirmation_iterations=0
-                for _ in range(6):
-                    confirmation_residual=scaled_residual(
-                      confirmation_y,probe_lambda)
-                    delta=np.linalg.solve(
-                      jacobians[1][0],-confirmation_residual)
-                    current_norm=float(np.max(np.abs(
-                      confirmation_residual)))
-                    accepted_newton_step=False
-                    alpha=1.0
-                    for _ in range(8):
-                        trial_y=np.minimum(np.maximum(
-                          confirmation_y+alpha*delta,
-                          complementarity_lower/variable_scale+1e-14),
-                          upper/variable_scale-1e-14)
-                        trial_norm=float(np.max(np.abs(
-                          scaled_residual(trial_y,probe_lambda))))
-                        if trial_norm<current_norm:
-                            confirmation_y=trial_y
-                            accepted_newton_step=True
-                            break
-                        alpha*=.5
-                    if not accepted_newton_step:
-                        break
-                    confirmation_iterations+=1
-                confirmation_final_residual=float(np.max(np.abs(
-                  scaled_residual(confirmation_y,probe_lambda))))
-                confirmation_success=bool(
-                  confirmation_iterations>0
-                  and confirmation_final_residual<=1e-7)
-                confirmation_successes.append(confirmation_success)
-                confirmation_state=confirmation_y*variable_scale
-                fit=scipy.optimize.least_squares(
-                  lambda q:residual(q,probe_lambda),confirmation_state,
-                  bounds=(complementarity_lower,upper),method="trf",
-                   jac=lambda q:colored_dense_jacobian(
-                     lambda state:residual(state,probe_lambda),q,declared),
-                   tr_solver="exact",
-                  x_scale=variable_scale,max_nfev=6,
-                  xtol=1e-13,ftol=1e-13,gtol=1e-13)
-                _,metrics=acceptance_metrics(fit.x,probe_lambda)
-                attempt={"initialization":label,
-                  "confirmationStartSha256":
-                    digest([float(v) for v in start]),
-                  "frozenJacobianConfirmationIterations":
-                    confirmation_iterations,
-                  "frozenJacobianConfirmationSuccess":
-                    confirmation_success,
-                  "frozenJacobianConfirmationInitialMaximumResidual":
-                    confirmation_initial_residual,
-                  "frozenJacobianConfirmationMaximumResidual":
-                    confirmation_final_residual,
-                  "functionEvaluations":int(fit.nfev),
-                  "optimizerStatus":int(fit.status),
-                  "optimizerOptimality":float(fit.optimality),
-                  "optimizerSuccess":bool(fit.success),
-                  "stateSha256":digest([float(v) for v in fit.x]),
-                  **metrics}
-                complementarity_attempts.append(attempt)
-                if metrics["accepted"]:
-                    complementarity_solutions.append(fit.x.copy())
-            report["complementarityQualification"]={
-              "solver":(
-                "TWO_DISTINCT_START_DENSE_FROZEN_JACOBIAN_NEWTON_PLUS_"
-                "DENSE_POLISH_"
-                "189_FIXED_LAMBDA"),
-              "lambda":probe_lambda,
-              "beyondRejectedBoundaryMargin":probe_lambda-target_lambda,
-              "minimumRequiredBeyondBoundaryMargin":probe_margin,
-              "mathematicalFlowLowerBoundMolS":0.0,
-              "strictPositiveFinalAcceptanceRequired":True,
-              "optimizerSuccessIsAcceptanceGate":False,
-              "independentStartMinimumScaledSeparation":
-                independent_start_minimum_separation,
-              "confirmationStartScaledStateSeparation":initial_separation,
-              "confirmationStartStateSha256":initial_hashes,
-              "initializations":[label for label,_ in prepared_starts],
-              "pseudoArclengthRestartLambda":state_lambda,
-              "attempts":complementarity_attempts}
-            if len(complementarity_solutions)==len(complementarity_starts):
-                state_difference=float(np.max(np.abs(
-                  complementarity_solutions[0]-complementarity_solutions[1])
-                  /np.maximum(variable_scale,1e-30)))
-                report["complementarityQualification"][
-                  "maximumScaledStateDifferenceAcrossStarts"]=state_difference
-                agreement_tolerance=1e-3
-                report["complementarityQualification"][
-                  "scaledStateAgreementTolerance"]=agreement_tolerance
-                if (state_difference<=agreement_tolerance
-                    and all(confirmation_successes)):
-                    report["classification"]=(
-                      "ACCEPTED_POSITIVE_BRANCH_BEYOND_BRACKET")
-                    report["acceptedLambda"]=probe_lambda
-                    report["acceptedStateSha256"]=digest(
-                      [float(v) for v in complementarity_solutions[0]])
-                    return complementarity_solutions[0],report
-            report["classification"]="PSEUDO_ARCLENGTH_POSITIVE_BRANCH_UNRESOLVED"
-            if not stable or local_boundary is None:
-                return None,report
-            boundary_index=local_boundary["variableIndex"]
-            predicted_lambda=float(np.mean(
-              local_boundary["predictedBoundaryLambda"]))
-            if not base_lambda<predicted_lambda<=target_lambda+1e-8:
-                return None,report
-            boundary_y=y0+(predicted_lambda-base_lambda)*(
-              derivatives[1]/variable_scale)
-            boundary_y[boundary_index]=0.0
-            boundary_start=np.r_[np.delete(boundary_y,boundary_index),
-              predicted_lambda]
-            def boundary_residual(q):
-                require_runtime_budget(budget)
-                full_y=np.insert(q[:-1],boundary_index,0.0)
-                return scaled_residual(full_y,q[-1])
-            boundary_lower=np.r_[np.delete(
-              lower/variable_scale,boundary_index),
-              max(0.0,base_lambda-1e-8)]
-            boundary_upper=np.r_[np.delete(
-              upper/variable_scale,boundary_index),
-              min(1.0,target_lambda+1e-8)]
-            boundary_start=np.minimum(np.maximum(boundary_start,
-              boundary_lower+1e-15),boundary_upper-1e-15)
-            boundary_fit=scipy.optimize.least_squares(
-              boundary_residual,boundary_start,
-              bounds=(boundary_lower,boundary_upper),
-              method="trf",jac="2-point",x_scale="jac",max_nfev=800,
-              xtol=1e-12,ftol=1e-12,gtol=1e-12)
-            solved_boundary_y=np.insert(
-              boundary_fit.x[:-1],boundary_index,0.0)
-            boundary_state=solved_boundary_y*variable_scale
-            boundary_lambda=float(boundary_fit.x[-1])
-            boundary_ev,boundary_metrics=acceptance_metrics(
-              boundary_state,boundary_lambda)
-            other_flows=np.delete(boundary_state[:14*m],boundary_index)
-            boundary_flow=float(boundary_state[boundary_index])
-            boundary_gate=max(abs(boundary_flow),
-              boundary_metrics["rawFvResidualMolS"],
-              boundary_metrics["scaledFvResidual"],
-              boundary_metrics["maximumOriginalJobBGateResidual"])
-            boundary_rank=[]; boundary_derivatives=[]
-            for relative_step in steps:
-                jac=scipy.optimize._numdiff.approx_derivative(
-                  lambda y:scaled_residual(y,boundary_lambda),
-                  solved_boundary_y,method="3-point",
-                  rel_step=relative_step)
-                lambda_step=max(lambda_scale*relative_step,1e-12)
-                rlambda=(scaled_residual(solved_boundary_y,
-                  boundary_lambda+lambda_step)
-                  -scaled_residual(solved_boundary_y,
-                    boundary_lambda-lambda_step))/(2*lambda_step)
-                singular=np.linalg.svd(jac,compute_uv=False)
-                threshold=float(singular[0]*max(jac.shape)
-                  *np.finfo(float).eps)
-                rank=int(np.sum(singular>threshold))
-                derivative=variable_scale*np.linalg.solve(jac,-rlambda)
-                boundary_derivatives.append(derivative)
-                boundary_rank.append({
-                  "relativeFiniteDifferenceStep":relative_step,
-                  "rank":rank,"requiredRank":27*m,
-                  "smallestSingularValue":float(singular[-1]),
-                  "rankThreshold":threshold,
-                  "limitingFlowDerivativeMolSPerLambda":
-                    float(derivative[boundary_index])})
-            boundary_derivative_alignment=float(np.dot(
-              boundary_derivatives[0],boundary_derivatives[1])/(
-                np.linalg.norm(boundary_derivatives[0])
-                *np.linalg.norm(boundary_derivatives[1])))
-            boundary_valid=(bool(boundary_fit.success)
-              and boundary_gate<=1e-7
-              and float(np.min(other_flows))>0
-              and base_lambda<boundary_lambda<=target_lambda+1e-8
-              and all(row["rank"]==row["requiredRank"]
-                and row["limitingFlowDerivativeMolSPerLambda"]<0
-                for row in boundary_rank)
-              and boundary_derivative_alignment>=.999)
-            report["correctedBoundary"]={
-              "solver":
-                "REDUCED_TANGENT_CONE_189_EQUATIONS_ACTIVE_FLOW_FIXED_ZERO",
-              "functionEvaluations":int(boundary_fit.nfev),
-              "optimizerSuccess":bool(boundary_fit.success),
-              "lambda":boundary_lambda,
-              "activeFlowMolS":boundary_flow,
-              "minimumOtherFlowMolS":float(np.min(other_flows)),
-              "maximumUnchangedGateResidual":boundary_gate,
-              "finiteDifferenceQualifications":boundary_rank,
-              "derivativeAlignmentAcrossStepSizes":
-                boundary_derivative_alignment,
-              "stateSha256":digest([float(v) for v in boundary_state]),
-              "acceptedAsPhysicalOperatingState":False,
-              "strictPositiveStatesOnlyAccepted":True}
-            return None,report
-
         def dominant_blocks(ev):
             rows=diagnostic_rows(ev); blocks={}
             for row in rows:
@@ -1215,26 +774,6 @@ def case(r, name, dc, dd, solvers):
                 if key not in blocks or abs(row["rawValue"])>abs(blocks[key]["rawValue"]):
                     blocks[key]=row
             return sorted(blocks.values(),key=lambda row:abs(row["rawValue"]),reverse=True)
-
-        def frozen_diagnostic_rows(flow_vector, residual_vector):
-            flows=np.asarray(flow_vector).reshape(2,m,7)
-            residuals=np.asarray(residual_vector).reshape(m,2,7)
-            active_bound=[
-              {"phase":"continuous" if phase==0 else "dispersed",
-               "numericalCell":j+1,"component":COMPONENTS[i],
-               "flowMolS":float(flows[phase,j,i]),
-               "positiveLowerBoundMolS":epsilon}
-              for phase in range(2) for j in range(m) for i in range(7)
-              if flows[phase,j,i]<=epsilon*(1+1e-6)]
-            ranked=[
-              {"phase":"continuous" if phase==0 else "dispersed",
-               "numericalCell":j+1,"component":COMPONENTS[i],
-               "rawFvResidualMolS":float(residuals[j,phase,i]),
-               "scaledFvResidual":float(residuals[j,phase,i]/scale[i])}
-              for j in range(m) for phase in range(2) for i in range(7)
-            ]
-            ranked.sort(key=lambda row:abs(row["rawFvResidualMolS"]),reverse=True)
-            return active_bound,ranked[:20]
 
         def solve_local_interfaces(flow_vector, interface_vector):
             c,d=np.asarray(flow_vector).reshape(2,m,7)
@@ -1253,7 +792,21 @@ def case(r, name, dc, dd, solvers):
                 unknowns.extend(u); fluxes.append(values[4])
             return np.asarray(unknowns),np.asarray(fluxes),maximum_gate
 
-        x=initial(); history=[]; started=time.monotonic()
+        seed_flows,seed_interface_warm=initial()
+        if (np.min(seed_flows)<=epsilon
+            or np.any(seed_flows>upper[:14*m])):
+            raise JobCBlocked("JOB_C_WARM_START_FLOW_BOUNDS_INVALID",
+              {"heightM":h,"minimumFlowMolS":float(np.min(seed_flows)),
+               "physicalInfeasibilityClaimed":False})
+        # V2/interface unknowns are lineage-only warm starts.  Recompute them
+        # on the evolving inventory seed before the first coupled residual.
+        seed_interfaces,_,seed_gate=solve_local_interfaces(
+          seed_flows,seed_interface_warm)
+        if seed_gate>1e-7:
+            raise JobCBlocked("JOB_C_INITIAL_INTERFACE_RECOMPUTATION_FAILED",
+              {"heightM":h,"maximumCandidateGateResidual":seed_gate,
+               "physicalInfeasibilityClaimed":False})
+        x=np.r_[seed_flows,seed_interfaces]; history=[]; started=time.monotonic()
         global_inlet_full_scale_audit=frozen_boundary_audit(
           np,feedc,feedd,inlet_nc,inlet_nd,
           np.tile(inlet_nc,(m,1))*av*A*dz)
@@ -1269,466 +822,116 @@ def case(r, name, dc, dd, solvers):
              "classification":"PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED"},
            "qualification":"GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY;"
              "FLUX_SOURCE=QUALIFIED_JOB_C_BOUNDARY_BRANCH"})
-        # Intermediate lambda points use deterministic local-flux Picard
-        # continuation: seven independent candidate interface solves followed
-        # by one bounded dense 98-equation FV solve.  The 189-equation system is
-        # reserved for one limited lambda-one polish after Picard acceptance.
-        lambda_targets=sorted(set([initial_lambda,.00003,.0001,.0003,.001,
+         # Every continuation target is solved directly as the bounded,
+         # coupled 189-equation system.  There is deliberately no frozen-source
+         # precomputed-source stage: raw_evaluate recomputes local interface equations and
+         # fluxes from the evolving bulk state on every residual evaluation.
+        lambda_targets=sorted(set([bootstrap_lambda,.00003,.0001,.0003,.001,
           .0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
-        lambda_targets=[value for value in lambda_targets if value>=initial_lambda]
+        lambda_targets=[value for value in lambda_targets if value>=bootstrap_lambda]
         lambda_index=0
         minimum_lambda_interval=1e-8
-        maximum_outer_iterations=24
-        maximum_coupled_function_evaluations=24
+        maximum_coupled_function_evaluations=240
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
-            previous_lambda=history[-1]["lambda"] if history else initial_lambda
-            progress(f"local flux Picard lambda {lam:g}")
+            previous_lambda=history[-1]["lambda"] if history else bootstrap_lambda
+            progress(f"direct coupled lambda {lam:g}")
             lambda_started=time.monotonic()
-            outer_rows=[]; step_accepted=False; step_error=None
-            current_flows=x[:14*m].copy()
-            current_interfaces=x[14*m:].copy()
-            for outer in range(1,maximum_outer_iterations+1):
-                if (budget["maximumSeconds"] is not None and
-                    time.monotonic()-budget["started"]>budget["maximumSeconds"]):
-                    step_error="INTERNAL_RUNTIME_BUDGET"
-                    break
-                try:
-                    local_u,frozen_nc,pre_gate=solve_local_interfaces(
-                      current_flows,current_interfaces)
-                except CandidateFailure as error:
-                    step_error=str(error)
-                    break
-                conservative=frozen_conservative_seed(
-                  current_flows,lam,frozen_nc)
-                starts=[("LAST_PICARD_POSITIVE_FLOWS",current_flows)]
-                if (np.all(conservative>=lower[:14*m]) and
-                    np.all(conservative<=upper[:14*m])):
-                    starts.append(("UNCLIPPED_CONSERVATIVE_PROFILE",conservative))
-                def frozen_scaled(flow_vector):
-                    require_runtime_budget(budget)
-                    values=frozen_flow_evaluate(flow_vector,lam,frozen_nc)
-                    return np.asarray(
-                      [v/scale[i%7] for i,v in enumerate(values)])
-                fits=[]
-                for initialization,start_vector in starts:
-                    try:
-                        fit=budgeted_least_squares(
-                          budget,"BOUNDED_FROZEN",scipy.optimize.least_squares,
-                          frozen_scaled,start_vector,
-                          bounds=(lower[:14*m],upper[:14*m]),method="trf",
-                          jac="2-point",tr_solver="exact",x_scale=flow_scale,
-                          max_nfev=160,xtol=1e-11,ftol=1e-11,gtol=1e-11)
-                    except TimeoutError:
-                        outer_rows.append({"outerIteration":outer,
-                          "flowInitialization":initialization,
-                          "sourceRefreshMismatch":{"status":
-                            "NOT_COMPUTED_INTERNAL_RUNTIME_BUDGET"},
-                          "accepted":False})
-                        step_error="INTERNAL_RUNTIME_BUDGET"
-                        break
-                    fits.append((np.linalg.norm(frozen_scaled(fit.x)),
-                      initialization,fit))
-                if step_error=="INTERNAL_RUNTIME_BUDGET":
-                    break
-                _,initialization,flow_fit=min(fits,key=lambda row:row[0])
-                solved_flows=flow_fit.x
-                frozen_values=frozen_flow_evaluate(
-                  solved_flows,lam,frozen_nc)
-                frozen_raw=float(np.max(np.abs(frozen_values)))
-                frozen_scaled_max=float(np.max(np.abs(
-                  frozen_scaled(solved_flows))))
-                frozen_acceptance=require_positive_frozen_solution(
-                  np,solved_flows,frozen_raw,frozen_scaled_max)
-                if not frozen_acceptance["accepted"]:
-                    active_bound,ranked_frozen=frozen_diagnostic_rows(
-                      solved_flows,frozen_values)
-                    outer_rows.append({"outerIteration":outer,
-                      "flowInitialization":initialization,
-                      "flowFunctionEvaluations":int(flow_fit.nfev),
-                      "flowOptimizerStatus":int(flow_fit.status),
-                      "flowOptimizerSuccess":bool(flow_fit.success),
-                      "flowOptimizerOptimality":float(flow_fit.optimality),
-                      "frozenFvAcceptance":frozen_acceptance,
-                      "activePositiveLowerBoundFlows":active_bound,
-                      "dominantFrozenFvResidualRows":ranked_frozen,
-                      "sourceRefreshMismatch":{
-                        "status":"NOT_COMPUTED_FROZEN_FV_DID_NOT_CLOSE"},
-                      "accepted":False})
-                    step_error="BOUNDED_FROZEN_FV_NONCONVERGENCE"
-                    break
-                try:
-                    refreshed_u,refreshed_nc,interface_gate=(
-                      solve_local_interfaces(solved_flows,local_u))
-                except CandidateFailure as error:
-                    step_error=str(error)
-                    break
-                trial=np.r_[solved_flows,refreshed_u]
-                trial_ev=raw_evaluate(trial,lam)
-                physical_fv=frozen_flow_evaluate(
-                  solved_flows,lam,refreshed_nc)
-                physical_raw=float(np.max(np.abs(physical_fv)))
-                physical_scaled=float(np.max(np.abs(
-                  [v/scale[i%7] for i,v in enumerate(physical_fv)])))
-                source_delta=lam*(refreshed_nc-frozen_nc)*av*A*dz
-                source_raw=float(np.max(np.abs(source_delta)))
-                source_scaled=float(np.max(np.abs(
-                  [v/scale[i%7] for i,v in enumerate(
-                    source_delta.reshape(-1))])))
-                minimum_flow=float(np.min(solved_flows))
-                accepted=(minimum_flow>0 and physical_raw<=1e-7 and
-                  physical_scaled<=1e-7 and source_raw<=1e-7 and
-                  source_scaled<=1e-7 and interface_gate<=1e-7)
-                outer_rows.append({"outerIteration":outer,
-                  "flowInitialization":initialization,
-                  "flowFunctionEvaluations":int(flow_fit.nfev),
-                  "minimumFlowMolS":minimum_flow,
-                  "frozenRawFvResidualMolS":frozen_raw,
-                  "frozenScaledFvResidual":frozen_scaled_max,
-                  "refreshedRawFvResidualMolS":physical_raw,
-                  "refreshedScaledFvResidual":physical_scaled,
-                  "integratedSourceMismatchRawMolS":source_raw,
-                  "integratedSourceMismatchScaled":source_scaled,
-                  "preRefreshMaximumCandidateGateResidual":pre_gate,
-                  "postRefreshMaximumCandidateGateResidual":interface_gate,
-                  "accepted":accepted})
-                x=trial; current_flows=solved_flows
-                current_interfaces=refreshed_u; ev=trial_ev
-                if accepted:
-                    step_accepted=True
-                    break
-            if not step_accepted:
-                x=accepted_x
-                if step_error=="INTERNAL_RUNTIME_BUDGET":
-                    raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
-                      {"heightM":h,"lambda":lam,
-                       "phase":"BOUNDED_FROZEN_FV_SOLVE",
-                       "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
-                       "physicalInfeasibilityClaimed":False,
-                       "outerIterations":outer_rows,
-                       "claimsEmitted":{"height":False,"efficiency":False,
-                         "finalRpm":False,"jobD":False,"release":False}})
-                if lam>0.0 and lam-previous_lambda>minimum_lambda_interval:
-                    lambda_targets.insert(
-                      lambda_index,(previous_lambda+lam)/2)
-                    continue
-                # A frozen-source FV failure is not a feasibility result for the
-                # original coupled equations.  Give the bounded 189-equation
-                # system a jointly consistent attempt at the terminal adaptive
-                # bracket before issuing a governed block.
-                coupled_starts=[("LAST_ACCEPTED_COUPLED_STATE",accepted_x)]
-                current_joint=np.r_[current_flows,current_interfaces]
-                if (np.all(current_joint>=lower) and np.all(current_joint<=upper)
-                    and not np.array_equal(current_joint,accepted_x)):
-                    coupled_starts.append(("LAST_PICARD_ITERATE",current_joint))
-                coupled_fits=[]; coupled_attempts=[]
-                coupled_budget_exhausted=False
-                for coupled_initialization,coupled_start in coupled_starts:
-                    try:
-                        coupled_fit=budgeted_least_squares(
-                          budget,"COUPLED",scipy.optimize.least_squares,
-                          lambda q:residual(q,lam),coupled_start,
-                          bounds=(lower,upper),method="trf",jac="2-point",
-                          jac_sparsity=sparsity,tr_solver="lsmr",
-                          x_scale=variable_scale,
-                          max_nfev=maximum_coupled_function_evaluations,
-                          xtol=1e-11,ftol=1e-11,gtol=1e-11)
-                    except TimeoutError:
-                        coupled_budget_exhausted=True
-                        coupled_attempts.append({
-                          "initialization":coupled_initialization,
-                          "terminatedBy":"INTERNAL_RUNTIME_BUDGET",
-                          "accepted":False})
-                        break
-                    coupled_ev=raw_evaluate(coupled_fit.x,lam)
-                    coupled_raw=float(np.max(np.abs(coupled_ev["fv"])))
-                    coupled_scaled=float(np.max(np.abs(
-                      [v/scale[i%7] for i,v in enumerate(coupled_ev["fv"])])))
-                    coupled_interface=max(
-                      max(float(np.max(np.abs(values[0][:7]))),
-                        float(np.max(np.abs(values[6])/solvers[j].scale)))
-                      for j,values in enumerate(coupled_ev["details"]))
-                    coupled_minimum=float(min(
-                      np.min(coupled_ev["c"]),np.min(coupled_ev["d"])))
-                    coupled_accepted=(coupled_minimum>0
-                      and coupled_raw<=1e-7 and coupled_scaled<=1e-7
-                      and coupled_interface<=1e-7)
-                    coupled_fits.append({
-                      "initialization":coupled_initialization,
-                      "fit":coupled_fit,"evaluation":coupled_ev,
-                      "rawFvResidualMolS":coupled_raw,
-                      "scaledFvResidual":coupled_scaled,
-                      "maximumOriginalJobBGateResidual":coupled_interface,
-                      "minimumFlowMolS":coupled_minimum,
-                      "accepted":coupled_accepted})
-                    coupled_attempts.append({
-                      "initialization":coupled_initialization,
-                      "functionEvaluations":int(coupled_fit.nfev),
-                      "optimizerStatus":int(coupled_fit.status),
-                      "optimizerSuccess":bool(coupled_fit.success),
-                      "optimizerOptimality":float(coupled_fit.optimality),
-                      "rawFvResidualMolS":coupled_raw,
-                      "scaledFvResidual":coupled_scaled,
-                      "maximumOriginalJobBGateResidual":coupled_interface,
-                      "minimumFlowMolS":coupled_minimum,
-                      "accepted":coupled_accepted})
-                if coupled_fits:
-                    coupled_best=min(coupled_fits,key=lambda row:max(
-                      row["rawFvResidualMolS"],row["scaledFvResidual"],
-                      row["maximumOriginalJobBGateResidual"]))
-                else:
-                    coupled_ev=raw_evaluate(accepted_x,lam)
-                    coupled_best={"initialization":"LAST_ACCEPTED_COUPLED_STATE",
-                      "fit":None,"evaluation":coupled_ev,
-                      "rawFvResidualMolS":
-                        float(np.max(np.abs(coupled_ev["fv"]))),
-                      "scaledFvResidual":float(np.max(np.abs(
-                        [v/scale[i%7] for i,v in enumerate(coupled_ev["fv"])]))),
-                      "maximumOriginalJobBGateResidual":max(
-                        max(float(np.max(np.abs(values[0][:7]))),
-                          float(np.max(np.abs(values[6])/solvers[j].scale)))
-                        for j,values in enumerate(coupled_ev["details"])),
-                      "minimumFlowMolS":float(min(
-                        np.min(coupled_ev["c"]),np.min(coupled_ev["d"]))),
-                      "accepted":False}
-                if coupled_best["accepted"]:
-                    x=coupled_best["fit"].x
-                    history.append({"lambda":lam,
-                      "solver":"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
-                      "picardFailureReason":step_error or "OUTER_ITERATION_LIMIT",
-                      "picardOuterIterations":outer_rows,
-                      "coupledAttempts":coupled_attempts,
-                      "rawFvResidualMolS":coupled_best["rawFvResidualMolS"],
-                      "scaledFvResidual":coupled_best["scaledFvResidual"],
-                      "maximumOriginalJobBGateResidual":
-                        coupled_best["maximumOriginalJobBGateResidual"],
-                      "minimumFlowMolS":coupled_best["minimumFlowMolS"],
-                      "lambdaRuntimeSeconds":time.monotonic()-lambda_started,
-                      "boundaryAwareInitialProfile":profile_audit
-                        if len(history)==0 else None,
-                      "globalInletFluxAudit":
-                        global_inlet_full_scale_audit if len(history)==0 else None})
-                    lambda_index+=1
-                    continue
-                unconstrained=None
-                unbounded_budget_exhausted=False
-                if coupled_budget_exhausted:
-                    unconstrained={
-                      "qualification":"NOT_RUN_INTERNAL_RUNTIME_BUDGET",
-                      "accepted":False}
-                elif step_error=="BOUNDED_FROZEN_FV_NONCONVERGENCE":
-                    try:
-                        unconstrained_fit=budgeted_least_squares(
-                          budget,"UNBOUNDED_DIAGNOSTIC",scipy.optimize.least_squares,
-                          frozen_scaled,solved_flows,method="lm",jac="2-point",
-                          x_scale=flow_scale,max_nfev=1000,
-                          xtol=1e-12,ftol=1e-12,gtol=1e-12)
-                        unconstrained_values=frozen_flow_evaluate(
-                          unconstrained_fit.x,lam,frozen_nc)
-                        nonpositive=[]
-                        for index,value in enumerate(unconstrained_fit.x):
-                            if value<=0:
-                                phase_index,rem=divmod(index,m*7)
-                                cell_index,component_index=divmod(rem,7)
-                                nonpositive.append({
-                                  "phase":"continuous" if phase_index==0 else "dispersed",
-                                  "numericalCell":cell_index+1,
-                                  "component":COMPONENTS[component_index],
-                                  "flowMolS":float(value)})
-                        unconstrained={
-                          "functionEvaluations":int(unconstrained_fit.nfev),
-                          "optimizerStatus":int(unconstrained_fit.status),
-                          "optimizerSuccess":bool(unconstrained_fit.success),
-                          "optimizerOptimality":float(unconstrained_fit.optimality),
-                          "rawFvResidualMolS":
-                            float(np.max(np.abs(unconstrained_values))),
-                          "scaledFvResidual":
-                            float(np.max(np.abs(frozen_scaled(unconstrained_fit.x)))),
-                          "minimumFlowMolS":float(np.min(unconstrained_fit.x)),
-                          "nonpositiveFlowCount":len(nonpositive),
-                          "nonpositiveFlows":sorted(nonpositive,
-                            key=lambda row:row["flowMolS"])[:20],
-                          "qualification":
-                            "UNBOUNDED_TERMINAL_DIAGNOSTIC_ONLY_NOT_ACCEPTANCE"}
-                    except TimeoutError:
-                        unbounded_budget_exhausted=True
-                        unconstrained={
-                          "qualification":"TERMINATED_INTERNAL_RUNTIME_BUDGET",
-                          "accepted":False}
-                if unbounded_budget_exhausted:
-                    raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
-                      {"heightM":h,"lambda":lam,
-                       "phase":"UNBOUNDED_TERMINAL_DIAGNOSTIC",
-                       "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
-                       "physicalInfeasibilityClaimed":False,
-                       "outerIterations":outer_rows,
-                       "coupledAttempts":coupled_attempts,
-                       "unconstrainedTerminalDiagnostic":unconstrained,
-                       "claimsEmitted":{"height":False,"efficiency":False,
-                         "finalRpm":False,"jobD":False,"release":False}})
-                arclength_state,arclength=(
-                  pseudo_arclength_qualification(
-                    accepted_x,previous_lambda,lam,current_joint))
-                if arclength_state is not None:
-                    arclength_ev,arclength_metrics=acceptance_metrics(
-                      arclength_state,arclength["acceptedLambda"])
-                    driver=BranchContinuation(np,scipy,residual,
-                      acceptance_metrics,variable_scale,lower,upper,m,
-                      lambda ev,uncertainty=None:dispersed_cell1_balance(
-                        np,ev,r["dispersedTotalConcentrationMolM3"],
-                        dd,A,dz,uncertainty),
-                      progress,lambda:require_runtime_budget(budget),
-                      pseudo_arclength_qualification,sparsity)
-                    try:
-                        continued,continuation=driver.run(
-                          arclength_state,arclength["acceptedLambda"],accepted_x)
-                    except TimeoutError:
-                        continued=None
-                        continuation=getattr(driver,"latest_report",{})
-                        continuation["status"]="CONTINUATION_BUDGET_EXHAUSTED_BALANCE_RETAINED_UNCERTAINTY_MAY_BE_UNRESOLVED"
-                    if continued is not None and continuation["fullCouplingAccepted"]:
-                        x=continued
-                        history.append({"lambda":1.0,
-                          "solver":"TWO_START_DENSE_BRANCH_CONTINUATION",
-                          "branchContinuation":continuation})
-                        break
-                    raise JobCBlocked(
-                      "JOB_C_BRANCH_CONTINUATION_TERMINATED",
-                      {"heightM":h,"lambda":arclength["acceptedLambda"],
-                        "classification":continuation["status"],
-                        "branchContinuation":continuation,
-                       "physicalInfeasibilityClaimed":False,
-                       "adaptiveLambdaBracket":{"lowerAccepted":previous_lambda,
-                         "upperRejected":lam,"width":lam-previous_lambda,
-                         "minimumInterval":minimum_lambda_interval},
-                       "acceptedBranch":arclength_metrics,
-                       "pseudoArclengthQualification":arclength,
-                       "strictPositiveFlowsAccepted":bool(
-                         arclength_metrics["minimumFlowMolS"]>0),
-                       "incomingPhysicalFeedsUnchanged":True,
-                       "numericalTraceAdded":False,
-                       "sourceSignReversed":False,
-                       "governingInputsChanged":False,
-                       "globalInletFluxAudit":global_inlet_full_scale_audit,
-                       "claimsEmitted":{"height":False,"efficiency":False,
-                         "finalRpm":False,"jobD":False,"release":False},
-                       "runtimeSeconds":time.monotonic()-started,
-                       "runtimeBudgets":{"qualification":
-                         qualification_runtime,
-                         "nonlinearSolver":{"budgetSeconds":
-                           budget["maximumSeconds"],
-                           "elapsedSeconds":
-                             time.monotonic()-budget["started"]}}})
-                last_accepted=history[-1] if history else None
-                last_accepted_compact=None
-                if last_accepted is not None:
-                    if "integratedSourceMismatchRawMolS" in last_accepted:
-                        accepted_source_refresh={"status":"MEASURED",
-                          "rawMolS":
-                            last_accepted["integratedSourceMismatchRawMolS"],
-                          "scaled":
-                            last_accepted["integratedSourceMismatchScaled"]}
-                    else:
-                        accepted_source_refresh={"status":
-                          "NOT_APPLICABLE_JOINT_COUPLED_ACCEPTANCE"}
-                    last_accepted_compact={
-                      "lambda":last_accepted["lambda"],
-                      "solver":last_accepted["solver"],
-                      "rawFvResidualMolS":last_accepted["rawFvResidualMolS"],
-                      "scaledFvResidual":last_accepted["scaledFvResidual"],
-                      "sourceRefreshMismatch":accepted_source_refresh,
-                      "minimumFlowMolS":last_accepted["minimumFlowMolS"]}
-                if (outer_rows and
-                    "integratedSourceMismatchRawMolS" in outer_rows[-1]):
-                    rejected_source_refresh={"status":"MEASURED",
-                      "rawMolS":
-                        outer_rows[-1]["integratedSourceMismatchRawMolS"],
-                      "scaled":
-                        outer_rows[-1]["integratedSourceMismatchScaled"]}
-                elif outer_rows and "sourceRefreshMismatch" in outer_rows[-1]:
-                    rejected_source_refresh=outer_rows[-1][
-                      "sourceRefreshMismatch"]
-                else:
-                    rejected_source_refresh={
-                      "status":"NOT_COMPUTED_PICARD_TERMINATED_BEFORE_REFRESH"}
-                raise JobCBlocked(
-                  "JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
-                   {"heightM":h,"lambda":lam,
-                    "classification":
-                       "NUMERICAL_NONCONVERGENCE_NOT_PROCESS_INFEASIBILITY",
-                    "physicalInfeasibilityClaimed":False,
-                    "reason":step_error or "OUTER_ITERATION_LIMIT",
-                   "maximumOuterIterations":maximum_outer_iterations,
-                   "outerIterations":outer_rows,
-                    "adaptiveLambdaBracket":{
-                      "lowerAccepted":previous_lambda,
-                      "upperRejected":lam,
-                      "width":lam-previous_lambda,
-                      "minimumInterval":minimum_lambda_interval},
-                    "lastAcceptedContinuation":last_accepted_compact,
-                    "coupledContinuation":{
-                      "solver":"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
-                      "maximumFunctionEvaluations":
-                        maximum_coupled_function_evaluations,
-                      "attempts":coupled_attempts,
-                      "runtimeBudgetExhausted":coupled_budget_exhausted,
-                      "dominantResidualRows":
-                        diagnostics(coupled_best["evaluation"]),
-                      "dominantResidualBlocks":
-                        dominant_blocks(coupled_best["evaluation"]),
-                      "classification":
-                        "COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
-                      "physicalInfeasibilityClaimed":False},
-                    "pseudoArclengthQualification":arclength,
-                    "rejectedStepSourceRefreshMismatch":
-                      rejected_source_refresh,
-                    "unconstrainedTerminalDiagnostic":unconstrained,
-                   "globalInletFluxAudit":global_inlet_full_scale_audit,
-                    "claimsEmitted":{"height":False,"efficiency":False,
-                      "finalRpm":False,"jobD":False,"release":False},
-                   "runtimeSeconds":time.monotonic()-started,
-                   "runtimeBudgets":{"qualification":qualification_runtime,
-                     "nonlinearSolver":{"budgetSeconds":budget["maximumSeconds"],
-                       "elapsedSeconds":time.monotonic()-budget["started"]}}})
-            history.append({"lambda":lam,
-              "solver":"LOCAL_FLUX_PICARD_BOUNDED_DENSE_98_FV",
-              "outerIterationCount":len(outer_rows),
-              "outerIterations":outer_rows,
-              "rawFvResidualMolS":outer_rows[-1]["refreshedRawFvResidualMolS"],
-              "scaledFvResidual":outer_rows[-1]["refreshedScaledFvResidual"],
-              "integratedSourceMismatchRawMolS":
-                outer_rows[-1]["integratedSourceMismatchRawMolS"],
-              "integratedSourceMismatchScaled":
-                outer_rows[-1]["integratedSourceMismatchScaled"],
-              "minimumFlowMolS":outer_rows[-1]["minimumFlowMolS"],
-              "lambdaRuntimeSeconds":time.monotonic()-lambda_started,
-              "boundaryAwareInitialProfile":profile_audit
-                if len(history)==0 else None,
-              "globalInletFluxAudit":
-                global_inlet_full_scale_audit if len(history)==0 else None})
-            lambda_index+=1
-
-        # Picard has established a positive, locally consistent lambda-one
-        # state.  Run the square system once, only now, as limited verification.
-        progress("lambda 1 monolithic polish")
-        polish_start=x.copy()
-        polish_lower=lower.copy()
-        polish_lower[:14*m]=0.0
+            coupled_attempts=[]; coupled_fits=[]
+            try:
+                coupled_fit=budgeted_least_squares(
+                  budget,"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
+                  scipy.optimize.least_squares,
+                  lambda q:residual(q,lam),accepted_x,
+                  bounds=(lower,upper),method="trf",jac="2-point",
+                  jac_sparsity=sparsity,tr_solver="lsmr",
+                  x_scale=variable_scale,
+                  max_nfev=maximum_coupled_function_evaluations,
+                  xtol=1e-11,ftol=1e-11,gtol=1e-11)
+            except TimeoutError:
+                raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
+                  {"heightM":h,"lambda":lam,
+                   "phase":"DIRECT_COUPLED_189_EQUATION_SOLVE",
+                   "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
+                   "physicalInfeasibilityClaimed":False,
+                   "claimsEmitted":{"height":False,"efficiency":False,
+                     "finalRpm":False,"jobD":False,"release":False}})
+            coupled_ev=raw_evaluate(coupled_fit.x,lam)
+            coupled_raw=float(np.max(np.abs(coupled_ev["fv"])))
+            coupled_scaled=float(np.max(np.abs(
+              [v/scale[i%7] for i,v in enumerate(coupled_ev["fv"])])))
+            coupled_interface=max(
+              max(float(np.max(np.abs(values[0][:7]))),
+                float(np.max(np.abs(values[6])/solvers[j].scale)))
+              for j,values in enumerate(coupled_ev["details"]))
+            coupled_minimum=float(min(np.min(coupled_ev["c"]),
+              np.min(coupled_ev["d"])))
+            coupled_accepted=(coupled_minimum>0 and coupled_raw<=1e-7
+              and coupled_scaled<=1e-7 and coupled_interface<=1e-7)
+            coupled_attempts.append({
+              "initialization":"LAST_ACCEPTED_COUPLED_STATE",
+              "functionEvaluations":int(coupled_fit.nfev),
+              "optimizerStatus":int(coupled_fit.status),
+              "optimizerSuccess":bool(coupled_fit.success),
+              "optimizerOptimality":float(coupled_fit.optimality),
+              "rawFvResidualMolS":coupled_raw,
+              "scaledFvResidual":coupled_scaled,
+              "maximumOriginalJobBGateResidual":coupled_interface,
+              "minimumFlowMolS":coupled_minimum,"accepted":coupled_accepted})
+            if coupled_accepted:
+                x=coupled_fit.x
+                history.append({"lambda":lam,
+                  "solver":"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
+                  "coupledAttempts":coupled_attempts,
+                  "rawFvResidualMolS":coupled_raw,
+                  "scaledFvResidual":coupled_scaled,
+                  "maximumOriginalJobBGateResidual":coupled_interface,
+                  "minimumFlowMolS":coupled_minimum,
+                  "lambdaRuntimeSeconds":time.monotonic()-lambda_started,
+                  "boundaryAwareInitialProfile":profile_audit
+                    if len(history)==0 else None,
+                  "globalInletFluxAudit":
+                    global_inlet_full_scale_audit if len(history)==0 else None})
+                lambda_index+=1
+                continue
+            # A failed direct solve is a numerical positive-feasibility
+            # uncertainty, never a physical infeasibility conclusion.
+            if lam-previous_lambda>minimum_lambda_interval:
+                lambda_targets.insert(lambda_index,
+                  (previous_lambda+lam)/2.0)
+                progress(f"adaptive direct coupled lambda "
+                  f"{(previous_lambda+lam)/2.0:g}")
+                continue
+            raise JobCBlocked("JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
+              {"heightM":h,"lambda":lam,
+               "phase":"DIRECT_COUPLED_189_EQUATION_SOLVE",
+               "coupledAttempts":coupled_attempts,
+               "rawFvResidualMolS":coupled_raw,
+               "scaledFvResidual":coupled_scaled,
+               "maximumOriginalJobBGateResidual":coupled_interface,
+               "minimumFlowMolS":coupled_minimum,
+               "physicalInfeasibilityClaimed":False,
+               "claimsEmitted":{"height":False,"efficiency":False,
+                 "finalRpm":False,"jobD":False,"release":False}})
+        # Replay lambda=1 with the same square coupled system for final
+        # verification; no frozen-source state is used to establish acceptance.
+        progress("lambda 1 monolithic replay")
+        replay_start=x.copy()
         try:
-            polish_fit=budgeted_least_squares(
-              budget,"LAMBDA_ONE_POLISH",scipy.optimize.least_squares,
-              lambda q:residual(q,1.0),polish_start,
-              bounds=(polish_lower,upper),method="trf",jac="2-point",
+            replay_fit=budgeted_least_squares(
+              budget,"LAMBDA_ONE_REPLAY",scipy.optimize.least_squares,
+              lambda q:residual(q,1.0),replay_start,
+              bounds=(lower,upper),method="trf",jac="2-point",
               jac_sparsity=sparsity,x_scale=variable_scale,max_nfev=40,
               xtol=1e-11,ftol=1e-11,gtol=1e-11)
         except TimeoutError:
-            raise JobCBlocked("JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED",
+            raise JobCBlocked("JOB_C_LAMBDA1_MONOLITHIC_REPLAY_FAILED",
               {"heightM":h,"reason":"INTERNAL_RUNTIME_BUDGET",
                "physicalInfeasibilityClaimed":False,
                "claimsEmitted":{"height":False,"efficiency":False,
                  "finalRpm":False,"jobD":False,"release":False}})
-        x=polish_fit.x
+        x=replay_fit.x
         ev=raw_evaluate(x,1.0)
         fv_raw=float(np.max(np.abs(ev["fv"])))
         fv_scaled=float(np.max(np.abs(
@@ -1737,16 +940,16 @@ def case(r, name, dc, dd, solvers):
           float(np.max(np.abs(v[6])/solvers[j].scale)))
           for j,v in enumerate(ev["details"]))
         minimum_flow=float(min(np.min(ev["c"]),np.min(ev["d"])))
-        history[-1]["lambda1MonolithicPolish"]={
-          "solver":"LIMITED_189_EQUATION_POLISH_AFTER_PICARD",
-          "functionEvaluations":int(polish_fit.nfev),
-          "optimizerSuccess":bool(polish_fit.success),
+        history[-1]["lambda1MonolithicReplay"]={
+          "solver":"COUPLED_BOUNDED_SPARSE_189_LAMBDA_ONE_REPLAY",
+          "functionEvaluations":int(replay_fit.nfev),
+          "optimizerSuccess":bool(replay_fit.success),
           "rawFvResidualMolS":fv_raw,"scaledFvResidual":fv_scaled,
           "maximumOriginalJobBGateResidual":interface_gate,
           "minimumFlowMolS":minimum_flow}
         if (fv_raw>1e-7 or fv_scaled>1e-7 or
             interface_gate>1e-7 or minimum_flow<=0):
-            raise JobCBlocked("JOB_C_LAMBDA1_MONOLITHIC_POLISH_FAILED",
+            raise JobCBlocked("JOB_C_LAMBDA1_MONOLITHIC_REPLAY_FAILED",
               {"heightM":h,"rawFvResidualMolS":fv_raw,
                "scaledFvResidual":fv_scaled,
                "maximumOriginalJobBGateResidual":interface_gate,
