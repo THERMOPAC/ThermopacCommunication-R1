@@ -271,6 +271,37 @@ def coupled_jacobian_sparsity(scipy, cells):
             sparsity[row,14*m+13*j:14*m+13*j+13]=1
     return sparsity.tocsr()
 
+def coupled_cached_local_equations(
+    np, solver, cache, interface_unknowns, continuous_bulk, dispersed_bulk,
+    attribution=None, maximum_entries=128,
+):
+    """Reuse only byte-identical, pure local equation evaluations."""
+    unknowns=np.ascontiguousarray(interface_unknowns,dtype=float)
+    continuous=np.ascontiguousarray(continuous_bulk,dtype=float)
+    dispersed=np.ascontiguousarray(dispersed_bulk,dtype=float)
+    key=(unknowns.tobytes(),continuous.tobytes(),dispersed.tobytes())
+    cached=cache.get(key)
+    if cached is not None:
+        if attribution is not None:
+            attribution["localInterfaceEquationCacheHits"]+=1
+        return cached
+    if attribution is not None:
+        attribution["localInterfaceEquationCacheMisses"]+=1
+    values=solver.equations(unknowns,continuous,dispersed)
+    frozen=[]
+    for value in values:
+        if isinstance(value,np.ndarray):
+            copied=np.asarray(value).copy()
+            copied.setflags(write=False)
+            frozen.append(copied)
+        else:
+            frozen.append(value)
+    frozen=tuple(frozen)
+    cache[key]=frozen
+    if len(cache)>maximum_entries:
+        cache.pop(next(iter(cache)))
+    return frozen
+
 def coupled_solver_row_scale(np, inventory_scale):
     """Condition FV rows against both unchanged absolute and scaled gates."""
     return np.minimum(np.asarray(inventory_scale,dtype=float),1.0)
@@ -299,6 +330,8 @@ def coupled_evaluation_attribution():
       "jacobianBuilds":0,
       "jacobianExactStateCacheHits":0,
       "jacobianColorGroupCount":0,
+      "localInterfaceEquationCacheHits":0,
+      "localInterfaceEquationCacheMisses":0,
       "preSolveDiagnosticWallSeconds":0.0,
       "optimizerTrialBaseWallSeconds":0.0,
       "jacobianProbeWallSeconds":0.0,
@@ -1212,6 +1245,7 @@ def case(r, name, dc, dd, solvers):
         raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
           profile_audit)
     bootstrap_lambda=1e-8
+    colored_sparsity_cache={}
 
     def solve_height(h, warm=None):
         """Solve the unchanged 98 FV and 91 Job-B equations simultaneously."""
@@ -1265,11 +1299,15 @@ def case(r, name, dc, dd, solvers):
             flows=x[:14*m].reshape(2,m,7)
             return flows[0],flows[1],x[14*m:].reshape(m,13)
 
-        def raw_evaluate(x,lam):
+        local_equation_caches=[{} for _ in range(m)]
+
+        def raw_evaluate(x,lam,use_equation_cache=True):
             raw_started=time.monotonic()
             c,d,u=unpack(x)
-            cc=c/c.sum(axis=1)[:,None]*r["continuousTotalConcentrationMolM3"]
-            cd=d/d.sum(axis=1)[:,None]*r["dispersedTotalConcentrationMolM3"]
+            xc=c/c.sum(axis=1)[:,None]
+            xd=d/d.sum(axis=1)[:,None]
+            cc=xc*r["continuousTotalConcentrationMolM3"]
+            cd=xd*r["dispersedTotalConcentrationMolM3"]
             fc=np.zeros((m+1,7)); fd=np.zeros((m+1,7))
             fc[0]=feedc; fd[m]=-np.asarray(feedd)
             for j in range(1,m):
@@ -1279,7 +1317,11 @@ def case(r, name, dc, dd, solvers):
             interface=[]; nc=[]; details=[]
             interface_started=time.monotonic()
             for j in range(m):
-                values=solvers[j].equations(u[j],c[j]/c[j].sum(),d[j]/d[j].sum())
+                values=(coupled_cached_local_equations(
+                  np,solvers[j],local_equation_caches[j],u[j],xc[j],xd[j],
+                  evaluation_attribution)
+                  if use_equation_cache else
+                  solvers[j].equations(u[j],xc[j],xd[j]))
                 interface.extend(values[0]); nc.append(values[4]); details.append(values)
             interface_ended=time.monotonic()
             nc=np.asarray(nc)
@@ -1297,6 +1339,10 @@ def case(r, name, dc, dd, solvers):
             return {"c":c,"d":d,"u":u,"fc":fc,"fd":fd,"tr":tr,"rc":rc,"rd":rd,
                     "fv":fv,"interface":np.asarray(interface),"details":details}
 
+        def exact_raw_evaluate(x,lam):
+            """Bypass optimization caches for unchanged exact confirmations."""
+            return raw_evaluate(x,lam,use_equation_cache=False)
+
         def residual(x,lam,observer=None):
             budget["residualCalls"]+=1
             require_runtime_budget(budget)
@@ -1310,9 +1356,14 @@ def case(r, name, dc, dd, solvers):
         # Explicit block sparsity: every FV source sees both local phase-flow
         # blocks through the interface equations, in addition to its own
         # phase's neighboring convective/dispersion blocks.
-        sparsity=coupled_jacobian_sparsity(scipy,m)
-        jacobian_color_groups=scipy.optimize._numdiff.group_columns(sparsity)
-        colored_sparsity=(sparsity,jacobian_color_groups)
+        if m not in colored_sparsity_cache:
+            sparsity=coupled_jacobian_sparsity(scipy,m)
+            jacobian_color_groups=scipy.optimize._numdiff.group_columns(
+              sparsity)
+            jacobian_color_groups.setflags(write=False)
+            colored_sparsity_cache[m]=(sparsity,jacobian_color_groups)
+        colored_sparsity=colored_sparsity_cache[m]
+        sparsity,jacobian_color_groups=colored_sparsity
         lower=np.r_[np.full(14*m,epsilon),np.full(13*m,-35.0)]
         upper=np.r_[np.full(14*m,upper_flow),np.full(13*m,35.0)]
         variable_scale=np.r_[np.tile(scale,2*m),np.ones(13*m)]
@@ -1577,7 +1628,7 @@ def case(r, name, dc, dd, solvers):
             evaluation_attribution["preSolveDiagnosticWallSeconds"]+=(
               time.monotonic()-pre_solve_started)
             pre_confirmed=(confirm_coupled_candidate(
-              np,accepted_x,lam,raw_evaluate,gate_metrics,
+              np,accepted_x,lam,exact_raw_evaluate,gate_metrics,
               evaluation_attribution)
               if pre_metrics["accepted"] else None)
             residual_calls_before=budget["residualCalls"]
@@ -1653,11 +1704,11 @@ def case(r, name, dc, dd, solvers):
                     evaluation_attribution["optimizerWallSeconds"]+=(
                       time.monotonic()-optimizer_started)
                 final_confirmed=(confirm_coupled_candidate(
-                  np,coupled_fit.x,lam,raw_evaluate,gate_metrics,
+                  np,coupled_fit.x,lam,exact_raw_evaluate,gate_metrics,
                   evaluation_attribution)
                   if coupled_fit is not None else None)
                 best_confirmed=(confirm_coupled_candidate(
-                  np,tracker["bestState"],lam,raw_evaluate,gate_metrics,
+                  np,tracker["bestState"],lam,exact_raw_evaluate,gate_metrics,
                   evaluation_attribution)
                   if tracker["bestState"] is not None
                     and tracker["bestMetrics"]["accepted"] else None)
@@ -1667,7 +1718,7 @@ def case(r, name, dc, dd, solvers):
                     correction_trial=coupled_gauss_newton_candidate(
                       np,coupled_fit.x,correction_vector,lower,upper)
                     correction_confirmed=(confirm_coupled_candidate(
-                      np,correction_trial["state"],lam,raw_evaluate,
+                      np,correction_trial["state"],lam,exact_raw_evaluate,
                       gate_metrics,evaluation_attribution)
                       if correction_trial["admitted"] else None)
                     jacobian_diagnostics["correctionCandidate"]={
@@ -1968,7 +2019,7 @@ def case(r, name, dc, dd, solvers):
                "claimsEmitted":{"height":False,"efficiency":False,
                  "finalRpm":False,"jobD":False,"release":False}})
         x=replay_fit.x
-        ev=raw_evaluate(x,1.0)
+        ev=exact_raw_evaluate(x,1.0)
         fv_raw=float(np.max(np.abs(ev["fv"])))
         fv_scaled=float(np.max(np.abs(
           [v/scale[i%7] for i,v in enumerate(ev["fv"])])))

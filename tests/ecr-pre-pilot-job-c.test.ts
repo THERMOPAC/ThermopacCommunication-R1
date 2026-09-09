@@ -760,7 +760,7 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker.indexOf('seed_interfaces,_,seed_gate=solve_local_interfaces(', seed))
       .toBeGreaterThan(seed);
     expect(worker.indexOf(
-      'np,coupled_fit.x,lam,raw_evaluate,gate_metrics,',
+      'np,coupled_fit.x,lam,exact_raw_evaluate,gate_metrics,',
       coupled,
     ))
       .toBeGreaterThan(coupled);
@@ -797,6 +797,10 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('"jacobianConstructionResidualEvaluations"');
     expect(worker).toContain('"optimizerTrialBaseResidualEvaluations"');
     expect(worker).toContain('"jacobianExactStateCacheHits"');
+    expect(worker).toContain('"localInterfaceEquationCacheHits"');
+    expect(worker).toContain('"localInterfaceEquationCacheMisses"');
+    expect(worker).toContain('use_equation_cache=False');
+    expect(worker).toContain('ev=exact_raw_evaluate(x,1.0)');
     expect(worker).toContain('"wallClockAttribution"');
     expect(worker).toContain('"exclusivePhaseWallFractions"');
     expect(worker).toContain('"localInterfaceThermodynamics"');
@@ -935,6 +939,7 @@ names = {
   "immutable_qualified_branch_bundle",
   "qualified_branch_bundle_for_start",
   "coupled_cached_numerical_jacobian",
+  "coupled_cached_local_equations",
 }
 selected = [
   node for node in tree.body
@@ -991,6 +996,41 @@ same_state = namespace["coupled_cached_numerical_jacobian"](
 new_lambda = namespace["coupled_cached_numerical_jacobian"](
   np, scipy, probe, q, 2e-8, lower, upper, colored, attribution, cache)
 base(q)
+class LocalSolver:
+  def __init__(self):
+    self.calls = 0
+  def equations(self, u, xc, xd):
+    self.calls += 1
+    return (
+      np.r_[u[:6], xc[0]],
+      xc.copy(), xd.copy(), float(u[-1]),
+      np.arange(7, dtype=float) + xc,
+      np.arange(7, dtype=float) + xd,
+      xc - xd,
+    )
+local_solver = LocalSolver()
+local_cache = {}
+local_attribution = namespace["coupled_evaluation_attribution"]()
+local_u = np.linspace(-1.0, 1.0, 13)
+local_xc = np.asarray([.1, .2, .1, .1, .1, .3, .1])
+local_xd = np.asarray([.2, .1, .1, .1, .1, .3, .1])
+local_first = namespace["coupled_cached_local_equations"](
+  np, local_solver, local_cache, local_u, local_xc, local_xd,
+  local_attribution)
+local_second = namespace["coupled_cached_local_equations"](
+  np, local_solver, local_cache, local_u.copy(), local_xc.copy(),
+  local_xd.copy(), local_attribution)
+local_changed = local_u.copy()
+local_changed[0] = np.nextafter(local_changed[0], np.inf)
+namespace["coupled_cached_local_equations"](
+  np, local_solver, local_cache, local_changed, local_xc, local_xd,
+  local_attribution)
+local_solver.equations(local_u, local_xc, local_xd)
+local_mutation_rejected = False
+try:
+  local_first[0][0] = 99.0
+except ValueError:
+  local_mutation_rejected = True
 report = namespace["coupled_evaluation_report"](attribution)
 attribution.update({
   "preSolveDiagnosticWallSeconds": 1.0,
@@ -1028,6 +1068,13 @@ print(json.dumps({
   "newLambdaEquivalent": np.allclose(new_lambda.toarray(), expected),
   "derivativeCorrect": np.allclose(
     expected, np.diag([2.0, 4.0, 6.0]), atol=1e-8),
+  "localEquationCalls": local_solver.calls,
+  "localCacheHits": local_attribution["localInterfaceEquationCacheHits"],
+  "localCacheMisses": local_attribution["localInterfaceEquationCacheMisses"],
+  "localCacheExactValues": all(
+    np.array_equal(a, b) if isinstance(a, np.ndarray) else a == b
+    for a, b in zip(local_first, local_second)),
+  "localCacheMutationRejected": local_mutation_rejected,
   "report": report,
   "wallClock": wall_clock,
   "zeroClock": zero_clock,
@@ -1042,6 +1089,11 @@ print(json.dumps({
     expect(observed.cacheCopyIntact).toBe(true);
     expect(observed.newLambdaEquivalent).toBe(true);
     expect(observed.derivativeCorrect).toBe(true);
+    expect(observed.localEquationCalls).toBe(3);
+    expect(observed.localCacheHits).toBe(1);
+    expect(observed.localCacheMisses).toBe(2);
+    expect(observed.localCacheExactValues).toBe(true);
+    expect(observed.localCacheMutationRejected).toBe(true);
     expect(observed.report).toMatchObject({
       optimizerTrialBaseResidualEvaluations: 1,
       jacobianRequests: 3,

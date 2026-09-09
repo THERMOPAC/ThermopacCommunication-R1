@@ -22,3 +22,9 @@ Runtime timing diagnostics are non-governing evidence. Keep them in one explicit
 **Why:** Wall-clock values are nondeterministic. Hashing them changes scientific identity between identical runs, while recursive key-based exclusions could accidentally hide future scientific data.
 
 **How to apply:** Use a dedicated scientific-result hash that removes only the top-level runtime-diagnostics field and the self-hash. Checkpoint and resume hashes remain fully deterministic and timing-free.
+
+Optimization caches may serve byte-identical local equation evaluations during optimizer and finite-difference work, but every admission confirmation and the authoritative λ=1 replay must bypass them and perform fresh thermodynamic evaluations.
+
+**Why:** Colored Jacobian probes repeatedly leave some cells unchanged, so exact local reuse saves substantial work; admission freshness remains an independent scientific safeguard.
+
+**How to apply:** Key reuse on the complete local interface state plus both bulk compositions with no rounding. Treat cached arrays as immutable and keep the cache bounded. Never cache approximate matches.
