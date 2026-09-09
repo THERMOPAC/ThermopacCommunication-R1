@@ -125,3 +125,4 @@
 - [Job C conservative bootstrap result](job-c-conservative-bootstrap-result.md) — accepted through λ=1e-8; bounded replay brackets the branch below rejected λ=1.25e-8.
 - [Job C bounded continuation](job-c-bounded-continuation.md) — after the first positive-λ rejection, persist exact two-evaluation evidence and allow at most three midpoint refinements.
 - [Job C performance optimization](job-c-performance-optimization.md) — profile wall-clock cost first; optimize only the dominant numerical kernel without changing scientific semantics.
+- [Programmatic Vite browser tests](programmatic-vite-browser-tests.md) — clear REPL_ID before createServer; authenticate and satisfy 2FA/attendance guards explicitly.

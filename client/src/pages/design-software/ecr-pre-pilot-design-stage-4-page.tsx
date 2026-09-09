@@ -687,7 +687,7 @@ export default function EcrPrePilotDesignStage4Page() {
                  <p className="font-mono"><span className="font-sans font-semibold">Accepted lower λ:</span> {jobCJob.progress.acceptedLowerLambda == null ? "Unavailable" : jobCJob.progress.acceptedLowerLambda.toExponential(3)}</p>
                  <p className="font-mono"><span className="font-sans font-semibold">Rejected upper λ:</span> {jobCJob.progress.rejectedUpperLambda == null ? "Unavailable" : jobCJob.progress.rejectedUpperLambda.toExponential(3)}</p>
               </div>
-              <div className="mt-3 rounded border border-violet-300 bg-white p-3">
+              <div data-testid="job-c-governing-gates" className="mt-3 rounded border border-violet-300 bg-white p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Governing Job C gates</p>
                   <p className="font-mono text-[10px]">Current candidate: {gateVerdict(jobCJob.progress.accepted)}</p>
