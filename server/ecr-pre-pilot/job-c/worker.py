@@ -10,8 +10,15 @@ sys.dont_write_bytecode = True
 PROTOCOL = "ECR_PRE_PILOT_JOB_C_V1"
 COMPONENTS = ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O")
 
-def canonical(v): return json.dumps(v, sort_keys=True, separators=(",", ":"), allow_nan=False)
+def native_json_scalar(v):
+    if type(v).__module__.split(".")[0]=="numpy" and hasattr(v,"item"):
+        return v.item()
+    raise TypeError(f"unsupported JSON value {type(v).__name__}")
+def canonical(v): return json.dumps(v, sort_keys=True, separators=(",", ":"),
+  allow_nan=False, default=native_json_scalar)
 def hashed(v):
+    if type(v).__module__.split(".")[0]=="numpy" and hasattr(v,"item"):
+        return hashed(v.item())
     if isinstance(v, bool) or v is None or isinstance(v, str): return v
     if isinstance(v, (int,float)):
         # JS Number.toExponential normalizes -0; signed zeros are the same
@@ -150,6 +157,14 @@ class JobCBlocked(RuntimeError):
         super().__init__(code)
         self.code, self.diagnostics = code, diagnostics
 
+class CoupledGateFeasible(RuntimeError):
+    """Internal numerical stop after an unperturbed base state passes all gates."""
+
+def checkpoint_request_payload(request):
+    """Remove transport/resume fields absent from the persisted pristine request."""
+    return {key:value for key,value in request.items()
+      if key not in ("protocol","operation","resumeCheckpoint")}
+
 def globally_conservative_interior_seed(np, feedc, feedd, cells, fraction,
                                         epsilon):
     """Create a positive counter-current interior without changing feed faces."""
@@ -233,6 +248,99 @@ def coupled_jacobian_sparsity(scipy, cells):
             sparsity[row,7*m+7*j:7*m+7*j+7]=1
             sparsity[row,14*m+13*j:14*m+13*j+13]=1
     return sparsity.tocsr()
+
+def coupled_solver_row_scale(np, inventory_scale):
+    """Condition FV rows against both unchanged absolute and scaled gates."""
+    return np.minimum(np.asarray(inventory_scale,dtype=float),1.0)
+
+def coupled_gate_decision(raw, scaled, interface, minimum):
+    """Apply the unchanged scientific acceptance gates independently."""
+    raw_pass=bool(raw<=1e-7)
+    scaled_pass=bool(scaled<=1e-7)
+    interface_pass=bool(interface<=1e-7)
+    positivity_pass=bool(minimum>0)
+    return {"rawFvGatePassed":raw_pass,
+      "scaledFvGatePassed":scaled_pass,
+      "originalJobBGatePassed":interface_pass,
+      "strictPositivityPassed":positivity_pass,
+      "accepted":bool(raw_pass and scaled_pass and interface_pass
+        and positivity_pass)}
+
+def coupled_objective_channels(evaluate, observer, lam):
+    """Separate optimizer base states from finite-difference probe states."""
+    def base(state):
+        return evaluate(state,lam,observer)
+    def probe(state):
+        return evaluate(state,lam,None)
+    return base,probe
+
+def coupled_observe_base_candidate(np, tracker, state, metrics):
+    """Retain only an optimizer base state, never a Jacobian probe."""
+    tracker["baseEvaluationCount"]+=1
+    score=max(metrics["rawFvResidualMolS"]/1e-7,
+      metrics["scaledFvResidual"]/1e-7,
+      metrics["maximumOriginalJobBGateResidual"]/1e-7)
+    if not metrics["strictPositivityPassed"]:
+        score=math.inf
+    if score<tracker["bestScore"]:
+        tracker.update({"bestScore":score,
+          "bestState":np.asarray(state).copy(),"bestMetrics":metrics})
+
+def confirm_coupled_candidate(np, candidate_state, lam, raw_evaluate,
+                              metrics_for):
+    """Require two fresh full-system evaluations to pass every gate."""
+    first=raw_evaluate(candidate_state,lam)
+    second=raw_evaluate(np.asarray(candidate_state).copy(),lam)
+    first_metrics=metrics_for(first); second_metrics=metrics_for(second)
+    deltas={
+      key:abs(first_metrics[key]-second_metrics[key])
+      for key in ("rawFvResidualMolS","scaledFvResidual",
+        "maximumOriginalJobBGateResidual","minimumFlowMolS")}
+    return {"accepted":bool(first_metrics["accepted"]
+        and second_metrics["accepted"]),
+      "state":np.asarray(candidate_state).copy(),"evaluation":second,
+      "metrics":second_metrics,
+      "confirmation":{"independentRawReevaluationCount":2,
+        "bothScientificGateEvaluationsPassed":bool(
+          first_metrics["accepted"] and second_metrics["accepted"]),
+        "maximumMetricDifference":max(deltas.values()),
+        "exactlyRepeatable":all(value==0.0 for value in deltas.values())}}
+
+def find_resume_zero_anchor(completed_results, height):
+    """Select only a structurally shaped checkpoint candidate; never accept it."""
+    for completed in completed_results:
+        value=completed.get("value",{}) if isinstance(completed,dict) else {}
+        if (completed.get("kind")=="ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR"
+            and value.get("heightM")==height and value.get("lambda")==0.0
+            and isinstance(value.get("state"),list)):
+            return value["state"]
+    return None
+
+def validate_coupled_warm_flows(np, flows, lower, upper, epsilon, height=None):
+    """Fail closed before any checkpoint-derived flow can enter a solve."""
+    values=np.asarray(flows,dtype=float)
+    if (not np.all(np.isfinite(values)) or np.min(values)<=epsilon
+        or np.any(values<lower) or np.any(values>upper)):
+        raise JobCBlocked("JOB_C_WARM_START_FLOW_BOUNDS_INVALID",
+          {"minimumFlowMolS":float(np.min(values))
+            if values.size and np.all(np.isfinite(values)) else None,
+           "heightM":height,
+           "physicalInfeasibilityClaimed":False})
+    return values
+
+def coupled_bound_proximity(np, state, lower, upper, variable_scale,
+                            relative_threshold=1e-10):
+    """Report diagnostic-only near bounds that TRF active_mask can omit."""
+    values=np.asarray(state,dtype=float)
+    lower_distance=values-lower; upper_distance=upper-values
+    threshold=relative_threshold*np.maximum(np.abs(variable_scale),1.0)
+    near_lower=(lower_distance>=0)&(lower_distance<=threshold)
+    near_upper=(upper_distance>=0)&(upper_distance<=threshold)
+    return {"qualification":"DIAGNOSTIC_ONLY_NO_BOUND_OR_GATE_CHANGE",
+      "relativeThreshold":relative_threshold,
+      "thresholdByCoordinate":threshold,
+      "lowerDistance":lower_distance,"upperDistance":upper_distance,
+      "nearLower":near_lower,"nearUpper":near_upper}
 
 def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
     """Guard optimizer entry, callbacks, and return with one fail-closed contract.
@@ -708,6 +816,10 @@ def case(r, name, dc, dd, solvers):
               {"numericalCells":m,"qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT"})
         total_flow=sum(feedc)+sum(feedd)
         scale=np.asarray([max(feedc[i]+feedd[i],total_flow*1e-7) for i in range(7)])
+        # Solver-only row conditioning must represent both unchanged FV gates:
+        # the inventory-scaled gate and the absolute 1e-7 mol/s gate.  Capping
+        # the divisor at 1 mol/s changes neither equation nor acceptance test.
+        solver_scale=coupled_solver_row_scale(np,scale)
         epsilon=max(total_flow*1e-13,1e-20)
         upper_flow=max(total_flow*10,epsilon*10)
         dz=h/m; av=6*r["operatingHoldup"]/r["d32M"]
@@ -755,11 +867,14 @@ def case(r, name, dc, dd, solvers):
             return {"c":c,"d":d,"u":u,"fc":fc,"fd":fd,"tr":tr,"rc":rc,"rd":rd,
                     "fv":fv,"interface":np.asarray(interface),"details":details}
 
-        def residual(x,lam):
+        def residual(x,lam,observer=None):
             budget["residualCalls"]+=1
             require_runtime_budget(budget)
             ev=raw_evaluate(x,lam)
-            scaled_fv=np.asarray([v/scale[i%7] for i,v in enumerate(ev["fv"])])
+            if observer is not None:
+                observer(x,ev)
+            scaled_fv=np.asarray(
+              [v/solver_scale[i%7] for i,v in enumerate(ev["fv"])])
             return np.r_[scaled_fv,ev["interface"]]
 
         # Explicit block sparsity: every FV source sees both local phase-flow
@@ -794,6 +909,115 @@ def case(r, name, dc, dd, solvers):
                     blocks[key]=row
             return sorted(blocks.values(),key=lambda row:abs(row["rawValue"]),reverse=True)
 
+        def gate_metrics(ev):
+            raw=float(np.max(np.abs(ev["fv"])))
+            scaled=float(np.max(np.abs(
+              [v/scale[i%7] for i,v in enumerate(ev["fv"])])))
+            interface=max(
+              max(float(np.max(np.abs(values[0][:7]))),
+                float(np.max(np.abs(values[6])/solvers[j].scale)))
+              for j,values in enumerate(ev["details"]))
+            minimum=float(min(np.min(ev["c"]),np.min(ev["d"])))
+            decision=coupled_gate_decision(raw,scaled,interface,minimum)
+            return {"rawFvResidualMolS":raw,"scaledFvResidual":scaled,
+              "maximumOriginalJobBGateResidual":interface,
+              "minimumFlowMolS":minimum,
+              **decision}
+
+        def component_balance_audit(ev):
+            continuous=np.sum(ev["rc"],axis=0)
+            dispersed=np.sum(ev["rd"],axis=0)
+            combined=continuous+dispersed
+            transfer=np.sum(ev["tr"],axis=0)
+            return {"componentOrder":list(COMPONENTS),
+              "continuousFvResidualSumMolS":continuous.tolist(),
+              "dispersedFvResidualSumMolS":dispersed.tolist(),
+              "combinedFvResidualSumMolS":combined.tolist(),
+              "transferSumMolS":transfer.tolist(),
+              "nmp":{"continuousFvResidualSumMolS":float(continuous[5]),
+                "dispersedFvResidualSumMolS":float(dispersed[5]),
+                "combinedFvResidualSumMolS":float(combined[5]),
+                "transferSumMolS":float(transfer[5])}}
+
+        def coordinate_label(index):
+            if index<7*m:
+                return {"phase":"continuous","numericalCell":index//7+1,
+                  "component":COMPONENTS[index%7]}
+            if index<14*m:
+                local=index-7*m
+                return {"phase":"dispersed","numericalCell":local//7+1,
+                  "component":COMPONENTS[local%7]}
+            local=index-14*m
+            return {"phase":"interface","numericalCell":local//13+1,
+              "interfaceUnknownIndex":local%13}
+
+        def jacobian_audit(fit):
+            matrix=fit.jac.toarray() if hasattr(fit.jac,"toarray") else np.asarray(fit.jac)
+            gradient=np.asarray(matrix.T@fit.fun).reshape(-1)
+            largest=np.argsort(np.abs(gradient))[-10:][::-1]
+            correction=scipy.sparse.linalg.lsmr(
+              scipy.sparse.csr_matrix(matrix),-np.asarray(fit.fun),
+              atol=1e-10,btol=1e-10,maxiter=4*(27*m))
+            predicted=np.asarray(fit.fun)+matrix@correction[0]
+            active=np.asarray(fit.active_mask)
+            proximity=coupled_bound_proximity(
+              np,fit.x,lower,upper,variable_scale)
+            near_indices=np.flatnonzero(
+              proximity["nearLower"]|proximity["nearUpper"])
+            audit={"shape":[int(matrix.shape[0]),int(matrix.shape[1])],
+              "activeLowerBoundCount":int(np.count_nonzero(active<0)),
+              "activeUpperBoundCount":int(np.count_nonzero(active>0)),
+              "activeCoordinates":[
+                {**coordinate_label(int(index)),
+                 "bound":"LOWER" if active[index]<0 else "UPPER"}
+                for index in np.flatnonzero(active)[:30]],
+              "nearBoundQualification":proximity["qualification"],
+              "nearBoundRelativeThreshold":proximity["relativeThreshold"],
+              "nearLowerBoundCount":int(np.count_nonzero(
+                proximity["nearLower"])),
+              "nearUpperBoundCount":int(np.count_nonzero(
+                proximity["nearUpper"])),
+              "minimumLowerBoundDistance":float(np.min(
+                proximity["lowerDistance"])),
+              "minimumUpperBoundDistance":float(np.min(
+                proximity["upperDistance"])),
+              "nearBoundCoordinates":[
+                {**coordinate_label(int(index)),
+                 "nearLower":bool(proximity["nearLower"][index]),
+                 "nearUpper":bool(proximity["nearUpper"][index]),
+                 "lowerDistance":float(
+                   proximity["lowerDistance"][index]),
+                 "upperDistance":float(
+                   proximity["upperDistance"][index]),
+                 "diagnosticThreshold":float(
+                   proximity["thresholdByCoordinate"][index])}
+                for index in near_indices[:30]],
+              "largestGradientCoordinates":[
+                {**coordinate_label(int(index)),
+                 "value":float(gradient[index])} for index in largest],
+              "gaussNewtonCorrectionNorm":float(np.linalg.norm(correction[0])),
+              "predictedResidualL2":float(np.linalg.norm(predicted)),
+              "lsmrStopCode":int(correction[1]),
+              "lsmrIterations":int(correction[2])}
+            try:
+                singular=np.linalg.svd(matrix,compute_uv=False)
+                cutoff=max(matrix.shape)*np.finfo(float).eps*singular[0]
+                condition=(float(singular[0]/singular[-1])
+                  if singular[-1]>0 else None)
+                audit.update({"svdStatus":"CALCULATED",
+                  "numericalRank":int(np.count_nonzero(singular>cutoff)),
+                  "rankCutoff":float(cutoff),
+                  "largestSingularValue":float(singular[0]),
+                  "smallestSingularValue":float(singular[-1]),
+                  "conditionNumber":condition
+                    if condition is None or math.isfinite(condition) else None})
+            except np.linalg.LinAlgError:
+                audit.update({"svdStatus":"UNAVAILABLE_NONCONVERGENCE",
+                  "numericalRank":None,"rankCutoff":None,
+                  "largestSingularValue":None,"smallestSingularValue":None,
+                  "conditionNumber":None})
+            return audit
+
         def solve_local_interfaces(flow_vector, interface_vector):
             c,d=np.asarray(flow_vector).reshape(2,m,7)
             unknowns=[]; fluxes=[]; maximum_gate=0.0
@@ -812,11 +1036,8 @@ def case(r, name, dc, dd, solvers):
             return np.asarray(unknowns),np.asarray(fluxes),maximum_gate
 
         seed_flows,seed_interface_warm=initial()
-        if (np.min(seed_flows)<=epsilon
-            or np.any(seed_flows>upper[:14*m])):
-            raise JobCBlocked("JOB_C_WARM_START_FLOW_BOUNDS_INVALID",
-              {"heightM":h,"minimumFlowMolS":float(np.min(seed_flows)),
-               "physicalInfeasibilityClaimed":False})
+        seed_flows=validate_coupled_warm_flows(
+          np,seed_flows,lower[:14*m],upper[:14*m],epsilon,h)
         # V2/interface unknowns are lineage-only warm starts.  Recompute them
         # on the evolving inventory seed before the first coupled residual.
         seed_interfaces,_,seed_gate=solve_local_interfaces(
@@ -856,68 +1077,178 @@ def case(r, name, dc, dd, solvers):
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
+            reference_lambda=history[-1]["lambda"] if history else None
             solve_phase=("COUPLED_BOUNDED_SPARSE_189_ZERO_TRANSFER_BOOTSTRAP"
               if lam==0.0 else "COUPLED_BOUNDED_SPARSE_189_CONTINUATION")
             progress("direct coupled zero-transfer bootstrap"
               if lam==0.0 else f"direct coupled lambda {lam:g}")
             lambda_started=time.monotonic()
-            coupled_attempts=[]; coupled_fits=[]
+            coupled_attempts=[]
+            pre_ev=raw_evaluate(accepted_x,lam)
+            pre_metrics=gate_metrics(pre_ev)
+            reference_ev=(raw_evaluate(accepted_x,reference_lambda)
+              if reference_lambda is not None else None)
+            pre_solve_audit={
+              "evaluatedLambda":lam,
+              "referenceAcceptedLambda":reference_lambda,
+              **pre_metrics,
+              "dominantResidualRows":diagnostics(pre_ev),
+              "dominantResidualBlocks":dominant_blocks(pre_ev),
+              "componentBalanceAudit":component_balance_audit(pre_ev),
+              "maximumFvChangeFromAcceptedReferenceMolS":(
+                float(np.max(np.abs(pre_ev["fv"]-reference_ev["fv"])))
+                if reference_ev is not None else None),
+              "solverRowConditioning":{
+                "qualification":"NUMERICAL_ONLY_EQUATIONS_AND_GATES_UNCHANGED",
+                "componentOrder":list(COMPONENTS),
+                "inventoryScaleMolS":scale.tolist(),
+                "gateAlignedDivisorMolS":solver_scale.tolist(),
+                "divisorRule":"MIN_INVENTORY_SCALE_AND_1_MOL_PER_S"}}
+            pre_confirmed=(confirm_coupled_candidate(
+              np,accepted_x,lam,raw_evaluate,gate_metrics)
+              if pre_metrics["accepted"] else None)
             residual_calls_before=budget["residualCalls"]
-            try:
-                coupled_fit=budgeted_least_squares(
-                  budget,solve_phase,
-                  scipy.optimize.least_squares,
-                  lambda q:residual(q,lam),accepted_x,
-                  bounds=(lower,upper),method="trf",jac="3-point",
-                  jac_sparsity=sparsity,tr_solver="lsmr",
-                  tr_options={"atol":1e-10,"btol":1e-10,
-                    "maxiter":4*(27*m),"regularize":True},
-                  x_scale=variable_scale,
-                  max_nfev=maximum_coupled_optimizer_nfev,
-                  xtol=None,ftol=1e-11,gtol=1e-11)
-            except TimeoutError:
-                raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
-                  {"heightM":h,"lambda":lam,
-                   "phase":"DIRECT_COUPLED_189_EQUATION_SOLVE",
-                   "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
-                   "physicalInfeasibilityClaimed":False,
-                   "claimsEmitted":{"height":False,"efficiency":False,
-                     "finalRpm":False,"jobD":False,"release":False}})
-            coupled_ev=raw_evaluate(coupled_fit.x,lam)
-            coupled_raw=float(np.max(np.abs(coupled_ev["fv"])))
-            coupled_scaled=float(np.max(np.abs(
-              [v/scale[i%7] for i,v in enumerate(coupled_ev["fv"])])))
-            coupled_interface=max(
-              max(float(np.max(np.abs(values[0][:7]))),
-                float(np.max(np.abs(values[6])/solvers[j].scale)))
-              for j,values in enumerate(coupled_ev["details"]))
-            coupled_minimum=float(min(np.min(coupled_ev["c"]),
-              np.min(coupled_ev["d"])))
-            coupled_accepted=(coupled_minimum>0 and coupled_raw<=1e-7
-              and coupled_scaled<=1e-7 and coupled_interface<=1e-7)
+            coupled_fit=None; jacobian_diagnostics=None
+            selected_source=None; selected_confirmation=None
+            if pre_confirmed is not None and pre_confirmed["accepted"]:
+                selected=pre_confirmed
+                selected_source="ACCEPTED_REFERENCE_DIRECT_REEVALUATION"
+                coupled_attempts.append({
+                  "initialization":("GLOBALLY_CONSERVATIVE_POSITIVE_SEED"
+                    if not history else "LAST_ACCEPTED_COUPLED_STATE"),
+                  "solvePhase":solve_phase,
+                  "selectedStateSource":selected_source,
+                  "jacobianAudit":{
+                    "status":"NOT_COMPUTED_DIRECT_ACCEPTED_REFERENCE",
+                    "qualification":"NOT_REQUIRED_FOR_ACCEPTANCE",
+                  },
+                  "optimizerFunctionEvaluations":0,
+                  "actualResidualEvaluations":0,
+                  "optimizerStatus":None,"optimizerSuccess":None,
+                  "optimizerOptimality":None,
+                  **selected["metrics"],
+                  "deterministicConfirmation":selected["confirmation"]})
+            else:
+                tracker={"baseEvaluationCount":0,"bestScore":math.inf,
+                  "bestState":None,"bestMetrics":None}
+                def observe_base_state(q,ev):
+                    metrics=gate_metrics(ev)
+                    coupled_observe_base_candidate(
+                      np,tracker,q,metrics)
+                    if metrics["accepted"]:
+                        raise CoupledGateFeasible()
+                base_residual,probe_residual=coupled_objective_channels(
+                  residual,observe_base_state,lam)
+                def numerical_jacobian(q):
+                    require_runtime_budget(budget)
+                    matrix=scipy.optimize._numdiff.approx_derivative(
+                      probe_residual,q,method="3-point",
+                      bounds=(lower,upper),sparsity=sparsity)
+                    require_runtime_budget(budget)
+                    return matrix
+                try:
+                    coupled_fit=budgeted_least_squares(
+                      budget,solve_phase,
+                      scipy.optimize.least_squares,
+                      base_residual,accepted_x,
+                      bounds=(lower,upper),method="trf",jac=numerical_jacobian,
+                      tr_solver="lsmr",
+                      tr_options={"atol":1e-10,"btol":1e-10,
+                        "maxiter":4*(27*m),"regularize":True},
+                      x_scale=variable_scale,
+                      max_nfev=maximum_coupled_optimizer_nfev,
+                      xtol=None,ftol=1e-11,gtol=1e-11)
+                except CoupledGateFeasible:
+                    coupled_fit=None
+                except TimeoutError:
+                    raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
+                      {"heightM":h,"lambda":lam,
+                       "phase":"DIRECT_COUPLED_189_EQUATION_SOLVE",
+                       "classification":"NUMERICAL_RUNTIME_BUDGET_EXHAUSTED",
+                       "physicalInfeasibilityClaimed":False,
+                       "claimsEmitted":{"height":False,"efficiency":False,
+                         "finalRpm":False,"jobD":False,"release":False}})
+                final_confirmed=(confirm_coupled_candidate(
+                  np,coupled_fit.x,lam,raw_evaluate,gate_metrics)
+                  if coupled_fit is not None else None)
+                best_confirmed=(confirm_coupled_candidate(
+                  np,tracker["bestState"],lam,raw_evaluate,gate_metrics)
+                  if tracker["bestState"] is not None
+                    and tracker["bestMetrics"]["accepted"] else None)
+                confirmed_options=[]
+                if final_confirmed is not None and final_confirmed["accepted"]:
+                    confirmed_options.append(
+                      ("OPTIMIZER_FINAL_STATE",final_confirmed))
+                if best_confirmed is not None and best_confirmed["accepted"]:
+                    confirmed_options.append((
+                      "FIRST_GATE_FEASIBLE_BASE_STATE"
+                      if coupled_fit is None
+                      else "OPTIMIZER_BASE_ITERATE_CAPTURE",
+                      best_confirmed))
+                if confirmed_options:
+                    selected_source,selected=min(confirmed_options,
+                      key=lambda item:max(
+                        item[1]["metrics"]["rawFvResidualMolS"]/1e-7,
+                        item[1]["metrics"]["scaledFvResidual"]/1e-7,
+                        item[1]["metrics"][
+                          "maximumOriginalJobBGateResidual"]/1e-7))
+                else:
+                    selected=(final_confirmed
+                      if final_confirmed is not None else best_confirmed)
+                    selected_source="OPTIMIZER_FINAL_STATE_REJECTED"
+                if selected is None:
+                    raise RuntimeError(
+                      "JOB_C_GATE_FEASIBLE_BASE_CONFIRMATION_FAILED")
+                jacobian_diagnostics=(jacobian_audit(coupled_fit)
+                  if coupled_fit is not None else {
+                    "status":"NOT_COMPUTED_AFTER_FIRST_GATE_FEASIBLE_BASE_STATE",
+                    "qualification":"NOT_REQUIRED_FOR_ACCEPTANCE",
+                    "reason":"OPTIMIZER_STOPPED_BY_UNPERTURBED_GATE_PASS",
+                  })
+                coupled_attempts.append({
+                  "initialization":("GLOBALLY_CONSERVATIVE_POSITIVE_SEED"
+                    if not history else "LAST_ACCEPTED_COUPLED_STATE"),
+                  "solvePhase":solve_phase,
+                  "selectedStateSource":selected_source,
+                  "baseIterationEvaluations":tracker["baseEvaluationCount"],
+                  "bestBaseIterationMetrics":tracker["bestMetrics"],
+                  "optimizerFunctionEvaluations":(
+                    int(coupled_fit.nfev) if coupled_fit is not None
+                    else tracker["baseEvaluationCount"]),
+                  "actualResidualEvaluations":
+                    int(budget["residualCalls"]-residual_calls_before),
+                  "optimizerStatus":(
+                    int(coupled_fit.status) if coupled_fit is not None else None),
+                  "optimizerSuccess":(
+                    bool(coupled_fit.success) if coupled_fit is not None else None),
+                  "optimizerOptimality":(
+                    float(coupled_fit.optimality) if coupled_fit is not None
+                    else None),
+                  **selected["metrics"],
+                  "deterministicConfirmation":selected["confirmation"],
+                  "jacobianAudit":jacobian_diagnostics})
+            coupled_ev=selected["evaluation"]
+            coupled_metrics=selected["metrics"]
+            coupled_raw=coupled_metrics["rawFvResidualMolS"]
+            coupled_scaled=coupled_metrics["scaledFvResidual"]
+            coupled_interface=coupled_metrics[
+              "maximumOriginalJobBGateResidual"]
+            coupled_minimum=coupled_metrics["minimumFlowMolS"]
+            coupled_accepted=selected["accepted"]
             coupled_dominant_rows=diagnostics(coupled_ev)
             coupled_dominant_blocks=dominant_blocks(coupled_ev)
-            coupled_attempts.append({
-              "initialization":("GLOBALLY_CONSERVATIVE_POSITIVE_SEED"
-                if not history else "LAST_ACCEPTED_COUPLED_STATE"),
-              "solvePhase":solve_phase,
-              "optimizerFunctionEvaluations":int(coupled_fit.nfev),
-              "actualResidualEvaluations":
-                int(budget["residualCalls"]-residual_calls_before),
-              "optimizerStatus":int(coupled_fit.status),
-              "optimizerSuccess":bool(coupled_fit.success),
-              "optimizerOptimality":float(coupled_fit.optimality),
-              "rawFvResidualMolS":coupled_raw,
-              "scaledFvResidual":coupled_scaled,
-              "maximumOriginalJobBGateResidual":coupled_interface,
-              "minimumFlowMolS":coupled_minimum,
+            coupled_attempts[-1].update({
+              "preSolveAcceptedStateAudit":pre_solve_audit,
               "dominantResidualRows":coupled_dominant_rows,
               "dominantResidualBlocks":coupled_dominant_blocks,
+              "componentBalanceAudit":component_balance_audit(coupled_ev),
               "accepted":coupled_accepted})
             if coupled_accepted:
-                x=coupled_fit.x
+                x=selected["state"]
                 history.append({"lambda":lam,
                   "solver":solve_phase,
+                  "selectedStateSource":selected_source,
+                  "stateSha256":digest(x.tolist()),
                   "coupledAttempts":coupled_attempts,
                   "rawFvResidualMolS":coupled_raw,
                   "scaledFvResidual":coupled_scaled,
@@ -928,6 +1259,17 @@ def case(r, name, dc, dd, solvers):
                     if len(history)==0 else None,
                   "globalInletFluxAudit":
                     global_inlet_full_scale_audit if len(history)==0 else None})
+                if lam==0.0:
+                    record_completed_result(
+                      f"coupled-anchor:{h:g}:lambda:0",
+                      "ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR",
+                      {"heightM":float(h),"lambda":0.0,
+                       "state":x.tolist(),"stateSha256":digest(x.tolist()),
+                       "gateMetrics":coupled_metrics,
+                       "deterministicConfirmation":
+                         selected["confirmation"]},
+                      inputSha256=_request_sha256)
+                    checkpoint()
                 lambda_index+=1
                 continue
             # A failed direct solve is a numerical positive-feasibility
@@ -949,6 +1291,8 @@ def case(r, name, dc, dd, solvers):
                 "rejectedLambdaBracket":None if previous_lambda is None else {
                   "lowerAccepted":previous_lambda,"upperRejected":lam},
                "coupledAttempts":coupled_attempts,
+               "acceptedContinuationHistory":history,
+               "preSolveAcceptedStateAudit":pre_solve_audit,
                "rawFvResidualMolS":coupled_raw,
                "scaledFvResidual":coupled_scaled,
                "maximumOriginalJobBGateResidual":coupled_interface,
@@ -1108,8 +1452,12 @@ def case(r, name, dc, dd, solvers):
           "scaledFvResidual":scaled,"numericalCells":evidence,
           "monolithicRuntimeSeconds":ev["monolithicRuntimeSeconds"]}
 
+    # A checkpoint state is only a warm start.  solve_height reruns local
+    # interface closure and independently re-evaluates every unchanged
+    # lambda=0 gate before it can be accepted.
+    resume_anchor=find_resume_zero_anchor(_completed_results,2.0)
     progress("candidate 2m",height_candidate_m=2.0)
-    low=solve_height(2.0)
+    low=solve_height(2.0,resume_anchor)
     h2_benchmark=qualify_h2(low)
     h2_benchmark["outletDuty"]=outlet_duty_report(low)
     progress("candidate20m",height_candidate_m=20.0)
@@ -1304,7 +1652,7 @@ for line in sys.stdin:
     _last_progress_emit=0.0
     _completed_results=[]
     r=json.loads(line)
-    _request_sha256=digest({k:v for k,v in r.items() if k!="resumeCheckpoint"})
+    _request_sha256=digest(checkpoint_request_payload(r))
     resume=r.get("resumeCheckpoint")
     resume_status="NOT_REQUESTED"
     if resume is not None:
@@ -1316,6 +1664,11 @@ for line in sys.stdin:
         # numerical state is never accepted from a checkpoint: the hash-bound
         # qualification/cache path below replays every accepted local state.
         resume_status="SNAPSHOT_ACCEPTED_REQUALIFICATION_REQUIRED"
+        completed=resume.get("completedResults",[])
+        if not isinstance(completed,list):
+            raise ValueError("JOB_C_RESUME_CHECKPOINT_RESULTS_INVALID")
+        _completed_results=[
+          value for value in completed if isinstance(value,dict)]
     if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     validate_branch_request(r)
     temporary,engine,_,_=job_b.scientific.build_engine(r["temperatureK"],0.0)
@@ -1350,7 +1703,8 @@ for line in sys.stdin:
     if runtime_budgets is not None:
         diagnostics.setdefault("runtimeBudgets",runtime_budgets)
     body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",
-          "error":e.code,"diagnostics":diagnostics}
+          "error":e.code,"diagnostics":diagnostics,
+          "completedResults":_completed_results}
  except TimeoutError:
     runtime_budgets=active_runtime_budget_report()
     body={"protocol":PROTOCOL,"status":"BLOCKED_PRELIMINARY_JOB_C",

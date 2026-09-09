@@ -27,10 +27,41 @@ type EnqueueReuse = {
 
 const PARTIAL_SCHEMA = 'ECR_JOB_C_PARTIAL_V1';
 
+export function jobCCheckpointRequestPayload(request: Record<string, any>) {
+  const pristine = { ...request };
+  delete pristine.protocol;
+  delete pristine.operation;
+  delete pristine.resumeCheckpoint;
+  return pristine;
+}
+
 function pristineRequestHash(snapshot: any) {
-  const request = { ...(snapshot?.prepared?.workerRequest ?? {}) };
-  delete request.resumeCheckpoint;
-  return jobCResultHash(request);
+  const request = snapshot?.prepared?.workerRequest;
+  if (!request || typeof request !== 'object') {
+    throw new JobCError('JOB_C_CHECKPOINT_REQUEST_MISSING');
+  }
+  return jobCResultHash(jobCCheckpointRequestPayload(request));
+}
+
+export function validateJobCCheckpoint(
+  checkpoint: Record<string, any>,
+  expectedRequestHash: string,
+) {
+  const failures = [
+    checkpoint?.schemaVersion === PARTIAL_SCHEMA ? null : 'SCHEMA_VERSION',
+    checkpoint?.complete === false ? null : 'COMPLETE_FLAG',
+    checkpoint?.requestSha256 === expectedRequestHash ? null : 'REQUEST_SHA256',
+    Array.isArray(checkpoint?.completedResults) ? null : 'COMPLETED_RESULTS',
+    checkpoint?.progress && typeof checkpoint.progress.phase === 'string'
+      ? null : 'PROGRESS',
+  ].filter(Boolean);
+  if (failures.length) {
+    throw new JobCError('JOB_C_CHECKPOINT_INVALID', {
+      failures,
+      expectedRequestHash,
+      observedRequestHash: checkpoint?.requestSha256 ?? null,
+    });
+  }
 }
 
 function validPartial(row: any) {
@@ -472,12 +503,7 @@ async function execute(row: any, token: string) {
         if (changed.rows[0]?.cancel_requested_at) controller.abort();
       },
       onCheckpoint: async (checkpoint: Record<string, any>) => {
-        if (checkpoint.schemaVersion !== PARTIAL_SCHEMA || checkpoint.complete !== false
-          || checkpoint.requestSha256 !== pristineRequestHash(snapshot)
-          || !Array.isArray(checkpoint.completedResults)
-          || !checkpoint.progress || typeof checkpoint.progress.phase !== 'string') {
-          throw new JobCError('JOB_C_CHECKPOINT_INVALID');
-        }
+        validateJobCCheckpoint(checkpoint, pristineRequestHash(snapshot));
         const progress = checkpoint.progress as JobCProgress;
         const changed = await guardedUpdate(row.id, token,
           `partial_result_snapshot=$3::jsonb,partial_result_hash=$4,
@@ -512,18 +538,29 @@ async function execute(row: any, token: string) {
     const cancelled = controller.signal.aborted || error?.message === 'JOB_C_CANCELLED';
     const blocked = !cancelled
       && error?.message === 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE';
+    const failureEvidence = error?.details?.workerResult
+      ? {
+        qualification: 'WORKER_EVIDENCE_RETAINED_AFTER_CHECKPOINT_FAILURE',
+        checkpointError: error?.message ?? 'JOB_C_CHECKPOINT_PERSISTENCE_FAILED',
+        checkpointDiagnostics: error?.details?.checkpointDiagnostics ?? null,
+        workerResult: error.details.workerResult,
+      } : null;
     const final = await guardedUpdate(row.id, token,
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,
        error=CASE WHEN cancel_requested_at IS NULL THEN $4 ELSE 'JOB_C_CANCELLED' END,
-        result_snapshot=CASE WHEN cancel_requested_at IS NULL AND $3='blocked'
+         result_snapshot=CASE WHEN cancel_requested_at IS NULL AND ($3='blocked' OR $7)
           THEN $5::jsonb ELSE NULL::jsonb END,
-        result_hash=CASE WHEN cancel_requested_at IS NULL AND $3='blocked'
+         result_hash=CASE WHEN cancel_requested_at IS NULL AND ($3='blocked' OR $7)
           THEN $6 ELSE NULL END,
        progress_phase='terminal',
        completed_at=NOW(),lease_expires_at=NULL,claim_token=NULL`,
-      [cancelled ? 'cancelled' : blocked ? 'blocked' : 'failed', error?.message ?? 'JOB_C_FAILED',
-        error?.details ? { diagnostics: error.details } : null,
-        error?.details ? jobCResultHash({ diagnostics: error.details }) : null]);
+       [cancelled ? 'cancelled' : blocked ? 'blocked' : 'failed',
+         error?.message ?? 'JOB_C_FAILED',
+         failureEvidence ?? (error?.details ? { diagnostics: error.details } : null),
+         failureEvidence
+           ? jobCResultHash(failureEvidence)
+           : error?.details ? jobCResultHash({ diagnostics: error.details }) : null,
+         Boolean(failureEvidence)]);
     if (final.rows[0]) await history(pool, final.rows[0], {
       event: final.rows[0].status,
       reason: error?.message ?? 'JOB_C_FAILED',

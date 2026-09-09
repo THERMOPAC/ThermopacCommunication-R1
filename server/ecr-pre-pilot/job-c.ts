@@ -207,35 +207,47 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     const abort = () => { terminateForCancellation(); };
     options.signal?.addEventListener('abort', abort, { once: true });
     if (options.signal?.aborted) terminateForCancellation();
+    const processWorkerLine = (line: string) => {
+      try {
+        if (line.startsWith('JOB_C_PROGRESS ')) {
+          const progress = JSON.parse(line.slice('JOB_C_PROGRESS '.length)) as JobCProgress;
+          if (typeof progress.phase === 'string') {
+            callbackChain = callbackChain.then(() => options.onProgress?.(
+              progress.phase, progress.completed, progress.total, progress,
+            )).catch(() => { /* lease heartbeat remains authoritative */ });
+          }
+        } else if (line.startsWith('JOB_C_CHECKPOINT ')) {
+          const checkpoint = JSON.parse(line.slice('JOB_C_CHECKPOINT '.length));
+          if (checkpoint && typeof checkpoint === 'object' && !Array.isArray(checkpoint)) {
+            callbackChain = callbackChain.then(() => options.onCheckpoint?.(checkpoint))
+              .catch(error => {
+                checkpointCallbackError = error instanceof Error
+                  ? error : new JobCError('JOB_C_CHECKPOINT_PERSISTENCE_FAILED');
+              });
+          } else {
+            checkpointCallbackError = new JobCError('JOB_C_CHECKPOINT_INVALID', {
+              failures: ['MALFORMED_CHECKPOINT_ENVELOPE'],
+            });
+          }
+        } else {
+          stdout += `${line}\n`;
+        }
+      } catch {
+        if (line.startsWith('JOB_C_CHECKPOINT ')) {
+          checkpointCallbackError = new JobCError('JOB_C_CHECKPOINT_INVALID', {
+            failures: ['MALFORMED_CHECKPOINT_ENVELOPE'],
+          });
+        }
+        // Malformed progress remains non-authoritative.
+      }
+    };
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', chunk => {
       const text = String(chunk);
       progressBuffer += text;
       const lines = progressBuffer.split(/\r?\n/);
       progressBuffer = lines.pop() ?? '';
-      for (const line of lines) {
-        try {
-          if (line.startsWith('JOB_C_PROGRESS ')) {
-            const progress = JSON.parse(line.slice('JOB_C_PROGRESS '.length)) as JobCProgress;
-            if (typeof progress.phase === 'string') {
-              callbackChain = callbackChain.then(() => options.onProgress?.(
-                progress.phase, progress.completed, progress.total, progress,
-              )).catch(() => { /* lease heartbeat remains authoritative */ });
-            }
-          } else if (line.startsWith('JOB_C_CHECKPOINT ')) {
-            const checkpoint = JSON.parse(line.slice('JOB_C_CHECKPOINT '.length));
-            if (checkpoint && typeof checkpoint === 'object') {
-              callbackChain = callbackChain.then(() => options.onCheckpoint?.(checkpoint))
-                .catch(error => {
-                  checkpointCallbackError = error instanceof Error
-                    ? error : new JobCError('JOB_C_CHECKPOINT_PERSISTENCE_FAILED');
-                });
-            }
-          } else {
-            stdout += `${line}\n`;
-          }
-        } catch { /* malformed progress never changes final scientific JSON */ }
-      }
+      for (const line of lines) processWorkerLine(line);
     });
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', chunk => {
@@ -244,8 +256,11 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
     child.on('error', () => finish(new JobCError('JOB_C_WORKER_START_FAILED')));
     child.on('close', async code => {
       clearTimeout(cancellationTimer);
+      if (progressBuffer) {
+        processWorkerLine(progressBuffer);
+        progressBuffer = '';
+      }
       await callbackChain;
-      if (checkpointCallbackError) return finish(checkpointCallbackError);
       if (code !== 0) return finish(new JobCError(
         cancellationRequested ? 'JOB_C_CANCELLED' : 'JOB_C_WORKER_FAILED',
         {
@@ -254,7 +269,6 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         },
       ));
       try {
-        if (progressBuffer) stdout += progressBuffer;
         const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
         const finalLines = lines.filter(line =>
           !line.startsWith('JOB_C_PROGRESS ') && !line.startsWith('JOB_C_CHECKPOINT '));
@@ -265,6 +279,14 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
           || JSON.stringify(response.componentOrder ?? JOB_C_COMPONENT_ORDER)
             !== JSON.stringify(JOB_C_COMPONENT_ORDER)
           || response.resultSha256 !== jobCResultHash(response)) throw new Error();
+        if (checkpointCallbackError) {
+          return finish(new JobCError('JOB_C_CHECKPOINT_PERSISTENCE_FAILED', {
+            cause: checkpointCallbackError.message,
+            checkpointDiagnostics:
+              (checkpointCallbackError as JobCError).details ?? null,
+            workerResult: response,
+          }));
+        }
         if (cancellationRequested || response.status === 'INTERRUPTED_PRELIMINARY_JOB_C') {
           finish(new JobCError('JOB_C_CANCELLED', { workerResult: response }));
         } else {

@@ -11,6 +11,10 @@ import {
   jobCResultHash,
   runJobCWorker,
 } from '../server/ecr-pre-pilot/job-c';
+import {
+  jobCCheckpointRequestPayload,
+  validateJobCCheckpoint,
+} from '../server/ecr-pre-pilot/job-c-job-service';
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
   it('waits for graceful cancellation, forwards the last checkpoint, and never completes it', async () => {
@@ -69,6 +73,140 @@ while True: time.sleep(0.05)
     }
   });
 
+  it('retains terminal worker evidence when checkpoint persistence fails', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'job-c-checkpoint-failure-'));
+    const workerDir = join(root, 'server/ecr-pre-pilot/job-c');
+    mkdirSync(workerDir, { recursive: true });
+    const blocked = {
+      protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+      status: 'BLOCKED_PRELIMINARY_JOB_C',
+      error: 'JOB_C_BOUNDARY_CONTINUATION_NOT_REPRODUCIBLE',
+    };
+    const response = { ...blocked, resultSha256: jobCResultHash(blocked) };
+    writeFileSync(join(workerDir, 'worker.py'), `
+import json, sys
+sys.stdin.readline()
+print("JOB_C_CHECKPOINT "+json.dumps({"schemaVersion":"ECR_PRE_PILOT_JOB_C_PARTIAL_V1","complete":False,"requestSha256":"bad","completedResults":[],"progress":{"phase":"test"}}), flush=True)
+print(${JSON.stringify(JSON.stringify(response))}, flush=True)
+`);
+    const previousRoot = process.env.JOB_C_RUNTIME_ROOT;
+    const previousPython = process.env.JOB_C_PYTHON;
+    process.env.JOB_C_RUNTIME_ROOT = root;
+    process.env.JOB_C_PYTHON = 'python3';
+    try {
+      await expect(runJobCWorker({} as any, {
+        onCheckpoint: () => {
+          throw new Error('CHECKPOINT_WRITE_FAILED');
+        },
+      })).rejects.toMatchObject({
+        message: 'JOB_C_CHECKPOINT_PERSISTENCE_FAILED',
+        details: {
+          cause: 'CHECKPOINT_WRITE_FAILED',
+          workerResult: expect.objectContaining({
+            status: 'BLOCKED_PRELIMINARY_JOB_C',
+            error: 'JOB_C_BOUNDARY_CONTINUATION_NOT_REPRODUCIBLE',
+          }),
+        },
+      });
+    } finally {
+      if (previousRoot === undefined) delete process.env.JOB_C_RUNTIME_ROOT;
+      else process.env.JOB_C_RUNTIME_ROOT = previousRoot;
+      if (previousPython === undefined) delete process.env.JOB_C_PYTHON;
+      else process.env.JOB_C_PYTHON = previousPython;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['malformed JSON', '{"broken":'],
+    ['null', 'null'],
+    ['array', '[]'],
+    ['invalid object', '{}'],
+  ])('fails closed for an unterminated %s checkpoint at EOF', async (_label, payload) => {
+    const root = mkdtempSync(join(tmpdir(), 'job-c-checkpoint-eof-'));
+    const workerDir = join(root, 'server/ecr-pre-pilot/job-c');
+    mkdirSync(workerDir, { recursive: true });
+    const blocked = {
+      protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+      status: 'BLOCKED_PRELIMINARY_JOB_C',
+      error: 'EXPECTED_SCIENTIFIC_BLOCK',
+    };
+    const response = { ...blocked, resultSha256: jobCResultHash(blocked) };
+    writeFileSync(join(workerDir, 'worker.py'), `
+import sys
+sys.stdin.readline()
+print(${JSON.stringify(JSON.stringify(response))}, flush=True)
+sys.stdout.write("JOB_C_CHECKPOINT "+${JSON.stringify(payload)})
+sys.stdout.flush()
+`);
+    const previousRoot = process.env.JOB_C_RUNTIME_ROOT;
+    const previousPython = process.env.JOB_C_PYTHON;
+    process.env.JOB_C_RUNTIME_ROOT = root;
+    process.env.JOB_C_PYTHON = 'python3';
+    try {
+      await expect(runJobCWorker({} as any, {
+        onCheckpoint: checkpoint => validateJobCCheckpoint(
+          checkpoint, 'a'.repeat(64),
+        ),
+      })).rejects.toMatchObject({
+        message: 'JOB_C_CHECKPOINT_PERSISTENCE_FAILED',
+        details: {
+          cause: 'JOB_C_CHECKPOINT_INVALID',
+          workerResult: expect.objectContaining({
+            status: 'BLOCKED_PRELIMINARY_JOB_C',
+            error: 'EXPECTED_SCIENTIFIC_BLOCK',
+          }),
+        },
+      });
+    } finally {
+      if (previousRoot === undefined) delete process.env.JOB_C_RUNTIME_ROOT;
+      else process.env.JOB_C_RUNTIME_ROOT = previousRoot;
+      if (previousPython === undefined) delete process.env.JOB_C_PYTHON;
+      else process.env.JOB_C_PYTHON = previousPython;
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('reports checkpoint envelope fields that fail validation', () => {
+    const expected = 'a'.repeat(64);
+    expect(() => validateJobCCheckpoint({
+      schemaVersion: 'ECR_JOB_C_PARTIAL_V1',
+      complete: false,
+      requestSha256: expected,
+      completedResults: [],
+      progress: { phase: 'test' },
+    }, expected)).not.toThrow();
+    expect(() => validateJobCCheckpoint({
+      schemaVersion: 'wrong',
+      complete: true,
+      requestSha256: 'wrong',
+      completedResults: {},
+      progress: {},
+    }, expected)).toThrowError(expect.objectContaining({
+      message: 'JOB_C_CHECKPOINT_INVALID',
+      details: expect.objectContaining({
+        failures: [
+          'SCHEMA_VERSION', 'COMPLETE_FLAG', 'REQUEST_SHA256',
+          'COMPLETED_RESULTS', 'PROGRESS',
+        ],
+      }),
+    }));
+  });
+
+  it('normalizes checkpoint hashes symmetrically with the Python worker', () => {
+    const transported = {
+      protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+      operation: 'SOLVE_HEIGHT',
+      resumeCheckpoint: { stale: true },
+      temperatureK: 333.15,
+    };
+    expect(jobCCheckpointRequestPayload(transported)).toEqual({
+      temperatureK: 333.15,
+    });
+    expect(jobCResultHash(jobCCheckpointRequestPayload(transported)))
+      .toBe('3997adc82aca88668052749bae5f41fdabf51c122404c0684dcb48f01e3a28c4');
+  });
+
   it('pins component order, sensitivity values, and numerical-only height bounds', () => {
     expect(JOB_C_COMPONENT_ORDER).toEqual(
       ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
@@ -102,7 +240,7 @@ from pathlib import Path
 source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
 nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)
-         and node.name in {"canonical", "hashed", "digest"}]
+         and node.name in {"native_json_scalar", "canonical", "hashed", "digest"}]
 namespace = {"hashlib": __import__("hashlib"), "json": json}
 exec(compile(ast.Module(body=nodes, type_ignores=[]), "signed-zero-test", "exec"), namespace)
 negative = json.loads('{"outer":[-0.0,{"map":{"negative":-0.0,"positive":0.0}},[0.0,-0.0]],"tiny":[5e-324,{"value":1e-300}]}')
@@ -323,7 +461,7 @@ print(json.dumps({
 
   it('solves and qualifies the exact height reported after bisection', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
-    const h2Solve = worker.indexOf('low=solve_height(2.0)');
+    const h2Solve = worker.indexOf('low=solve_height(2.0,resume_anchor)');
     const h2Replay = worker.indexOf('h2_benchmark=qualify_h2(low)');
     const heightSearchBoundary = worker.indexOf('high=solve_height(20.0,low["solution"])');
     expect(h2Solve).toBeGreaterThan(-1);
@@ -436,7 +574,8 @@ import ast, json, os, stat, tempfile
 from pathlib import Path
 source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
-names = {"canonical","hashed","digest","file_sha256","qualification_cache_identity",
+names = {"native_json_scalar","canonical","hashed","digest",
+  "file_sha256","qualification_cache_identity",
   "qualification_cache_path","finite_vector","load_qualification_cache",
   "store_qualification_cache"}
 nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)
@@ -593,7 +732,7 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('globally_conservative_interior_seed(');
     expect(worker.indexOf('seed_interfaces,_,seed_gate=solve_local_interfaces(', seed))
       .toBeGreaterThan(seed);
-    expect(worker.indexOf('raw_evaluate(coupled_fit.x,lam)', coupled))
+    expect(worker.indexOf('np,coupled_fit.x,lam,raw_evaluate,gate_metrics)', coupled))
       .toBeGreaterThan(coupled);
     expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
     expect(worker).toContain('raw_evaluate(x,lam)');
@@ -608,7 +747,7 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     );
     const loop = worker.indexOf('while lambda_index<len(lambda_targets):', targets);
     const solve = worker.indexOf('scipy.optimize.least_squares', loop);
-    const acceptance = worker.indexOf('coupled_accepted=(', solve);
+    const acceptance = worker.indexOf('coupled_accepted=selected["accepted"]', solve);
     expect(targets).toBeGreaterThan(-1);
     expect(loop).toBeGreaterThan(targets);
     expect(solve).toBeGreaterThan(loop);
@@ -619,7 +758,17 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain(
       'DIRECT_COUPLED_189_EQUATION_ZERO_TRANSFER_BOOTSTRAP',
     );
-    expect(worker).toContain('jac="3-point"');
+    expect(worker).toContain('scipy.optimize._numdiff.approx_derivative(');
+    expect(worker).toContain('method="3-point"');
+    expect(worker).toContain('base_residual,accepted_x');
+    expect(worker).toContain('base_residual,probe_residual=coupled_objective_channels(');
+    expect(worker).toContain('probe_residual,q,method="3-point"');
+    expect(worker).toContain('OPTIMIZER_BASE_ITERATE_CAPTURE');
+    expect(worker).toContain('ACCEPTED_REFERENCE_DIRECT_REEVALUATION');
+    expect(worker).toContain('ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR');
+    expect(worker).toContain('"acceptedContinuationHistory":history');
+    expect(worker).toContain('"preSolveAcceptedStateAudit":pre_solve_audit');
+    expect(worker).toContain('"componentBalanceAudit":component_balance_audit');
     expect(worker).toContain(
       'tr_options={"atol":1e-10,"btol":1e-10,',
     );
@@ -629,13 +778,14 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('"rejectedLambdaBracket":None if previous_lambda is None');
     expect(worker).toContain('"dominantResidualRows":coupled_dominant_rows');
     expect(worker).toContain('"dominantResidualBlocks":coupled_dominant_blocks');
-    expect(worker).toContain('"optimizerFunctionEvaluations":int(coupled_fit.nfev)');
+    expect(worker).toContain('int(coupled_fit.nfev) if coupled_fit is not None');
     expect(worker).toContain('"actualResidualEvaluations":');
+    expect(worker).toContain('raise CoupledGateFeasible()');
   });
 
   it('executes zero-first targets, accepted brackets, and the full sparse dependency mask', () => {
     const observed = JSON.parse(execFileSync('python3', ['-c', `
-import ast, json, scipy
+import ast, json, numpy as np, scipy
 from pathlib import Path
 source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
@@ -643,6 +793,7 @@ names = {
   "coupled_lambda_targets",
   "coupled_lambda_failure_step",
   "coupled_jacobian_sparsity",
+  "coupled_solver_row_scale",
 }
 selected = [
   node for node in tree.body
@@ -661,6 +812,9 @@ accepted_previous, accepted_midpoint = namespace[
 ]([{"lambda": 1e-8}], 3e-5, 1e-8)
 m = 7
 mask = namespace["coupled_jacobian_sparsity"](scipy, m).toarray()
+row_scale = namespace["coupled_solver_row_scale"](
+  np, [4.8, 0.5, 1e-6],
+).tolist()
 expected = set()
 for j in range(m):
   neighboring = {j}
@@ -694,6 +848,7 @@ print(json.dumps({
   "shape": list(mask.shape),
   "maskExact": actual == expected,
   "nonzeroCount": len(actual),
+  "rowScale": row_scale,
 }))
 `], { encoding: 'utf8' }));
     expect(observed.targets[0]).toBe(0);
@@ -708,6 +863,173 @@ print(json.dumps({
     expect(observed.shape).toEqual([189, 189]);
     expect(observed.maskExact).toBe(true);
     expect(observed.nonzeroCount).toBeGreaterThan(0);
+    expect(observed.rowScale).toEqual([1, 0.5, 1e-6]);
+  }, 15_000);
+
+  it('executes probe exclusion, independent gates, confirmation, and checkpoint revalidation contracts', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, hashlib, json, math, numpy as np
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {
+  "coupled_gate_decision",
+  "coupled_objective_channels",
+  "coupled_observe_base_candidate",
+  "confirm_coupled_candidate",
+  "find_resume_zero_anchor",
+  "validate_coupled_warm_flows",
+  "coupled_bound_proximity",
+  "split_coupled_warm_state",
+  "checkpoint_request_payload",
+  "native_json_scalar",
+  "canonical",
+  "hashed",
+  "digest",
+}
+selected = [
+  node for node in tree.body
+  if ((isinstance(node, ast.ClassDef) and node.name == "JobCBlocked")
+      or (isinstance(node, ast.FunctionDef) and node.name in names))
+]
+namespace = {"np": np, "math": math, "hashlib": hashlib, "json": json}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
+             "job-c-candidate-contract", "exec"), namespace)
+
+def metrics(raw=1e-8, scaled=1e-8, interface=1e-8, minimum=1e-5):
+  return {
+    "rawFvResidualMolS": raw,
+    "scaledFvResidual": scaled,
+    "maximumOriginalJobBGateResidual": interface,
+    "minimumFlowMolS": minimum,
+    **namespace["coupled_gate_decision"](raw, scaled, interface, minimum),
+  }
+
+tracker = {
+  "baseEvaluationCount": 0,
+  "bestScore": math.inf,
+  "bestState": None,
+  "bestMetrics": None,
+}
+channel_calls = []
+def evaluate(state, lam, observer):
+  channel_calls.append("base" if observer is not None else "probe")
+  if observer is not None:
+    observer(state, None)
+  return np.asarray(state)
+def observer(state, unused):
+  namespace["coupled_observe_base_candidate"](
+    np, tracker, state, metrics())
+base, probe = namespace["coupled_objective_channels"](
+  evaluate, observer, 1e-8)
+probe(np.asarray([9.0]))
+base(np.asarray([3.0]))
+
+gate_pass = namespace["coupled_gate_decision"](1e-8, 1e-8, 1e-8, 1e-5)
+raw_fail = namespace["coupled_gate_decision"](2e-7, 1e-8, 1e-8, 1e-5)
+scaled_fail = namespace["coupled_gate_decision"](1e-8, 2e-7, 1e-8, 1e-5)
+
+responses = [metrics(), metrics(raw=2e-7)]
+def one_failed_confirmation(state, lam):
+  return responses.pop(0)
+confirmation_rejected = namespace["confirm_coupled_candidate"](
+  np, [1.0], 1e-8, one_failed_confirmation, lambda value: value)
+responses = [metrics(), metrics()]
+def both_pass_confirmation(state, lam):
+  return responses.pop(0)
+confirmation_accepted = namespace["confirm_coupled_candidate"](
+  np, [1.0], 1e-8, both_pass_confirmation, lambda value: value)
+
+checkpoint_state = [0.2] * 189
+checkpoint = json.loads(json.dumps({"completedResults": [{
+  "id": "coupled-anchor:2:lambda:0",
+  "kind": "ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR",
+  "value": {"heightM": 2.0, "lambda": 0.0, "state": checkpoint_state},
+}]}))
+restored = namespace["find_resume_zero_anchor"](
+  checkpoint["completedResults"], 2.0)
+split_ok = namespace["split_coupled_warm_state"](np, restored, 7)
+malformed = [0.2, 0.3]
+malformed_rejected = False
+try:
+  namespace["split_coupled_warm_state"](np, malformed, 7)
+except Exception as error:
+  malformed_rejected = (
+    getattr(error, "code", None) == "JOB_C_WARM_START_STATE_INVALID")
+out_of_bounds_rejected = False
+try:
+  namespace["validate_coupled_warm_flows"](
+    np, [0.0, 0.2], np.asarray([1e-12, 1e-12]),
+    np.asarray([1.0, 1.0]), 1e-12, 2.0)
+except Exception as error:
+  out_of_bounds_rejected = (
+    getattr(error, "code", None) == "JOB_C_WARM_START_FLOW_BOUNDS_INVALID")
+
+proximity = namespace["coupled_bound_proximity"](
+  np, np.asarray([5e-11, 0.5]), np.asarray([0.0, 0.0]),
+  np.asarray([1.0, 1.0]), np.asarray([1.0, 1.0]))
+checkpoint_payload = namespace["checkpoint_request_payload"]({
+  "protocol": "transport", "operation": "SOLVE_HEIGHT",
+  "resumeCheckpoint": {"old": True}, "temperatureK": 333.15,
+})
+
+print(json.dumps({
+  "channelCalls": channel_calls,
+  "capturedState": tracker["bestState"].tolist(),
+  "baseEvaluationCount": tracker["baseEvaluationCount"],
+  "gatePass": gate_pass["accepted"],
+  "rawFail": raw_fail["accepted"],
+  "rawFailOnly": (not raw_fail["rawFvGatePassed"]
+                  and raw_fail["scaledFvGatePassed"]),
+  "scaledFail": scaled_fail["accepted"],
+  "scaledFailOnly": (scaled_fail["rawFvGatePassed"]
+                     and not scaled_fail["scaledFvGatePassed"]),
+  "oneFailedConfirmationAccepted": confirmation_rejected["accepted"],
+  "bothPassConfirmationAccepted": confirmation_accepted["accepted"],
+  "checkpointRoundTrip": restored == checkpoint_state,
+  "splitFlowLength": len(split_ok[0]),
+  "splitInterfaceLength": len(split_ok[1]),
+  "malformedRejected": malformed_rejected,
+  "outOfBoundsRejected": out_of_bounds_rejected,
+  "nearLowerDetected": bool(proximity["nearLower"][0]),
+  "interiorNotNearBound": bool(
+    not proximity["nearLower"][1] and not proximity["nearUpper"][1]),
+  "checkpointPayload": checkpoint_payload,
+  "checkpointPayloadSha256": namespace["digest"](checkpoint_payload),
+  "numpyBooleanDigestNormalized": (
+    namespace["digest"]({"flag": np.bool_(True)})
+      == namespace["digest"]({"flag": True})),
+  "numpyBooleanJsonNormalized": (
+    namespace["canonical"]({"flag": np.bool_(True)}) == '{"flag":true}'),
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.channelCalls).toEqual(['probe', 'base']);
+    expect(observed.capturedState).toEqual([3]);
+    expect(observed.baseEvaluationCount).toBe(1);
+    expect(observed.gatePass).toBe(true);
+    expect(observed.rawFail).toBe(false);
+    expect(observed.rawFailOnly).toBe(true);
+    expect(observed.scaledFail).toBe(false);
+    expect(observed.scaledFailOnly).toBe(true);
+    expect(observed.oneFailedConfirmationAccepted).toBe(false);
+    expect(observed.bothPassConfirmationAccepted).toBe(true);
+    expect(observed.checkpointRoundTrip).toBe(true);
+    expect(observed.splitFlowLength).toBe(98);
+    expect(observed.splitInterfaceLength).toBe(91);
+    expect(observed.malformedRejected).toBe(true);
+    expect(observed.outOfBoundsRejected).toBe(true);
+    expect(observed.nearLowerDetected).toBe(true);
+    expect(observed.interiorNotNearBound).toBe(true);
+    expect(observed.checkpointPayload).toEqual({ temperatureK: 333.15 });
+    expect(observed.checkpointPayloadSha256)
+      .toBe(jobCResultHash(jobCCheckpointRequestPayload({
+        protocol: 'transport',
+        operation: 'SOLVE_HEIGHT',
+        resumeCheckpoint: { old: true },
+        temperatureK: 333.15,
+      })));
+    expect(observed.numpyBooleanDigestNormalized).toBe(true);
+    expect(observed.numpyBooleanJsonNormalized).toBe(true);
   }, 15_000);
 
   it('executes the conservative seed and coupled warm-state contracts', () => {
