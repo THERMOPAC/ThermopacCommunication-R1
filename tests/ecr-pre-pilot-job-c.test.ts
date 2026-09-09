@@ -1596,6 +1596,9 @@ tree = ast.parse(source)
 names = {
   "coupled_gate_decision",
   "coupled_gate_score",
+  "coupled_finite_norm",
+  "coupled_residual_subspace_projection",
+  "coupled_dominant_raw_fv_subspace_rows",
   "coupled_equilibrated_minimum_norm_correction",
 }
 selected = [
@@ -1615,6 +1618,59 @@ repeat, repeat_audit = namespace[
   "coupled_equilibrated_minimum_norm_correction"](
     np, jac.copy(), residual.copy(), np.ones(3), sweeps=4)
 predicted = residual + jac @ correction
+subspace = audit["linearizedResidualSubspace"]
+original_projection = subspace["originalEuclidean"]
+weighted_projection = subspace["equilibratedWeighted"]
+dominant = namespace["coupled_dominant_raw_fv_subspace_rows"](
+  np, original_projection, weighted_projection, audit["rowScale"],
+  np.ones(7), ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  0, maximum_rows=20)
+fv_residual = np.zeros(28)
+fv_residual[26] = -4.0
+fv_projection = {
+  "residual": fv_residual.tolist(),
+  "columnSpaceRemovable": (fv_residual * 0.75).tolist(),
+  "leftNullSpaceUnresolved": (fv_residual * 0.25).tolist(),
+}
+fv_weighted = {
+  "residual": (fv_residual * 2.0).tolist(),
+  "columnSpaceRemovable": (fv_residual * 1.5).tolist(),
+  "leftNullSpaceUnresolved": (fv_residual * 0.5).tolist(),
+}
+dominant_fv = namespace["coupled_dominant_raw_fv_subspace_rows"](
+  np, fv_projection, fv_weighted, np.full(28, 2.0),
+  np.asarray([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]),
+  ["SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O"],
+  2, maximum_rows=1)
+real_svd = np.linalg.svd
+svd_calls = {"count": 0}
+def projection_failure_svd(*args, **kwargs):
+  svd_calls["count"] += 1
+  if svd_calls["count"] == 3:
+    raise np.linalg.LinAlgError("diagnostic only")
+  return real_svd(*args, **kwargs)
+np.linalg.svd = projection_failure_svd
+try:
+  available_correction, unavailable_audit = namespace[
+    "coupled_equilibrated_minimum_norm_correction"](
+      np, np.eye(2), np.asarray([1.0, -2.0]), np.ones(2), sweeps=4)
+finally:
+  np.linalg.svd = real_svd
+real_projection = namespace["coupled_residual_subspace_projection"]
+def weighted_projection_failure(*args, **kwargs):
+  raise FloatingPointError("diagnostic only")
+namespace["coupled_residual_subspace_projection"] = weighted_projection_failure
+try:
+  weighted_failure_correction, weighted_failure_audit = namespace[
+    "coupled_equilibrated_minimum_norm_correction"](
+      np, np.eye(2), np.asarray([1.0, -2.0]), np.ones(2), sweeps=4)
+finally:
+  namespace["coupled_residual_subspace_projection"] = real_projection
+extreme_correction, extreme_audit = namespace[
+  "coupled_equilibrated_minimum_norm_correction"](
+    np, np.eye(2) * 1e150, np.asarray([1e155, -1e155]),
+    np.ones(2), sweeps=4)
+strict_extreme_json = json.dumps(extreme_audit, allow_nan=False)
 passing = {
   "rawFvResidualMolS": 1e-8,
   "scaledFvResidual": 2e-8,
@@ -1636,6 +1692,28 @@ print(json.dumps({
   "correction": correction.tolist(),
   "predicted": predicted.tolist(),
   "audit": audit,
+  "originalReconstruction": max(abs(
+    np.asarray(original_projection["residual"])
+    - np.asarray(original_projection["columnSpaceRemovable"])
+    - np.asarray(original_projection["leftNullSpaceUnresolved"]))),
+  "weightedReconstruction": max(abs(
+    np.asarray(weighted_projection["residual"])
+    - np.asarray(weighted_projection["columnSpaceRemovable"])
+    - np.asarray(weighted_projection["leftNullSpaceUnresolved"]))),
+  "originalUnresolved": original_projection[
+    "leftNullSpaceUnresolved"],
+  "weightedUnresolved": weighted_projection[
+    "leftNullSpaceUnresolved"],
+  "dominantNoCells": dominant,
+  "dominantFv": dominant_fv,
+  "diagnosticFailureCorrection": available_correction.tolist(),
+  "diagnosticFailureStatus":
+    unavailable_audit["linearizedResidualSubspace"]["status"],
+  "weightedFailureCorrection": weighted_failure_correction.tolist(),
+  "weightedFailureStatus":
+    weighted_failure_audit["linearizedResidualSubspace"]["status"],
+  "extremeCorrectionFinite": bool(np.all(np.isfinite(extreme_correction))),
+  "extremeStrictJson": bool(strict_extreme_json),
   "repeatExact": bool(np.array_equal(correction, repeat)),
   "repeatAuditExact": audit == repeat_audit,
   "passingScore": namespace["coupled_gate_score"](passing),
@@ -1656,8 +1734,38 @@ print(json.dumps({
       equilibrationSweeps: 4,
       originalNumericalRank: 1,
       equilibratedNumericalRank: 2,
+      originalLeftNullity: 2,
+      originalRightNullity: 2,
+      equilibratedLeftNullity: 1,
+      equilibratedRightNullity: 1,
       nullDirectionCount: 1,
     });
+    expect(observed.originalReconstruction).toBeLessThan(1e-12);
+    expect(observed.weightedReconstruction).toBeLessThan(1e-12);
+    expect(observed.originalUnresolved[0]).toBeCloseTo(0, 12);
+    expect(observed.originalUnresolved[1]).toBeCloseTo(-1e-12, 24);
+    expect(observed.originalUnresolved[2]).toBeCloseTo(1, 12);
+    expect(observed.weightedUnresolved[0]).toBeCloseTo(0, 12);
+    expect(observed.weightedUnresolved[1]).toBeCloseTo(0, 12);
+    expect(observed.weightedUnresolved[2]).toBeCloseTo(1, 12);
+    expect(observed.dominantNoCells).toEqual([]);
+    expect(observed.dominantFv[0]).toMatchObject({
+      equationIndex: 27,
+      numericalCell: 2,
+      phase: 'dispersed',
+      component: 'NMP',
+      rawResidualMolS: -24,
+      originalColumnSpaceRemovableRawMolS: -18,
+      originalLeftNullSpaceUnresolvedRawMolS: -6,
+      equilibratedWeightedColumnSpaceRemovableRawMolS: -18,
+      equilibratedWeightedLeftNullSpaceUnresolvedRawMolS: -6,
+    });
+    expect(observed.diagnosticFailureCorrection).toEqual([-1, 2]);
+    expect(observed.diagnosticFailureStatus).toBe('UNAVAILABLE');
+    expect(observed.weightedFailureCorrection).toEqual([-1, 2]);
+    expect(observed.weightedFailureStatus).toBe('UNAVAILABLE');
+    expect(observed.extremeCorrectionFinite).toBe(true);
+    expect(observed.extremeStrictJson).toBe(true);
     expect(observed.repeatExact).toBe(true);
     expect(observed.repeatAuditExact).toBe(true);
     expect(observed.passingScore).toBeCloseTo(0.3, 12);

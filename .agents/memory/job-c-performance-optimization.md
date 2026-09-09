@@ -34,3 +34,9 @@ When a failed coupled state is dominated by an ill-conditioned or rank-deficient
 **Why:** Maxed-out iterative linear solves can stop improving while an exactly confirmed gate-feasible state remains nearby. The correction must improve the unchanged maximum gate ratio; numerical objective improvement alone is insufficient.
 
 **How to apply:** Keep recovery finite, backtrack strictly inside unchanged bounds, rebuild the Jacobian at every retained state, and retain only exact-confirmed strict gate-score improvements. Compare rejected terminal, best optimizer-base, and corrected states after two fresh uncached evaluations. A recovered state is accepted only if every existing scientific gate passes.
+
+Left-null-space diagnostics must decompose the same-state residual and Jacobian into column-space-removable and unresolved components using the same dimension-scaled SVD cutoff. Report original Euclidean and Ruiz-weighted projections separately; map weighted rows back through the inverse row scale before restoring FV units.
+
+**Why:** Rank deficiency alone cannot distinguish a removable numerical residual from an incompatible local linearization. Weighted projections are not Euclidean-orthogonal after mapping back, and mixing FV and interface rows would compare incompatible units.
+
+**How to apply:** Label only the 98 FV rows by cell, phase, and component when ranking raw balance errors. Keep projection failures strictly diagnostic: an unavailable SVD vector projection must never suppress a valid correction, alter evaluation counts, or change any scientific decision.

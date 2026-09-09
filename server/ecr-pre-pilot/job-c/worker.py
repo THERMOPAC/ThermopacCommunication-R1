@@ -348,6 +348,130 @@ def coupled_gate_score(metrics):
         return math.inf
     return max(float(value)/1e-7 for value in values)
 
+def coupled_finite_norm(np, values):
+    """Return an overflow-resistant finite L2 norm or explicit unavailability."""
+    vector=np.asarray(values,dtype=float).reshape(-1)
+    if not np.all(np.isfinite(vector)):
+        return None
+    if vector.size==0:
+        return 0.0
+    scale=float(np.max(np.abs(vector)))
+    if scale==0.0:
+        return 0.0
+    normalized=float(np.linalg.norm(vector/scale))
+    value=scale*normalized
+    return float(value) if math.isfinite(value) else None
+
+def coupled_residual_subspace_projection(np, left_vectors, retained, residual):
+    """Split one linearized residual into removable and unresolved components."""
+    left=np.asarray(left_vectors,dtype=float)
+    keep=np.asarray(retained,dtype=bool).reshape(-1)
+    values=np.asarray(residual,dtype=float).reshape(-1)
+    if (left.ndim!=2 or left.shape[0]!=values.size
+        or left.shape[1]!=keep.size or not np.all(np.isfinite(left))
+        or not np.all(np.isfinite(values))):
+        return None
+    basis=left[:,keep]
+    removable=(basis@(basis.T@values)
+      if basis.shape[1] else np.zeros_like(values))
+    unresolved=values-removable
+    if (not np.all(np.isfinite(removable))
+        or not np.all(np.isfinite(unresolved))):
+        return None
+    energy_scale=max(float(np.max(np.abs(values))) if values.size else 0.0,
+      float(np.max(np.abs(removable))) if removable.size else 0.0,
+      float(np.max(np.abs(unresolved))) if unresolved.size else 0.0)
+    if energy_scale>0.0:
+        residual_energy=float((values/energy_scale)@(values/energy_scale))
+        removable_energy=float(
+          (removable/energy_scale)@(removable/energy_scale))
+        unresolved_energy=float(
+          (unresolved/energy_scale)@(unresolved/energy_scale))
+    else:
+        residual_energy=removable_energy=unresolved_energy=0.0
+    residual_norm=coupled_finite_norm(np,values)
+    removable_norm=coupled_finite_norm(np,removable)
+    unresolved_norm=coupled_finite_norm(np,unresolved)
+    removable_unit=(removable/removable_norm
+      if removable_norm not in (None,0.0) else None)
+    unresolved_unit=(unresolved/unresolved_norm
+      if unresolved_norm not in (None,0.0) else None)
+    orthogonality=(float(removable_unit@unresolved_unit)
+      if removable_unit is not None and unresolved_unit is not None else None)
+    return {"residual":values.tolist(),
+      "columnSpaceRemovable":removable.tolist(),
+      "leftNullSpaceUnresolved":unresolved.tolist(),
+      "residualL2":residual_norm,
+      "residualLInfinity":float(np.max(np.abs(values)))
+        if values.size else 0.0,
+      "columnSpaceRemovableL2":removable_norm,
+      "columnSpaceRemovableLInfinity":float(np.max(np.abs(removable)))
+        if removable.size else 0.0,
+      "leftNullSpaceUnresolvedL2":unresolved_norm,
+      "leftNullSpaceUnresolvedLInfinity":float(np.max(np.abs(unresolved)))
+        if unresolved.size else 0.0,
+      "columnSpaceRemovableEnergyFraction":(
+        removable_energy/residual_energy if residual_energy>0.0 else None),
+      "leftNullSpaceUnresolvedEnergyFraction":(
+        unresolved_energy/residual_energy if residual_energy>0.0 else None),
+      "reconstructionLInfinity":float(np.max(np.abs(
+        values-removable-unresolved))) if values.size else 0.0,
+      "orthogonalityCosine":orthogonality}
+
+def coupled_dominant_raw_fv_subspace_rows(
+    np, projection, equilibrated_projection, row_scale,
+    component_scale, components, numerical_cells, maximum_rows=20,
+):
+    """Label the worst original FV rows without mixing interface units."""
+    cells=int(numerical_cells)
+    fv_count=14*cells
+    scales=np.asarray(component_scale,dtype=float).reshape(-1)
+    rows=np.asarray(row_scale,dtype=float).reshape(-1)
+    if (not isinstance(projection,dict)
+        or not isinstance(equilibrated_projection,dict)
+        or scales.size!=7 or rows.size<fv_count
+        or len(components)!=7 or np.any(scales<=0)
+        or np.any(rows[:fv_count]<=0)):
+        return []
+    try:
+        residual=np.asarray(projection["residual"],dtype=float)
+        removable=np.asarray(
+          projection["columnSpaceRemovable"],dtype=float)
+        unresolved=np.asarray(
+          projection["leftNullSpaceUnresolved"],dtype=float)
+        weighted_removable=np.asarray(
+          equilibrated_projection["columnSpaceRemovable"],dtype=float)/rows
+        weighted_unresolved=np.asarray(
+          equilibrated_projection["leftNullSpaceUnresolved"],dtype=float)/rows
+    except (KeyError,TypeError,ValueError,ZeroDivisionError):
+        return []
+    vectors=(residual,removable,unresolved,
+      weighted_removable,weighted_unresolved)
+    if (any(vector.size<fv_count or not np.all(np.isfinite(vector[:fv_count]))
+          for vector in vectors)):
+        return []
+    result=[]
+    for index in range(fv_count):
+        local=index%14
+        component_index=local%7
+        multiplier=scales[component_index]
+        result.append({"equationIndex":index+1,
+          "numericalCell":index//14+1,
+          "phase":"continuous" if local<7 else "dispersed",
+          "component":components[component_index],
+          "rawResidualMolS":float(residual[index]*multiplier),
+          "originalColumnSpaceRemovableRawMolS":
+            float(removable[index]*multiplier),
+          "originalLeftNullSpaceUnresolvedRawMolS":
+            float(unresolved[index]*multiplier),
+          "equilibratedWeightedColumnSpaceRemovableRawMolS":
+            float(weighted_removable[index]*multiplier),
+          "equilibratedWeightedLeftNullSpaceUnresolvedRawMolS":
+            float(weighted_unresolved[index]*multiplier)})
+    return sorted(result,
+      key=lambda row:(-abs(row["rawResidualMolS"]),row["equationIndex"])
+      )[:max(0,int(maximum_rows))]
+
 def coupled_equilibrated_minimum_norm_correction(
     np, matrix, residual, variable_scale, sweeps=4,
 ):
@@ -399,19 +523,69 @@ def coupled_equilibrated_minimum_norm_correction(
           "equilibrationSweeps":int(sweeps)}
     cutoff=max(equilibrated.shape)*np.finfo(float).eps*singular[0]
     retained=singular>cutoff
+    original_cutoff=(max(jac.shape)*np.finfo(float).eps
+      *original_singular[0] if original_singular.size else 0.0)
+    original_retained=original_singular>original_cutoff
     inverse=np.zeros_like(singular)
     inverse[retained]=1.0/singular[retained]
     transformed=right_t.T@(inverse*(left.T@rhs))
     correction=column_scale*transformed
     predicted=fun+jac@correction
-    original_cutoff=(max(jac.shape)*np.finfo(float).eps
-      *original_singular[0] if original_singular.size else 0.0)
+    subspace={"status":"UNAVAILABLE",
+      "qualification":
+        "DIAGNOSTIC_ONLY_UNAVAILABLE_CORRECTION_REMAINS_ADMISSIBLE"}
+    try:
+        equilibrated_residual=row_scale*fun
+        equilibrated_projection=coupled_residual_subspace_projection(
+          np,left,retained,equilibrated_residual)
+        original_left,_,_=np.linalg.svd(jac,full_matrices=False)
+        original_projection=coupled_residual_subspace_projection(
+          np,original_left,original_retained,fun)
+        if original_projection is None or equilibrated_projection is None:
+            raise ValueError("NONFINITE_PROJECTION")
+        weighted_unresolved=np.asarray(
+          equilibrated_projection["leftNullSpaceUnresolved"])/row_scale
+        mapped_residual=np.asarray(
+          equilibrated_projection["residual"])/row_scale
+        mapped_removable=np.asarray(
+          equilibrated_projection["columnSpaceRemovable"])/row_scale
+        prediction_difference=(float(np.max(np.abs(
+          predicted-weighted_unresolved))) if predicted.size else 0.0)
+        subspace={"status":"CALCULATED",
+          "originalEuclidean":original_projection,
+          "equilibratedWeighted":{
+            **equilibrated_projection,
+            "mappedToOriginalResidualL2":
+              coupled_finite_norm(np,mapped_residual),
+            "mappedToOriginalColumnSpaceRemovableL2":
+              coupled_finite_norm(np,mapped_removable),
+            "mappedToOriginalLeftNullSpaceUnresolvedL2":
+              coupled_finite_norm(np,weighted_unresolved),
+            "mappingQualification":
+              "WEIGHTED_PROJECTION_MAPPED_BY_INVERSE_RUIZ_ROW_SCALE;"
+              "NOT_EUCLIDEAN_ORTHOGONAL_IN_ORIGINAL_COORDINATES"},
+          "fullCorrectionPredictionVsWeightedUnresolvedLInfinity":(
+            prediction_difference if math.isfinite(prediction_difference)
+            else None)}
+    except (np.linalg.LinAlgError,ValueError,TypeError,
+            FloatingPointError,OverflowError) as projection_error:
+        subspace["reason"]=type(projection_error).__name__
     audit={"status":"CALCULATED",
       "method":"RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM",
+      "qualification":
+        "DIAGNOSTIC_LINEARIZATION_ONLY_NO_GATE_OR_EQUATION_CHANGE",
       "equilibrationSweeps":int(sweeps),
       "originalNumericalRank":int(np.count_nonzero(
-        original_singular>original_cutoff)),
+        original_retained)),
       "equilibratedNumericalRank":int(np.count_nonzero(retained)),
+      "originalLeftNullity":int(jac.shape[0]-np.count_nonzero(
+        original_retained)),
+      "originalRightNullity":int(jac.shape[1]-np.count_nonzero(
+        original_retained)),
+      "equilibratedLeftNullity":int(
+        equilibrated.shape[0]-np.count_nonzero(retained)),
+      "equilibratedRightNullity":int(
+        equilibrated.shape[1]-np.count_nonzero(retained)),
       "originalRankCutoff":float(original_cutoff),
       "equilibratedRankCutoff":float(cutoff),
       "originalConditionNumber":(
@@ -427,9 +601,12 @@ def coupled_equilibrated_minimum_norm_correction(
       "maximumRowScale":float(np.max(row_scale)),
       "minimumColumnScale":float(np.min(column_scale)),
       "maximumColumnScale":float(np.max(column_scale)),
+      "rowScale":row_scale.tolist(),
+      "columnScale":column_scale.tolist(),
       "correctionNorm":float(np.linalg.norm(correction)),
-      "predictedResidualL2":float(np.linalg.norm(predicted)),
-      "nullDirectionCount":int(np.count_nonzero(~retained))}
+      "predictedResidualL2":coupled_finite_norm(np,predicted),
+      "nullDirectionCount":int(np.count_nonzero(~retained)),
+      "linearizedResidualSubspace":subspace}
     if not np.all(np.isfinite(correction)):
         return None,{**audit,"status":"NONFINITE_CORRECTION"}
     return correction,audit
@@ -1708,6 +1885,9 @@ def case(r, name, dc, dd, solvers):
             near_indices=np.flatnonzero(
               proximity["nearLower"]|proximity["nearUpper"])
             audit={"shape":[int(matrix.shape[0]),int(matrix.shape[1])],
+              "stateSha256":digest(np.asarray(state).tolist()),
+              "linearizationQualification":
+                "SAME_STATE_RESIDUAL_AND_JACOBIAN_DIAGNOSTIC_ONLY",
               "activeLowerBoundCount":int(np.count_nonzero(active<0)),
               "activeUpperBoundCount":int(np.count_nonzero(active>0)),
               "activeCoordinates":[
@@ -1738,7 +1918,17 @@ def case(r, name, dc, dd, solvers):
               "largestGradientCoordinates":[
                 {**coordinate_label(int(index)),
                  "value":float(gradient[index])} for index in largest],
-              "correctionSolver":correction_solver}
+              "correctionSolver":correction_solver,
+              "dominantRawFvSubspaceRows":[]}
+            subspace=correction_solver.get("linearizedResidualSubspace")
+            if (isinstance(subspace,dict)
+                and subspace.get("status")=="CALCULATED"):
+                audit["dominantRawFvSubspaceRows"]=(
+                  coupled_dominant_raw_fv_subspace_rows(
+                    np,subspace["originalEuclidean"],
+                    subspace["equilibratedWeighted"],
+                    correction_solver["rowScale"],
+                    solver_scale,COMPONENTS,m))
             try:
                 singular=np.linalg.svd(matrix,compute_uv=False)
                 cutoff=max(matrix.shape)*np.finfo(float).eps*singular[0]
