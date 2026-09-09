@@ -319,6 +319,105 @@ def coupled_gate_decision(raw, scaled, interface, minimum):
       "accepted":bool(raw_pass and scaled_pass and interface_pass
         and positivity_pass)}
 
+def coupled_gate_score(metrics):
+    """Rank failed candidates by the unchanged independent gate ratios."""
+    if (not isinstance(metrics,dict)
+        or not metrics.get("strictPositivityPassed",False)):
+        return math.inf
+    values=[metrics.get("rawFvResidualMolS"),
+      metrics.get("scaledFvResidual"),
+      metrics.get("maximumOriginalJobBGateResidual")]
+    if any(not isinstance(value,(int,float)) or isinstance(value,bool)
+        or not math.isfinite(float(value)) for value in values):
+        return math.inf
+    return max(float(value)/1e-7 for value in values)
+
+def coupled_equilibrated_minimum_norm_correction(
+    np, matrix, residual, variable_scale, sweeps=4,
+):
+    """Solve the unchanged linearization with rank-revealing equilibration."""
+    jac=np.asarray(matrix,dtype=float)
+    fun=np.asarray(residual,dtype=float).reshape(-1)
+    initial=np.asarray(variable_scale,dtype=float).reshape(-1)
+    if (jac.ndim!=2 or jac.shape[0]!=fun.size
+        or jac.shape[1]!=initial.size or sweeps<1
+        or not np.all(np.isfinite(jac)) or not np.all(np.isfinite(fun))
+        or not np.all(np.isfinite(initial)) or np.any(initial<=0)):
+        return None,{"status":"INVALID_INPUT","method":
+          "RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM"}
+    row_scale=np.ones(jac.shape[0],dtype=float)
+    column_scale=initial.copy()
+    equilibrated=jac*column_scale[None,:]
+    rhs=-fun.copy()
+    adjustment_floor=1e-8
+    adjustment_ceiling=1e8
+    for _ in range(int(sweeps)):
+        row_norm=np.linalg.norm(equilibrated,axis=1)
+        row_adjust=np.ones_like(row_norm)
+        nonzero=np.isfinite(row_norm)&(row_norm>0)
+        row_adjust[nonzero]=np.clip(
+          1.0/np.sqrt(row_norm[nonzero]),
+          adjustment_floor,adjustment_ceiling)
+        equilibrated=row_adjust[:,None]*equilibrated
+        rhs=row_adjust*rhs
+        row_scale*=row_adjust
+        column_norm=np.linalg.norm(equilibrated,axis=0)
+        column_adjust=np.ones_like(column_norm)
+        nonzero=np.isfinite(column_norm)&(column_norm>0)
+        column_adjust[nonzero]=np.clip(
+          1.0/np.sqrt(column_norm[nonzero]),
+          adjustment_floor,adjustment_ceiling)
+        equilibrated=equilibrated*column_adjust[None,:]
+        column_scale*=column_adjust
+    try:
+        original_singular=np.linalg.svd(jac,compute_uv=False)
+        left,singular,right_t=np.linalg.svd(
+          equilibrated,full_matrices=False)
+    except np.linalg.LinAlgError:
+        return None,{"status":"SVD_NONCONVERGENCE","method":
+          "RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM",
+          "equilibrationSweeps":int(sweeps)}
+    if singular.size==0 or singular[0]<=0 or not np.all(np.isfinite(singular)):
+        return None,{"status":"SINGULAR_VALUES_INVALID","method":
+          "RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM",
+          "equilibrationSweeps":int(sweeps)}
+    cutoff=max(equilibrated.shape)*np.finfo(float).eps*singular[0]
+    retained=singular>cutoff
+    inverse=np.zeros_like(singular)
+    inverse[retained]=1.0/singular[retained]
+    transformed=right_t.T@(inverse*(left.T@rhs))
+    correction=column_scale*transformed
+    predicted=fun+jac@correction
+    original_cutoff=(max(jac.shape)*np.finfo(float).eps
+      *original_singular[0] if original_singular.size else 0.0)
+    audit={"status":"CALCULATED",
+      "method":"RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM",
+      "equilibrationSweeps":int(sweeps),
+      "originalNumericalRank":int(np.count_nonzero(
+        original_singular>original_cutoff)),
+      "equilibratedNumericalRank":int(np.count_nonzero(retained)),
+      "originalRankCutoff":float(original_cutoff),
+      "equilibratedRankCutoff":float(cutoff),
+      "originalConditionNumber":(
+        float(original_singular[0]/original_singular[-1])
+        if original_singular[-1]>0
+          and math.isfinite(float(original_singular[0]
+            /original_singular[-1])) else None),
+      "equilibratedConditionNumber":(
+        float(singular[0]/singular[-1])
+        if singular[-1]>0
+          and math.isfinite(float(singular[0]/singular[-1])) else None),
+      "minimumRowScale":float(np.min(row_scale)),
+      "maximumRowScale":float(np.max(row_scale)),
+      "minimumColumnScale":float(np.min(column_scale)),
+      "maximumColumnScale":float(np.max(column_scale)),
+      "correctionNorm":float(np.linalg.norm(correction)),
+      "predictedResidualL2":float(np.linalg.norm(predicted)),
+      "nullDirectionCount":int(np.count_nonzero(~retained))}
+    if not np.all(np.isfinite(correction)):
+        return None,{**audit,"status":"NONFINITE_CORRECTION"}
+    return correction,audit
+
 def coupled_evaluation_attribution():
     """Create explicit counters without changing any solver or gate behavior."""
     return {
@@ -500,7 +599,7 @@ def qualified_branch_bundle_for_start(bundle):
 
 def coupled_cached_numerical_jacobian(
     np, scipy, probe_residual, q, lam, lower, upper, colored_sparsity,
-    attribution, cache,
+    attribution, cache, base_residual_value=None,
 ):
     """Build one colored Jacobian per exact state and return safe copies."""
     attribution["jacobianRequests"]+=1
@@ -513,7 +612,7 @@ def coupled_cached_numerical_jacobian(
     try:
         matrix=scipy.optimize._numdiff.approx_derivative(
           probe_residual,q,method="3-point",bounds=(lower,upper),
-          sparsity=colored_sparsity)
+          sparsity=colored_sparsity,f0=base_residual_value)
     finally:
         attribution["jacobianBuildWallSeconds"]+=time.monotonic()-started
     cache.update({"lambda":lam,"state":np.asarray(q).copy(),
@@ -766,6 +865,143 @@ def coupled_gauss_newton_candidate(np, state, correction, lower, upper,
       "stepScale":scale if admitted else None,
       "fullStepAdmissible":full_admissible,
       "state":candidate if admitted else None}
+
+def coupled_rank_aware_recovery(
+    np, initial_state, initial_confirmed, initial_fun, initial_matrix,
+    initial_active, lower, upper, audit_for, confirm, residual_from_evaluation,
+    build_jacobian, state_sha256, require_budget,
+    maximum_corrections=3, maximum_backtracks=6,
+):
+    """Run a finite, exact-confirmed recovery on unchanged equations and gates."""
+    sequence={"method":"RELINEARIZED_EQUILIBRATED_SVD_MINIMUM_NORM",
+      "maximumCorrections":int(maximum_corrections),
+      "maximumBacktracksPerCorrection":int(maximum_backtracks),
+      "linearizations":[],"retainedCorrectionCount":0,"accepted":False}
+    if initial_confirmed is None:
+        return {"confirmed":None,
+          "rootAudit":{"status":"NOT_COMPUTED_NO_CONFIRMED_INITIAL_STATE"},
+          "sequence":{**sequence,"terminationReason":
+            "NO_CONFIRMED_INITIAL_STATE"},
+          "retainedCandidateRecord":None}
+    if initial_confirmed["accepted"]:
+        return {"confirmed":None,
+          "rootAudit":{"status":"NOT_COMPUTED_CURRENT_STATE_ACCEPTED",
+            "qualification":"NOT_REQUIRED_FOR_ACCEPTANCE"},
+          "sequence":{**sequence,"terminationReason":
+            "CURRENT_CONFIRMED_STATE_ALREADY_ACCEPTED"},
+          "retainedCandidateRecord":None}
+    current_confirmed=initial_confirmed
+    current_state=np.asarray(initial_state).copy()
+    current_fun=np.asarray(initial_fun).copy()
+    current_matrix=initial_matrix
+    current_active=np.asarray(initial_active).copy()
+    root_audit=None
+    retained_confirmed=None
+    retained_candidate_record=None
+    for correction_index in range(int(maximum_corrections)):
+        require_budget()
+        linearization_audit,correction_vector=audit_for(
+          current_matrix,current_fun,current_state,current_active)
+        if root_audit is None:
+            root_audit=dict(linearization_audit)
+        linearization_record={
+          "correctionIndex":correction_index+1,
+          "startingStateSha256":state_sha256(current_state),
+          "startingGateScore":coupled_gate_score(
+            current_confirmed["metrics"]),
+          "jacobianAudit":linearization_audit,
+          "candidates":[]}
+        if correction_vector is None:
+            linearization_record["terminationReason"]=(
+              "RANK_AWARE_CORRECTION_UNAVAILABLE")
+            sequence["linearizations"].append(linearization_record)
+            sequence["terminationReason"]=(
+              "RANK_AWARE_CORRECTION_UNAVAILABLE")
+            break
+        current_score=coupled_gate_score(current_confirmed["metrics"])
+        bounded_trial=coupled_gauss_newton_candidate(
+          np,current_state,correction_vector,lower,upper)
+        bounded_delta=(bounded_trial["state"]-current_state
+          if bounded_trial["admitted"] else None)
+        retained=None
+        backtrack_count=(int(maximum_backtracks)
+          if bounded_delta is not None else 1)
+        for backtrack_index in range(backtrack_count):
+            require_budget()
+            backtrack_factor=0.5**backtrack_index
+            correction_trial=(
+              coupled_gauss_newton_candidate(
+                np,current_state,bounded_delta*backtrack_factor,
+                lower,upper)
+              if bounded_delta is not None else bounded_trial)
+            candidate_confirmed=(confirm(correction_trial["state"])
+              if correction_trial["admitted"] else None)
+            candidate_score=(coupled_gate_score(
+              candidate_confirmed["metrics"])
+              if candidate_confirmed is not None else math.inf)
+            improved=bool(candidate_confirmed is not None
+              and candidate_score<current_score)
+            candidate_record={"backtrackIndex":backtrack_index,
+              "backtrackFactor":backtrack_factor,
+              "admitted":correction_trial["admitted"],
+              "reason":correction_trial["reason"],
+              "stepScale":correction_trial["stepScale"],
+              "effectiveStepScale":(
+                backtrack_factor*bounded_trial["stepScale"]
+                if bounded_trial["stepScale"] is not None else None),
+              "fullRankAwareStepAdmissible":
+                bounded_trial["fullStepAdmissible"],
+              "stateSha256":(state_sha256(correction_trial["state"])
+                if correction_trial["admitted"] else None),
+              "strictGateScoreImprovement":improved,
+              "gateScore":(candidate_score
+                if math.isfinite(candidate_score) else None),
+              "metrics":(candidate_confirmed["metrics"]
+                if candidate_confirmed is not None else None),
+              "deterministicConfirmation":(
+                candidate_confirmed["confirmation"]
+                if candidate_confirmed is not None else None)}
+            linearization_record["candidates"].append(candidate_record)
+            if improved:
+                retained=(candidate_confirmed,candidate_record)
+                break
+        if retained is None:
+            linearization_record["terminationReason"]=(
+              "NO_CONFIRMED_STRICT_IMPROVEMENT")
+            sequence["linearizations"].append(linearization_record)
+            sequence["terminationReason"]=(
+              "NO_CONFIRMED_STRICT_IMPROVEMENT")
+            break
+        retained_confirmed,retained_candidate_record=retained
+        sequence["retainedCorrectionCount"]+=1
+        linearization_record["retainedStateSha256"]=state_sha256(
+          retained_confirmed["state"])
+        linearization_record["retainedGateScore"]=coupled_gate_score(
+          retained_confirmed["metrics"])
+        linearization_record["terminationReason"]=(
+          "SCIENTIFIC_GATES_PASSED"
+          if retained_confirmed["accepted"]
+          else "STRICT_IMPROVEMENT_RETAINED")
+        sequence["linearizations"].append(linearization_record)
+        if retained_confirmed["accepted"]:
+            sequence["accepted"]=True
+            sequence["terminationReason"]="SCIENTIFIC_GATES_PASSED"
+            break
+        current_state=retained_confirmed["state"].copy()
+        current_confirmed=retained_confirmed
+        current_fun=residual_from_evaluation(
+          retained_confirmed["evaluation"])
+        if correction_index+1>=maximum_corrections:
+            sequence["terminationReason"]="MAXIMUM_CORRECTIONS_EXHAUSTED"
+            break
+        current_matrix=build_jacobian(current_state,current_fun)
+        current_active=np.zeros_like(current_state,dtype=int)
+    if "terminationReason" not in sequence:
+        sequence["terminationReason"]="MAXIMUM_CORRECTIONS_EXHAUSTED"
+    return {"confirmed":retained_confirmed,
+      "rootAudit":root_audit or {"status":"NOT_COMPUTED"},
+      "sequence":sequence,
+      "retainedCandidateRecord":retained_candidate_record}
 
 def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
     """Guard optimizer entry, callbacks, and return with one fail-closed contract.
@@ -1343,15 +1579,18 @@ def case(r, name, dc, dd, solvers):
             """Bypass optimization caches for unchanged exact confirmations."""
             return raw_evaluate(x,lam,use_equation_cache=False)
 
+        def residual_vector(ev):
+            scaled_fv=np.asarray(
+              [v/solver_scale[i%7] for i,v in enumerate(ev["fv"])])
+            return np.r_[scaled_fv,ev["interface"]]
+
         def residual(x,lam,observer=None):
             budget["residualCalls"]+=1
             require_runtime_budget(budget)
             ev=raw_evaluate(x,lam)
             if observer is not None:
                 observer(x,ev)
-            scaled_fv=np.asarray(
-              [v/solver_scale[i%7] for i,v in enumerate(ev["fv"])])
-            return np.r_[scaled_fv,ev["interface"]]
+            return residual_vector(ev)
 
         # Explicit block sparsity: every FV source sees both local phase-flow
         # blocks through the interface equations, in addition to its own
@@ -1438,17 +1677,18 @@ def case(r, name, dc, dd, solvers):
             return {"phase":"interface","numericalCell":local//13+1,
               "interfaceUnknownIndex":local%13}
 
-        def jacobian_audit(fit):
-            matrix=fit.jac.toarray() if hasattr(fit.jac,"toarray") else np.asarray(fit.jac)
-            gradient=np.asarray(matrix.T@fit.fun).reshape(-1)
+        def jacobian_audit(matrix,fun,state,active_mask):
+            matrix=(matrix.toarray()
+              if hasattr(matrix,"toarray") else np.asarray(matrix))
+            fun=np.asarray(fun,dtype=float)
+            gradient=np.asarray(matrix.T@fun).reshape(-1)
             largest=np.argsort(np.abs(gradient))[-10:][::-1]
-            correction=scipy.sparse.linalg.lsmr(
-              scipy.sparse.csr_matrix(matrix),-np.asarray(fit.fun),
-              atol=1e-10,btol=1e-10,maxiter=4*(27*m))
-            predicted=np.asarray(fit.fun)+matrix@correction[0]
-            active=np.asarray(fit.active_mask)
+            correction,correction_solver=(
+              coupled_equilibrated_minimum_norm_correction(
+                np,matrix,fun,variable_scale))
+            active=np.asarray(active_mask)
             proximity=coupled_bound_proximity(
-              np,fit.x,lower,upper,variable_scale)
+              np,state,lower,upper,variable_scale)
             near_indices=np.flatnonzero(
               proximity["nearLower"]|proximity["nearUpper"])
             audit={"shape":[int(matrix.shape[0]),int(matrix.shape[1])],
@@ -1482,10 +1722,7 @@ def case(r, name, dc, dd, solvers):
               "largestGradientCoordinates":[
                 {**coordinate_label(int(index)),
                  "value":float(gradient[index])} for index in largest],
-              "gaussNewtonCorrectionNorm":float(np.linalg.norm(correction[0])),
-              "predictedResidualL2":float(np.linalg.norm(predicted)),
-              "lsmrStopCode":int(correction[1]),
-              "lsmrIterations":int(correction[2])}
+              "correctionSolver":correction_solver}
             try:
                 singular=np.linalg.svd(matrix,compute_uv=False)
                 cutoff=max(matrix.shape)*np.finfo(float).eps*singular[0]
@@ -1503,7 +1740,7 @@ def case(r, name, dc, dd, solvers):
                   "numericalRank":None,"rankCutoff":None,
                   "largestSingularValue":None,"smallestSingularValue":None,
                   "conditionNumber":None})
-            return audit,np.asarray(correction[0],dtype=float)
+            return audit,correction
 
         def solve_local_interfaces(flow_vector, interface_vector):
             c,d=np.asarray(flow_vector).reshape(2,m,7)
@@ -1711,30 +1948,40 @@ def case(r, name, dc, dd, solvers):
                   np,tracker["bestState"],lam,exact_raw_evaluate,gate_metrics,
                   evaluation_attribution)
                   if tracker["bestState"] is not None
-                    and tracker["bestMetrics"]["accepted"] else None)
+                    and (coupled_fit is None or not np.array_equal(
+                      tracker["bestState"],coupled_fit.x)) else final_confirmed)
                 if coupled_fit is not None:
-                    jacobian_diagnostics,correction_vector=jacobian_audit(
-                      coupled_fit)
-                    correction_trial=coupled_gauss_newton_candidate(
-                      np,coupled_fit.x,correction_vector,lower,upper)
-                    correction_confirmed=(confirm_coupled_candidate(
-                      np,correction_trial["state"],lam,exact_raw_evaluate,
-                      gate_metrics,evaluation_attribution)
-                      if correction_trial["admitted"] else None)
-                    jacobian_diagnostics["correctionCandidate"]={
-                      "admitted":correction_trial["admitted"],
-                      "reason":correction_trial["reason"],
-                      "stepScale":correction_trial["stepScale"],
-                      "fullStepAdmissible":
-                        correction_trial["fullStepAdmissible"],
-                      "stateSha256":(digest(
-                        correction_trial["state"].tolist())
-                        if correction_trial["admitted"] else None),
-                      "metrics":(correction_confirmed["metrics"]
-                        if correction_confirmed is not None else None),
-                      "deterministicConfirmation":(
-                        correction_confirmed["confirmation"]
-                        if correction_confirmed is not None else None)}
+                    def confirm_rank_aware_state(state):
+                        return confirm_coupled_candidate(
+                          np,state,lam,exact_raw_evaluate,gate_metrics,
+                          evaluation_attribution)
+                    def build_rank_aware_jacobian(state,base_value):
+                        return coupled_cached_numerical_jacobian(
+                          np,scipy,probe_residual,state,lam,lower,upper,
+                          colored_sparsity,evaluation_attribution,
+                          jacobian_cache,base_residual_value=base_value)
+                    recovery=coupled_rank_aware_recovery(
+                      np,coupled_fit.x,final_confirmed,coupled_fit.fun,
+                      coupled_fit.jac,coupled_fit.active_mask,lower,upper,
+                      jacobian_audit,confirm_rank_aware_state,residual_vector,
+                      build_rank_aware_jacobian,
+                      lambda state:digest(state.tolist()),
+                      lambda:require_runtime_budget(budget),
+                      maximum_corrections=3,maximum_backtracks=6)
+                    correction_confirmed=recovery["confirmed"]
+                    jacobian_diagnostics=recovery["rootAudit"]
+                    jacobian_diagnostics["rankAwareCorrectionSequence"]=(
+                      recovery["sequence"])
+                    jacobian_diagnostics["correctionCandidate"]=(
+                      recovery["retainedCandidateRecord"] if
+                      recovery["retainedCandidateRecord"] is not None else {
+                        "admitted":False,
+                        "reason":"NO_RANK_AWARE_CORRECTION_RETAINED",
+                        "stepScale":None,
+                        "fullStepAdmissible":False,
+                        "stateSha256":None,
+                        "metrics":None,
+                        "deterministicConfirmation":None})
                 else:
                     correction_confirmed=None
                     jacobian_diagnostics={
@@ -1755,18 +2002,28 @@ def case(r, name, dc, dd, solvers):
                 if (correction_confirmed is not None
                     and correction_confirmed["accepted"]):
                     confirmed_options.append(
-                      ("GAUSS_NEWTON_CORRECTED_STATE",correction_confirmed))
+                      ("RANK_AWARE_GAUSS_NEWTON_CORRECTED_STATE",
+                        correction_confirmed))
                 if confirmed_options:
                     selected_source,selected=min(confirmed_options,
-                      key=lambda item:max(
-                        item[1]["metrics"]["rawFvResidualMolS"]/1e-7,
-                        item[1]["metrics"]["scaledFvResidual"]/1e-7,
-                        item[1]["metrics"][
-                          "maximumOriginalJobBGateResidual"]/1e-7))
+                      key=lambda item:coupled_gate_score(
+                        item[1]["metrics"]))
                 else:
-                    selected=(final_confirmed
-                      if final_confirmed is not None else best_confirmed)
-                    selected_source="OPTIMIZER_FINAL_STATE_REJECTED"
+                    rejected_options=[
+                      ("OPTIMIZER_FINAL_STATE_REJECTED",final_confirmed),
+                      ("OPTIMIZER_BEST_BASE_STATE_REJECTED",best_confirmed),
+                      ("RANK_AWARE_CORRECTED_STATE_REJECTED",
+                        correction_confirmed)]
+                    rejected_options=[
+                      value for value in rejected_options
+                      if value[1] is not None]
+                    if rejected_options:
+                        selected_source,selected=min(rejected_options,
+                          key=lambda item:coupled_gate_score(
+                            item[1]["metrics"]))
+                    else:
+                        selected_source,selected=(
+                          "NO_CONFIRMED_CANDIDATE",None)
                 if selected is None:
                     raise RuntimeError(
                       "JOB_C_GATE_FEASIBLE_BASE_CONFIRMATION_FAILED")

@@ -1571,6 +1571,240 @@ print(json.dumps({
     )).toBe(true);
   });
 
+  it('uses deterministic rank-revealing equilibration without changing gates', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json, math, numpy as np
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {
+  "coupled_gate_decision",
+  "coupled_gate_score",
+  "coupled_equilibrated_minimum_norm_correction",
+}
+selected = [
+  node for node in tree.body
+  if isinstance(node, ast.FunctionDef) and node.name in names
+]
+namespace = {"np": np, "math": math}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
+             "job-c-rank-aware-contract", "exec"), namespace)
+
+jac = np.diag([1e12, 1e-12, 0.0])
+residual = np.asarray([1e12, -1e-12, 1.0])
+correction, audit = namespace[
+  "coupled_equilibrated_minimum_norm_correction"](
+    np, jac, residual, np.ones(3), sweeps=4)
+repeat, repeat_audit = namespace[
+  "coupled_equilibrated_minimum_norm_correction"](
+    np, jac.copy(), residual.copy(), np.ones(3), sweeps=4)
+predicted = residual + jac @ correction
+passing = {
+  "rawFvResidualMolS": 1e-8,
+  "scaledFvResidual": 2e-8,
+  "maximumOriginalJobBGateResidual": 3e-8,
+  "minimumFlowMolS": 1e-5,
+  **namespace["coupled_gate_decision"](1e-8, 2e-8, 3e-8, 1e-5),
+}
+raw_failing = {
+  "rawFvResidualMolS": 1.01e-7,
+  "scaledFvResidual": 2e-8,
+  "maximumOriginalJobBGateResidual": 3e-8,
+  "minimumFlowMolS": 1e-5,
+  **namespace["coupled_gate_decision"](1.01e-7, 2e-8, 3e-8, 1e-5),
+}
+invalid, invalid_audit = namespace[
+  "coupled_equilibrated_minimum_norm_correction"](
+    np, jac, residual, np.asarray([1.0, 0.0, 1.0]), sweeps=4)
+print(json.dumps({
+  "correction": correction.tolist(),
+  "predicted": predicted.tolist(),
+  "audit": audit,
+  "repeatExact": bool(np.array_equal(correction, repeat)),
+  "repeatAuditExact": audit == repeat_audit,
+  "passingScore": namespace["coupled_gate_score"](passing),
+  "rawFailingScore": namespace["coupled_gate_score"](raw_failing),
+  "invalidCorrection": invalid,
+  "invalidStatus": invalid_audit["status"],
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.correction[0]).toBeCloseTo(-1, 12);
+    expect(observed.correction[1]).toBeCloseTo(1, 12);
+    expect(observed.correction[2]).toBe(0);
+    expect(observed.predicted[0]).toBeCloseTo(0, 12);
+    expect(observed.predicted[1]).toBeCloseTo(0, 12);
+    expect(observed.predicted[2]).toBe(1);
+    expect(observed.audit).toMatchObject({
+      status: 'CALCULATED',
+      method: 'RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM',
+      equilibrationSweeps: 4,
+      originalNumericalRank: 1,
+      equilibratedNumericalRank: 2,
+      nullDirectionCount: 1,
+    });
+    expect(observed.repeatExact).toBe(true);
+    expect(observed.repeatAuditExact).toBe(true);
+    expect(observed.passingScore).toBeCloseTo(0.3, 12);
+    expect(observed.rawFailingScore).toBeCloseTo(1.01, 12);
+    expect(observed.invalidCorrection).toBeNull();
+    expect(observed.invalidStatus).toBe('INVALID_INPUT');
+  }, 15_000);
+
+  it('backtracks, relinearizes, and retains only confirmed gate improvement', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json, math, numpy as np
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {
+  "coupled_gate_decision",
+  "coupled_gate_score",
+  "coupled_gauss_newton_candidate",
+  "coupled_rank_aware_recovery",
+}
+selected = [
+  node for node in tree.body
+  if isinstance(node, ast.FunctionDef) and node.name in names
+]
+namespace = {"np": np, "math": math}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
+             "job-c-rank-aware-recovery", "exec"), namespace)
+
+def confirmed(state):
+  x = float(np.asarray(state)[0])
+  score = abs(x - 2.0) + 1.0
+  metrics = {
+    "rawFvResidualMolS": score * 1e-7,
+    "scaledFvResidual": 1e-8,
+    "maximumOriginalJobBGateResidual": 1e-8,
+    "minimumFlowMolS": x,
+    **namespace["coupled_gate_decision"](
+      score * 1e-7, 1e-8, 1e-8, x),
+  }
+  return {
+    "accepted": metrics["accepted"],
+    "state": np.asarray(state).copy(),
+    "evaluation": np.asarray([x]),
+    "metrics": metrics,
+    "confirmation": {
+      "independentRawReevaluationCount": 2,
+      "bothScientificGateEvaluationsPassed": metrics["accepted"],
+      "maximumMetricDifference": 0.0,
+      "exactlyRepeatable": True,
+    },
+  }
+
+audit_states = []
+def audit_for(matrix, fun, state, active):
+  x = float(state[0])
+  audit_states.append(x)
+  correction = np.asarray([-8.0 if x > 2.5 else 2.0 - x])
+  return {
+    "status": "CALCULATED",
+    "state": x,
+    "active": np.asarray(active).tolist(),
+  }, correction
+
+confirmed_states = []
+def confirm(state):
+  confirmed_states.append(float(state[0]))
+  return confirmed(state)
+
+jacobian_builds = []
+def build_jacobian(state, f0):
+  jacobian_builds.append({
+    "state": float(state[0]),
+    "f0": np.asarray(f0).tolist(),
+  })
+  return np.asarray([[1.0]])
+
+budget_checks = []
+result = namespace["coupled_rank_aware_recovery"](
+  np, np.asarray([3.0]), confirmed(np.asarray([3.0])),
+  np.asarray([3.0]), np.asarray([[1.0]]), np.asarray([0]),
+  np.asarray([0.0]), np.asarray([10.0]), audit_for, confirm,
+  lambda evaluation: np.asarray(evaluation),
+  build_jacobian, lambda state: f"{float(state[0]):.12f}",
+  lambda: budget_checks.append(True),
+  maximum_corrections=3, maximum_backtracks=6)
+
+accepted_skip_calls = []
+accepted_skip = namespace["coupled_rank_aware_recovery"](
+  np, np.asarray([2.0]), confirmed(np.asarray([2.0])),
+  np.asarray([1.0]), np.asarray([[1.0]]), np.asarray([0]),
+  np.asarray([0.0]), np.asarray([10.0]),
+  lambda *args: accepted_skip_calls.append("audit"),
+  lambda state: accepted_skip_calls.append("confirm"),
+  lambda evaluation: evaluation,
+  lambda state, f0: accepted_skip_calls.append("jacobian"),
+  lambda state: "accepted", lambda: accepted_skip_calls.append("budget"),
+  maximum_corrections=3, maximum_backtracks=6)
+
+print(json.dumps({
+  "finalState": result["confirmed"]["state"].tolist(),
+  "accepted": result["confirmed"]["accepted"],
+  "sequence": result["sequence"],
+  "rootAudit": result["rootAudit"],
+  "confirmedStates": confirmed_states,
+  "auditStates": audit_states,
+  "jacobianBuilds": jacobian_builds,
+  "budgetCheckCount": len(budget_checks),
+  "acceptedSkipCalls": accepted_skip_calls,
+  "acceptedSkipSequence": accepted_skip["sequence"],
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.finalState).toEqual([2]);
+    expect(observed.accepted).toBe(true);
+    expect(observed.confirmedStates).toHaveLength(3);
+    expect(observed.confirmedStates[0]).toBeCloseTo(0.15, 12);
+    expect(observed.confirmedStates[1]).toBeCloseTo(1.575, 12);
+    expect(observed.confirmedStates[2]).toBe(2);
+    expect(observed.auditStates).toHaveLength(2);
+    expect(observed.auditStates[0]).toBe(3);
+    expect(observed.auditStates[1]).toBeCloseTo(1.575, 12);
+    expect(observed.jacobianBuilds).toHaveLength(1);
+    expect(observed.jacobianBuilds[0].state).toBeCloseTo(1.575, 12);
+    expect(observed.jacobianBuilds[0].f0[0]).toBeCloseTo(1.575, 12);
+    expect(observed.sequence).toMatchObject({
+      maximumCorrections: 3,
+      maximumBacktracksPerCorrection: 6,
+      retainedCorrectionCount: 2,
+      accepted: true,
+      terminationReason: 'SCIENTIFIC_GATES_PASSED',
+    });
+    expect(observed.sequence.linearizations[0].candidates).toHaveLength(2);
+    expect(observed.sequence.linearizations[0].candidates[0]
+      .strictGateScoreImprovement).toBe(false);
+    expect(observed.sequence.linearizations[0].candidates[1]
+      .strictGateScoreImprovement).toBe(true);
+    expect(observed.sequence.linearizations[1].candidates[0]
+      .strictGateScoreImprovement).toBe(true);
+    expect(observed.rootAudit).toEqual({
+      status: 'CALCULATED',
+      state: 3,
+      active: [0],
+    });
+    expect(observed.budgetCheckCount).toBe(5);
+    expect(observed.acceptedSkipCalls).toEqual([]);
+    expect(observed.acceptedSkipSequence).toMatchObject({
+      retainedCorrectionCount: 0,
+      accepted: false,
+      terminationReason: 'CURRENT_CONFIRMED_STATE_ALREADY_ACCEPTED',
+    });
+  }, 15_000);
+
+  it('bounds rank-aware recovery and preserves uncached scientific admission', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    expect(worker).toContain('maximum_corrections=3,maximum_backtracks=6');
+    expect(worker).toContain('RUIZ_EQUILIBRATED_SVD_MINIMUM_NORM');
+    expect(worker).toContain('RANK_AWARE_GAUSS_NEWTON_CORRECTED_STATE');
+    expect(worker).toContain('exact_raw_evaluate,gate_metrics');
+    expect(worker).toContain('base_residual_value=base_value');
+    expect(worker).toContain('OPTIMIZER_BEST_BASE_STATE_REJECTED');
+    expect(worker).toContain('"SCIENTIFIC_GATES_PASSED"');
+    expect(worker).toContain('"NO_CONFIRMED_STRICT_IMPROVEMENT"');
+  });
+
   it('replays lambda one with the unchanged strict-positive bounds', () => {
     const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
     const replay = worker.indexOf('progress("lambda 1 monolithic replay")');

@@ -28,3 +28,9 @@ Optimization caches may serve byte-identical local equation evaluations during o
 **Why:** Colored Jacobian probes repeatedly leave some cells unchanged, so exact local reuse saves substantial work; admission freshness remains an independent scientific safeguard.
 
 **How to apply:** Key reuse on the complete local interface state plus both bulk compositions with no rounding. Treat cached arrays as immutable and keep the cache bounded. Never cache approximate matches.
+
+When a failed coupled state is dominated by an ill-conditioned or rank-deficient Jacobian, recovery may use solver-only Ruiz row/column equilibration followed by an SVD minimum-norm correction. Retain all equations and discard numerical null directions rather than adding replacement equations or physical regularization.
+
+**Why:** Maxed-out iterative linear solves can stop improving while an exactly confirmed gate-feasible state remains nearby. The correction must improve the unchanged maximum gate ratio; numerical objective improvement alone is insufficient.
+
+**How to apply:** Keep recovery finite, backtrack strictly inside unchanged bounds, rebuild the Jacobian at every retained state, and retain only exact-confirmed strict gate-score improvements. Compare rejected terminal, best optimizer-base, and corrected states after two fresh uncached evaluations. A recovered state is accepted only if every existing scientific gate passes.
