@@ -213,8 +213,8 @@ def split_coupled_warm_state(np, warm, cells):
 
 def coupled_lambda_targets(bootstrap_lambda):
     """Return the deterministic continuation path with lambda=0 first."""
-    return sorted(set([0.0,bootstrap_lambda,.00003,.0001,.0003,.001,
-      .0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
+    return sorted(set([0.0,1e-10,3e-10,1e-9,3e-9,bootstrap_lambda,
+      .00003,.0001,.0003,.001,.0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
 
 def coupled_lambda_failure_step(history, rejected_lambda, minimum_interval):
     """Return the accepted lower endpoint and optional retry midpoint."""
@@ -316,6 +316,49 @@ def find_resume_zero_anchor(completed_results, height):
             return value["state"]
     return None
 
+def find_resume_coupled_anchor(completed_results, height,
+                               expected_state_size=189):
+    """Return the highest structurally valid accepted continuation checkpoint."""
+    accepted_kinds={"ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR",
+      "ACCEPTED_COUPLED_CONTINUATION_ANCHOR"}
+    candidates=[]
+    for completed in completed_results:
+        if not isinstance(completed,dict):
+            continue
+        value=completed.get("value",{})
+        if not isinstance(value,dict):
+            continue
+        lam=value.get("lambda")
+        state=value.get("state")
+        try:
+            lam_value=(float(lam)
+              if isinstance(lam,(int,float)) and not isinstance(lam,bool)
+              else None)
+            state_values=([float(item) for item in state]
+              if isinstance(state,list)
+                and len(state)==expected_state_size
+                and all(isinstance(item,(int,float))
+                  and not isinstance(item,bool) for item in state)
+              else None)
+        except (TypeError,ValueError,OverflowError):
+            continue
+        state_valid=(state_values is not None
+          and all(math.isfinite(item) for item in state_values))
+        kind=completed.get("kind")
+        kind_lambda_consistent=(
+          (kind=="ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR"
+            and lam_value==0.0)
+          or (kind=="ACCEPTED_COUPLED_CONTINUATION_ANCHOR"
+            and lam_value is not None and 0.0<lam_value<=1.0))
+        if (completed.get("kind") in accepted_kinds
+            and value.get("heightM")==height
+            and lam_value is not None and math.isfinite(lam_value)
+            and 0.0<=lam_value<=1.0
+            and state_valid and kind_lambda_consistent
+            and value.get("stateSha256")==digest(state)):
+            candidates.append({"lambda":lam_value,"state":state})
+    return max(candidates,key=lambda candidate:candidate["lambda"]) if candidates else None
+
 def validate_coupled_warm_flows(np, flows, lower, upper, epsilon, height=None):
     """Fail closed before any checkpoint-derived flow can enter a solve."""
     values=np.asarray(flows,dtype=float)
@@ -341,6 +384,42 @@ def coupled_bound_proximity(np, state, lower, upper, variable_scale,
       "thresholdByCoordinate":threshold,
       "lowerDistance":lower_distance,"upperDistance":upper_distance,
       "nearLower":near_lower,"nearUpper":near_upper}
+
+def coupled_gauss_newton_candidate(np, state, correction, lower, upper,
+                                   safety_fraction=0.95):
+    """Build the largest strict-interior correction step without clipping."""
+    values=np.asarray(state,dtype=float)
+    delta=np.asarray(correction,dtype=float)
+    low=np.asarray(lower,dtype=float); high=np.asarray(upper,dtype=float)
+    if (values.shape!=delta.shape or values.shape!=low.shape
+        or values.shape!=high.shape or not np.all(np.isfinite(values))
+        or not np.all(np.isfinite(delta))):
+        return {"admitted":False,"reason":"NONFINITE_OR_SHAPE_MISMATCH",
+          "stepScale":None,"fullStepAdmissible":False,"state":None}
+    full=values+delta
+    full_admissible=bool(np.all(full>low) and np.all(full<high))
+    scale=1.0
+    if not full_admissible:
+        ratios=[]
+        positive=delta>0; negative=delta<0
+        if np.any(positive):
+            ratios.extend(((high[positive]-values[positive])
+              /delta[positive]).tolist())
+        if np.any(negative):
+            ratios.extend(((values[negative]-low[negative])
+              /(-delta[negative])).tolist())
+        maximum_scale=min(ratios) if ratios else 0.0
+        scale=float(safety_fraction*maximum_scale)
+    candidate=values+scale*delta
+    admitted=bool(scale>0.0 and math.isfinite(scale)
+      and np.all(np.isfinite(candidate))
+      and np.all(candidate>low) and np.all(candidate<high))
+    return {"admitted":admitted,
+      "reason":"STRICT_INTERIOR_UNCLIPPED_STEP" if admitted
+        else "NO_STRICT_INTERIOR_CORRECTION_STEP",
+      "stepScale":scale if admitted else None,
+      "fullStepAdmissible":full_admissible,
+      "state":candidate if admitted else None}
 
 def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
     """Guard optimizer entry, callbacks, and return with one fail-closed contract.
@@ -811,6 +890,10 @@ def case(r, name, dc, dd, solvers):
         """Solve the unchanged 98 FV and 91 Job-B equations simultaneously."""
         budget["heightCandidateM"]=float(h)
         np,scipy=solvers[0].np,solvers[0].scipy
+        resume_lambda=(float(warm["lambda"])
+          if isinstance(warm,dict) and isinstance(warm.get("lambda"),(int,float))
+          else None)
+        warm_state=(warm.get("state") if isinstance(warm,dict) else warm)
         if m != 7:
             raise JobCBlocked("JOB_C_REQUIRES_SEVEN_NUMERICAL_FV_CELLS",
               {"numericalCells":m,"qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT"})
@@ -825,8 +908,8 @@ def case(r, name, dc, dd, solvers):
         dz=h/m; av=6*r["operatingHoldup"]/r["d32M"]
 
         def initial():
-            if warm is not None:
-                return split_coupled_warm_state(np,warm,m)
+            if warm_state is not None:
+                return split_coupled_warm_state(np,warm_state,m)
             # Build a boundary-consistent numerical interior from the two
             # global feed inventories only.  This transfer is an initializer,
             # never a frozen physical source in the coupled equations.
@@ -1016,7 +1099,7 @@ def case(r, name, dc, dd, solvers):
                   "numericalRank":None,"rankCutoff":None,
                   "largestSingularValue":None,"smallestSingularValue":None,
                   "conditionNumber":None})
-            return audit
+            return audit,np.asarray(correction[0],dtype=float)
 
         def solve_local_interfaces(flow_vector, interface_vector):
             c,d=np.asarray(flow_vector).reshape(2,m,7)
@@ -1071,8 +1154,11 @@ def case(r, name, dc, dd, solvers):
          # precomputed-source stage: raw_evaluate recomputes local interface equations and
          # fluxes from the evolving bulk state on every residual evaluation.
         lambda_targets=coupled_lambda_targets(bootstrap_lambda)
+        if resume_lambda is not None:
+            lambda_targets=[resume_lambda]+[
+              target for target in lambda_targets if target>resume_lambda]
         lambda_index=0
-        minimum_lambda_interval=1e-8
+        minimum_lambda_interval=1e-10
         maximum_coupled_optimizer_nfev=240
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
@@ -1175,6 +1261,35 @@ def case(r, name, dc, dd, solvers):
                   np,tracker["bestState"],lam,raw_evaluate,gate_metrics)
                   if tracker["bestState"] is not None
                     and tracker["bestMetrics"]["accepted"] else None)
+                if coupled_fit is not None:
+                    jacobian_diagnostics,correction_vector=jacobian_audit(
+                      coupled_fit)
+                    correction_trial=coupled_gauss_newton_candidate(
+                      np,coupled_fit.x,correction_vector,lower,upper)
+                    correction_confirmed=(confirm_coupled_candidate(
+                      np,correction_trial["state"],lam,raw_evaluate,
+                      gate_metrics) if correction_trial["admitted"] else None)
+                    jacobian_diagnostics["correctionCandidate"]={
+                      "admitted":correction_trial["admitted"],
+                      "reason":correction_trial["reason"],
+                      "stepScale":correction_trial["stepScale"],
+                      "fullStepAdmissible":
+                        correction_trial["fullStepAdmissible"],
+                      "stateSha256":(digest(
+                        correction_trial["state"].tolist())
+                        if correction_trial["admitted"] else None),
+                      "metrics":(correction_confirmed["metrics"]
+                        if correction_confirmed is not None else None),
+                      "deterministicConfirmation":(
+                        correction_confirmed["confirmation"]
+                        if correction_confirmed is not None else None)}
+                else:
+                    correction_confirmed=None
+                    jacobian_diagnostics={
+                      "status":"NOT_COMPUTED_AFTER_FIRST_GATE_FEASIBLE_BASE_STATE",
+                      "qualification":"NOT_REQUIRED_FOR_ACCEPTANCE",
+                      "reason":"OPTIMIZER_STOPPED_BY_UNPERTURBED_GATE_PASS",
+                    }
                 confirmed_options=[]
                 if final_confirmed is not None and final_confirmed["accepted"]:
                     confirmed_options.append(
@@ -1185,6 +1300,10 @@ def case(r, name, dc, dd, solvers):
                       if coupled_fit is None
                       else "OPTIMIZER_BASE_ITERATE_CAPTURE",
                       best_confirmed))
+                if (correction_confirmed is not None
+                    and correction_confirmed["accepted"]):
+                    confirmed_options.append(
+                      ("GAUSS_NEWTON_CORRECTED_STATE",correction_confirmed))
                 if confirmed_options:
                     selected_source,selected=min(confirmed_options,
                       key=lambda item:max(
@@ -1199,12 +1318,6 @@ def case(r, name, dc, dd, solvers):
                 if selected is None:
                     raise RuntimeError(
                       "JOB_C_GATE_FEASIBLE_BASE_CONFIRMATION_FAILED")
-                jacobian_diagnostics=(jacobian_audit(coupled_fit)
-                  if coupled_fit is not None else {
-                    "status":"NOT_COMPUTED_AFTER_FIRST_GATE_FEASIBLE_BASE_STATE",
-                    "qualification":"NOT_REQUIRED_FOR_ACCEPTANCE",
-                    "reason":"OPTIMIZER_STOPPED_BY_UNPERTURBED_GATE_PASS",
-                  })
                 coupled_attempts.append({
                   "initialization":("GLOBALLY_CONSERVATIVE_POSITIVE_SEED"
                     if not history else "LAST_ACCEPTED_COUPLED_STATE"),
@@ -1259,17 +1372,17 @@ def case(r, name, dc, dd, solvers):
                     if len(history)==0 else None,
                   "globalInletFluxAudit":
                     global_inlet_full_scale_audit if len(history)==0 else None})
-                if lam==0.0:
-                    record_completed_result(
-                      f"coupled-anchor:{h:g}:lambda:0",
-                      "ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR",
-                      {"heightM":float(h),"lambda":0.0,
-                       "state":x.tolist(),"stateSha256":digest(x.tolist()),
-                       "gateMetrics":coupled_metrics,
-                       "deterministicConfirmation":
-                         selected["confirmation"]},
-                      inputSha256=_request_sha256)
-                    checkpoint()
+                anchor_kind=("ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR"
+                  if lam==0.0 else "ACCEPTED_COUPLED_CONTINUATION_ANCHOR")
+                record_completed_result(
+                  f"coupled-anchor:{h:g}:lambda:{lam:.12g}",
+                  anchor_kind,
+                  {"heightM":float(h),"lambda":float(lam),
+                   "state":x.tolist(),"stateSha256":digest(x.tolist()),
+                   "gateMetrics":coupled_metrics,
+                   "deterministicConfirmation":selected["confirmation"]},
+                  inputSha256=_request_sha256)
+                checkpoint()
                 lambda_index+=1
                 continue
             # A failed direct solve is a numerical positive-feasibility
@@ -1455,7 +1568,7 @@ def case(r, name, dc, dd, solvers):
     # A checkpoint state is only a warm start.  solve_height reruns local
     # interface closure and independently re-evaluates every unchanged
     # lambda=0 gate before it can be accepted.
-    resume_anchor=find_resume_zero_anchor(_completed_results,2.0)
+    resume_anchor=find_resume_coupled_anchor(_completed_results,2.0)
     progress("candidate 2m",height_candidate_m=2.0)
     low=solve_height(2.0,resume_anchor)
     h2_benchmark=qualify_h2(low)

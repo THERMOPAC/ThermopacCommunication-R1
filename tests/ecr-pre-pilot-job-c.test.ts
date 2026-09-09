@@ -715,8 +715,11 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
     expect(worker).toContain('lambda_targets=coupled_lambda_targets(bootstrap_lambda)');
     expect(worker).toContain('lambda_targets.insert(');
-    expect(worker).toContain('minimum_lambda_interval=1e-8');
+    expect(worker).toContain('minimum_lambda_interval=1e-10');
     expect(worker).toContain('"literalPhysicalFeedFacesPreserved":True');
+    expect(worker).toContain('GAUSS_NEWTON_CORRECTED_STATE');
+    expect(worker).toContain('coupled_gauss_newton_candidate(');
+    expect(worker).toContain('ACCEPTED_COUPLED_CONTINUATION_ANCHOR');
     expect(worker).not.toContain('ZERO_TRANSFER_POSITIVE_BOUND_SEED_NOT_EXACT_ZERO_FEED_FV_ROOT');
     expect(worker).not.toContain('zeroFeedPositiveBoundSeeds');
   });
@@ -810,6 +813,10 @@ zero_previous, zero_midpoint = namespace["coupled_lambda_failure_step"](
 accepted_previous, accepted_midpoint = namespace[
   "coupled_lambda_failure_step"
 ]([{"lambda": 1e-8}], 3e-5, 1e-8)
+micro_previous, micro_midpoint = namespace["coupled_lambda_failure_step"](
+  [{"lambda": 1e-10}], 3e-10, 1e-10)
+floor_previous, floor_midpoint = namespace["coupled_lambda_failure_step"](
+  [{"lambda": 1e-10}], 1.5e-10, 1e-10)
 m = 7
 mask = namespace["coupled_jacobian_sparsity"](scipy, m).toarray()
 row_scale = namespace["coupled_solver_row_scale"](
@@ -845,6 +852,10 @@ print(json.dumps({
   "zeroMidpoint": zero_midpoint,
   "acceptedPrevious": accepted_previous,
   "acceptedMidpoint": accepted_midpoint,
+  "microPrevious": micro_previous,
+  "microMidpoint": micro_midpoint,
+  "floorPrevious": floor_previous,
+  "floorMidpoint": floor_midpoint,
   "shape": list(mask.shape),
   "maskExact": actual == expected,
   "nonzeroCount": len(actual),
@@ -852,7 +863,9 @@ print(json.dumps({
 }))
 `], { encoding: 'utf8' }));
     expect(observed.targets[0]).toBe(0);
-    expect(observed.targets[1]).toBe(1e-8);
+    expect(observed.targets.slice(0, 6)).toEqual([
+      0, 1e-10, 3e-10, 1e-9, 3e-9, 1e-8,
+    ]);
     expect(observed.targets.at(-1)).toBe(1);
     expect(observed.nonePrevious).toBeNull();
     expect(observed.noneMidpoint).toBeNull();
@@ -860,6 +873,10 @@ print(json.dumps({
     expect(observed.zeroMidpoint).toBeNull();
     expect(observed.acceptedPrevious).toBe(1e-8);
     expect(observed.acceptedMidpoint).toBeCloseTo(0.000015005, 12);
+    expect(observed.microPrevious).toBe(1e-10);
+    expect(observed.microMidpoint).toBeCloseTo(2e-10, 20);
+    expect(observed.floorPrevious).toBe(1e-10);
+    expect(observed.floorMidpoint).toBeNull();
     expect(observed.shape).toEqual([189, 189]);
     expect(observed.maskExact).toBe(true);
     expect(observed.nonzeroCount).toBeGreaterThan(0);
@@ -878,8 +895,10 @@ names = {
   "coupled_observe_base_candidate",
   "confirm_coupled_candidate",
   "find_resume_zero_anchor",
+  "find_resume_coupled_anchor",
   "validate_coupled_warm_flows",
   "coupled_bound_proximity",
+  "coupled_gauss_newton_candidate",
   "split_coupled_warm_state",
   "checkpoint_request_payload",
   "native_json_scalar",
@@ -948,6 +967,27 @@ checkpoint = json.loads(json.dumps({"completedResults": [{
 }]}))
 restored = namespace["find_resume_zero_anchor"](
   checkpoint["completedResults"], 2.0)
+checkpoint["completedResults"].append({
+  "id": "coupled-anchor:2:lambda:1e-9",
+  "kind": "ACCEPTED_COUPLED_CONTINUATION_ANCHOR",
+  "value": {"heightM": 2.0, "lambda": 1e-9, "state": [0.3] * 189,
+    "stateSha256": namespace["digest"]([0.3] * 189)},
+})
+checkpoint["completedResults"].append({
+  "id": "coupled-anchor:2:lambda:3e-9:malformed",
+  "kind": "ACCEPTED_COUPLED_CONTINUATION_ANCHOR",
+  "value": {"heightM": 2.0, "lambda": 3e-9, "state": [float("nan")] * 189,
+    "stateSha256": "not-a-valid-state-hash"},
+})
+checkpoint["completedResults"].append({
+  "id": "coupled-anchor:2:lambda:4e-9:overflow",
+  "kind": "ACCEPTED_COUPLED_CONTINUATION_ANCHOR",
+  "value": {"heightM": 2.0, "lambda": 4e-9,
+    "state": [10**1000] + [0.4] * 188,
+    "stateSha256": "not-a-valid-state-hash"},
+})
+highest_anchor = namespace["find_resume_coupled_anchor"](
+  checkpoint["completedResults"], 2.0)
 split_ok = namespace["split_coupled_warm_state"](np, restored, 7)
 malformed = [0.2, 0.3]
 malformed_rejected = False
@@ -968,6 +1008,12 @@ except Exception as error:
 proximity = namespace["coupled_bound_proximity"](
   np, np.asarray([5e-11, 0.5]), np.asarray([0.0, 0.0]),
   np.asarray([1.0, 1.0]), np.asarray([1.0, 1.0]))
+full_correction = namespace["coupled_gauss_newton_candidate"](
+  np, np.asarray([1.0, 1.0]), np.asarray([0.1, -0.1]),
+  np.asarray([0.0, 0.0]), np.asarray([2.0, 2.0]))
+damped_correction = namespace["coupled_gauss_newton_candidate"](
+  np, np.asarray([1.0, 1.0]), np.asarray([-2.0, 0.5]),
+  np.asarray([0.0, 0.0]), np.asarray([2.0, 2.0]))
 checkpoint_payload = namespace["checkpoint_request_payload"]({
   "protocol": "transport", "operation": "SOLVE_HEIGHT",
   "resumeCheckpoint": {"old": True}, "temperatureK": 333.15,
@@ -987,6 +1033,8 @@ print(json.dumps({
   "oneFailedConfirmationAccepted": confirmation_rejected["accepted"],
   "bothPassConfirmationAccepted": confirmation_accepted["accepted"],
   "checkpointRoundTrip": restored == checkpoint_state,
+  "highestAnchorLambda": highest_anchor["lambda"],
+  "highestAnchorStateFirst": highest_anchor["state"][0],
   "splitFlowLength": len(split_ok[0]),
   "splitInterfaceLength": len(split_ok[1]),
   "malformedRejected": malformed_rejected,
@@ -994,6 +1042,14 @@ print(json.dumps({
   "nearLowerDetected": bool(proximity["nearLower"][0]),
   "interiorNotNearBound": bool(
     not proximity["nearLower"][1] and not proximity["nearUpper"][1]),
+  "fullCorrectionAdmitted": full_correction["admitted"],
+  "fullCorrectionScale": full_correction["stepScale"],
+  "fullCorrectionState": full_correction["state"].tolist(),
+  "dampedCorrectionAdmitted": damped_correction["admitted"],
+  "dampedCorrectionFullStepAdmissible":
+    damped_correction["fullStepAdmissible"],
+  "dampedCorrectionScale": damped_correction["stepScale"],
+  "dampedCorrectionState": damped_correction["state"].tolist(),
   "checkpointPayload": checkpoint_payload,
   "checkpointPayloadSha256": namespace["digest"](checkpoint_payload),
   "numpyBooleanDigestNormalized": (
@@ -1014,12 +1070,22 @@ print(json.dumps({
     expect(observed.oneFailedConfirmationAccepted).toBe(false);
     expect(observed.bothPassConfirmationAccepted).toBe(true);
     expect(observed.checkpointRoundTrip).toBe(true);
+    expect(observed.highestAnchorLambda).toBe(1e-9);
+    expect(observed.highestAnchorStateFirst).toBe(0.3);
     expect(observed.splitFlowLength).toBe(98);
     expect(observed.splitInterfaceLength).toBe(91);
     expect(observed.malformedRejected).toBe(true);
     expect(observed.outOfBoundsRejected).toBe(true);
     expect(observed.nearLowerDetected).toBe(true);
     expect(observed.interiorNotNearBound).toBe(true);
+    expect(observed.fullCorrectionAdmitted).toBe(true);
+    expect(observed.fullCorrectionScale).toBe(1);
+    expect(observed.fullCorrectionState).toEqual([1.1, 0.9]);
+    expect(observed.dampedCorrectionAdmitted).toBe(true);
+    expect(observed.dampedCorrectionFullStepAdmissible).toBe(false);
+    expect(observed.dampedCorrectionScale).toBeCloseTo(0.475, 12);
+    expect(observed.dampedCorrectionState[0]).toBeCloseTo(0.05, 12);
+    expect(observed.dampedCorrectionState[1]).toBeCloseTo(1.2375, 12);
     expect(observed.checkpointPayload).toEqual({ temperatureK: 333.15 });
     expect(observed.checkpointPayloadSha256)
       .toBe(jobCResultHash(jobCCheckpointRequestPayload({
