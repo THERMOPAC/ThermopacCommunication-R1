@@ -20,3 +20,9 @@ For Job C local stability, cross-qualify the log-ratio Hessian through a project
 **Why:** Fine scalar second differences amplified numerical noise and failed step agreement even though positive curvature, stable TPD, a coarser scalar ladder, and the projected reconstruction all converged. Selecting a convenient scalar step would be unsafe; cross-route agreement makes the numerical-method amendment fail-closed.
 
 **How to apply:** Never treat TPD stability or positive minimum curvature alone as a substitute for Hessian step convergence. Version and hash any qualification-method change so cached or queued evidence cannot cross the method boundary.
+
+A finite-λ gate pass remains a one-start research candidate when a well-separated, composition-preserving inventory witness selects materially different local interface-root coordinates and exhausts the unchanged solve budget without passing every scientific gate. Exact reevaluation of that rejected endpoint proves only deterministic rejection, not reproduction or physical infeasibility.
+
+**Why:** Near the positive-branch limit, a conservative start produced one exactly repeatable gate-passing corrected state, while a flow-separated witness entered a different interface-root combination and exactly reproduced a multi-gate rejection at the evaluation limit.
+
+**How to apply:** Keep the governed accepted/rejected bracket unchanged. Before promotion, make interface-root lineage explicit and require a distinct start to reach the same stability-qualified full-state endpoint within the direct scaled-agreement threshold; otherwise classify solver/interface-root ambiguity.
