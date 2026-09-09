@@ -329,7 +329,9 @@ print(json.dumps({
     expect(worker).toContain('REJECTED_COUPLED_CONTINUATION_TRIAL');
     expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_REPLAY_FAILED');
     expect(worker).toContain('"dominantResidualRows":diagnostics(ev)');
-    expect(worker).toContain('np.asarray(profile_unknowns).reshape(-1)');
+    expect(worker).toContain(
+      'np.asarray(solver_start_profile_unknowns).reshape(-1)',
+    );
     expect(worker).toContain('JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID');
     expect(worker).toContain('max_nfev=40');
     expect(worker).toContain('progress("direct coupled zero-transfer bootstrap"');
@@ -738,7 +740,10 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('globally_conservative_interior_seed(');
     expect(worker.indexOf('seed_interfaces,_,seed_gate=solve_local_interfaces(', seed))
       .toBeGreaterThan(seed);
-    expect(worker.indexOf('np,coupled_fit.x,lam,raw_evaluate,gate_metrics)', coupled))
+    expect(worker.indexOf(
+      'np,coupled_fit.x,lam,raw_evaluate,gate_metrics,',
+      coupled,
+    ))
       .toBeGreaterThan(coupled);
     expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
     expect(worker).toContain('raw_evaluate(x,lam)');
@@ -769,6 +774,11 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('base_residual,accepted_x');
     expect(worker).toContain('base_residual,probe_residual=coupled_objective_channels(');
     expect(worker).toContain('probe_residual,q,method="3-point"');
+    expect(worker).toContain('sparsity=colored_sparsity');
+    expect(worker).toContain('"jacobianConstructionResidualEvaluations"');
+    expect(worker).toContain('"optimizerTrialBaseResidualEvaluations"');
+    expect(worker).toContain('"jacobianExactStateCacheHits"');
+    expect(worker).toContain('"qualifiedLocalBranchBundleSha256"');
     expect(worker).toContain('OPTIMIZER_BASE_ITERATE_CAPTURE');
     expect(worker).toContain('ACCEPTED_REFERENCE_DIRECT_REEVALUATION');
     expect(worker).toContain('ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR');
@@ -786,6 +796,9 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('"dominantResidualBlocks":coupled_dominant_blocks');
     expect(worker).toContain('int(coupled_fit.nfev) if coupled_fit is not None');
     expect(worker).toContain('"actualResidualEvaluations":');
+    expect(worker.match(
+      /"actualResidualEvaluationScope":\s*"OPTIMIZER_BASE_PLUS_JACOBIAN_PROBES_ONLY"/g,
+    )).toHaveLength(2);
     expect(worker).toContain('raise CoupledGateFeasible()');
   });
 
@@ -882,6 +895,114 @@ print(json.dumps({
     expect(observed.rowScale).toEqual([1, 0.5, 1e-6]);
   }, 15_000);
 
+  it('reuses safe colored Jacobians and deep-copies one hash-bound branch bundle', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, hashlib, json, numpy as np, scipy
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {
+  "native_json_scalar",
+  "canonical",
+  "coupled_evaluation_attribution",
+  "coupled_evaluation_report",
+  "coupled_objective_channels",
+  "immutable_qualified_branch_bundle",
+  "qualified_branch_bundle_for_start",
+  "coupled_cached_numerical_jacobian",
+}
+selected = [
+  node for node in tree.body
+  if isinstance(node, ast.FunctionDef) and node.name in names
+]
+namespace = {
+  "hashlib": hashlib, "json": json, "np": np, "scipy": scipy,
+}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
+             "job-c-efficiency-contract", "exec"), namespace)
+
+qualified = [{
+  "index": index,
+  "flux": [float(index + component) for component in range(7)],
+  "unknowns": [float(index - component) for component in range(13)],
+  "evidence": {"numericalCell": index + 1, "nested": {"value": index}},
+} for index in range(7)]
+bundle = namespace["immutable_qualified_branch_bundle"](qualified)
+first_start = namespace["qualified_branch_bundle_for_start"](bundle)
+first_start[0]["unknowns"][0] = 999.0
+first_start[0]["evidence"]["nested"]["value"] = 999
+second_start = namespace["qualified_branch_bundle_for_start"](bundle)
+tampered = dict(bundle)
+tampered["canonicalJson"] += " "
+tamper_rejected = False
+try:
+  namespace["qualified_branch_bundle_for_start"](tampered)
+except RuntimeError:
+  tamper_rejected = True
+
+attribution = namespace["coupled_evaluation_attribution"]()
+def evaluate(state, lam, observer):
+  values = np.asarray(state) ** 2
+  if observer is not None:
+    observer(state, values)
+  return values
+base, probe = namespace["coupled_objective_channels"](
+  evaluate, lambda state, values: None, 1e-8, attribution)
+sparsity = scipy.sparse.csr_matrix(np.eye(3, dtype=int))
+groups = scipy.optimize._numdiff.group_columns(sparsity)
+attribution["jacobianColorGroupCount"] = int(groups.max() + 1)
+colored = (sparsity, groups)
+cache = {"lambda": None, "state": None, "matrix": None}
+q = np.asarray([1.0, 2.0, 3.0])
+lower = np.zeros(3)
+upper = np.full(3, 10.0)
+first = namespace["coupled_cached_numerical_jacobian"](
+  np, scipy, probe, q, 1e-8, lower, upper, colored, attribution, cache)
+expected = first.toarray().copy()
+first.data[:] = 999.0
+same_state = namespace["coupled_cached_numerical_jacobian"](
+  np, scipy, probe, q, 1e-8, lower, upper, colored, attribution, cache)
+new_lambda = namespace["coupled_cached_numerical_jacobian"](
+  np, scipy, probe, q, 2e-8, lower, upper, colored, attribution, cache)
+base(q)
+report = namespace["coupled_evaluation_report"](attribution)
+
+print(json.dumps({
+  "branchCount": len(second_start),
+  "bundleHashLength": len(bundle["sha256"]),
+  "nestedMutationIsolated":
+    second_start[0]["unknowns"][0] == 0.0
+    and second_start[0]["evidence"]["nested"]["value"] == 0,
+  "tamperRejected": tamper_rejected,
+  "cacheCopyIntact": np.allclose(same_state.toarray(), expected),
+  "newLambdaEquivalent": np.allclose(new_lambda.toarray(), expected),
+  "derivativeCorrect": np.allclose(
+    expected, np.diag([2.0, 4.0, 6.0]), atol=1e-8),
+  "report": report,
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.branchCount).toBe(7);
+    expect(observed.bundleHashLength).toBe(64);
+    expect(observed.nestedMutationIsolated).toBe(true);
+    expect(observed.tamperRejected).toBe(true);
+    expect(observed.cacheCopyIntact).toBe(true);
+    expect(observed.newLambdaEquivalent).toBe(true);
+    expect(observed.derivativeCorrect).toBe(true);
+    expect(observed.report).toMatchObject({
+      optimizerTrialBaseResidualEvaluations: 1,
+      jacobianRequests: 3,
+      jacobianBuilds: 2,
+      jacobianExactStateCacheHits: 1,
+      jacobianColorGroupCount: 1,
+    });
+    expect(observed.report.jacobianConstructionResidualEvaluations)
+      .toBeGreaterThan(0);
+    expect(observed.report.totalModelResidualEvaluations).toBe(
+      observed.report.optimizerTrialBaseResidualEvaluations
+      + observed.report.jacobianConstructionResidualEvaluations,
+    );
+  }, 15_000);
+
   it('executes probe exclusion, independent gates, confirmation, and checkpoint revalidation contracts', () => {
     const observed = JSON.parse(execFileSync('python3', ['-c', `
 import ast, hashlib, json, math, numpy as np
@@ -890,6 +1011,8 @@ source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
 names = {
   "coupled_gate_decision",
+  "coupled_evaluation_attribution",
+  "coupled_evaluation_report",
   "coupled_objective_channels",
   "coupled_observe_base_candidate",
   "confirm_coupled_candidate",
@@ -929,6 +1052,7 @@ tracker = {
   "bestState": None,
   "bestMetrics": None,
 }
+attribution = namespace["coupled_evaluation_attribution"]()
 channel_calls = []
 def evaluate(state, lam, observer):
   channel_calls.append("base" if observer is not None else "probe")
@@ -939,7 +1063,7 @@ def observer(state, unused):
   namespace["coupled_observe_base_candidate"](
     np, tracker, state, metrics())
 base, probe = namespace["coupled_objective_channels"](
-  evaluate, observer, 1e-8)
+  evaluate, observer, 1e-8, attribution)
 probe(np.asarray([9.0]))
 base(np.asarray([3.0]))
 
@@ -951,12 +1075,15 @@ responses = [metrics(), metrics(raw=2e-7)]
 def one_failed_confirmation(state, lam):
   return responses.pop(0)
 confirmation_rejected = namespace["confirm_coupled_candidate"](
-  np, [1.0], 1e-8, one_failed_confirmation, lambda value: value)
+  np, [1.0], 1e-8, one_failed_confirmation, lambda value: value,
+  attribution)
 responses = [metrics(), metrics()]
 def both_pass_confirmation(state, lam):
   return responses.pop(0)
 confirmation_accepted = namespace["confirm_coupled_candidate"](
-  np, [1.0], 1e-8, both_pass_confirmation, lambda value: value)
+  np, [1.0], 1e-8, both_pass_confirmation, lambda value: value,
+  attribution)
+evaluation_attribution = namespace["coupled_evaluation_report"](attribution)
 
 checkpoint_state = [0.2] * 189
 checkpoint = json.loads(json.dumps({"completedResults": [{
@@ -1113,6 +1240,7 @@ print(json.dumps({
   "channelCalls": channel_calls,
   "capturedState": tracker["bestState"].tolist(),
   "baseEvaluationCount": tracker["baseEvaluationCount"],
+  "evaluationAttribution": evaluation_attribution,
   "gatePass": gate_pass["accepted"],
   "rawFail": raw_fail["accepted"],
   "rawFailOnly": (not raw_fail["rawFvGatePassed"]
@@ -1165,6 +1293,13 @@ print(json.dumps({
     expect(observed.channelCalls).toEqual(['probe', 'base']);
     expect(observed.capturedState).toEqual([3]);
     expect(observed.baseEvaluationCount).toBe(1);
+    expect(observed.evaluationAttribution).toMatchObject({
+      optimizerTrialBaseResidualEvaluations: 1,
+      jacobianConstructionResidualEvaluations: 1,
+      confirmationResidualEvaluations: 4,
+      optimizerModelResidualEvaluationsIncludingJacobianConstruction: 2,
+      totalModelResidualEvaluations: 6,
+    });
     expect(observed.gatePass).toBe(true);
     expect(observed.rawFail).toBe(false);
     expect(observed.rawFailOnly).toBe(true);

@@ -287,11 +287,38 @@ def coupled_gate_decision(raw, scaled, interface, minimum):
       "accepted":bool(raw_pass and scaled_pass and interface_pass
         and positivity_pass)}
 
-def coupled_objective_channels(evaluate, observer, lam):
+def coupled_evaluation_attribution():
+    """Create explicit counters without changing any solver or gate behavior."""
+    return {
+      "preSolveDiagnosticResidualEvaluations":0,
+      "optimizerTrialBaseResidualEvaluations":0,
+      "jacobianConstructionResidualEvaluations":0,
+      "confirmationResidualEvaluations":0,
+      "jacobianRequests":0,
+      "jacobianBuilds":0,
+      "jacobianExactStateCacheHits":0,
+      "jacobianColorGroupCount":0}
+
+def coupled_evaluation_report(attribution):
+    """Report derivative work separately from optimizer trial states."""
+    report=dict(attribution)
+    report["optimizerModelResidualEvaluationsIncludingJacobianConstruction"]=(
+      report["optimizerTrialBaseResidualEvaluations"]
+      +report["jacobianConstructionResidualEvaluations"])
+    report["totalModelResidualEvaluations"]=(
+      report["preSolveDiagnosticResidualEvaluations"]
+      +report[
+        "optimizerModelResidualEvaluationsIncludingJacobianConstruction"]
+      +report["confirmationResidualEvaluations"])
+    return report
+
+def coupled_objective_channels(evaluate, observer, lam, attribution):
     """Separate optimizer base states from finite-difference probe states."""
     def base(state):
+        attribution["optimizerTrialBaseResidualEvaluations"]+=1
         return evaluate(state,lam,observer)
     def probe(state):
+        attribution["jacobianConstructionResidualEvaluations"]+=1
         return evaluate(state,lam,None)
     return base,probe
 
@@ -308,8 +335,10 @@ def coupled_observe_base_candidate(np, tracker, state, metrics):
           "bestState":np.asarray(state).copy(),"bestMetrics":metrics})
 
 def confirm_coupled_candidate(np, candidate_state, lam, raw_evaluate,
-                              metrics_for):
+                              metrics_for, attribution=None):
     """Require two fresh full-system evaluations to pass every gate."""
+    if attribution is not None:
+        attribution["confirmationResidualEvaluations"]+=2
     first=raw_evaluate(candidate_state,lam)
     second=raw_evaluate(np.asarray(candidate_state).copy(),lam)
     first_metrics=metrics_for(first); second_metrics=metrics_for(second)
@@ -326,6 +355,47 @@ def confirm_coupled_candidate(np, candidate_state, lam, raw_evaluate,
           first_metrics["accepted"] and second_metrics["accepted"]),
         "maximumMetricDifference":max(deltas.values()),
         "exactlyRepeatable":all(value==0.0 for value in deltas.values())}}
+
+def immutable_qualified_branch_bundle(qualified):
+    """Store the seven branches in one immutable canonical string."""
+    if (not isinstance(qualified,list) or len(qualified)!=7
+        or any(value.get("index")!=index
+          for index,value in enumerate(qualified))):
+        raise RuntimeError("JOB_C_QUALIFIED_BRANCH_BUNDLE_INVALID")
+    canonical_json=canonical(qualified)
+    return {"canonicalJson":canonical_json,
+      "sha256":hashlib.sha256(canonical_json.encode()).hexdigest()}
+
+def qualified_branch_bundle_for_start(bundle):
+    """Verify and deep-copy the same branch evidence for one solver start."""
+    canonical_json=bundle["canonicalJson"]
+    if (hashlib.sha256(canonical_json.encode()).hexdigest()
+        !=bundle["sha256"]):
+        raise RuntimeError("JOB_C_QUALIFIED_BRANCH_BUNDLE_HASH_INVALID")
+    branches=json.loads(canonical_json)
+    if (not isinstance(branches,list) or len(branches)!=7
+        or any(value.get("index")!=index
+          for index,value in enumerate(branches))):
+        raise RuntimeError("JOB_C_QUALIFIED_BRANCH_BUNDLE_INVALID")
+    return branches
+
+def coupled_cached_numerical_jacobian(
+    np, scipy, probe_residual, q, lam, lower, upper, colored_sparsity,
+    attribution, cache,
+):
+    """Build one colored Jacobian per exact state and return safe copies."""
+    attribution["jacobianRequests"]+=1
+    if (cache["matrix"] is not None and cache["lambda"]==lam
+        and np.array_equal(cache["state"],q)):
+        attribution["jacobianExactStateCacheHits"]+=1
+        return cache["matrix"].copy()
+    attribution["jacobianBuilds"]+=1
+    matrix=scipy.optimize._numdiff.approx_derivative(
+      probe_residual,q,method="3-point",bounds=(lower,upper),
+      sparsity=colored_sparsity)
+    cache.update({"lambda":lam,"state":np.asarray(q).copy(),
+      "matrix":matrix.copy()})
+    return matrix
 
 def find_resume_zero_anchor(completed_results, height):
     """Select only a structurally shaped checkpoint candidate; never accept it."""
@@ -974,8 +1044,13 @@ def case(r, name, dc, dd, solvers):
             _active_qualification_jobs=None
             _profile_qualification_context=None
     qualified.sort(key=lambda value:value["index"])
-    profile_evidence=[]; profile_flux=[]; profile_unknowns=[]
-    for value in qualified:
+    qualified_local_branch_bundle=immutable_qualified_branch_bundle(qualified)
+    qualified_local_branch_bundle_sha256=(
+      qualified_local_branch_bundle["sha256"])
+    qualified_local_branches=qualified_branch_bundle_for_start(
+      qualified_local_branch_bundle)
+    profile_evidence=[]; profile_flux=[]
+    for value in qualified_local_branches:
         profile_evidence.append(value["evidence"])
         if "flux" not in value:
             raise JobCBlocked("JOB_C_AXIAL_CONTACT_QUALIFICATION_FAILED",
@@ -984,14 +1059,19 @@ def case(r, name, dc, dd, solvers):
                "qualifiedLocalContacts":profile_evidence,
                "profileHeightClaimed":False})
         profile_flux.append(value["flux"])
-        profile_unknowns.append(value["unknowns"])
     if not cache_hit:
-        store_qualification_cache(cache_identity,cache_key,qualified)
+        store_qualification_cache(
+          cache_identity,cache_key,list(qualified_local_branches))
     qualification_seconds=time.monotonic()-qualification_budget["started"]
     qualification_runtime={"budgetSeconds":qualification_budget["maximumSeconds"],
       "elapsedSeconds":qualification_seconds,
       "cacheStatus":"HIT_FULL_HASH_MATCH" if cache_hit else "MISS_QUALIFIED_AND_STORED",
-      "cacheKeySha256":cache_key}
+      "cacheKeySha256":cache_key,
+      "qualifiedLocalBranchCount":len(qualified_local_branches),
+      "qualifiedLocalBranchBundleSha256":
+        qualified_local_branch_bundle_sha256,
+      "solverStartReusePolicy":
+        "ONE_IMMUTABLE_HASH_BOUND_BUNDLE_FOR_EVERY_START"}
     qualification_budget.update({"ended":time.monotonic(),
       "cacheStatus":qualification_runtime["cacheStatus"],
       "cacheKeySha256":cache_key})
@@ -1086,7 +1166,7 @@ def case(r, name, dc, dd, solvers):
                   {"heightM":h,"lambda":bootstrap_lambda,
                    "minimumFlowMolS":float(np.min(flows)),
                    "profileIntervalQualification":profile_audit})
-            return flows,np.asarray(profile_unknowns).reshape(-1)
+            return flows,np.asarray(solver_start_profile_unknowns).reshape(-1)
 
         def unpack(x):
             # Direct bound-constrained molar-flow coordinates avoid the
@@ -1130,9 +1210,15 @@ def case(r, name, dc, dd, solvers):
         # blocks through the interface equations, in addition to its own
         # phase's neighboring convective/dispersion blocks.
         sparsity=coupled_jacobian_sparsity(scipy,m)
+        jacobian_color_groups=scipy.optimize._numdiff.group_columns(sparsity)
+        colored_sparsity=(sparsity,jacobian_color_groups)
         lower=np.r_[np.full(14*m,epsilon),np.full(13*m,-35.0)]
         upper=np.r_[np.full(14*m,upper_flow),np.full(13*m,35.0)]
         variable_scale=np.r_[np.tile(scale,2*m),np.ones(13*m)]
+        solver_start_branches=qualified_branch_bundle_for_start(
+          qualified_local_branch_bundle)
+        solver_start_profile_unknowns=[
+          value["unknowns"] for value in solver_start_branches]
 
         def diagnostic_rows(ev):
             rows=[]
@@ -1358,10 +1444,18 @@ def case(r, name, dc, dd, solvers):
               rejected_upper_lambda=rejected_upper)
             lambda_started=time.monotonic()
             coupled_attempts=[]
+            evaluation_attribution=coupled_evaluation_attribution()
+            evaluation_attribution["jacobianColorGroupCount"]=int(
+              np.max(jacobian_color_groups)+1)
             pre_ev=raw_evaluate(accepted_x,lam)
+            evaluation_attribution[
+              "preSolveDiagnosticResidualEvaluations"]+=1
             pre_metrics=gate_metrics(pre_ev)
             reference_ev=(raw_evaluate(accepted_x,reference_lambda)
               if reference_lambda is not None else None)
+            if reference_ev is not None:
+                evaluation_attribution[
+                  "preSolveDiagnosticResidualEvaluations"]+=1
             pre_solve_audit={
               "evaluatedLambda":lam,
               "referenceAcceptedLambda":reference_lambda,
@@ -1379,7 +1473,8 @@ def case(r, name, dc, dd, solvers):
                 "gateAlignedDivisorMolS":solver_scale.tolist(),
                 "divisorRule":"MIN_INVENTORY_SCALE_AND_1_MOL_PER_S"}}
             pre_confirmed=(confirm_coupled_candidate(
-              np,accepted_x,lam,raw_evaluate,gate_metrics)
+              np,accepted_x,lam,raw_evaluate,gate_metrics,
+              evaluation_attribution)
               if pre_metrics["accepted"] else None)
             residual_calls_before=budget["residualCalls"]
             coupled_fit=None; jacobian_diagnostics=None
@@ -1398,6 +1493,12 @@ def case(r, name, dc, dd, solvers):
                   },
                   "optimizerFunctionEvaluations":0,
                   "actualResidualEvaluations":0,
+                  "actualResidualEvaluationScope":
+                    "OPTIMIZER_BASE_PLUS_JACOBIAN_PROBES_ONLY",
+                  "evaluationAttribution":
+                    coupled_evaluation_report(evaluation_attribution),
+                  "qualifiedLocalBranchBundleSha256":
+                    qualified_local_branch_bundle_sha256,
                   "optimizerStatus":None,"optimizerSuccess":None,
                   "optimizerOptimality":None,
                   **selected["metrics"],
@@ -1412,12 +1513,13 @@ def case(r, name, dc, dd, solvers):
                     if metrics["accepted"]:
                         raise CoupledGateFeasible()
                 base_residual,probe_residual=coupled_objective_channels(
-                  residual,observe_base_state,lam)
+                  residual,observe_base_state,lam,evaluation_attribution)
+                jacobian_cache={"lambda":None,"state":None,"matrix":None}
                 def numerical_jacobian(q):
                     require_runtime_budget(budget)
-                    matrix=scipy.optimize._numdiff.approx_derivative(
-                      probe_residual,q,method="3-point",
-                      bounds=(lower,upper),sparsity=sparsity)
+                    matrix=coupled_cached_numerical_jacobian(
+                      np,scipy,probe_residual,q,lam,lower,upper,
+                      colored_sparsity,evaluation_attribution,jacobian_cache)
                     require_runtime_budget(budget)
                     return matrix
                 try:
@@ -1443,10 +1545,12 @@ def case(r, name, dc, dd, solvers):
                        "claimsEmitted":{"height":False,"efficiency":False,
                          "finalRpm":False,"jobD":False,"release":False}})
                 final_confirmed=(confirm_coupled_candidate(
-                  np,coupled_fit.x,lam,raw_evaluate,gate_metrics)
+                  np,coupled_fit.x,lam,raw_evaluate,gate_metrics,
+                  evaluation_attribution)
                   if coupled_fit is not None else None)
                 best_confirmed=(confirm_coupled_candidate(
-                  np,tracker["bestState"],lam,raw_evaluate,gate_metrics)
+                  np,tracker["bestState"],lam,raw_evaluate,gate_metrics,
+                  evaluation_attribution)
                   if tracker["bestState"] is not None
                     and tracker["bestMetrics"]["accepted"] else None)
                 if coupled_fit is not None:
@@ -1456,7 +1560,8 @@ def case(r, name, dc, dd, solvers):
                       np,coupled_fit.x,correction_vector,lower,upper)
                     correction_confirmed=(confirm_coupled_candidate(
                       np,correction_trial["state"],lam,raw_evaluate,
-                      gate_metrics) if correction_trial["admitted"] else None)
+                      gate_metrics,evaluation_attribution)
+                      if correction_trial["admitted"] else None)
                     jacobian_diagnostics["correctionCandidate"]={
                       "admitted":correction_trial["admitted"],
                       "reason":correction_trial["reason"],
@@ -1518,6 +1623,12 @@ def case(r, name, dc, dd, solvers):
                     else tracker["baseEvaluationCount"]),
                   "actualResidualEvaluations":
                     int(budget["residualCalls"]-residual_calls_before),
+                  "actualResidualEvaluationScope":
+                    "OPTIMIZER_BASE_PLUS_JACOBIAN_PROBES_ONLY",
+                  "evaluationAttribution":
+                    coupled_evaluation_report(evaluation_attribution),
+                  "qualifiedLocalBranchBundleSha256":
+                    qualified_local_branch_bundle_sha256,
                   "optimizerStatus":(
                     int(coupled_fit.status) if coupled_fit is not None else None),
                   "optimizerSuccess":(
