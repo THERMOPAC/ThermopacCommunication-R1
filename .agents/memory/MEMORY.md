@@ -122,4 +122,4 @@
 - [Predictive N_T progress](predictive-nt-progress-semantics.md) — coupled-solve activity, recorded stage audits, calculation completion, and scientific acceptance remain distinct.
 - [Stage 1 idempotent saves](ecr-prepilot-stage1-idempotent-save.md) — identical scientific inputs preserve audit identity so metadata-only re-saves cannot invalidate downstream lineage.
 - [Job C boundary qualification](job-c-boundary-qualification.md) — reproduction needs directly agreeing, seed-independent endpoints; local stability cross-checks projected and scalar Hessians.
-- [Job C conservative bootstrap result](job-c-conservative-bootstrap-result.md) — the direct 189-equation conservative-seed route stayed positive but failed the raw FV gate at λ=1e-8.
+- [Job C conservative bootstrap result](job-c-conservative-bootstrap-result.md) — λ=0 is accepted; the first positive point λ=1e-8 still fails raw FV closure after a full bounded solve.

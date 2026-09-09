@@ -191,7 +191,8 @@ print(json.dumps({
     expect(worker).toContain('np.asarray(profile_unknowns).reshape(-1)');
     expect(worker).toContain('JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID');
     expect(worker).toContain('max_nfev=40');
-    expect(worker).toContain('progress(f"direct coupled lambda {lam:g}")');
+    expect(worker).toContain('progress("direct coupled zero-transfer bootstrap"');
+    expect(worker).toContain('else f"direct coupled lambda {lam:g}")');
     expect(worker).toContain('progress("lambda 1 monolithic replay")');
     expect(worker).toContain('flows=x[:14*m].reshape(2,m,7)');
     expect(worker).toContain('np.full(14*m,epsilon)');
@@ -573,7 +574,7 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('profile_interval_probe_lambda=(');
     expect(worker).toContain('bootstrap_lambda=1e-8');
     expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
-    expect(worker).toContain('lambda_targets=sorted(set([bootstrap_lambda');
+    expect(worker).toContain('lambda_targets=coupled_lambda_targets(bootstrap_lambda)');
     expect(worker).toContain('lambda_targets.insert(');
     expect(worker).toContain('minimum_lambda_interval=1e-8');
     expect(worker).toContain('"literalPhysicalFeedFacesPreserved":True');
@@ -599,6 +600,115 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('raw<=1e-7');
     expect(worker).toContain('scaled<=1e-7');
   });
+
+  it('accepts an unchanged-system zero-transfer anchor before positive lambda', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const targets = worker.indexOf(
+      'lambda_targets=coupled_lambda_targets(bootstrap_lambda)',
+    );
+    const loop = worker.indexOf('while lambda_index<len(lambda_targets):', targets);
+    const solve = worker.indexOf('scipy.optimize.least_squares', loop);
+    const acceptance = worker.indexOf('coupled_accepted=(', solve);
+    expect(targets).toBeGreaterThan(-1);
+    expect(loop).toBeGreaterThan(targets);
+    expect(solve).toBeGreaterThan(loop);
+    expect(acceptance).toBeGreaterThan(solve);
+    expect(worker).toContain(
+      'COUPLED_BOUNDED_SPARSE_189_ZERO_TRANSFER_BOOTSTRAP',
+    );
+    expect(worker).toContain(
+      'DIRECT_COUPLED_189_EQUATION_ZERO_TRANSFER_BOOTSTRAP',
+    );
+    expect(worker).toContain('jac="3-point"');
+    expect(worker).toContain(
+      'tr_options={"atol":1e-10,"btol":1e-10,',
+    );
+    expect(worker).toContain('"maxiter":4*(27*m),"regularize":True}');
+    expect(worker).toContain('xtol=None,ftol=1e-11,gtol=1e-11');
+    expect(worker).toContain('"lastAcceptedLambda":previous_lambda');
+    expect(worker).toContain('"rejectedLambdaBracket":None if previous_lambda is None');
+    expect(worker).toContain('"dominantResidualRows":coupled_dominant_rows');
+    expect(worker).toContain('"dominantResidualBlocks":coupled_dominant_blocks');
+    expect(worker).toContain('"optimizerFunctionEvaluations":int(coupled_fit.nfev)');
+    expect(worker).toContain('"actualResidualEvaluations":');
+  });
+
+  it('executes zero-first targets, accepted brackets, and the full sparse dependency mask', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json, scipy
+from pathlib import Path
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {
+  "coupled_lambda_targets",
+  "coupled_lambda_failure_step",
+  "coupled_jacobian_sparsity",
+}
+selected = [
+  node for node in tree.body
+  if isinstance(node, ast.FunctionDef) and node.name in names
+]
+namespace = {}
+exec(compile(ast.Module(body=selected, type_ignores=[]),
+             "job-c-continuation-contract", "exec"), namespace)
+targets = namespace["coupled_lambda_targets"](1e-8)
+none_previous, none_midpoint = namespace["coupled_lambda_failure_step"](
+  [], 0.0, 1e-8)
+zero_previous, zero_midpoint = namespace["coupled_lambda_failure_step"](
+  [{"lambda": 0.0}], 1e-8, 1e-8)
+accepted_previous, accepted_midpoint = namespace[
+  "coupled_lambda_failure_step"
+]([{"lambda": 1e-8}], 3e-5, 1e-8)
+m = 7
+mask = namespace["coupled_jacobian_sparsity"](scipy, m).toarray()
+expected = set()
+for j in range(m):
+  neighboring = {j}
+  if j > 0:
+    neighboring.add(j - 1)
+  if j < m - 1:
+    neighboring.add(j + 1)
+  for row in range(14*j, 14*j+7):
+    for k in neighboring:
+      expected.update((row, col) for col in range(7*k, 7*k+7))
+    expected.update((row, col) for col in range(7*m+7*j, 7*m+7*j+7))
+    expected.update((row, col) for col in range(14*m+13*j, 14*m+13*j+13))
+  for row in range(14*j+7, 14*j+14):
+    for k in neighboring:
+      expected.update((row, col) for col in range(7*m+7*k, 7*m+7*k+7))
+    expected.update((row, col) for col in range(7*j, 7*j+7))
+    expected.update((row, col) for col in range(14*m+13*j, 14*m+13*j+13))
+  for row in range(14*m+13*j, 14*m+13*j+13):
+    expected.update((row, col) for col in range(7*j, 7*j+7))
+    expected.update((row, col) for col in range(7*m+7*j, 7*m+7*j+7))
+    expected.update((row, col) for col in range(14*m+13*j, 14*m+13*j+13))
+actual = set(zip(*mask.nonzero()))
+print(json.dumps({
+  "targets": targets,
+  "nonePrevious": none_previous,
+  "noneMidpoint": none_midpoint,
+  "zeroPrevious": zero_previous,
+  "zeroMidpoint": zero_midpoint,
+  "acceptedPrevious": accepted_previous,
+  "acceptedMidpoint": accepted_midpoint,
+  "shape": list(mask.shape),
+  "maskExact": actual == expected,
+  "nonzeroCount": len(actual),
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.targets[0]).toBe(0);
+    expect(observed.targets[1]).toBe(1e-8);
+    expect(observed.targets.at(-1)).toBe(1);
+    expect(observed.nonePrevious).toBeNull();
+    expect(observed.noneMidpoint).toBeNull();
+    expect(observed.zeroPrevious).toBe(0);
+    expect(observed.zeroMidpoint).toBeNull();
+    expect(observed.acceptedPrevious).toBe(1e-8);
+    expect(observed.acceptedMidpoint).toBeCloseTo(0.000015005, 12);
+    expect(observed.shape).toEqual([189, 189]);
+    expect(observed.maskExact).toBe(true);
+    expect(observed.nonzeroCount).toBeGreaterThan(0);
+  }, 15_000);
 
   it('executes the conservative seed and coupled warm-state contracts', () => {
     const observed = JSON.parse(execFileSync('python3', ['-c', `

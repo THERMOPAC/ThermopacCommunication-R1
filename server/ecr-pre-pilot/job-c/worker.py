@@ -196,6 +196,44 @@ def split_coupled_warm_state(np, warm, cells):
            "physicalInfeasibilityClaimed":False})
     return state[:14*cells].copy(),state[14*cells:].copy()
 
+def coupled_lambda_targets(bootstrap_lambda):
+    """Return the deterministic continuation path with lambda=0 first."""
+    return sorted(set([0.0,bootstrap_lambda,.00003,.0001,.0003,.001,
+      .0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
+
+def coupled_lambda_failure_step(history, rejected_lambda, minimum_interval):
+    """Return the accepted lower endpoint and optional retry midpoint."""
+    previous=history[-1]["lambda"] if history else None
+    midpoint=None
+    if (previous is not None
+        and rejected_lambda-previous>minimum_interval):
+        midpoint=(previous+rejected_lambda)/2.0
+    return previous,midpoint
+
+def coupled_jacobian_sparsity(scipy, cells):
+    """Build a conservative dependency mask for the 98 FV + 91 interface rows."""
+    m=cells
+    sparsity=scipy.sparse.lil_matrix((27*m,27*m),dtype=int)
+    for j in range(m):
+        neighboring={j}
+        if j>0: neighboring.add(j-1)
+        if j<m-1: neighboring.add(j+1)
+        for row in range(14*j,14*j+7):
+            for k in neighboring:
+                sparsity[row,7*k:7*k+7]=1
+            sparsity[row,7*m+7*j:7*m+7*j+7]=1
+            sparsity[row,14*m+13*j:14*m+13*j+13]=1
+        for row in range(14*j+7,14*j+14):
+            for k in neighboring:
+                sparsity[row,7*m+7*k:7*m+7*k+7]=1
+            sparsity[row,7*j:7*j+7]=1
+            sparsity[row,14*m+13*j:14*m+13*j+13]=1
+        for row in range(14*m+13*j,14*m+13*j+13):
+            sparsity[row,7*j:7*j+7]=1
+            sparsity[row,7*m+7*j:7*m+7*j+7]=1
+            sparsity[row,14*m+13*j:14*m+13*j+13]=1
+    return sparsity.tocsr()
+
 def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
     """Guard optimizer entry, callbacks, and return with one fail-closed contract.
 
@@ -727,26 +765,7 @@ def case(r, name, dc, dd, solvers):
         # Explicit block sparsity: every FV source sees both local phase-flow
         # blocks through the interface equations, in addition to its own
         # phase's neighboring convective/dispersion blocks.
-        sparsity=scipy.sparse.lil_matrix((27*m,27*m),dtype=int)
-        for j in range(m):
-            neighboring={j}
-            if j>0: neighboring.add(j-1)
-            if j<m-1: neighboring.add(j+1)
-            for row in range(14*j,14*j+7):
-                for k in neighboring:
-                    sparsity[row,7*k:7*k+7]=1
-                sparsity[row,7*m+7*j:7*m+7*j+7]=1
-                sparsity[row,14*m+13*j:14*m+13*j+13]=1
-            for row in range(14*j+7,14*j+14):
-                for k in neighboring:
-                    sparsity[row,7*m+7*k:7*m+7*k+7]=1
-                sparsity[row,7*j:7*j+7]=1
-                sparsity[row,14*m+13*j:14*m+13*j+13]=1
-            for row in range(14*m+13*j,14*m+13*j+13):
-                sparsity[row,7*j:7*j+7]=1
-                sparsity[row,7*m+7*j:7*m+7*j+7]=1
-                sparsity[row,14*m+13*j:14*m+13*j+13]=1
-        sparsity=sparsity.tocsr()
+        sparsity=coupled_jacobian_sparsity(scipy,m)
         lower=np.r_[np.full(14*m,epsilon),np.full(13*m,-35.0)]
         upper=np.r_[np.full(14*m,upper_flow),np.full(13*m,35.0)]
         variable_scale=np.r_[np.tile(scale,2*m),np.ones(13*m)]
@@ -822,33 +841,40 @@ def case(r, name, dc, dd, solvers):
              "classification":"PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED"},
            "qualification":"GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY;"
              "FLUX_SOURCE=QUALIFIED_JOB_C_BOUNDARY_BRANCH"})
+         # Establish an accepted zero-transfer anchor before introducing any
+         # homotopic transfer.  The conservative positive profile is only the
+         # initializer; all 189 unchanged equations remain active at lambda=0.
+         #
          # Every continuation target is solved directly as the bounded,
          # coupled 189-equation system.  There is deliberately no frozen-source
          # precomputed-source stage: raw_evaluate recomputes local interface equations and
          # fluxes from the evolving bulk state on every residual evaluation.
-        lambda_targets=sorted(set([bootstrap_lambda,.00003,.0001,.0003,.001,
-          .0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
-        lambda_targets=[value for value in lambda_targets if value>=bootstrap_lambda]
+        lambda_targets=coupled_lambda_targets(bootstrap_lambda)
         lambda_index=0
         minimum_lambda_interval=1e-8
-        maximum_coupled_function_evaluations=240
+        maximum_coupled_optimizer_nfev=240
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
-            previous_lambda=history[-1]["lambda"] if history else bootstrap_lambda
-            progress(f"direct coupled lambda {lam:g}")
+            solve_phase=("COUPLED_BOUNDED_SPARSE_189_ZERO_TRANSFER_BOOTSTRAP"
+              if lam==0.0 else "COUPLED_BOUNDED_SPARSE_189_CONTINUATION")
+            progress("direct coupled zero-transfer bootstrap"
+              if lam==0.0 else f"direct coupled lambda {lam:g}")
             lambda_started=time.monotonic()
             coupled_attempts=[]; coupled_fits=[]
+            residual_calls_before=budget["residualCalls"]
             try:
                 coupled_fit=budgeted_least_squares(
-                  budget,"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
+                  budget,solve_phase,
                   scipy.optimize.least_squares,
                   lambda q:residual(q,lam),accepted_x,
-                  bounds=(lower,upper),method="trf",jac="2-point",
+                  bounds=(lower,upper),method="trf",jac="3-point",
                   jac_sparsity=sparsity,tr_solver="lsmr",
+                  tr_options={"atol":1e-10,"btol":1e-10,
+                    "maxiter":4*(27*m),"regularize":True},
                   x_scale=variable_scale,
-                  max_nfev=maximum_coupled_function_evaluations,
-                  xtol=1e-11,ftol=1e-11,gtol=1e-11)
+                  max_nfev=maximum_coupled_optimizer_nfev,
+                  xtol=None,ftol=1e-11,gtol=1e-11)
             except TimeoutError:
                 raise JobCBlocked("JOB_C_INTERNAL_RUNTIME_BUDGET",
                   {"heightM":h,"lambda":lam,
@@ -869,20 +895,29 @@ def case(r, name, dc, dd, solvers):
               np.min(coupled_ev["d"])))
             coupled_accepted=(coupled_minimum>0 and coupled_raw<=1e-7
               and coupled_scaled<=1e-7 and coupled_interface<=1e-7)
+            coupled_dominant_rows=diagnostics(coupled_ev)
+            coupled_dominant_blocks=dominant_blocks(coupled_ev)
             coupled_attempts.append({
-              "initialization":"LAST_ACCEPTED_COUPLED_STATE",
-              "functionEvaluations":int(coupled_fit.nfev),
+              "initialization":("GLOBALLY_CONSERVATIVE_POSITIVE_SEED"
+                if not history else "LAST_ACCEPTED_COUPLED_STATE"),
+              "solvePhase":solve_phase,
+              "optimizerFunctionEvaluations":int(coupled_fit.nfev),
+              "actualResidualEvaluations":
+                int(budget["residualCalls"]-residual_calls_before),
               "optimizerStatus":int(coupled_fit.status),
               "optimizerSuccess":bool(coupled_fit.success),
               "optimizerOptimality":float(coupled_fit.optimality),
               "rawFvResidualMolS":coupled_raw,
               "scaledFvResidual":coupled_scaled,
               "maximumOriginalJobBGateResidual":coupled_interface,
-              "minimumFlowMolS":coupled_minimum,"accepted":coupled_accepted})
+              "minimumFlowMolS":coupled_minimum,
+              "dominantResidualRows":coupled_dominant_rows,
+              "dominantResidualBlocks":coupled_dominant_blocks,
+              "accepted":coupled_accepted})
             if coupled_accepted:
                 x=coupled_fit.x
                 history.append({"lambda":lam,
-                  "solver":"COUPLED_BOUNDED_SPARSE_189_CONTINUATION",
+                  "solver":solve_phase,
                   "coupledAttempts":coupled_attempts,
                   "rawFvResidualMolS":coupled_raw,
                   "scaledFvResidual":coupled_scaled,
@@ -897,20 +932,29 @@ def case(r, name, dc, dd, solvers):
                 continue
             # A failed direct solve is a numerical positive-feasibility
             # uncertainty, never a physical infeasibility conclusion.
-            if lam-previous_lambda>minimum_lambda_interval:
-                lambda_targets.insert(lambda_index,
-                  (previous_lambda+lam)/2.0)
+            previous_lambda,retry_midpoint=coupled_lambda_failure_step(
+              history,lam,minimum_lambda_interval)
+            if retry_midpoint is not None:
+                lambda_targets.insert(lambda_index,retry_midpoint)
                 progress(f"adaptive direct coupled lambda "
-                  f"{(previous_lambda+lam)/2.0:g}")
+                  f"{retry_midpoint:g}")
                 continue
-            raise JobCBlocked("JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
+            raise JobCBlocked(
+              "JOB_C_ZERO_TRANSFER_BOOTSTRAP_UNRESOLVED" if lam==0.0
+                else "JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
               {"heightM":h,"lambda":lam,
-               "phase":"DIRECT_COUPLED_189_EQUATION_SOLVE",
+                "phase":("DIRECT_COUPLED_189_EQUATION_ZERO_TRANSFER_BOOTSTRAP"
+                  if lam==0.0 else "DIRECT_COUPLED_189_EQUATION_SOLVE"),
+                "lastAcceptedLambda":previous_lambda,
+                "rejectedLambdaBracket":None if previous_lambda is None else {
+                  "lowerAccepted":previous_lambda,"upperRejected":lam},
                "coupledAttempts":coupled_attempts,
                "rawFvResidualMolS":coupled_raw,
                "scaledFvResidual":coupled_scaled,
                "maximumOriginalJobBGateResidual":coupled_interface,
                "minimumFlowMolS":coupled_minimum,
+                "dominantResidualRows":coupled_dominant_rows,
+                "dominantResidualBlocks":coupled_dominant_blocks,
                "physicalInfeasibilityClaimed":False,
                "claimsEmitted":{"height":False,"efficiency":False,
                  "finalRpm":False,"jobD":False,"release":False}})
