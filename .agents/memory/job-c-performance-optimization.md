@@ -16,3 +16,9 @@ Use staged evaluation only with an explicit authority boundary:
 - Before any result is admitted, always rerun the existing exact confirmations and every scientific gate unchanged.
 
 **Why:** A cheaper surrogate that participates directly in step acceptance can silently change the numerical problem even if final gates are retained.
+
+Runtime timing diagnostics are non-governing evidence. Keep them in one explicitly named top-level result field and exclude only that field from the scientific result hash; never place timings in attempts, completed results, or checkpoint evidence.
+
+**Why:** Wall-clock values are nondeterministic. Hashing them changes scientific identity between identical runs, while recursive key-based exclusions could accidentally hide future scientific data.
+
+**How to apply:** Use a dedicated scientific-result hash that removes only the top-level runtime-diagnostics field and the self-hash. Checkpoint and resume hashes remain fully deterministic and timing-free.

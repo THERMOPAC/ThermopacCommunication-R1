@@ -39,6 +39,13 @@ export const jobCResultHash = (value: unknown) => {
       .filter(([key]) => key !== 'resultSha256')) : value;
   return createHash('sha256').update(canonical(hashValue(snapshot))).digest('hex');
 };
+export const jobCScientificResultHash = (value: unknown) => {
+  const snapshot = value && typeof value === 'object'
+    ? Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => key !== 'resultSha256' && key !== 'runtimeDiagnostics'))
+    : value;
+  return createHash('sha256').update(canonical(hashValue(snapshot))).digest('hex');
+};
 export function currentJobCArtifactHashes() {
   const root = process.env.JOB_C_RUNTIME_ROOT
     ? path.resolve(process.env.JOB_C_RUNTIME_ROOT)
@@ -282,7 +289,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         if (response.protocol !== JOB_C_PROTOCOL
           || JSON.stringify(response.componentOrder ?? JOB_C_COMPONENT_ORDER)
             !== JSON.stringify(JOB_C_COMPONENT_ORDER)
-          || response.resultSha256 !== jobCResultHash(response)) throw new Error();
+          || response.resultSha256 !== jobCScientificResultHash(response)) throw new Error();
         if (checkpointCallbackError) {
           return finish(new JobCError('JOB_C_CHECKPOINT_PERSISTENCE_FAILED', {
             cause: checkpointCallbackError.message,

@@ -8,6 +8,7 @@ import {
   currentJobCArtifactHashes,
   JobCError,
   jobCResultHash,
+  jobCScientificResultHash,
   type JobCProgress,
 } from './job-c';
 import { validateStage1Snapshot } from './stage1';
@@ -221,7 +222,7 @@ export async function enqueueJobC(userId: number, designId: number) {
       && reusableRow.result_snapshot != null
       && typeof reusableRow.result_hash === 'string'
       && /^[a-f0-9]{64}$/.test(reusableRow.result_hash)
-      && jobCResultHash(reusableRow.result_snapshot) === reusableRow.result_hash;
+      && jobCScientificResultHash(reusableRow.result_snapshot) === reusableRow.result_hash;
     if (reusableRow
       && jobCResultHash(reusableRow.input_snapshot) === reusableRow.input_hash
       && jobCResultHash(reusableRow.input_snapshot.prepared) === preparedInputHash
@@ -528,7 +529,7 @@ async function execute(row: any, token: string) {
        error=CASE WHEN cancel_requested_at IS NULL THEN NULL ELSE 'JOB_C_CANCELLED' END,
        progress_phase='terminal',
        completed_at=NOW(),lease_expires_at=NULL,claim_token=NULL`,
-      [blocked ? 'blocked' : 'completed', result, jobCResultHash(result)]);
+      [blocked ? 'blocked' : 'completed', result, jobCScientificResultHash(result)]);
     if (final.rows[0]) await history(pool, final.rows[0], {
       event: final.rows[0].status,
       reason: blocked ? result.workerResult?.error ?? 'BLOCKED_PRELIMINARY_JOB_C' : null,

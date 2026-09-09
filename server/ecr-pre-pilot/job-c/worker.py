@@ -28,6 +28,7 @@ def hashed(v):
     return {k:hashed(x) for k,x in v.items()}
 def digest(v): return hashlib.sha256(canonical(hashed(v)).encode()).hexdigest()
 _job_started=None
+_runtime_profiles=[]
 _last_progress={"phase":"initializing","completed":0,"total":None,
   "iteration":None,"residual":None,"residualKind":None,
   "elapsedSeconds":0.0,"heightCandidateM":None,
@@ -297,7 +298,15 @@ def coupled_evaluation_attribution():
       "jacobianRequests":0,
       "jacobianBuilds":0,
       "jacobianExactStateCacheHits":0,
-      "jacobianColorGroupCount":0}
+      "jacobianColorGroupCount":0,
+      "preSolveDiagnosticWallSeconds":0.0,
+      "optimizerTrialBaseWallSeconds":0.0,
+      "jacobianProbeWallSeconds":0.0,
+      "jacobianBuildWallSeconds":0.0,
+      "optimizerWallSeconds":0.0,
+      "exactGateReevaluationWallSeconds":0.0,
+      "fvResidualAssemblyWallSeconds":0.0,
+      "localInterfaceThermodynamicsWallSeconds":0.0}
 
 def coupled_evaluation_report(attribution):
     """Report derivative work separately from optimizer trial states."""
@@ -312,14 +321,85 @@ def coupled_evaluation_report(attribution):
       +report["confirmationResidualEvaluations"])
     return report
 
+def coupled_wall_clock_report(attribution, attempt_seconds):
+    """Report exclusive phase fractions plus independently timed kernels."""
+    keys=(
+      "preSolveDiagnosticWallSeconds","optimizerTrialBaseWallSeconds",
+      "jacobianProbeWallSeconds","jacobianBuildWallSeconds",
+      "optimizerWallSeconds","exactGateReevaluationWallSeconds",
+      "fvResidualAssemblyWallSeconds",
+      "localInterfaceThermodynamicsWallSeconds")
+    try:
+        elapsed=float(attempt_seconds)
+        values={key:float(attribution[key]) for key in keys}
+    except (KeyError,TypeError,ValueError,OverflowError):
+        return {"status":"INVALID_TIMING_INPUT","attemptWallSeconds":None,
+          "exclusivePhaseWallSeconds":None,
+          "exclusivePhaseWallFractions":None,"kernelWallSeconds":None}
+    if (not math.isfinite(elapsed) or elapsed<0.0
+        or any(not math.isfinite(value) or value<0.0
+          for value in values.values())):
+        return {"status":"INVALID_TIMING_INPUT","attemptWallSeconds":None,
+          "exclusivePhaseWallSeconds":None,
+          "exclusivePhaseWallFractions":None,"kernelWallSeconds":None}
+    base=values["optimizerTrialBaseWallSeconds"]
+    probes=values["jacobianProbeWallSeconds"]
+    jacobian_build=values["jacobianBuildWallSeconds"]
+    optimizer=values["optimizerWallSeconds"]
+    jacobian_overhead=max(jacobian_build-probes,0.0)
+    sparse=max(optimizer-base-jacobian_build,0.0)
+    phases={
+      "preSolveDiagnostics":values["preSolveDiagnosticWallSeconds"],
+      "optimizerTrialBaseEvaluations":base,
+      "jacobianProbes":probes,
+      "jacobianConstructionOverhead":jacobian_overhead,
+      "sparseSolveAndGlobalization":sparse,
+      "exactGateReevaluations":
+        values["exactGateReevaluationWallSeconds"]}
+    classified=sum(phases.values())
+    phases["unclassifiedOverhead"]=max(elapsed-classified,0.0)
+    tolerance=max(1e-9,elapsed*1e-9)
+    inconsistent=(
+      base+jacobian_build>optimizer+tolerance
+      or classified>elapsed+tolerance)
+    status="INCONSISTENT_TIMING_TOTALS" if inconsistent else "PROFILED"
+    fractions=(None if inconsistent else {
+      key:(value/elapsed if elapsed>0.0 else 0.0)
+      for key,value in phases.items()})
+    return {"status":status,"attemptWallSeconds":elapsed,
+      "exclusivePhaseWallSeconds":phases,
+      "exclusivePhaseWallFractions":fractions,
+      "kernelWallSeconds":{
+        "fvResidualAssembly":
+          values["fvResidualAssemblyWallSeconds"],
+        "localInterfaceThermodynamics":
+          values["localInterfaceThermodynamicsWallSeconds"]},
+      "sparseSolveMeasurement":
+        "LEAST_SQUARES_WALL_MINUS_BASE_AND_FULL_JACOBIAN_BUILD_WALL;"
+        "INCLUDES_LSMR_AND_TRF_GLOBALIZATION",
+      "jacobianConstructionMeasurement":
+        "FULL_JACOBIAN_BUILD_WALL_MINUS_NESTED_PROBE_WALL",
+      "kernelMeasurement":
+        "KERNEL_TOTALS_CROSS_PHASE_AND_ARE_NOT_ADDED_TO_EXCLUSIVE_PHASES"}
+
 def coupled_objective_channels(evaluate, observer, lam, attribution):
     """Separate optimizer base states from finite-difference probe states."""
     def base(state):
         attribution["optimizerTrialBaseResidualEvaluations"]+=1
-        return evaluate(state,lam,observer)
+        started=time.monotonic()
+        try:
+            return evaluate(state,lam,observer)
+        finally:
+            attribution["optimizerTrialBaseWallSeconds"]+=(
+              time.monotonic()-started)
     def probe(state):
         attribution["jacobianConstructionResidualEvaluations"]+=1
-        return evaluate(state,lam,None)
+        started=time.monotonic()
+        try:
+            return evaluate(state,lam,None)
+        finally:
+            attribution["jacobianProbeWallSeconds"]+=(
+              time.monotonic()-started)
     return base,probe
 
 def coupled_observe_base_candidate(np, tracker, state, metrics):
@@ -337,24 +417,30 @@ def coupled_observe_base_candidate(np, tracker, state, metrics):
 def confirm_coupled_candidate(np, candidate_state, lam, raw_evaluate,
                               metrics_for, attribution=None):
     """Require two fresh full-system evaluations to pass every gate."""
+    started=time.monotonic()
     if attribution is not None:
         attribution["confirmationResidualEvaluations"]+=2
-    first=raw_evaluate(candidate_state,lam)
-    second=raw_evaluate(np.asarray(candidate_state).copy(),lam)
-    first_metrics=metrics_for(first); second_metrics=metrics_for(second)
-    deltas={
-      key:abs(first_metrics[key]-second_metrics[key])
-      for key in ("rawFvResidualMolS","scaledFvResidual",
-        "maximumOriginalJobBGateResidual","minimumFlowMolS")}
-    return {"accepted":bool(first_metrics["accepted"]
-        and second_metrics["accepted"]),
-      "state":np.asarray(candidate_state).copy(),"evaluation":second,
-      "metrics":second_metrics,
-      "confirmation":{"independentRawReevaluationCount":2,
-        "bothScientificGateEvaluationsPassed":bool(
-          first_metrics["accepted"] and second_metrics["accepted"]),
-        "maximumMetricDifference":max(deltas.values()),
-        "exactlyRepeatable":all(value==0.0 for value in deltas.values())}}
+    try:
+        first=raw_evaluate(candidate_state,lam)
+        second=raw_evaluate(np.asarray(candidate_state).copy(),lam)
+        first_metrics=metrics_for(first); second_metrics=metrics_for(second)
+        deltas={
+          key:abs(first_metrics[key]-second_metrics[key])
+          for key in ("rawFvResidualMolS","scaledFvResidual",
+            "maximumOriginalJobBGateResidual","minimumFlowMolS")}
+        return {"accepted":bool(first_metrics["accepted"]
+            and second_metrics["accepted"]),
+          "state":np.asarray(candidate_state).copy(),"evaluation":second,
+          "metrics":second_metrics,
+          "confirmation":{"independentRawReevaluationCount":2,
+            "bothScientificGateEvaluationsPassed":bool(
+              first_metrics["accepted"] and second_metrics["accepted"]),
+            "maximumMetricDifference":max(deltas.values()),
+            "exactlyRepeatable":all(value==0.0 for value in deltas.values())}}
+    finally:
+        if attribution is not None:
+            attribution["exactGateReevaluationWallSeconds"]+=(
+              time.monotonic()-started)
 
 def immutable_qualified_branch_bundle(qualified):
     """Store the seven branches in one immutable canonical string."""
@@ -390,9 +476,13 @@ def coupled_cached_numerical_jacobian(
         attribution["jacobianExactStateCacheHits"]+=1
         return cache["matrix"].copy()
     attribution["jacobianBuilds"]+=1
-    matrix=scipy.optimize._numdiff.approx_derivative(
-      probe_residual,q,method="3-point",bounds=(lower,upper),
-      sparsity=colored_sparsity)
+    started=time.monotonic()
+    try:
+        matrix=scipy.optimize._numdiff.approx_derivative(
+          probe_residual,q,method="3-point",bounds=(lower,upper),
+          sparsity=colored_sparsity)
+    finally:
+        attribution["jacobianBuildWallSeconds"]+=time.monotonic()-started
     cache.update({"lambda":lam,"state":np.asarray(q).copy(),
       "matrix":matrix.copy()})
     return matrix
@@ -1152,6 +1242,7 @@ def case(r, name, dc, dd, solvers):
         epsilon=max(total_flow*1e-13,1e-20)
         upper_flow=max(total_flow*10,epsilon*10)
         dz=h/m; av=6*r["operatingHoldup"]/r["d32M"]
+        evaluation_attribution=None
 
         def initial():
             if warm_state is not None:
@@ -1175,6 +1266,7 @@ def case(r, name, dc, dd, solvers):
             return flows[0],flows[1],x[14*m:].reshape(m,13)
 
         def raw_evaluate(x,lam):
+            raw_started=time.monotonic()
             c,d,u=unpack(x)
             cc=c/c.sum(axis=1)[:,None]*r["continuousTotalConcentrationMolM3"]
             cd=d/d.sum(axis=1)[:,None]*r["dispersedTotalConcentrationMolM3"]
@@ -1185,14 +1277,23 @@ def case(r, name, dc, dd, solvers):
                 fd[j]=-(d[j-1]+d[j])/2-dd*A*(cd[j]-cd[j-1])/dz
             fc[m]=c[m-1]; fd[0]=-d[0]
             interface=[]; nc=[]; details=[]
+            interface_started=time.monotonic()
             for j in range(m):
                 values=solvers[j].equations(u[j],c[j]/c[j].sum(),d[j]/d[j].sum())
                 interface.extend(values[0]); nc.append(values[4]); details.append(values)
+            interface_ended=time.monotonic()
             nc=np.asarray(nc)
             tr=lam*nc*av*A*dz
             rc=fc[:-1]-fc[1:]-tr
             rd=fd[:-1]-fd[1:]+tr
             fv=np.asarray([v for j in range(m) for v in np.r_[rc[j],rd[j]]])
+            if evaluation_attribution is not None:
+                evaluation_attribution[
+                  "localInterfaceThermodynamicsWallSeconds"]+=(
+                    interface_ended-interface_started)
+                evaluation_attribution["fvResidualAssemblyWallSeconds"]+=(
+                  (interface_started-raw_started)
+                  +(time.monotonic()-interface_ended))
             return {"c":c,"d":d,"u":u,"fc":fc,"fd":fd,"tr":tr,"rc":rc,"rd":rd,
                     "fv":fv,"interface":np.asarray(interface),"details":details}
 
@@ -1447,6 +1548,7 @@ def case(r, name, dc, dd, solvers):
             evaluation_attribution=coupled_evaluation_attribution()
             evaluation_attribution["jacobianColorGroupCount"]=int(
               np.max(jacobian_color_groups)+1)
+            pre_solve_started=time.monotonic()
             pre_ev=raw_evaluate(accepted_x,lam)
             evaluation_attribution[
               "preSolveDiagnosticResidualEvaluations"]+=1
@@ -1472,6 +1574,8 @@ def case(r, name, dc, dd, solvers):
                 "inventoryScaleMolS":scale.tolist(),
                 "gateAlignedDivisorMolS":solver_scale.tolist(),
                 "divisorRule":"MIN_INVENTORY_SCALE_AND_1_MOL_PER_S"}}
+            evaluation_attribution["preSolveDiagnosticWallSeconds"]+=(
+              time.monotonic()-pre_solve_started)
             pre_confirmed=(confirm_coupled_candidate(
               np,accepted_x,lam,raw_evaluate,gate_metrics,
               evaluation_attribution)
@@ -1523,6 +1627,7 @@ def case(r, name, dc, dd, solvers):
                     require_runtime_budget(budget)
                     return matrix
                 try:
+                    optimizer_started=time.monotonic()
                     coupled_fit=budgeted_least_squares(
                       budget,solve_phase,
                       scipy.optimize.least_squares,
@@ -1544,6 +1649,9 @@ def case(r, name, dc, dd, solvers):
                        "physicalInfeasibilityClaimed":False,
                        "claimsEmitted":{"height":False,"efficiency":False,
                          "finalRpm":False,"jobD":False,"release":False}})
+                finally:
+                    evaluation_attribution["optimizerWallSeconds"]+=(
+                      time.monotonic()-optimizer_started)
                 final_confirmed=(confirm_coupled_candidate(
                   np,coupled_fit.x,lam,raw_evaluate,gate_metrics,
                   evaluation_attribution)
@@ -1655,6 +1763,13 @@ def case(r, name, dc, dd, solvers):
               "dominantResidualBlocks":coupled_dominant_blocks,
               "componentBalanceAudit":component_balance_audit(coupled_ev),
               "accepted":coupled_accepted})
+            _runtime_profiles.append({
+              "case":name,"heightCandidateM":float(h),"lambda":float(lam),
+              "continuationTrial":continuation_trial,
+              "evaluationAttribution":
+                coupled_evaluation_report(evaluation_attribution),
+              "wallClockAttribution":coupled_wall_clock_report(
+                evaluation_attribution,time.monotonic()-lambda_started)})
             if coupled_accepted:
                 x=selected["state"]
                 if active_bracket is not None:
@@ -2187,6 +2302,7 @@ for line in sys.stdin:
       "acceptedLowerLambda":None,"rejectedUpperLambda":None}
     _last_progress_emit=0.0
     _completed_results=[]
+    _runtime_profiles=[]
     r=json.loads(line)
     _request_sha256=digest(checkpoint_request_payload(r))
     resume=r.get("resumeCheckpoint")
@@ -2252,6 +2368,11 @@ for line in sys.stdin:
               "finalRpm":False,"jobD":False,"release":False}}}
  except (ValueError,RuntimeError,KeyError,TypeError) as e:
     body={"protocol":PROTOCOL,"status":"FAILURE_INVALID_REQUEST","error":str(e)}
- body["resultSha256"]=digest(body)
+ body["runtimeDiagnostics"]={
+   "qualification":"NON_GOVERNING_PERFORMANCE_PROFILE_EXCLUDED_FROM_SCIENTIFIC_HASH",
+   "attempts":_runtime_profiles}
+ body["resultSha256"]=digest({
+   key:value for key,value in body.items()
+   if key not in ("resultSha256","runtimeDiagnostics")})
  progress("terminal",1,1)
  print(canonical(body),flush=True)

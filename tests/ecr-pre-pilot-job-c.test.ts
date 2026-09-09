@@ -9,6 +9,7 @@ import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
   jobCResultHash,
+  jobCScientificResultHash,
   runJobCWorker,
 } from '../server/ecr-pre-pilot/job-c';
 import {
@@ -224,6 +225,18 @@ sys.stdout.flush()
     expect(hash).toMatch(/^[a-f0-9]{64}$/);
     expect(jobCResultHash({ ...body, resultSha256: 'ignored' })).toBe(hash);
     expect(jobCResultHash({ ...body, value: 2.1 })).not.toBe(hash);
+    const profiled = {
+      ...body,
+      runtimeDiagnostics: { attemptWallSeconds: 1.2 },
+    };
+    expect(jobCScientificResultHash(profiled)).toBe(
+      jobCScientificResultHash({
+        ...profiled,
+        runtimeDiagnostics: { attemptWallSeconds: 99.9 },
+      }),
+    );
+    expect(jobCScientificResultHash({ ...profiled, value: 2.1 }))
+      .not.toBe(jobCScientificResultHash(profiled));
     // Python's governed worker uses bytewise lexicographic key ordering.
     // localeCompare orders case variants differently and breaks cross-runtime
     // integrity for fields such as initialRaw... and initialization.
@@ -276,7 +289,7 @@ print(json.dumps({
     const captureAt = runtime.indexOf('options.onRawResponse?.(finalLines.join');
     const parseAt = runtime.indexOf('const response = JSON.parse(finalLines[0])');
     const integrityAt = runtime.indexOf(
-      'response.resultSha256 !== jobCResultHash(response)',
+      'response.resultSha256 !== jobCScientificResultHash(response)',
     );
     expect(captureAt).toBeGreaterThan(-1);
     expect(captureAt).toBeLessThan(parseAt);
@@ -403,6 +416,12 @@ print(json.dumps({
     );
     expect(queue).toContain('jobCResultHash(snapshot)');
     expect(queue).toContain('jobCResultHash(snapshot.prepared)');
+    expect(queue).toContain(
+      'jobCScientificResultHash(reusableRow.result_snapshot)',
+    );
+    expect(queue).toContain(
+      'result, jobCScientificResultHash(result)',
+    );
     expect(packager).toContain("version: 'ECR_JOB_C_BRANCH_CONTINUATION_V1'");
     expect(packager).toContain('branchContinuation: {');
     expect(runtime).toContain(
@@ -778,6 +797,10 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('"jacobianConstructionResidualEvaluations"');
     expect(worker).toContain('"optimizerTrialBaseResidualEvaluations"');
     expect(worker).toContain('"jacobianExactStateCacheHits"');
+    expect(worker).toContain('"wallClockAttribution"');
+    expect(worker).toContain('"exclusivePhaseWallFractions"');
+    expect(worker).toContain('"localInterfaceThermodynamics"');
+    expect(worker).toContain('"sparseSolveAndGlobalization"');
     expect(worker).toContain('"qualifiedLocalBranchBundleSha256"');
     expect(worker).toContain('OPTIMIZER_BASE_ITERATE_CAPTURE');
     expect(worker).toContain('ACCEPTED_REFERENCE_DIRECT_REEVALUATION');
@@ -897,7 +920,8 @@ print(json.dumps({
 
   it('reuses safe colored Jacobians and deep-copies one hash-bound branch bundle', () => {
     const observed = JSON.parse(execFileSync('python3', ['-c', `
-import ast, hashlib, json, numpy as np, scipy
+import ast, hashlib, json, math, numpy as np, scipy
+import time
 from pathlib import Path
 source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
@@ -906,6 +930,7 @@ names = {
   "canonical",
   "coupled_evaluation_attribution",
   "coupled_evaluation_report",
+  "coupled_wall_clock_report",
   "coupled_objective_channels",
   "immutable_qualified_branch_bundle",
   "qualified_branch_bundle_for_start",
@@ -916,7 +941,8 @@ selected = [
   if isinstance(node, ast.FunctionDef) and node.name in names
 ]
 namespace = {
-  "hashlib": hashlib, "json": json, "np": np, "scipy": scipy,
+  "hashlib": hashlib, "json": json, "math": math, "np": np,
+  "scipy": scipy, "time": time,
 }
 exec(compile(ast.Module(body=selected, type_ignores=[]),
              "job-c-efficiency-contract", "exec"), namespace)
@@ -966,6 +992,30 @@ new_lambda = namespace["coupled_cached_numerical_jacobian"](
   np, scipy, probe, q, 2e-8, lower, upper, colored, attribution, cache)
 base(q)
 report = namespace["coupled_evaluation_report"](attribution)
+attribution.update({
+  "preSolveDiagnosticWallSeconds": 1.0,
+  "optimizerTrialBaseWallSeconds": 2.0,
+  "jacobianProbeWallSeconds": 3.0,
+  "jacobianBuildWallSeconds": 5.0,
+  "optimizerWallSeconds": 9.0,
+  "exactGateReevaluationWallSeconds": 1.0,
+  "fvResidualAssemblyWallSeconds": 2.5,
+  "localInterfaceThermodynamicsWallSeconds": 4.5,
+})
+wall_clock = namespace["coupled_wall_clock_report"](attribution, 12.0)
+zero_clock = namespace["coupled_wall_clock_report"](
+  namespace["coupled_evaluation_attribution"](), 0.0)
+invalid_attribution = namespace["coupled_evaluation_attribution"]()
+invalid_attribution["optimizerWallSeconds"] = float("nan")
+invalid_clock = namespace["coupled_wall_clock_report"](
+  invalid_attribution, 1.0)
+inconsistent_attribution = namespace["coupled_evaluation_attribution"]()
+inconsistent_attribution.update({
+  "optimizerTrialBaseWallSeconds": 2.0,
+  "optimizerWallSeconds": 1.0,
+})
+inconsistent_clock = namespace["coupled_wall_clock_report"](
+  inconsistent_attribution, 2.0)
 
 print(json.dumps({
   "branchCount": len(second_start),
@@ -979,6 +1029,10 @@ print(json.dumps({
   "derivativeCorrect": np.allclose(
     expected, np.diag([2.0, 4.0, 6.0]), atol=1e-8),
   "report": report,
+  "wallClock": wall_clock,
+  "zeroClock": zero_clock,
+  "invalidClock": invalid_clock,
+  "inconsistentClock": inconsistent_clock,
 }))
 `], { encoding: 'utf8' }));
     expect(observed.branchCount).toBe(7);
@@ -1001,11 +1055,49 @@ print(json.dumps({
       observed.report.optimizerTrialBaseResidualEvaluations
       + observed.report.jacobianConstructionResidualEvaluations,
     );
+    expect(observed.wallClock.exclusivePhaseWallSeconds).toEqual({
+      preSolveDiagnostics: 1,
+      optimizerTrialBaseEvaluations: 2,
+      jacobianProbes: 3,
+      jacobianConstructionOverhead: 2,
+      sparseSolveAndGlobalization: 2,
+      exactGateReevaluations: 1,
+      unclassifiedOverhead: 1,
+    });
+    expect(Object.values(
+      observed.wallClock.exclusivePhaseWallFractions,
+    ).reduce((sum: number, value) => sum + Number(value), 0)).toBeCloseTo(1);
+    expect(observed.wallClock.kernelWallSeconds).toEqual({
+      fvResidualAssembly: 2.5,
+      localInterfaceThermodynamics: 4.5,
+    });
+    expect(observed.wallClock.status).toBe('PROFILED');
+    expect(observed.zeroClock).toMatchObject({
+      status: 'PROFILED',
+      attemptWallSeconds: 0,
+      exclusivePhaseWallFractions: {
+        preSolveDiagnostics: 0,
+        optimizerTrialBaseEvaluations: 0,
+        jacobianProbes: 0,
+        jacobianConstructionOverhead: 0,
+        sparseSolveAndGlobalization: 0,
+        exactGateReevaluations: 0,
+        unclassifiedOverhead: 0,
+      },
+    });
+    expect(observed.invalidClock).toMatchObject({
+      status: 'INVALID_TIMING_INPUT',
+      exclusivePhaseWallFractions: null,
+    });
+    expect(observed.inconsistentClock).toMatchObject({
+      status: 'INCONSISTENT_TIMING_TOTALS',
+      exclusivePhaseWallFractions: null,
+    });
   }, 15_000);
 
   it('executes probe exclusion, independent gates, confirmation, and checkpoint revalidation contracts', () => {
     const observed = JSON.parse(execFileSync('python3', ['-c', `
-import ast, hashlib, json, math, numpy as np
+import ast, hashlib, json, math, numpy as np, time
 from pathlib import Path
 source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
@@ -1033,7 +1125,9 @@ selected = [
   if ((isinstance(node, ast.ClassDef) and node.name == "JobCBlocked")
       or (isinstance(node, ast.FunctionDef) and node.name in names))
 ]
-namespace = {"np": np, "math": math, "hashlib": hashlib, "json": json}
+namespace = {
+  "np": np, "math": math, "hashlib": hashlib, "json": json, "time": time,
+}
 exec(compile(ast.Module(body=selected, type_ignores=[]),
              "job-c-candidate-contract", "exec"), namespace)
 
