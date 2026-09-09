@@ -32,7 +32,16 @@ def protocol_namespace():
                            "continuationLambda": None,
                            "continuationTrial": None,
                            "acceptedLowerLambda": None,
-                           "rejectedUpperLambda": None},
+                           "rejectedUpperLambda": None,
+                           "rawFvResidualMolS": None,
+                           "scaledFvResidual": None,
+                           "maximumOriginalJobBGateResidual": None,
+                           "minimumFlowMolS": None,
+                           "rawFvGatePassed": None,
+                           "scaledFvGatePassed": None,
+                           "originalJobBGatePassed": None,
+                           "strictPositivityPassed": None,
+                           "accepted": None},
         "_last_progress_emit": 0.0,
         "_completed_results": [],
         "_request_sha256": "request-digest",
@@ -50,7 +59,18 @@ class JobCWorkerProtocolTest(unittest.TestCase):
                                lambda_value=3e-8,
                                continuation_trial=2,
                                accepted_lower_lambda=1e-8,
-                               rejected_upper_lambda=1e-7)
+                               rejected_upper_lambda=1e-7,
+                               gate_metrics={
+                                   "rawFvResidualMolS": 8e-8,
+                                   "scaledFvResidual": 9e-8,
+                                   "maximumOriginalJobBGateResidual": 2e-8,
+                                   "minimumFlowMolS": 3e-9,
+                                   "rawFvGatePassed": True,
+                                   "scaledFvGatePassed": True,
+                                   "originalJobBGatePassed": True,
+                                   "strictPositivityPassed": True,
+                                   "accepted": True,
+                               })
         message = json.loads(output.getvalue().split(" ", 1)[1])
         self.assertEqual(message["phase"], "qualifying")
         self.assertEqual(message["completed"], 2)
@@ -63,6 +83,11 @@ class JobCWorkerProtocolTest(unittest.TestCase):
         self.assertEqual(message["continuationTrial"], 2)
         self.assertEqual(message["acceptedLowerLambda"], 1e-8)
         self.assertEqual(message["rejectedUpperLambda"], 1e-7)
+        self.assertEqual(message["rawFvResidualMolS"], 8e-8)
+        self.assertEqual(message["scaledFvResidual"], 9e-8)
+        self.assertEqual(message["maximumOriginalJobBGateResidual"], 2e-8)
+        self.assertEqual(message["minimumFlowMolS"], 3e-9)
+        self.assertTrue(message["accepted"])
         self.assertGreaterEqual(message["elapsedSeconds"], 0)
 
     def test_solver_height_is_stored_on_the_live_budget(self):
@@ -79,6 +104,31 @@ class JobCWorkerProtocolTest(unittest.TestCase):
             and isinstance(node.targets[0].slice, ast.Constant)
             and node.targets[0].slice.value == "heightCandidateM"
             for node in assignments))
+
+    def test_terminal_progress_retains_gates_and_branch_bracket(self):
+        worker = protocol_namespace()
+        output = io.StringIO()
+        gates = {
+            "rawFvResidualMolS": 8e-8,
+            "scaledFvResidual": 9e-8,
+            "maximumOriginalJobBGateResidual": 2e-8,
+            "minimumFlowMolS": 3e-9,
+            "rawFvGatePassed": True,
+            "scaledFvGatePassed": True,
+            "originalJobBGatePassed": True,
+            "strictPositivityPassed": True,
+            "accepted": True,
+        }
+        with contextlib.redirect_stdout(output):
+            worker["progress"]("coupled", accepted_lower_lambda=1e-8,
+                               rejected_upper_lambda=1.25e-8,
+                               gate_metrics=gates)
+            worker["progress"]("terminal", 1, 1)
+        terminal = json.loads(output.getvalue().splitlines()[-1].split(" ", 1)[1])
+        self.assertEqual(terminal["acceptedLowerLambda"], 1e-8)
+        self.assertEqual(terminal["rejectedUpperLambda"], 1.25e-8)
+        self.assertEqual(terminal["rawFvResidualMolS"], 8e-8)
+        self.assertTrue(terminal["accepted"])
 
     def test_checkpoint_is_full_partial_envelope(self):
         worker = protocol_namespace()

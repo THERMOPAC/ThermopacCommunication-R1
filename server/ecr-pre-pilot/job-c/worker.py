@@ -33,7 +33,12 @@ _last_progress={"phase":"initializing","completed":0,"total":None,
   "iteration":None,"residual":None,"residualKind":None,
   "elapsedSeconds":0.0,"heightCandidateM":None,
   "continuationLambda":None,"continuationTrial":None,
-  "acceptedLowerLambda":None,"rejectedUpperLambda":None}
+  "acceptedLowerLambda":None,"rejectedUpperLambda":None,
+  "rawFvResidualMolS":None,"scaledFvResidual":None,
+  "maximumOriginalJobBGateResidual":None,"minimumFlowMolS":None,
+  "rawFvGatePassed":None,"scaledFvGatePassed":None,
+  "originalJobBGatePassed":None,"strictPositivityPassed":None,
+  "accepted":None}
 _last_progress_emit=0.0
 _completed_results=[]
 _request_sha256=None
@@ -41,7 +46,8 @@ _request_sha256=None
 def progress(phase, completed=0, total=None, iteration=None, residual=None,
              residual_kind=None, height_candidate_m=None, throttle=False,
              lambda_value=None, continuation_trial=None,
-             accepted_lower_lambda=None, rejected_upper_lambda=None):
+             accepted_lower_lambda=None, rejected_upper_lambda=None,
+             gate_metrics=None):
     """Emit an honest, machine-readable live state (never a guessed total)."""
     global _last_progress,_last_progress_emit
     now=time.monotonic()
@@ -49,6 +55,13 @@ def progress(phase, completed=0, total=None, iteration=None, residual=None,
         return
     finite_residual=(isinstance(residual,(int,float)) and not isinstance(residual,bool)
       and math.isfinite(float(residual)))
+    gates=gate_metrics if isinstance(gate_metrics,dict) else {}
+    previous_gates={key:_last_progress.get(key) for key in (
+      "rawFvResidualMolS","scaledFvResidual",
+      "maximumOriginalJobBGateResidual","minimumFlowMolS",
+      "rawFvGatePassed","scaledFvGatePassed","originalJobBGatePassed",
+      "strictPositivityPassed","accepted")}
+    gate_values={key:gates.get(key,previous_gates[key]) for key in previous_gates}
     _last_progress={"phase":phase,"completed":completed,"total":total,
       "iteration":iteration if isinstance(iteration,int) else None,
       "residual":float(residual) if finite_residual else None,
@@ -66,11 +79,14 @@ def progress(phase, completed=0, total=None, iteration=None, residual=None,
       "acceptedLowerLambda":float(accepted_lower_lambda)
         if isinstance(accepted_lower_lambda,(int,float))
           and not isinstance(accepted_lower_lambda,bool)
-          and math.isfinite(float(accepted_lower_lambda)) else None,
+          and math.isfinite(float(accepted_lower_lambda))
+          else _last_progress.get("acceptedLowerLambda"),
       "rejectedUpperLambda":float(rejected_upper_lambda)
         if isinstance(rejected_upper_lambda,(int,float))
           and not isinstance(rejected_upper_lambda,bool)
-          and math.isfinite(float(rejected_upper_lambda)) else None}
+          and math.isfinite(float(rejected_upper_lambda))
+          else _last_progress.get("rejectedUpperLambda"),
+      **gate_values}
     _last_progress_emit=now
     print("JOB_C_PROGRESS "+json.dumps(_last_progress,separators=(",",":")),flush=True)
 
@@ -1900,6 +1916,12 @@ def case(r, name, dc, dd, solvers):
                   "bestState":None,"bestMetrics":None}
                 def observe_base_state(q,ev):
                     metrics=gate_metrics(ev)
+                    progress(solve_phase,budget.get("residualCalls",0),None,
+                      None,None,None,h,throttle=True,lambda_value=lam,
+                      continuation_trial=continuation_trial,
+                      accepted_lower_lambda=accepted_lower,
+                      rejected_upper_lambda=rejected_upper,
+                      gate_metrics=metrics)
                     coupled_observe_base_candidate(
                       np,tracker,q,metrics)
                     if metrics["accepted"]:
@@ -2063,6 +2085,12 @@ def case(r, name, dc, dd, solvers):
               "maximumOriginalJobBGateResidual"]
             coupled_minimum=coupled_metrics["minimumFlowMolS"]
             coupled_accepted=selected["accepted"]
+            progress(solve_phase,budget.get("residualCalls",0),None,
+              None,None,None,h,lambda_value=lam,
+              continuation_trial=continuation_trial,
+              accepted_lower_lambda=accepted_lower,
+              rejected_upper_lambda=rejected_upper,
+              gate_metrics=coupled_metrics)
             coupled_dominant_rows=diagnostics(coupled_ev)
             coupled_dominant_blocks=dominant_blocks(coupled_ev)
             coupled_attempts[-1].update({
@@ -2607,7 +2635,12 @@ for line in sys.stdin:
       "iteration":None,"residual":None,"residualKind":None,
       "elapsedSeconds":0.0,"heightCandidateM":None,
       "continuationLambda":None,"continuationTrial":None,
-      "acceptedLowerLambda":None,"rejectedUpperLambda":None}
+      "acceptedLowerLambda":None,"rejectedUpperLambda":None,
+      "rawFvResidualMolS":None,"scaledFvResidual":None,
+      "maximumOriginalJobBGateResidual":None,"minimumFlowMolS":None,
+      "rawFvGatePassed":None,"scaledFvGatePassed":None,
+      "originalJobBGatePassed":None,"strictPositivityPassed":None,
+      "accepted":None}
     _last_progress_emit=0.0
     _completed_results=[]
     _runtime_profiles=[]
@@ -2682,5 +2715,9 @@ for line in sys.stdin:
  body["resultSha256"]=digest({
    key:value for key,value in body.items()
    if key not in ("resultSha256","runtimeDiagnostics")})
- progress("terminal",1,1)
+ progress("terminal",1,1,
+   lambda_value=_last_progress.get("continuationLambda"),
+   continuation_trial=_last_progress.get("continuationTrial"),
+   accepted_lower_lambda=_last_progress.get("acceptedLowerLambda"),
+   rejected_upper_lambda=_last_progress.get("rejectedUpperLambda"))
  print(canonical(body),flush=True)

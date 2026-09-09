@@ -26,6 +26,15 @@ type JobCJob = {
     continuationTrial: number | null;
     acceptedLowerLambda: number | null;
     rejectedUpperLambda: number | null;
+    rawFvResidualMolS: number | null;
+    scaledFvResidual: number | null;
+    maximumOriginalJobBGateResidual: number | null;
+    minimumFlowMolS: number | null;
+    rawFvGatePassed: boolean | null;
+    scaledFvGatePassed: boolean | null;
+    originalJobBGatePassed: boolean | null;
+    strictPositivityPassed: boolean | null;
+    accepted: boolean | null;
   };
   result: RecordValue | null;
   scientificCompleted: boolean;
@@ -148,6 +157,22 @@ function residualValue(residual: number | null | undefined, kind: string | null 
   return `${residual.toExponential(3)}${kind ? ` (${kind})` : ""}`;
 }
 
+const JOB_C_RESIDUAL_LIMIT = 1e-7;
+
+function booleanValue(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function gatePercent(value: number | null): string {
+  return value == null || !Number.isFinite(value)
+    ? "Unavailable"
+    : `${((value / JOB_C_RESIDUAL_LIMIT) * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
+}
+
+function gateVerdict(value: boolean | null): string {
+  return value == null ? "PENDING" : value ? "PASS" : "FAIL";
+}
+
 function heightCandidateValue(heightCandidateM: number | null | undefined): string {
   return heightCandidateM == null || !Number.isFinite(heightCandidateM)
     ? "Unavailable"
@@ -184,6 +209,15 @@ function normalizeJobCJob(value: unknown): JobCJob {
       continuationTrial: optionalNumber(read(progress, "continuationTrial") ?? read(payload, "continuationTrial")),
       acceptedLowerLambda: optionalNumber(read(progress, "acceptedLowerLambda") ?? read(payload, "acceptedLowerLambda")),
       rejectedUpperLambda: optionalNumber(read(progress, "rejectedUpperLambda") ?? read(payload, "rejectedUpperLambda")),
+      rawFvResidualMolS: optionalNumber(read(progress, "rawFvResidualMolS")),
+      scaledFvResidual: optionalNumber(read(progress, "scaledFvResidual")),
+      maximumOriginalJobBGateResidual: optionalNumber(read(progress, "maximumOriginalJobBGateResidual")),
+      minimumFlowMolS: optionalNumber(read(progress, "minimumFlowMolS")),
+      rawFvGatePassed: booleanValue(read(progress, "rawFvGatePassed")),
+      scaledFvGatePassed: booleanValue(read(progress, "scaledFvGatePassed")),
+      originalJobBGatePassed: booleanValue(read(progress, "originalJobBGatePassed")),
+      strictPositivityPassed: booleanValue(read(progress, "strictPositivityPassed")),
+      accepted: booleanValue(read(progress, "accepted")),
     },
     result: Object.keys(result).length ? result : null,
     // Older jobs did not expose this field; their completed result remains
@@ -556,6 +590,18 @@ export default function EcrPrePilotDesignStage4Page() {
     && jobCJob.progress.total > 0
     ? Math.max(0, Math.min(100, (jobCJob.progress.completed / jobCJob.progress.total) * 100))
     : null;
+  const jobCGates = jobCJob?.progress;
+  const limitingResidualGate = !jobCGates ? null : [
+    { label: "Maximum raw FV residual", ratio: jobCGates.rawFvResidualMolS == null ? null : jobCGates.rawFvResidualMolS / JOB_C_RESIDUAL_LIMIT },
+    { label: "Scaled FV residual", ratio: jobCGates.scaledFvResidual == null ? null : jobCGates.scaledFvResidual / JOB_C_RESIDUAL_LIMIT },
+    { label: "Original Job B interface residual", ratio: jobCGates.maximumOriginalJobBGateResidual == null ? null : jobCGates.maximumOriginalJobBGateResidual / JOB_C_RESIDUAL_LIMIT },
+  ].reduce<{ label: string; ratio: number } | null>((current, candidate) => (
+    candidate.ratio != null && (!current || candidate.ratio > current.ratio)
+      ? { label: candidate.label, ratio: candidate.ratio } : current
+  ), null)?.label ?? null;
+  const limitingJobCGate = jobCGates?.strictPositivityPassed === false
+    ? "Strict positivity"
+    : limitingResidualGate ?? "Pending first gate evaluation";
   const hasPriorJobC = Boolean(jobCJob || jobCEvaluation || jobCDiagnostic);
   const jobCDiagnosticDetails = object(read(jobCDiagnostic ?? {}, "details"));
   const jobCScientificDiagnostics = object(read(jobCDiagnostic ?? {}, "scientificDiagnostics", "diagnostics"));
@@ -633,13 +679,36 @@ export default function EcrPrePilotDesignStage4Page() {
                 <p><span className="font-semibold">Current phase:</span> {jobCJob.progress.phase ?? "Unavailable"}{jobCJob.progress.message ? ` · ${jobCJob.progress.message}` : ""}</p>
                 <p className="font-mono"><span className="font-sans font-semibold">Work:</span> {jobCJob.progress.completed ?? "Unavailable"} / {jobCJob.progress.total ?? "Unavailable"}</p>
                 <p className="font-mono"><span className="font-sans font-semibold">Iteration:</span> {jobCJob.progress.iteration ?? "Unavailable"}</p>
-                <p className="font-mono"><span className="font-sans font-semibold">Residual:</span> {residualValue(jobCJob.progress.residual, jobCJob.progress.residualKind)}</p>
+                <p className="font-mono"><span className="font-sans font-semibold">L2 diagnostic (not an acceptance gate):</span> {residualValue(jobCJob.progress.residual, jobCJob.progress.residualKind)}</p>
                 <p className="font-mono"><span className="font-sans font-semibold">Elapsed:</span> {elapsedValue(jobCJob.progress.elapsedSeconds)}</p>
                 <p className="font-mono"><span className="font-sans font-semibold">Height candidate:</span> {heightCandidateValue(jobCJob.progress.heightCandidateM)}</p>
                  <p className="font-mono"><span className="font-sans font-semibold">Active λ:</span> {jobCJob.progress.continuationLambda == null ? "Unavailable" : jobCJob.progress.continuationLambda.toExponential(3)}</p>
                  <p className="font-mono"><span className="font-sans font-semibold">Continuation trial:</span> {jobCJob.progress.continuationTrial ?? "Unavailable"}</p>
                  <p className="font-mono"><span className="font-sans font-semibold">Accepted lower λ:</span> {jobCJob.progress.acceptedLowerLambda == null ? "Unavailable" : jobCJob.progress.acceptedLowerLambda.toExponential(3)}</p>
                  <p className="font-mono"><span className="font-sans font-semibold">Rejected upper λ:</span> {jobCJob.progress.rejectedUpperLambda == null ? "Unavailable" : jobCJob.progress.rejectedUpperLambda.toExponential(3)}</p>
+              </div>
+              <div className="mt-3 rounded border border-violet-300 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Governing Job C gates</p>
+                  <p className="font-mono text-[10px]">Current candidate: {gateVerdict(jobCJob.progress.accepted)}</p>
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    ["Maximum raw FV residual", jobCJob.progress.rawFvResidualMolS, jobCJob.progress.rawFvGatePassed],
+                    ["Scaled FV residual", jobCJob.progress.scaledFvResidual, jobCJob.progress.scaledFvGatePassed],
+                    ["Original Job B interface residual", jobCJob.progress.maximumOriginalJobBGateResidual, jobCJob.progress.originalJobBGatePassed],
+                  ].map(([label, value, passed]) => <div key={label as string} className="rounded border border-violet-200 bg-violet-50/50 p-2">
+                    <p className="text-[9px] font-semibold text-slate-600">{label as string}</p>
+                    <p className="mt-1 font-mono text-[10px]">{numberValue(value)} · {gatePercent(value as number | null)} of 1.000e-7 · {gateVerdict(passed as boolean | null)}</p>
+                  </div>)}
+                  <div className="rounded border border-violet-200 bg-violet-50/50 p-2">
+                    <p className="text-[9px] font-semibold text-slate-600">Strict positivity</p>
+                    <p className="mt-1 font-mono text-[10px]">minimum flow {numberValue(jobCJob.progress.minimumFlowMolS)} mol/s · {gateVerdict(jobCJob.progress.strictPositivityPassed)}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px]"><span className="font-semibold">Current limiting gate:</span> {limitingJobCGate}</p>
+                <p className="mt-1 font-mono text-[10px]"><span className="font-sans font-semibold">Accepted/rejected λ bracket:</span> [{jobCJob.progress.acceptedLowerLambda == null ? "Unavailable" : jobCJob.progress.acceptedLowerLambda.toExponential(3)}, {jobCJob.progress.rejectedUpperLambda == null ? "Unavailable" : jobCJob.progress.rejectedUpperLambda.toExponential(3)}]</p>
+                <p className="mt-1 text-[9px] text-slate-500">Residual percentages use the unchanged 1e-7 limits. Strict positivity independently requires minimum flow &gt; 0. A rejected numerical candidate does not establish physical infeasibility.</p>
               </div>
               {jobCJob.error && <p className="mt-2 font-mono text-[10px] text-red-800">{jobCJob.error}</p>}
               {jobCJob.progress.heightCandidateM !== null && !jobCJob.scientificCompleted && <p className="mt-2 text-[10px] font-semibold text-violet-900">The height candidate is live calculation telemetry, not an accepted or final result.</p>}

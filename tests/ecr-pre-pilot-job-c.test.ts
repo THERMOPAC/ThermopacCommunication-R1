@@ -18,6 +18,22 @@ import {
 } from '../server/ecr-pre-pilot/job-c-job-service';
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
+  it('shows the four governing gates and keeps L2 diagnostic-only in Stage 4', () => {
+    const page = readFileSync(
+      'client/src/pages/design-software/ecr-pre-pilot-design-stage-4-page.tsx',
+      'utf8',
+    );
+    expect(page).toContain('Governing Job C gates');
+    expect(page).toContain('Maximum raw FV residual');
+    expect(page).toContain('Scaled FV residual');
+    expect(page).toContain('Original Job B interface residual');
+    expect(page).toContain('Strict positivity');
+    expect(page).toContain('Current limiting gate');
+    expect(page).toContain('Accepted/rejected λ bracket');
+    expect(page).toContain('L2 diagnostic (not an acceptance gate)');
+    expect(page).toContain('does not establish physical infeasibility');
+  });
+
   it('waits for graceful cancellation, forwards the last checkpoint, and never completes it', async () => {
     const root = mkdtempSync(join(tmpdir(), 'job-c-cancel-'));
     const workerDir = join(root, 'server/ecr-pre-pilot/job-c');

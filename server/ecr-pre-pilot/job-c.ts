@@ -79,6 +79,15 @@ export interface JobCProgress {
   continuationTrial?: number | null;
   acceptedLowerLambda?: number | null;
   rejectedUpperLambda?: number | null;
+  rawFvResidualMolS?: number | null;
+  scaledFvResidual?: number | null;
+  maximumOriginalJobBGateResidual?: number | null;
+  minimumFlowMolS?: number | null;
+  rawFvGatePassed?: boolean | null;
+  scaledFvGatePassed?: boolean | null;
+  originalJobBGatePassed?: boolean | null;
+  strictPositivityPassed?: boolean | null;
+  accepted?: boolean | null;
 }
 
 export interface JobCWorkerRequest extends Record<string, unknown> {
