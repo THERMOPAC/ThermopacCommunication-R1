@@ -68,6 +68,10 @@ export interface JobCProgress {
   residualKind?: string | null;
   elapsedSeconds?: number;
   heightCandidateM?: number | null;
+  continuationLambda?: number | null;
+  continuationTrial?: number | null;
+  acceptedLowerLambda?: number | null;
+  rejectedUpperLambda?: number | null;
 }
 
 export interface JobCWorkerRequest extends Record<string, unknown> {

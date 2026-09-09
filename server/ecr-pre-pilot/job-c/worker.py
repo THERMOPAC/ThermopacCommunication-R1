@@ -30,13 +30,17 @@ def digest(v): return hashlib.sha256(canonical(hashed(v)).encode()).hexdigest()
 _job_started=None
 _last_progress={"phase":"initializing","completed":0,"total":None,
   "iteration":None,"residual":None,"residualKind":None,
-  "elapsedSeconds":0.0,"heightCandidateM":None}
+  "elapsedSeconds":0.0,"heightCandidateM":None,
+  "continuationLambda":None,"continuationTrial":None,
+  "acceptedLowerLambda":None,"rejectedUpperLambda":None}
 _last_progress_emit=0.0
 _completed_results=[]
 _request_sha256=None
 
 def progress(phase, completed=0, total=None, iteration=None, residual=None,
-             residual_kind=None, height_candidate_m=None, throttle=False):
+             residual_kind=None, height_candidate_m=None, throttle=False,
+             lambda_value=None, continuation_trial=None,
+             accepted_lower_lambda=None, rejected_upper_lambda=None):
     """Emit an honest, machine-readable live state (never a guessed total)."""
     global _last_progress,_last_progress_emit
     now=time.monotonic()
@@ -51,7 +55,21 @@ def progress(phase, completed=0, total=None, iteration=None, residual=None,
       "elapsedSeconds":max(0.0,now-_job_started) if _job_started is not None else 0.0,
       "heightCandidateM":float(height_candidate_m)
         if isinstance(height_candidate_m,(int,float)) and math.isfinite(height_candidate_m)
-        else None}
+        else None,
+      "continuationLambda":float(lambda_value)
+        if isinstance(lambda_value,(int,float)) and not isinstance(lambda_value,bool)
+          and math.isfinite(float(lambda_value)) else None,
+      "continuationTrial":continuation_trial
+        if isinstance(continuation_trial,int) and not isinstance(continuation_trial,bool)
+        else None,
+      "acceptedLowerLambda":float(accepted_lower_lambda)
+        if isinstance(accepted_lower_lambda,(int,float))
+          and not isinstance(accepted_lower_lambda,bool)
+          and math.isfinite(float(accepted_lower_lambda)) else None,
+      "rejectedUpperLambda":float(rejected_upper_lambda)
+        if isinstance(rejected_upper_lambda,(int,float))
+          and not isinstance(rejected_upper_lambda,bool)
+          and math.isfinite(float(rejected_upper_lambda)) else None}
     _last_progress_emit=now
     print("JOB_C_PROGRESS "+json.dumps(_last_progress,separators=(",",":")),flush=True)
 
@@ -214,16 +232,19 @@ def split_coupled_warm_state(np, warm, cells):
 def coupled_lambda_targets(bootstrap_lambda):
     """Return the deterministic continuation path with lambda=0 first."""
     return sorted(set([0.0,1e-10,3e-10,1e-9,3e-9,bootstrap_lambda,
-      .00003,.0001,.0003,.001,.0025,.005,.01,.025,.05,.1,.25,.5,.75,1.0]))
+      3e-8,1e-7,3e-7,1e-6,3e-6,1e-5,3e-5,1e-4,3e-4,1e-3,
+      3e-3,1e-2,3e-2,1e-1,3e-1,1.0]))
 
-def coupled_lambda_failure_step(history, rejected_lambda, minimum_interval):
-    """Return the accepted lower endpoint and optional retry midpoint."""
-    previous=history[-1]["lambda"] if history else None
-    midpoint=None
-    if (previous is not None
-        and rejected_lambda-previous>minimum_interval):
-        midpoint=(previous+rejected_lambda)/2.0
-    return previous,midpoint
+def coupled_bounded_bracket_next(lower_accepted, upper_rejected,
+                                 refinements_used, maximum_refinements,
+                                 minimum_interval):
+    """Return one finite midpoint trial or None when the bracket is complete."""
+    if (lower_accepted is None or upper_rejected is None
+        or refinements_used>=maximum_refinements
+        or upper_rejected-lower_accepted<=minimum_interval):
+        return None
+    return {"lambda":(lower_accepted+upper_rejected)/2.0,
+      "trial":refinements_used+1}
 
 def coupled_jacobian_sparsity(scipy, cells):
     """Build a conservative dependency mask for the 98 FV + 91 interface rows."""
@@ -317,7 +338,9 @@ def find_resume_zero_anchor(completed_results, height):
     return None
 
 def find_resume_coupled_anchor(completed_results, height,
-                               expected_state_size=189):
+                               expected_state_size=189,
+                               expected_request_sha256=None,
+                               maximum_refinements=3):
     """Return the highest structurally valid accepted continuation checkpoint."""
     accepted_kinds={"ACCEPTED_ZERO_TRANSFER_COUPLED_ANCHOR",
       "ACCEPTED_COUPLED_CONTINUATION_ANCHOR"}
@@ -352,12 +375,142 @@ def find_resume_coupled_anchor(completed_results, height,
             and lam_value is not None and 0.0<lam_value<=1.0))
         if (completed.get("kind") in accepted_kinds
             and value.get("heightM")==height
+            and (expected_request_sha256 is None
+              or completed.get("inputSha256")==expected_request_sha256)
             and lam_value is not None and math.isfinite(lam_value)
             and 0.0<=lam_value<=1.0
             and state_valid and kind_lambda_consistent
             and value.get("stateSha256")==digest(state)):
-            candidates.append({"lambda":lam_value,"state":state})
-    return max(candidates,key=lambda candidate:candidate["lambda"]) if candidates else None
+            candidates.append({"lambda":lam_value,"state":state,
+              "continuationBracket":value.get("continuationBracket"),
+              "bracketRefinementTrial":
+                value.get("bracketRefinementTrial")})
+    if not candidates:
+        return None
+    selected_candidate=max(candidates,key=lambda candidate:candidate["lambda"])
+    selected={"lambda":selected_candidate["lambda"],
+      "state":selected_candidate["state"],
+      "continuationBracket":None,
+      "bracketRefinementTrial":
+        selected_candidate.get("bracketRefinementTrial")}
+    anchor_lambda=selected["lambda"]
+    eligible_rejections=[]
+    for completed in completed_results:
+        if not isinstance(completed,dict):
+            continue
+        value=completed.get("value",{})
+        if (completed.get("kind")!="REJECTED_COUPLED_CONTINUATION_TRIAL"
+            or not isinstance(value,dict)
+            or value.get("heightM")!=height
+            or (expected_request_sha256 is not None
+              and completed.get("inputSha256")!=expected_request_sha256)):
+            continue
+        try:
+            lower=float(value.get("lowerAcceptedLambda"))
+            upper=float(value.get("rejectedLambda"))
+            root=float(value.get("searchRootUpperLambda"))
+            trial_value=value.get("bracketRefinementTrial",0)
+            trial=(int(trial_value)
+              if isinstance(trial_value,int) and not isinstance(trial_value,bool)
+              else None)
+        except (TypeError,ValueError,OverflowError):
+            continue
+        metrics=value.get("gateMetrics")
+        confirmation=value.get("deterministicConfirmation")
+        state_sha=value.get("stateSha256")
+        attempts=value.get("coupledAttempts")
+        if (not isinstance(metrics,dict) or not isinstance(confirmation,dict)
+            or trial is None or not 0<=trial<=maximum_refinements
+            or not isinstance(state_sha,str) or len(state_sha)!=64
+            or any(character not in "0123456789abcdef" for character in state_sha)
+            or not isinstance(attempts,list) or not attempts):
+            continue
+        try:
+            raw=float(metrics["rawFvResidualMolS"])
+            scaled=float(metrics["scaledFvResidual"])
+            interface=float(metrics["maximumOriginalJobBGateResidual"])
+            minimum=float(metrics["minimumFlowMolS"])
+        except (KeyError,TypeError,ValueError,OverflowError):
+            continue
+        decision=coupled_gate_decision(raw,scaled,interface,minimum)
+        decision_consistent=all(
+          metrics.get(key)==decision[key] for key in (
+            "rawFvGatePassed","scaledFvGatePassed",
+            "originalJobBGatePassed","strictPositivityPassed","accepted"))
+        confirmation_valid=(
+          confirmation.get("independentRawReevaluationCount")==2
+          and confirmation.get("bothScientificGateEvaluationsPassed") is False
+          and confirmation.get("exactlyRepeatable") is True
+          and confirmation.get("maximumMetricDifference")==0)
+        if (all(math.isfinite(item)
+              for item in (lower,upper,root,raw,scaled,interface,minimum))
+            and 0.0<=lower<=anchor_lambda<upper<=root<=1.0
+            and decision["accepted"] is False and decision_consistent
+            and confirmation_valid):
+            eligible_rejections.append({
+              "lower":lower,"upper":upper,"root":root,"trial":trial})
+    candidate_bracket=selected_candidate.get("continuationBracket")
+    direct=[row for row in eligible_rejections
+      if row["lower"]==anchor_lambda]
+    roots={row["root"] for row in direct}
+    if len(roots)==1:
+        root=next(iter(roots))
+        selected["continuationBracket"]={
+          "searchRootUpperLambda":root,
+          "upperRejectedLambda":min(row["upper"] for row in direct),
+          "refinementsUsed":max(row["trial"] for row in direct)}
+    if (selected["continuationBracket"] is None and len(roots)<=1
+        and isinstance(candidate_bracket,dict)):
+        try:
+            stored_root=float(candidate_bracket["searchRootUpperLambda"])
+            stored_upper=float(candidate_bracket["upperRejectedLambda"])
+            stored_used_value=candidate_bracket["refinementsUsed"]
+            stored_used=(int(stored_used_value)
+              if isinstance(stored_used_value,int)
+                and not isinstance(stored_used_value,bool) else None)
+        except (KeyError,TypeError,ValueError,OverflowError):
+            stored_root=stored_upper=None; stored_used=None
+        support=[row for row in eligible_rejections
+          if row["root"]==stored_root and row["upper"]>=stored_upper]
+        accepted_trial_evidence=[]
+        for candidate in candidates:
+            candidate_plan=candidate.get("continuationBracket")
+            candidate_trial_value=candidate.get("bracketRefinementTrial")
+            candidate_trial=(int(candidate_trial_value)
+              if isinstance(candidate_trial_value,int)
+                and not isinstance(candidate_trial_value,bool) else None)
+            if (not isinstance(candidate_plan,dict)
+                or candidate_trial is None
+                or not 0<=candidate_trial<=maximum_refinements):
+                continue
+            try:
+                candidate_root=float(
+                  candidate_plan["searchRootUpperLambda"])
+                candidate_upper=float(candidate_plan["upperRejectedLambda"])
+                candidate_used_value=candidate_plan["refinementsUsed"]
+                candidate_used=(int(candidate_used_value)
+                  if isinstance(candidate_used_value,int)
+                    and not isinstance(candidate_used_value,bool) else None)
+            except (KeyError,TypeError,ValueError,OverflowError):
+                continue
+            if (candidate_root==stored_root and candidate_upper>=stored_upper
+                and candidate["lambda"]<=anchor_lambda<candidate_upper
+                and candidate_used==candidate_trial):
+                accepted_trial_evidence.append(candidate_trial)
+        evidenced_refinements=max(
+          [row["trial"] for row in support]+accepted_trial_evidence,
+          default=None)
+        if (stored_used is not None and 0<=stored_used<=maximum_refinements
+            and stored_root is not None and stored_upper is not None
+            and math.isfinite(stored_root) and math.isfinite(stored_upper)
+            and anchor_lambda<stored_upper<=stored_root<=1.0 and support
+            and min(row["upper"] for row in support)==stored_upper
+            and stored_used==evidenced_refinements):
+            selected["continuationBracket"]={
+              "searchRootUpperLambda":stored_root,
+              "upperRejectedLambda":stored_upper,
+              "refinementsUsed":stored_used}
+    return selected
 
 def validate_coupled_warm_flows(np, flows, lower, upper, epsilon, height=None):
     """Fail closed before any checkpoint-derived flow can enter a solve."""
@@ -440,7 +593,11 @@ def budgeted_least_squares(budget, phase, optimizer, residual, *args, **kwargs):
         # residualCalls is a function-evaluation count, not an optimizer
         # iteration.  Keep iteration null rather than mislabeling it.
         progress(phase, budget.get("residualCalls",0), None, None, norm,
-          "RESIDUAL_L2", budget.get("heightCandidateM"), throttle=True)
+          "RESIDUAL_L2", budget.get("heightCandidateM"), throttle=True,
+          lambda_value=budget.get("continuationLambda"),
+          continuation_trial=budget.get("continuationTrial"),
+          accepted_lower_lambda=budget.get("acceptedLowerLambda"),
+          rejected_upper_lambda=budget.get("rejectedUpperLambda"))
         return result
     try:
         require_runtime_budget(budget)
@@ -894,6 +1051,15 @@ def case(r, name, dc, dd, solvers):
           if isinstance(warm,dict) and isinstance(warm.get("lambda"),(int,float))
           else None)
         warm_state=(warm.get("state") if isinstance(warm,dict) else warm)
+        resume_bracket=(warm.get("continuationBracket")
+          if isinstance(warm,dict)
+            and isinstance(warm.get("continuationBracket"),dict)
+          else None)
+        resume_refinement_trial=(warm.get("bracketRefinementTrial")
+          if isinstance(warm,dict)
+            and isinstance(warm.get("bracketRefinementTrial"),int)
+            and not isinstance(warm.get("bracketRefinementTrial"),bool)
+          else 0)
         if m != 7:
             raise JobCBlocked("JOB_C_REQUIRES_SEVEN_NUMERICAL_FV_CELLS",
               {"numericalCells":m,"qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT"})
@@ -1159,15 +1325,37 @@ def case(r, name, dc, dd, solvers):
               target for target in lambda_targets if target>resume_lambda]
         lambda_index=0
         minimum_lambda_interval=1e-10
+        maximum_bracket_refinements=3
         maximum_coupled_optimizer_nfev=240
+        active_bracket=(dict(resume_bracket)
+          if resume_bracket is not None else None)
+        if active_bracket is not None:
+            active_bracket["lowerAcceptedLambda"]=resume_lambda
+        scheduled_bracket_trials=({
+          resume_lambda:resume_refinement_trial}
+          if resume_lambda is not None and resume_bracket is not None
+          else {})
+        rejected_trials=[]
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
             reference_lambda=history[-1]["lambda"] if history else None
+            continuation_trial=scheduled_bracket_trials.get(lam,0)
+            accepted_lower=(active_bracket.get("lowerAcceptedLambda")
+              if active_bracket is not None else reference_lambda)
+            rejected_upper=(active_bracket.get("upperRejectedLambda")
+              if active_bracket is not None else None)
+            budget.update({"continuationLambda":lam,
+              "continuationTrial":continuation_trial,
+              "acceptedLowerLambda":accepted_lower,
+              "rejectedUpperLambda":rejected_upper})
             solve_phase=("COUPLED_BOUNDED_SPARSE_189_ZERO_TRANSFER_BOOTSTRAP"
               if lam==0.0 else "COUPLED_BOUNDED_SPARSE_189_CONTINUATION")
             progress("direct coupled zero-transfer bootstrap"
-              if lam==0.0 else f"direct coupled lambda {lam:g}")
+              if lam==0.0 else f"direct coupled lambda {lam:g}",
+              lambda_value=lam,continuation_trial=continuation_trial,
+              accepted_lower_lambda=accepted_lower,
+              rejected_upper_lambda=rejected_upper)
             lambda_started=time.monotonic()
             coupled_attempts=[]
             pre_ev=raw_evaluate(accepted_x,lam)
@@ -1358,8 +1546,17 @@ def case(r, name, dc, dd, solvers):
               "accepted":coupled_accepted})
             if coupled_accepted:
                 x=selected["state"]
+                if active_bracket is not None:
+                    active_bracket["lowerAcceptedLambda"]=lam
+                    active_bracket["refinementsUsed"]=max(
+                      int(active_bracket.get("refinementsUsed",0)),
+                      continuation_trial)
                 history.append({"lambda":lam,
                   "solver":solve_phase,
+                  "continuationTrial":continuation_trial,
+                  "continuationBracket":(
+                    dict(active_bracket)
+                    if active_bracket is not None else None),
                   "selectedStateSource":selected_source,
                   "stateSha256":digest(x.tolist()),
                   "coupledAttempts":coupled_attempts,
@@ -1380,29 +1577,141 @@ def case(r, name, dc, dd, solvers):
                   {"heightM":float(h),"lambda":float(lam),
                    "state":x.tolist(),"stateSha256":digest(x.tolist()),
                    "gateMetrics":coupled_metrics,
-                   "deterministicConfirmation":selected["confirmation"]},
+                   "deterministicConfirmation":selected["confirmation"],
+                   "bracketRefinementTrial":continuation_trial,
+                   "continuationBracket":(
+                     dict(active_bracket)
+                     if active_bracket is not None else None)},
                   inputSha256=_request_sha256)
                 checkpoint()
+                if active_bracket is not None:
+                    next_step=coupled_bounded_bracket_next(
+                      active_bracket["lowerAcceptedLambda"],
+                      active_bracket["upperRejectedLambda"],
+                      int(active_bracket.get("refinementsUsed",0)),
+                      maximum_bracket_refinements,
+                      minimum_lambda_interval)
+                    if next_step is None:
+                        raise JobCBlocked(
+                          "JOB_C_POSITIVE_BRANCH_LIMIT_REACHED",{
+                            "heightM":h,
+                            "lastAcceptedLambda":lam,
+                            "rejectedLambdaBracket":{
+                              "lowerAccepted":lam,
+                              "upperRejected":active_bracket[
+                                "upperRejectedLambda"]},
+                            "boundedSearch":{
+                              "searchRootUpperLambda":active_bracket[
+                                "searchRootUpperLambda"],
+                              "maximumBracketRefinements":
+                                maximum_bracket_refinements,
+                              "completedBracketRefinements":
+                                active_bracket.get("refinementsUsed",0),
+                              "minimumLambdaInterval":
+                                minimum_lambda_interval,
+                              "termination":
+                                "FINITE_SCIENTIFIC_TRIAL_PLAN_EXHAUSTED"},
+                            "rejectedTrials":rejected_trials,
+                            "acceptedContinuationHistory":history,
+                            "physicalInfeasibilityClaimed":False,
+                            "claimsEmitted":{"height":False,
+                              "efficiency":False,"finalRpm":False,
+                              "jobD":False,"release":False}})
+                    lambda_targets.insert(lambda_index+1,next_step["lambda"])
+                    scheduled_bracket_trials[next_step["lambda"]]=next_step[
+                      "trial"]
+                    progress(
+                      f"bounded bracket lambda {next_step['lambda']:g}",
+                      lambda_value=next_step["lambda"],
+                      continuation_trial=next_step["trial"],
+                      accepted_lower_lambda=active_bracket[
+                        "lowerAcceptedLambda"],
+                      rejected_upper_lambda=active_bracket[
+                        "upperRejectedLambda"])
                 lambda_index+=1
                 continue
             # A failed direct solve is a numerical positive-feasibility
             # uncertainty, never a physical infeasibility conclusion.
-            previous_lambda,retry_midpoint=coupled_lambda_failure_step(
-              history,lam,minimum_lambda_interval)
-            if retry_midpoint is not None:
-                lambda_targets.insert(lambda_index,retry_midpoint)
-                progress(f"adaptive direct coupled lambda "
-                  f"{retry_midpoint:g}")
-                continue
+            previous_lambda=history[-1]["lambda"] if history else None
+            if lam>0.0 and previous_lambda is not None:
+                if active_bracket is None:
+                    active_bracket={
+                      "searchRootUpperLambda":lam,
+                      "upperRejectedLambda":lam,
+                      "lowerAcceptedLambda":previous_lambda,
+                      "refinementsUsed":0}
+                else:
+                    active_bracket["upperRejectedLambda"]=min(
+                      active_bracket["upperRejectedLambda"],lam)
+                    active_bracket["lowerAcceptedLambda"]=previous_lambda
+                    active_bracket["refinementsUsed"]=max(
+                      int(active_bracket.get("refinementsUsed",0)),
+                      continuation_trial)
+                rejected_evidence={
+                  "heightM":float(h),
+                  "rejectedLambda":float(lam),
+                  "lowerAcceptedLambda":float(previous_lambda),
+                  "searchRootUpperLambda":float(active_bracket[
+                    "searchRootUpperLambda"]),
+                  "upperRejectedLambda":float(active_bracket[
+                    "upperRejectedLambda"]),
+                  "bracketRefinementTrial":continuation_trial,
+                  "selectedStateSource":selected_source,
+                  "stateSha256":digest(selected["state"].tolist()),
+                  "gateMetrics":coupled_metrics,
+                  "deterministicConfirmation":selected["confirmation"],
+                  "coupledAttempts":coupled_attempts,
+                  "dominantResidualRows":coupled_dominant_rows,
+                  "dominantResidualBlocks":coupled_dominant_blocks,
+                  "componentBalanceAudit":
+                    component_balance_audit(coupled_ev),
+                  "physicalInfeasibilityClaimed":False}
+                rejected_trials.append(rejected_evidence)
+                record_completed_result(
+                  f"coupled-rejection:{h:g}:root:"
+                    f"{active_bracket['searchRootUpperLambda']:.12g}:"
+                    f"trial:{continuation_trial}:lambda:{lam:.12g}",
+                  "REJECTED_COUPLED_CONTINUATION_TRIAL",
+                  rejected_evidence,inputSha256=_request_sha256)
+                checkpoint()
+                next_step=coupled_bounded_bracket_next(
+                  previous_lambda,active_bracket["upperRejectedLambda"],
+                  int(active_bracket.get("refinementsUsed",0)),
+                  maximum_bracket_refinements,minimum_lambda_interval)
+                if next_step is not None:
+                    lambda_targets.insert(lambda_index,next_step["lambda"])
+                    scheduled_bracket_trials[next_step["lambda"]]=next_step[
+                      "trial"]
+                    progress(
+                      f"bounded bracket lambda {next_step['lambda']:g}",
+                      lambda_value=next_step["lambda"],
+                      continuation_trial=next_step["trial"],
+                      accepted_lower_lambda=previous_lambda,
+                      rejected_upper_lambda=active_bracket[
+                        "upperRejectedLambda"])
+                    continue
             raise JobCBlocked(
               "JOB_C_ZERO_TRANSFER_BOOTSTRAP_UNRESOLVED" if lam==0.0
-                else "JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED",
+                else "JOB_C_POSITIVE_BRANCH_LIMIT_REACHED",
               {"heightM":h,"lambda":lam,
                 "phase":("DIRECT_COUPLED_189_EQUATION_ZERO_TRANSFER_BOOTSTRAP"
                   if lam==0.0 else "DIRECT_COUPLED_189_EQUATION_SOLVE"),
                 "lastAcceptedLambda":previous_lambda,
                 "rejectedLambdaBracket":None if previous_lambda is None else {
-                  "lowerAccepted":previous_lambda,"upperRejected":lam},
+                  "lowerAccepted":previous_lambda,
+                  "upperRejected":(
+                    active_bracket["upperRejectedLambda"]
+                    if active_bracket is not None else lam)},
+                "boundedSearch":None if active_bracket is None else {
+                  "searchRootUpperLambda":active_bracket[
+                    "searchRootUpperLambda"],
+                  "maximumBracketRefinements":
+                    maximum_bracket_refinements,
+                  "completedBracketRefinements":
+                    active_bracket.get("refinementsUsed",0),
+                  "minimumLambdaInterval":minimum_lambda_interval,
+                  "termination":"FINITE_SCIENTIFIC_TRIAL_PLAN_EXHAUSTED"},
+                "rejectedTrials":rejected_trials,
                "coupledAttempts":coupled_attempts,
                "acceptedContinuationHistory":history,
                "preSolveAcceptedStateAudit":pre_solve_audit,
@@ -1568,7 +1877,8 @@ def case(r, name, dc, dd, solvers):
     # A checkpoint state is only a warm start.  solve_height reruns local
     # interface closure and independently re-evaluates every unchanged
     # lambda=0 gate before it can be accepted.
-    resume_anchor=find_resume_coupled_anchor(_completed_results,2.0)
+    resume_anchor=find_resume_coupled_anchor(
+      _completed_results,2.0,expected_request_sha256=_request_sha256)
     progress("candidate 2m",height_candidate_m=2.0)
     low=solve_height(2.0,resume_anchor)
     h2_benchmark=qualify_h2(low)
@@ -1761,7 +2071,9 @@ for line in sys.stdin:
     _job_started=time.monotonic()
     _last_progress={"phase":"initializing","completed":0,"total":None,
       "iteration":None,"residual":None,"residualKind":None,
-      "elapsedSeconds":0.0,"heightCandidateM":None}
+      "elapsedSeconds":0.0,"heightCandidateM":None,
+      "continuationLambda":None,"continuationTrial":None,
+      "acceptedLowerLambda":None,"rejectedUpperLambda":None}
     _last_progress_emit=0.0
     _completed_results=[]
     r=json.loads(line)

@@ -22,6 +22,10 @@ type JobCJob = {
     residualKind: string | null;
     elapsedSeconds: number | null;
     heightCandidateM: number | null;
+    continuationLambda: number | null;
+    continuationTrial: number | null;
+    acceptedLowerLambda: number | null;
+    rejectedUpperLambda: number | null;
   };
   result: RecordValue | null;
   scientificCompleted: boolean;
@@ -176,6 +180,10 @@ function normalizeJobCJob(value: unknown): JobCJob {
       residualKind: residualKind == null ? null : String(residualKind),
       elapsedSeconds: optionalNumber(read(progress, "elapsedSeconds") ?? read(payload, "elapsedSeconds")),
       heightCandidateM: optionalNumber(read(progress, "heightCandidateM") ?? read(payload, "heightCandidateM")),
+      continuationLambda: optionalNumber(read(progress, "continuationLambda") ?? read(payload, "continuationLambda")),
+      continuationTrial: optionalNumber(read(progress, "continuationTrial") ?? read(payload, "continuationTrial")),
+      acceptedLowerLambda: optionalNumber(read(progress, "acceptedLowerLambda") ?? read(payload, "acceptedLowerLambda")),
+      rejectedUpperLambda: optionalNumber(read(progress, "rejectedUpperLambda") ?? read(payload, "rejectedUpperLambda")),
     },
     result: Object.keys(result).length ? result : null,
     // Older jobs did not expose this field; their completed result remains
@@ -628,6 +636,10 @@ export default function EcrPrePilotDesignStage4Page() {
                 <p className="font-mono"><span className="font-sans font-semibold">Residual:</span> {residualValue(jobCJob.progress.residual, jobCJob.progress.residualKind)}</p>
                 <p className="font-mono"><span className="font-sans font-semibold">Elapsed:</span> {elapsedValue(jobCJob.progress.elapsedSeconds)}</p>
                 <p className="font-mono"><span className="font-sans font-semibold">Height candidate:</span> {heightCandidateValue(jobCJob.progress.heightCandidateM)}</p>
+                 <p className="font-mono"><span className="font-sans font-semibold">Active λ:</span> {jobCJob.progress.continuationLambda == null ? "Unavailable" : jobCJob.progress.continuationLambda.toExponential(3)}</p>
+                 <p className="font-mono"><span className="font-sans font-semibold">Continuation trial:</span> {jobCJob.progress.continuationTrial ?? "Unavailable"}</p>
+                 <p className="font-mono"><span className="font-sans font-semibold">Accepted lower λ:</span> {jobCJob.progress.acceptedLowerLambda == null ? "Unavailable" : jobCJob.progress.acceptedLowerLambda.toExponential(3)}</p>
+                 <p className="font-mono"><span className="font-sans font-semibold">Rejected upper λ:</span> {jobCJob.progress.rejectedUpperLambda == null ? "Unavailable" : jobCJob.progress.rejectedUpperLambda.toExponential(3)}</p>
               </div>
               {jobCJob.error && <p className="mt-2 font-mono text-[10px] text-red-800">{jobCJob.error}</p>}
               {jobCJob.progress.heightCandidateM !== null && !jobCJob.scientificCompleted && <p className="mt-2 text-[10px] font-semibold text-violet-900">The height candidate is live calculation telemetry, not an accepted or final result.</p>}

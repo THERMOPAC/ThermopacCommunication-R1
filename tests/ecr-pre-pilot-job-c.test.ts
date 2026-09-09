@@ -323,14 +323,17 @@ print(json.dumps({
     expect(worker).toContain('jac_sparsity=sparsity');
     expect(worker).toContain('(27*m,27*m)');
     expect(worker).toContain('COUPLED_BOUNDED_SPARSE_189_CONTINUATION');
-    expect(worker).toContain('JOB_C_COUPLED_POSITIVE_FEASIBILITY_UNRESOLVED');
+    expect(worker).toContain('JOB_C_POSITIVE_BRANCH_LIMIT_REACHED');
+    expect(worker).toContain('FINITE_SCIENTIFIC_TRIAL_PLAN_EXHAUSTED');
+    expect(worker).toContain('maximum_bracket_refinements=3');
+    expect(worker).toContain('REJECTED_COUPLED_CONTINUATION_TRIAL');
     expect(worker).toContain('JOB_C_LAMBDA1_MONOLITHIC_REPLAY_FAILED');
     expect(worker).toContain('"dominantResidualRows":diagnostics(ev)');
     expect(worker).toContain('np.asarray(profile_unknowns).reshape(-1)');
     expect(worker).toContain('JOB_C_BOUNDARY_AWARE_INITIAL_PROFILE_INVALID');
     expect(worker).toContain('max_nfev=40');
     expect(worker).toContain('progress("direct coupled zero-transfer bootstrap"');
-    expect(worker).toContain('else f"direct coupled lambda {lam:g}")');
+    expect(worker).toContain('else f"direct coupled lambda {lam:g}",');
     expect(worker).toContain('progress("lambda 1 monolithic replay")');
     expect(worker).toContain('flows=x[:14*m].reshape(2,m,7)');
     expect(worker).toContain('np.full(14*m,epsilon)');
@@ -794,7 +797,7 @@ source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
 names = {
   "coupled_lambda_targets",
-  "coupled_lambda_failure_step",
+  "coupled_bounded_bracket_next",
   "coupled_jacobian_sparsity",
   "coupled_solver_row_scale",
 }
@@ -806,17 +809,16 @@ namespace = {}
 exec(compile(ast.Module(body=selected, type_ignores=[]),
              "job-c-continuation-contract", "exec"), namespace)
 targets = namespace["coupled_lambda_targets"](1e-8)
-none_previous, none_midpoint = namespace["coupled_lambda_failure_step"](
-  [], 0.0, 1e-8)
-zero_previous, zero_midpoint = namespace["coupled_lambda_failure_step"](
-  [{"lambda": 0.0}], 1e-8, 1e-8)
-accepted_previous, accepted_midpoint = namespace[
-  "coupled_lambda_failure_step"
-]([{"lambda": 1e-8}], 3e-5, 1e-8)
-micro_previous, micro_midpoint = namespace["coupled_lambda_failure_step"](
-  [{"lambda": 1e-10}], 3e-10, 1e-10)
-floor_previous, floor_midpoint = namespace["coupled_lambda_failure_step"](
-  [{"lambda": 1e-10}], 1.5e-10, 1e-10)
+first_refinement = namespace["coupled_bounded_bracket_next"](
+  1e-8, 3e-8, 0, 3, 1e-10)
+second_refinement = namespace["coupled_bounded_bracket_next"](
+  first_refinement["lambda"], 3e-8, 1, 3, 1e-10)
+third_refinement = namespace["coupled_bounded_bracket_next"](
+  second_refinement["lambda"], 3e-8, 2, 3, 1e-10)
+exhausted_refinement = namespace["coupled_bounded_bracket_next"](
+  third_refinement["lambda"], 3e-8, 3, 3, 1e-10)
+floor_refinement = namespace["coupled_bounded_bracket_next"](
+  1e-10, 1.5e-10, 0, 3, 1e-10)
 m = 7
 mask = namespace["coupled_jacobian_sparsity"](scipy, m).toarray()
 row_scale = namespace["coupled_solver_row_scale"](
@@ -846,16 +848,11 @@ for j in range(m):
 actual = set(zip(*mask.nonzero()))
 print(json.dumps({
   "targets": targets,
-  "nonePrevious": none_previous,
-  "noneMidpoint": none_midpoint,
-  "zeroPrevious": zero_previous,
-  "zeroMidpoint": zero_midpoint,
-  "acceptedPrevious": accepted_previous,
-  "acceptedMidpoint": accepted_midpoint,
-  "microPrevious": micro_previous,
-  "microMidpoint": micro_midpoint,
-  "floorPrevious": floor_previous,
-  "floorMidpoint": floor_midpoint,
+  "firstRefinement": first_refinement,
+  "secondRefinement": second_refinement,
+  "thirdRefinement": third_refinement,
+  "exhaustedRefinement": exhausted_refinement,
+  "floorRefinement": floor_refinement,
   "shape": list(mask.shape),
   "maskExact": actual == expected,
   "nonzeroCount": len(actual),
@@ -866,17 +863,19 @@ print(json.dumps({
     expect(observed.targets.slice(0, 6)).toEqual([
       0, 1e-10, 3e-10, 1e-9, 3e-9, 1e-8,
     ]);
+    expect(observed.targets.slice(6, 10)).toEqual([
+      3e-8, 1e-7, 3e-7, 1e-6,
+    ]);
     expect(observed.targets.at(-1)).toBe(1);
-    expect(observed.nonePrevious).toBeNull();
-    expect(observed.noneMidpoint).toBeNull();
-    expect(observed.zeroPrevious).toBe(0);
-    expect(observed.zeroMidpoint).toBeNull();
-    expect(observed.acceptedPrevious).toBe(1e-8);
-    expect(observed.acceptedMidpoint).toBeCloseTo(0.000015005, 12);
-    expect(observed.microPrevious).toBe(1e-10);
-    expect(observed.microMidpoint).toBeCloseTo(2e-10, 20);
-    expect(observed.floorPrevious).toBe(1e-10);
-    expect(observed.floorMidpoint).toBeNull();
+    expect(observed.firstRefinement).toEqual({
+      lambda: 2e-8, trial: 1,
+    });
+    expect(observed.secondRefinement.lambda).toBeCloseTo(2.5e-8, 20);
+    expect(observed.secondRefinement.trial).toBe(2);
+    expect(observed.thirdRefinement.lambda).toBeCloseTo(2.75e-8, 20);
+    expect(observed.thirdRefinement.trial).toBe(3);
+    expect(observed.exhaustedRefinement).toBeNull();
+    expect(observed.floorRefinement).toBeNull();
     expect(observed.shape).toEqual([189, 189]);
     expect(observed.maskExact).toBe(true);
     expect(observed.nonzeroCount).toBeGreaterThan(0);
@@ -971,7 +970,41 @@ checkpoint["completedResults"].append({
   "id": "coupled-anchor:2:lambda:1e-9",
   "kind": "ACCEPTED_COUPLED_CONTINUATION_ANCHOR",
   "value": {"heightM": 2.0, "lambda": 1e-9, "state": [0.3] * 189,
-    "stateSha256": namespace["digest"]([0.3] * 189)},
+    "stateSha256": namespace["digest"]([0.3] * 189),
+    "continuationBracket": {"searchRootUpperLambda": 0.9,
+      "upperRejectedLambda": 0.8, "refinementsUsed": 3},
+    "bracketRefinementTrial": 3},
+  "inputSha256": "request-digest",
+})
+checkpoint["completedResults"].append({
+  "id": "coupled-rejection:2:root:3e-8:trial:1:lambda:2e-8",
+  "kind": "REJECTED_COUPLED_CONTINUATION_TRIAL",
+  "value": {"heightM": 2.0, "rejectedLambda": 2e-8,
+    "lowerAcceptedLambda": 1e-9, "searchRootUpperLambda": 3e-8,
+    "bracketRefinementTrial": 1, "stateSha256": "a" * 64,
+    "gateMetrics": {
+      **namespace["coupled_gate_decision"](2e-7, 1e-9, 1e-9, 1e-6),
+      "rawFvResidualMolS": 2e-7,
+      "scaledFvResidual": 1e-9,
+      "maximumOriginalJobBGateResidual": 1e-9,
+      "minimumFlowMolS": 1e-6,
+    },
+    "deterministicConfirmation": {
+      "independentRawReevaluationCount": 2,
+      "bothScientificGateEvaluationsPassed": False,
+      "maximumMetricDifference": 0,
+      "exactlyRepeatable": True,
+    },
+    "coupledAttempts": [{"accepted": False}]},
+  "inputSha256": "request-digest",
+})
+checkpoint["completedResults"].append({
+  "id": "coupled-rejection:2:malformed-no-evidence",
+  "kind": "REJECTED_COUPLED_CONTINUATION_TRIAL",
+  "value": {"heightM": 2.0, "rejectedLambda": 1.5e-8,
+    "lowerAcceptedLambda": 1e-9, "searchRootUpperLambda": 3e-8,
+    "bracketRefinementTrial": 2},
+  "inputSha256": "request-digest",
 })
 checkpoint["completedResults"].append({
   "id": "coupled-anchor:2:lambda:3e-9:malformed",
@@ -987,7 +1020,64 @@ checkpoint["completedResults"].append({
     "stateSha256": "not-a-valid-state-hash"},
 })
 highest_anchor = namespace["find_resume_coupled_anchor"](
-  checkpoint["completedResults"], 2.0)
+  checkpoint["completedResults"], 2.0,
+  expected_request_sha256="request-digest")
+mixed_entry_anchor = namespace["find_resume_coupled_anchor"](
+  checkpoint["completedResults"] + [None, [], 7], 2.0,
+  expected_request_sha256="request-digest")
+conflicting_rejection = json.loads(json.dumps(
+  checkpoint["completedResults"][2]))
+conflicting_rejection["id"] = "coupled-rejection:2:conflicting-root"
+conflicting_rejection["value"]["rejectedLambda"] = 2.5e-8
+conflicting_rejection["value"]["searchRootUpperLambda"] = 4e-8
+ambiguous_anchor = namespace["find_resume_coupled_anchor"](
+  checkpoint["completedResults"] + [conflicting_rejection], 2.0,
+  expected_request_sha256="request-digest")
+stored_bad_state = [0.35] * 189
+stored_bad_anchor = {
+  "id": "coupled-anchor:2:lambda:2.5e-8:bad-counter",
+  "kind": "ACCEPTED_COUPLED_CONTINUATION_ANCHOR",
+  "value": {"heightM": 2.0, "lambda": 2.5e-8,
+    "state": stored_bad_state,
+    "stateSha256": namespace["digest"](stored_bad_state),
+    "continuationBracket": {"searchRootUpperLambda": 3e-8,
+      "upperRejectedLambda": 2e-8, "refinementsUsed": 3},
+    "bracketRefinementTrial": 1},
+  "inputSha256": "request-digest",
+}
+inconsistent_stored_anchor = namespace["find_resume_coupled_anchor"](
+  [checkpoint["completedResults"][2], stored_bad_anchor], 2.0,
+  expected_request_sha256="request-digest")
+midpoint_rejection = json.loads(json.dumps(
+  checkpoint["completedResults"][2]))
+midpoint_rejection["id"] = "coupled-rejection:2:root:3e-8:trial:0"
+midpoint_rejection["value"]["lowerAcceptedLambda"] = 1e-8
+midpoint_rejection["value"]["rejectedLambda"] = 3e-8
+midpoint_rejection["value"]["searchRootUpperLambda"] = 3e-8
+midpoint_rejection["value"]["bracketRefinementTrial"] = 0
+midpoint_state = [0.4] * 189
+midpoint_anchor = {
+  "id": "coupled-anchor:2:lambda:2e-8",
+  "kind": "ACCEPTED_COUPLED_CONTINUATION_ANCHOR",
+  "value": {"heightM": 2.0, "lambda": 2e-8,
+    "state": midpoint_state,
+    "stateSha256": namespace["digest"](midpoint_state),
+    "continuationBracket": {"searchRootUpperLambda": 3e-8,
+      "upperRejectedLambda": 3e-8, "refinementsUsed": 1},
+    "bracketRefinementTrial": 1},
+  "inputSha256": "request-digest",
+}
+first_midpoint_resume = namespace["find_resume_coupled_anchor"](
+  [midpoint_rejection, midpoint_anchor], 2.0,
+  expected_request_sha256="request-digest")
+revalidated_midpoint_anchor = json.loads(json.dumps(midpoint_anchor))
+revalidated_midpoint_anchor["value"]["continuationBracket"] = (
+  first_midpoint_resume["continuationBracket"])
+revalidated_midpoint_anchor["value"]["bracketRefinementTrial"] = (
+  first_midpoint_resume["bracketRefinementTrial"])
+second_midpoint_resume = namespace["find_resume_coupled_anchor"](
+  [midpoint_rejection, revalidated_midpoint_anchor], 2.0,
+  expected_request_sha256="request-digest")
 split_ok = namespace["split_coupled_warm_state"](np, restored, 7)
 malformed = [0.2, 0.3]
 malformed_rejected = False
@@ -1035,6 +1125,19 @@ print(json.dumps({
   "checkpointRoundTrip": restored == checkpoint_state,
   "highestAnchorLambda": highest_anchor["lambda"],
   "highestAnchorStateFirst": highest_anchor["state"][0],
+  "highestAnchorBracket": highest_anchor["continuationBracket"],
+  "mixedEntryAnchorBracket": mixed_entry_anchor["continuationBracket"],
+  "ambiguousAnchorBracket": ambiguous_anchor["continuationBracket"],
+  "inconsistentStoredBracket":
+    inconsistent_stored_anchor["continuationBracket"],
+  "firstMidpointResumeBracket":
+    first_midpoint_resume["continuationBracket"],
+  "firstMidpointResumeTrial":
+    first_midpoint_resume["bracketRefinementTrial"],
+  "secondMidpointResumeBracket":
+    second_midpoint_resume["continuationBracket"],
+  "secondMidpointResumeTrial":
+    second_midpoint_resume["bracketRefinementTrial"],
   "splitFlowLength": len(split_ok[0]),
   "splitInterfaceLength": len(split_ok[1]),
   "malformedRejected": malformed_rejected,
@@ -1072,6 +1175,26 @@ print(json.dumps({
     expect(observed.checkpointRoundTrip).toBe(true);
     expect(observed.highestAnchorLambda).toBe(1e-9);
     expect(observed.highestAnchorStateFirst).toBe(0.3);
+    expect(observed.highestAnchorBracket).toEqual({
+      searchRootUpperLambda: 3e-8,
+      upperRejectedLambda: 2e-8,
+      refinementsUsed: 1,
+    });
+    expect(observed.mixedEntryAnchorBracket).toEqual(
+      observed.highestAnchorBracket,
+    );
+    expect(observed.ambiguousAnchorBracket).toBeNull();
+    expect(observed.inconsistentStoredBracket).toBeNull();
+    expect(observed.firstMidpointResumeBracket).toEqual({
+      searchRootUpperLambda: 3e-8,
+      upperRejectedLambda: 3e-8,
+      refinementsUsed: 1,
+    });
+    expect(observed.firstMidpointResumeTrial).toBe(1);
+    expect(observed.secondMidpointResumeBracket).toEqual(
+      observed.firstMidpointResumeBracket,
+    );
+    expect(observed.secondMidpointResumeTrial).toBe(1);
     expect(observed.splitFlowLength).toBe(98);
     expect(observed.splitInterfaceLength).toBe(91);
     expect(observed.malformedRejected).toBe(true);

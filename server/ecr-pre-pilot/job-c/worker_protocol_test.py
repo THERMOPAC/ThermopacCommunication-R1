@@ -14,7 +14,7 @@ WORKER = Path(__file__).with_name("worker.py")
 
 def protocol_namespace():
     tree = ast.parse(WORKER.read_text())
-    names = {"canonical", "hashed", "digest", "progress",
+    names = {"native_json_scalar", "canonical", "hashed", "digest", "progress",
              "record_completed_result", "checkpoint"}
     selected = [node for node in tree.body
                 if isinstance(node, ast.FunctionDef) and node.name in names]
@@ -28,7 +28,11 @@ def protocol_namespace():
         "_last_progress": {"phase": "initializing", "completed": 0,
                            "total": None, "iteration": None,
                            "residual": None, "residualKind": None,
-                           "elapsedSeconds": 0.0, "heightCandidateM": None},
+                           "elapsedSeconds": 0.0, "heightCandidateM": None,
+                           "continuationLambda": None,
+                           "continuationTrial": None,
+                           "acceptedLowerLambda": None,
+                           "rejectedUpperLambda": None},
         "_last_progress_emit": 0.0,
         "_completed_results": [],
         "_request_sha256": "request-digest",
@@ -42,7 +46,11 @@ class JobCWorkerProtocolTest(unittest.TestCase):
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             worker["progress"]("qualifying", 2, None, None, 0.25,
-                               "RESIDUAL_L2", 4.0)
+                               "RESIDUAL_L2", 4.0,
+                               lambda_value=3e-8,
+                               continuation_trial=2,
+                               accepted_lower_lambda=1e-8,
+                               rejected_upper_lambda=1e-7)
         message = json.loads(output.getvalue().split(" ", 1)[1])
         self.assertEqual(message["phase"], "qualifying")
         self.assertEqual(message["completed"], 2)
@@ -51,6 +59,10 @@ class JobCWorkerProtocolTest(unittest.TestCase):
         self.assertEqual(message["residual"], 0.25)
         self.assertEqual(message["residualKind"], "RESIDUAL_L2")
         self.assertEqual(message["heightCandidateM"], 4.0)
+        self.assertEqual(message["continuationLambda"], 3e-8)
+        self.assertEqual(message["continuationTrial"], 2)
+        self.assertEqual(message["acceptedLowerLambda"], 1e-8)
+        self.assertEqual(message["rejectedUpperLambda"], 1e-7)
         self.assertGreaterEqual(message["elapsedSeconds"], 0)
 
     def test_solver_height_is_stored_on_the_live_budget(self):
