@@ -1059,3 +1059,17 @@ mtime_ms = 1788870767739
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8f9c13b4-3136-4025-a191-89d95b0e9422/47adf861-3d85-4de5-ad69-6d18c89361db"
 storage_version_token = "1788870822593178"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "ofdn2ugU9l5IgEUdtVxTP"
+uri = "file://research-results/job-c-offline-rejection-analysis.md"
+type = "text"
+title = "Job C offline diagnostic findings"
+description = "Verified rejected-state replay, saturated flux-coordinate findings, and limits of the derivative evidence."
+logical_id = "c0ee13cf-67d6-4ec8-90f7-cbc80840a87c"
+content_hash = "sha256:aef5859d04db710c9457595de2c3d2f81698c76d25d0f84eefbc691e58ee9ac3"
+size = 5921
+mtime_ms = 1789216556869
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c0ee13cf-67d6-4ec8-90f7-cbc80840a87c/e888cf78-9ee7-4db7-af12-a403decdb01b"
+storage_version_token = "1789216569471025"
+content_type = "text/markdown"

@@ -1,0 +1,2737 @@
+{
+  "astClosureExtraction": {
+    "candidateInterfaceEquations": {
+      "calls": [
+        "mu",
+        "sum",
+        "transform"
+      ],
+      "lineEnd": 48,
+      "lineStart": 41,
+      "requiredExternalClosure": "engine.mu"
+    },
+    "qualification": "AST_FOUND_RAW_EVALUATE_AND_CANDIDATE_EQUATIONS;CAPTURED_REQUEST_SUPPLIES_BULK_AND_INTERFACE_INPUTS;PINNED_RUNTIME_SUPPLIES_ENGINE_MU",
+    "rawEvaluate": {
+      "calls": [
+        "append",
+        "asarray",
+        "coupled_cached_local_equations",
+        "equations",
+        "extend",
+        "monotonic",
+        "range",
+        "sum",
+        "unpack",
+        "zeros"
+      ],
+      "closureInputs": [
+        "feedc",
+        "feedd",
+        "dc",
+        "dd",
+        "A",
+        "dz",
+        "m",
+        "evaluation_attribution",
+        "solvers"
+      ],
+      "lineEnd": 1797,
+      "lineStart": 1761
+    }
+  },
+  "conclusion": {
+    "exactResidualOnlyReplayFeasible": true,
+    "independentDirectionalDerivativeChecksStatus": "CHECKED",
+    "limiterTransformInspection": "SUPPORTED_BY_EXACT_CANDIDATE_TRANSFORM_AND_ANALYTIC_COLUMN",
+    "physicalInfeasibilityClaim": "NOT_EVIDENCED",
+    "solverOrContinuationValidation": "UNTESTED_BY_DESIGN",
+    "weakDirectionValidation": "BOUNDED_DIAGNOSTIC_ONLY;NEAR_ZERO_RESPONSES_USE_ABSOLUTE_ERROR_NOT_RELATIVE_CLAIMS"
+  },
+  "diagnosticOnly": true,
+  "evidencePaths": {
+    "inputSnapshot": "/tmp/job-c-d7262954-99be-49fb-b143-b303dd83d2bc/input_snapshot.json",
+    "partialResultSnapshot": "/tmp/job-c-d7262954-99be-49fb-b143-b303dd83d2bc/partial_result_snapshot.json",
+    "replayAlgebra": "/tmp/job-c-d7262954-99be-49fb-b143-b303dd83d2bc/worker_replay_result.json"
+  },
+  "independentDirectionalDerivativeChecks": {
+    "directions": [
+      {
+        "capturedJacobianDirectionL2": 23.600551934105116,
+        "direction": 0,
+        "directionL2": 2.150133655746244,
+        "errorInf": 2.1728396859543864e-09,
+        "errorL2": 3.3582456283548174e-09,
+        "finiteDifferenceL2": 23.60055193631488,
+        "relativeErrorL2": 1.422952157106895e-10,
+        "step": 0.0001
+      },
+      {
+        "capturedJacobianDirectionL2": 14.504677698937929,
+        "direction": 1,
+        "directionL2": 2.274419137449655,
+        "errorInf": 1.5271153230855816e-09,
+        "errorL2": 2.5789539207894493e-09,
+        "finiteDifferenceL2": 14.504677699926994,
+        "relativeErrorL2": 1.7780153232762194e-10,
+        "step": 0.0001
+      },
+      {
+        "capturedJacobianDirectionL2": 20.07244841687389,
+        "direction": 2,
+        "directionL2": 1.6839892745926444,
+        "errorInf": 7.710823091144903e-10,
+        "errorL2": 1.854999415253079e-09,
+        "finiteDifferenceL2": 20.07244841664879,
+        "relativeErrorL2": 9.241520400140499e-11,
+        "step": 0.0001
+      }
+    ],
+    "method": "ISOLATED_EXACT_RESIDUAL_CENTRAL_FINITE_DIFFERENCE",
+    "noWorkerOrContinuationInvoked": true,
+    "status": "CHECKED"
+  },
+  "jobId": "d7262954-99be-49fb-b143-b303dd83d2bc",
+  "limiterCoordinateChecks": [
+    {
+      "analyticResidualColumn": {
+        "fvContributionFraction": 0.9999999999682856,
+        "fvScaledL2": 3.350336612687749e-17,
+        "inf": 2.355243726952697e-17,
+        "interfaceContributionFraction": 7.964212138902851e-06,
+        "interfaceL2": 2.6682791521024665e-22,
+        "l2": 3.350336612794003e-17
+      },
+      "boundSafeDirection": {
+        "maximumWidth": 9.54650513870577,
+        "minimumWidth": 4.674214126904991e-10,
+        "response": {
+          "capturedJacobianDirectionL2": 2.1847856501431824e-14,
+          "directionL2": 1.0,
+          "samples": [
+            {
+              "capturedJacobianDirectionL2": 2.1847856501431824e-14,
+              "errorInf": 2.146037036715235e-14,
+              "errorL2": 2.1853188593374944e-14,
+              "finiteDifferenceL2": 4.850745757315054e-16,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 0.001,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            },
+            {
+              "capturedJacobianDirectionL2": 2.1847856501431824e-14,
+              "errorInf": 2.146037036715235e-14,
+              "errorL2": 2.1476724640887904e-14,
+              "finiteDifferenceL2": 3.2585533494178623e-15,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 0.0001,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            },
+            {
+              "capturedJacobianDirectionL2": 2.1847856501431824e-14,
+              "errorInf": 3.334903388683661e-13,
+              "errorL2": 3.342052272417161e-13,
+              "finiteDifferenceL2": 3.334903419400104e-13,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 1e-05,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            }
+          ]
+        }
+      },
+      "capturedJacobianColumn": {
+        "columnErrorInf": 2.1460370363473967e-14,
+        "columnErrorL2": 2.184782991633929e-14,
+        "inf": 2.146037036715235e-14,
+        "interpretation": "ABSOLUTE_ERROR_ONLY_NEAR_ZERO_DERIVATIVE",
+        "l2": 2.1847856501431824e-14,
+        "relativeColumnError": null
+      },
+      "cell": 6,
+      "coordinate": {
+        "interfaceUnknown": "total_flux_tanh",
+        "interfaceUnknownIndex": 12,
+        "numericalCell": 6,
+        "phase": "interface"
+      },
+      "stateCoordinateValue": 13.135827166311245,
+      "transform": {
+        "bound": 3.5483515169829207,
+        "dFlux_dCoordinate": 5.5265130351086045e-11,
+        "flux": 3.548351516955288,
+        "interpretation": "SATURATED_TANH_DERIVATIVE",
+        "normalizedFlux": 0.9999999999922126,
+        "oneMinusAbsTanh": 7.787437361628236e-12,
+        "relativeDerivative_dFlux_dCoordinate": 1.557487472325647e-11,
+        "tanhValue": 0.9999999999922126
+      }
+    },
+    {
+      "analyticResidualColumn": {
+        "fvContributionFraction": 0.9999999999753091,
+        "fvScaledL2": 4.4102281003698465e-17,
+        "inf": 3.1003338666357955e-17,
+        "interfaceContributionFraction": 7.027190594548873e-06,
+        "interfaceL2": 3.0991513427499335e-22,
+        "l2": 4.410228100478739e-17
+      },
+      "boundSafeDirection": {
+        "maximumWidth": 9.54650513870577,
+        "minimumWidth": 4.674203410572954e-10,
+        "response": {
+          "capturedJacobianDirectionL2": 1.0499781043614051e-11,
+          "directionL2": 1.0,
+          "samples": [
+            {
+              "capturedJacobianDirectionL2": 1.0499781043614051e-11,
+              "errorInf": 1.0499672345676118e-11,
+              "errorL2": 1.0499768260740878e-11,
+              "finiteDifferenceL2": 3.3858369050458908e-15,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 0.001,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            },
+            {
+              "capturedJacobianDirectionL2": 1.0499781043614051e-11,
+              "errorInf": 1.0499672345676118e-11,
+              "errorL2": 1.0499699433723065e-11,
+              "finiteDifferenceL2": 3.334906258023244e-14,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 0.0001,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            },
+            {
+              "capturedJacobianDirectionL2": 1.0499781043614051e-11,
+              "errorInf": 1.0499672345676118e-11,
+              "errorL2": 1.0499818755393254e-11,
+              "finiteDifferenceL2": 3.2583881663231405e-14,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 1e-05,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            }
+          ]
+        }
+      },
+      "capturedJacobianColumn": {
+        "columnErrorInf": 1.0499672345499117e-11,
+        "columnErrorL2": 1.0499781043336749e-11,
+        "inf": 1.0499672345676118e-11,
+        "interpretation": "ABSOLUTE_ERROR_ONLY_NEAR_ZERO_DERIVATIVE",
+        "l2": 1.0499781043614051e-11,
+        "relativeColumnError": null
+      },
+      "cell": 5,
+      "coordinate": {
+        "interfaceUnknown": "total_flux_tanh",
+        "interfaceUnknownIndex": 12,
+        "numericalCell": 5,
+        "phase": "interface"
+      },
+      "stateCoordinateValue": -12.998394447789448,
+      "transform": {
+        "bound": 3.5483515169829207,
+        "dFlux_dCoordinate": 7.274846072604292e-11,
+        "flux": -3.5483515169465467,
+        "interpretation": "SATURATED_TANH_DERIVATIVE",
+        "normalizedFlux": -0.999999999989749,
+        "oneMinusAbsTanh": 1.0251022253271458e-11,
+        "relativeDerivative_dFlux_dCoordinate": 2.0502044506542916e-11,
+        "tanhValue": -0.999999999989749
+      }
+    },
+    {
+      "analyticResidualColumn": {
+        "fvContributionFraction": 0.9999999999753444,
+        "fvScaledL2": 3.937794051063965e-12,
+        "inf": 2.76821878115236e-12,
+        "interfaceContributionFraction": 7.022210894983134e-06,
+        "interfaceL2": 2.765202028826293e-17,
+        "l2": 3.937794051161054e-12
+      },
+      "boundSafeDirection": {
+        "maximumWidth": 9.54650513870577,
+        "minimumWidth": 4.657532075285156e-10,
+        "response": {
+          "capturedJacobianDirectionL2": 3.937806577161354e-12,
+          "directionL2": 1.0,
+          "samples": [
+            {
+              "capturedJacobianDirectionL2": 3.937806577161354e-12,
+              "errorInf": 8.264416580294079e-13,
+              "errorL2": 8.271568524948078e-13,
+              "finiteDifferenceL2": 4.0237186410882176e-12,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 0.001,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            },
+            {
+              "capturedJacobianDirectionL2": 3.937806577161354e-12,
+              "errorInf": 8.264416580294079e-12,
+              "errorL2": 8.264431661749635e-12,
+              "finiteDifferenceL2": 9.154608331217286e-12,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 0.0001,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            },
+            {
+              "capturedJacobianDirectionL2": 3.937806577161354e-12,
+              "errorInf": 3.2599936855824255e-12,
+              "errorL2": 3.2605337351812986e-12,
+              "finiteDifferenceL2": 5.112363210187012e-12,
+              "relativeErrorL2": null,
+              "relativeSafeWidth": 1e-05,
+              "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+            }
+          ]
+        }
+      },
+      "capturedJacobianColumn": {
+        "columnErrorInf": 1.0949397981267789e-14,
+        "columnErrorL2": 1.0949433234329061e-14,
+        "inf": 2.7682168623794533e-12,
+        "interpretation": "ABSOLUTE_ERROR_ONLY_NEAR_ZERO_DERIVATIVE",
+        "l2": 3.937806577161354e-12,
+        "relativeColumnError": null
+      },
+      "cell": 5,
+      "coordinate": {
+        "interfaceUnknown": "total_flux_tanh",
+        "interfaceUnknownIndex": 12,
+        "numericalCell": 5,
+        "phase": "interface"
+      },
+      "stateCoordinateValue": -7.29858510711445,
+      "transform": {
+        "bound": 3.5483515169829207,
+        "dFlux_dCoordinate": 6.495547380527192e-06,
+        "flux": -3.548348269207744,
+        "interpretation": "SATURATED_TANH_DERIVATIVE",
+        "normalizedFlux": -0.9999990847087271,
+        "oneMinusAbsTanh": 9.152912728849216e-07,
+        "relativeDerivative_dFlux_dCoordinate": 1.8305817079955489e-06,
+        "tanhValue": -0.9999990847087271
+      }
+    }
+  ],
+  "lineage": {
+    "captureSha256": "0a80922cdf29ce668ae40055ef1e4d8681ea03c78a1f67c41cd3538294924fd0",
+    "noWorkerOrContinuationInvoked": true,
+    "requestSha256": "d487e22d586bb0e55a3321c8207f684d16c2c88f05a67ada1e9d64278951e766",
+    "scientificEngineSha256": "0ce9e61f7bdb87a2ccaa1a70edc547343e6cf03585b557855eaeaced1ad0f2d6",
+    "scientificRuntime": {
+      "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+      "numpy": "2.1.3",
+      "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+      "scipy": "1.14.1",
+      "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+    },
+    "selectedStateSha256": "7931b8e9ace16f9711c5e4b85ef7f880713970c1ad5a9183ddc90e79afe9e32a",
+    "workerFilesSha256": {
+      "server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py": "06e11136806a4e0a140077941ae643d092c35e41dbfc035fdf20da8298431714",
+      "server/ecr-pre-pilot/job-c/branch_continuation.py": "b8e81a5b9c85fadcb830f2635442706b0632c570ff4f62cfd5b488f7a4639b88",
+      "server/ecr-pre-pilot/job-c/candidate_interface.py": "7bf6abb0eb16c703b1a62997a28f0b784e45dbed6104b5736fdd3ced5711d983",
+      "server/ecr-pre-pilot/job-c/worker.py": "e088408b43a7e955b6b09979077fad971ab605593e0fb721547d7a6e7fc6530a"
+    }
+  },
+  "rankAwareCorrectionReplay": {
+    "capturedRetainedCorrectionCount": 3,
+    "linearizations": [
+      {
+        "activeLowerBoundCount": 0,
+        "activeUpperBoundCount": 0,
+        "capturedConditionNumber": 1.279201209946096e+24,
+        "capturedCorrectionNorm": 7714509.642386115,
+        "capturedLargestSingularValue": 2475.1120754475273,
+        "capturedPredictedResidualL2": 5.2369922451105076e-14,
+        "capturedRawNumericalRank": 184,
+        "capturedSmallestSingularValue": 1.9348887854412095e-21,
+        "correctionLimiter": {
+          "fullStepAdmissible": false,
+          "limitingCoordinate": {
+            "bound": "LOWER",
+            "interfaceUnknown": "total_flux_tanh",
+            "interfaceUnknownIndex": 12,
+            "numericalCell": 6,
+            "phase": "interface"
+          },
+          "limitingCorrection": -7713720.322470755,
+          "limitingDistance": 48.135827166311245,
+          "maximumInteriorScale": 6.240286807662353e-06
+        },
+        "linearizationIndex": 0,
+        "nearLowerBoundCount": 0,
+        "nearUpperBoundCount": 0,
+        "nearestLowerBound": {
+          "component": "PA",
+          "distance": 4.674214126904991e-10,
+          "numericalCell": 7,
+          "phase": "continuous"
+        },
+        "nearestUpperBound": {
+          "distance": 0.32063852504435886,
+          "interfaceUnknown": "total_flux_tanh",
+          "interfaceUnknownIndex": 12,
+          "numericalCell": 4,
+          "phase": "interface"
+        },
+        "rawNumericalRank": 184,
+        "rawRankCutoff": 1.0387161847526698e-10,
+        "replayedCorrectionNorm": 7714509.642386115,
+        "replayedEquilibratedRank": 187,
+        "replayedPredictedResidualL2": 5.236992245110507e-14,
+        "retainedTransition": {
+          "candidateStateSha256": "5f6817db7ce9b54e22639f04e43790926cb3c2e30aea006bec4eb26a2dabe67a",
+          "capturedGateScore": 2.4086502771136833,
+          "effectiveStepScale": 1.4820681168198088e-06,
+          "expectedObservedL2Difference": 2.556641085145879e-15,
+          "expectedObservedMaxAbsDifference": 1.7763568394002505e-15,
+          "observedStateCaptured": true
+        },
+        "stateSha256": "e7ff5f5bde3a5906237ea4f03b39ba9b87dc004ef5a161c16b3a2f0fad2bb03d",
+        "weakDirections": [
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.8295717243409286
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.5086502861671252
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.22184512487263622
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": -0.0555002607187507
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": -0.028108756402837297
+              }
+            ],
+            "singularValue": 6.298721978800083e-16
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.9983825436474765
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.05684385851274726
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.0010348263351764124
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -3.127190444402024e-05
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": -2.1116380061339055e-05
+              }
+            ],
+            "singularValue": 1.7282666876772236e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.8505644677959464
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.5235828724353292
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": -0.04897045462241486
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": -0.0012393086545264673
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.00119184877446897
+              }
+            ],
+            "singularValue": 1.7282666876772236e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.9950916910465701
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": 0.06770319844219047
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.06079051136701025
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.038843271316362164
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": -0.0021254015988095266
+              }
+            ],
+            "singularValue": 1.7282666876772236e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.9727279146860689
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.1843235544594897
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.11434574118840846
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.08191893028101592
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.006290595806317137
+              }
+            ],
+            "singularValue": 1.7282667379764318e-13
+          }
+        ]
+      },
+      {
+        "activeLowerBoundCount": 0,
+        "activeUpperBoundCount": 0,
+        "capturedConditionNumber": null,
+        "capturedCorrectionNorm": 7953.819220821467,
+        "capturedLargestSingularValue": 2475.1120754476137,
+        "capturedPredictedResidualL2": 1.3971580580379067e-13,
+        "capturedRawNumericalRank": 184,
+        "capturedSmallestSingularValue": 0,
+        "correctionLimiter": {
+          "fullStepAdmissible": false,
+          "limitingCoordinate": {
+            "bound": "UPPER",
+            "interfaceUnknown": "total_flux_tanh",
+            "interfaceUnknownIndex": 12,
+            "numericalCell": 5,
+            "phase": "interface"
+          },
+          "limitingCorrection": 7953.7450306432875,
+          "limitingDistance": 47.99839444778945,
+          "maximumInteriorScale": 0.0060346911125346205
+        },
+        "linearizationIndex": 1,
+        "nearLowerBoundCount": 0,
+        "nearUpperBoundCount": 0,
+        "nearestLowerBound": {
+          "component": "PA",
+          "distance": 4.674203410572954e-10,
+          "numericalCell": 7,
+          "phase": "continuous"
+        },
+        "nearestUpperBound": {
+          "distance": 0.32063852504435886,
+          "interfaceUnknown": "total_flux_tanh",
+          "interfaceUnknownIndex": 12,
+          "numericalCell": 4,
+          "phase": "interface"
+        },
+        "rawNumericalRank": 184,
+        "rawRankCutoff": 1.038716184752706e-10,
+        "replayedCorrectionNorm": 7953.819220821467,
+        "replayedEquilibratedRank": 186,
+        "replayedPredictedResidualL2": 1.397158058037907e-13,
+        "retainedTransition": {
+          "candidateStateSha256": "fadb79c2548336347e4854ca3fc0900c30188e4500f1b8a2b9b4ff3207a0c7e3",
+          "capturedGateScore": 2.40692419099383,
+          "effectiveStepScale": 0.0007166195696134862,
+          "expectedObservedL2Difference": 1.4110373405787405e-15,
+          "expectedObservedMaxAbsDifference": 8.881784197001252e-16,
+          "observedStateCaptured": true
+        },
+        "stateSha256": "5f6817db7ce9b54e22639f04e43790926cb3c2e30aea006bec4eb26a2dabe67a",
+        "weakDirections": [
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.8912113103516124
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.45356998021208556
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.004083301577102851
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -8.064077525949919e-11
+              },
+              {
+                "interfaceUnknown": "xc_logit_2",
+                "interfaceUnknownIndex": 1,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1.3319931825533166e-12
+              }
+            ],
+            "singularValue": 3.1351993924297596e-17
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_6",
+                "interfaceUnknownIndex": 11,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_4",
+                "interfaceUnknownIndex": 9,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_3",
+                "interfaceUnknownIndex": 8,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              }
+            ],
+            "singularValue": 1.728266687611617e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.9986201052375123
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": -0.048511097531924445
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.020113647895588782
+              },
+              {
+                "interfaceUnknown": "xc_logit_2",
+                "interfaceUnknownIndex": 1,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -3.265588556938918e-10
+              },
+              {
+                "interfaceUnknown": "xd_logit_2",
+                "interfaceUnknownIndex": 7,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -3.2655885389129216e-10
+              }
+            ],
+            "singularValue": 1.728266687611617e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.8898994024420157
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": 0.453142186813029
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.052356585676016094
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 5.5144414163241094e-11
+              },
+              {
+                "interfaceUnknown": "xd_logit_2",
+                "interfaceUnknownIndex": 7,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1.712302461696417e-11
+              }
+            ],
+            "singularValue": 1.728266687611617e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.9999999999996257
+              },
+              {
+                "component": "SAT",
+                "numericalCell": 7,
+                "phase": "dispersed",
+                "value": 2.7431843595532995e-07
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": -1.9902485941740208e-07
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": -1.9867387942092723e-07
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": -1.9834517846331366e-07
+              }
+            ],
+            "singularValue": 1.0991705658758688e-12
+          }
+        ]
+      },
+      {
+        "activeLowerBoundCount": 0,
+        "activeUpperBoundCount": 0,
+        "capturedConditionNumber": null,
+        "capturedCorrectionNorm": 691723.2258769933,
+        "capturedLargestSingularValue": 2475.112075508792,
+        "capturedPredictedResidualL2": 7.544661983156926e-14,
+        "capturedRawNumericalRank": 184,
+        "capturedSmallestSingularValue": 0,
+        "correctionLimiter": {
+          "fullStepAdmissible": false,
+          "limitingCoordinate": {
+            "bound": "UPPER",
+            "interfaceUnknown": "total_flux_tanh",
+            "interfaceUnknownIndex": 12,
+            "numericalCell": 5,
+            "phase": "interface"
+          },
+          "limitingCorrection": 691723.2246566671,
+          "limitingDistance": 42.29858510711445,
+          "maximumInteriorScale": 6.11495806405938e-05
+        },
+        "linearizationIndex": 2,
+        "nearLowerBoundCount": 0,
+        "nearUpperBoundCount": 0,
+        "nearestLowerBound": {
+          "component": "PA",
+          "distance": 4.657532075285156e-10,
+          "numericalCell": 7,
+          "phase": "continuous"
+        },
+        "nearestUpperBound": {
+          "distance": 0.32063852504435886,
+          "interfaceUnknown": "total_flux_tanh",
+          "interfaceUnknownIndex": 12,
+          "numericalCell": 4,
+          "phase": "interface"
+        },
+        "rawNumericalRank": 184,
+        "rawRankCutoff": 1.0387161847783802e-10,
+        "replayedCorrectionNorm": 691723.2258769933,
+        "replayedEquilibratedRank": 186,
+        "replayedPredictedResidualL2": 7.544661983156927e-14,
+        "retainedTransition": {
+          "candidateStateSha256": "2359f172484d76e847ace0f19317aff7c26b7bb70bab9790fabac4ec56bd3353",
+          "capturedGateScore": 2.406915452038542,
+          "effectiveStepScale": 3.6307563505352565e-06,
+          "observationNote": "Candidate hash is not among captured linearization states; no state vector was fabricated for comparison.",
+          "observedStateCaptured": false
+        },
+        "stateSha256": "fadb79c2548336347e4854ca3fc0900c30188e4500f1b8a2b9b4ff3207a0c7e3",
+        "weakDirections": [
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": -0.9501328645233699
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": 0.311826070208742
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.003470113944153683
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 5.539829021756187e-08
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": 1.2070380431033468e-13
+              }
+            ],
+            "singularValue": 3.027281247338841e-17
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_6",
+                "interfaceUnknownIndex": 11,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_4",
+                "interfaceUnknownIndex": 9,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_3",
+                "interfaceUnknownIndex": 8,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.0
+              }
+            ],
+            "singularValue": 1.7282666876756676e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.9999617893618048
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.008705604603649515
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.000794990790893821
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 1.595195443389788e-05
+              },
+              {
+                "interfaceUnknown": "xc_logit_4",
+                "interfaceUnknownIndex": 3,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -2.2094043670788268e-11
+              }
+            ],
+            "singularValue": 1.7282666876756676e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.9500993181697678
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": -0.3118443646152005
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.008023582184274066
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -1.281273774482826e-07
+              },
+              {
+                "interfaceUnknown": "xc_logit_4",
+                "interfaceUnknownIndex": 3,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 1.793682967084028e-13
+              }
+            ],
+            "singularValue": 1.7282666876756676e-13
+          },
+          {
+            "coordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.999999999872417
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1.5952565180428736e-05
+              },
+              {
+                "component": "SAT",
+                "numericalCell": 7,
+                "phase": "dispersed",
+                "value": 2.619455423919325e-07
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": -1.9004801858211735e-07
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": -1.8971286922798416e-07
+              }
+            ],
+            "singularValue": 1.0991705659030382e-12
+          }
+        ]
+      }
+    ],
+    "method": "RELINEARIZED_EQUILIBRATED_SVD_MINIMUM_NORM",
+    "terminationReason": "MAXIMUM_CORRECTIONS_EXHAUSTED"
+  },
+  "rejectedState": {
+    "capturedGateMetrics": {
+      "accepted": false,
+      "maximumOriginalJobBGateResidual": 1.0149281780390735e-09,
+      "minimumFlowMolS": 4.689733645362799e-10,
+      "originalJobBGatePassed": true,
+      "rawFvGatePassed": false,
+      "rawFvResidualMolS": 2.3824227473820609e-07,
+      "scaledFvGatePassed": true,
+      "scaledFvResidual": 2.4955967788910114e-08,
+      "strictPositivityPassed": true
+    },
+    "capturedLinearizationResidualReplay": [
+      {
+        "capturedResidualL2Difference": 0.0,
+        "capturedResidualMaxAbsDifference": 0.0,
+        "exactResidualInfNorm": 2.4086538469035186e-07,
+        "stateSha256": "e7ff5f5bde3a5906237ea4f03b39ba9b87dc004ef5a161c16b3a2f0fad2bb03d"
+      },
+      {
+        "capturedResidualL2Difference": 0.0,
+        "capturedResidualMaxAbsDifference": 0.0,
+        "exactResidualInfNorm": 2.408650277113683e-07,
+        "stateSha256": "5f6817db7ce9b54e22639f04e43790926cb3c2e30aea006bec4eb26a2dabe67a"
+      },
+      {
+        "capturedResidualL2Difference": 0.0,
+        "capturedResidualMaxAbsDifference": 0.0,
+        "exactResidualInfNorm": 2.40692419099383e-07,
+        "stateSha256": "fadb79c2548336347e4854ca3fc0900c30188e4500f1b8a2b9b4ff3207a0c7e3"
+      }
+    ],
+    "heightM": 2,
+    "isolatedExactResidualGateMetrics": {
+      "maximumOriginalJobBGateResidual": 1.0149281780390735e-09,
+      "minimumFlowMolS": 4.689733645362799e-10,
+      "rawFvResidualMolS": 2.3824227473820609e-07,
+      "scaledFvResidual": 2.4955967788910114e-08
+    },
+    "isolatedExactResidualStatus": "REPLAYED",
+    "physicalInfeasibilityClaimedField": false,
+    "physicalInfeasibilityEvidence": false,
+    "physicalInfeasibilityEvidenceNote": "Boolean evidence derived from captured field.",
+    "rejectedLambda": 1e-08,
+    "selectedStateSource": "OPTIMIZER_BEST_BASE_STATE_REJECTED"
+  },
+  "schemaVersion": "ECR_JOB_C_OFFLINE_REJECTION_ANALYSIS_V2",
+  "selectionId": "coupled-rejection:2:root:1e-08:trial:0:lambda:1e-08",
+  "weakRetainedSingularDirectionChecks": [
+    {
+      "checks": {
+        "directions": [
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.9999982041505011
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.5877294761944376
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.5877284204318673
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.18566336946896284
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.18566305527084995
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674214126904991e-10,
+            "conditioningMap": "IDENTITY_ORIGINAL_COORDINATES",
+            "equilibratedToOriginalMappingResidualL2": null,
+            "family": "ORIGINAL_RAW",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.597387762572336
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.5973866897538219
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.3511023967816061
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.3511017660819664
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.11091302487870465
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.110912837180597
+              }
+            ],
+            "rankCutoff": 1.0387161847526687e-10,
+            "response": {
+              "capturedJacobianDirectionL2": 0.0002889321085031154,
+              "directionL2": 1.6739546114805408,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 0.0002889321085031154,
+                  "errorInf": 6.65869194851898e-10,
+                  "errorL2": 1.186679730717962e-09,
+                  "finiteDifferenceL2": 0.00028893215119002555,
+                  "relativeErrorL2": 4.107123077687182e-06,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0002889321085031154,
+                  "errorInf": 6.916263690232016e-10,
+                  "errorL2": 1.3279070550210427e-09,
+                  "finiteDifferenceL2": 0.00028893211268234814,
+                  "relativeErrorL2": 4.595913766388219e-06,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0002889321085031154,
+                  "errorInf": 5.534803731334053e-09,
+                  "errorL2": 1.1989210840847214e-08,
+                  "finiteDifferenceL2": 0.00028893210251780766,
+                  "relativeErrorL2": 4.149490654728649e-05,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 184,
+            "singularIndex": 182,
+            "singularValue": 0.00017260432536434533
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.9999983089670085
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.9937926215598826
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.9937909416126832
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.9929867097891197
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.9929849277414688
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674214126904991e-10,
+            "conditioningMap": "IDENTITY_ORIGINAL_COORDINATES",
+            "equilibratedToOriginalMappingResidualL2": null,
+            "family": "ORIGINAL_RAW",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.295929932616489
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.29592943218920975
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.29409298353297997
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.29409248638631846
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.2938544901169633
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.29385396275572206
+              }
+            ],
+            "rankCutoff": 1.0387161847526687e-10,
+            "response": {
+              "capturedJacobianDirectionL2": 0.0005857951923066544,
+              "directionL2": 3.379178277755987,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 0.0005857951923066544,
+                  "errorInf": 1.0277691787907717e-09,
+                  "errorL2": 1.8594692678007708e-09,
+                  "finiteDifferenceL2": 0.0005857952829719216,
+                  "relativeErrorL2": 3.1742651565282365e-06,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0005857951923066544,
+                  "errorInf": 1.2311620369021004e-09,
+                  "errorL2": 2.2609000133314275e-09,
+                  "finiteDifferenceL2": 0.000585795189408897,
+                  "relativeErrorL2": 3.85954006284825e-06,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0005857951923066544,
+                  "errorInf": 5.602964456464946e-09,
+                  "errorL2": 1.2539569167969378e-08,
+                  "finiteDifferenceL2": 0.0005857951238039217,
+                  "relativeErrorL2": 2.140606364247031e-05,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 184,
+            "singularIndex": 183,
+            "singularValue": 0.00017252182562747128
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 4.395646963784162e-05
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 5.945886399692286e-06
+              },
+              {
+                "interfaceUnknown": "xc_logit_6",
+                "interfaceUnknownIndex": 5,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -3.2345585676168287e-10
+              },
+              {
+                "interfaceUnknown": "xd_logit_6",
+                "interfaceUnknownIndex": 11,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -3.234558557388976e-10
+              },
+              {
+                "interfaceUnknown": "xd_logit_2",
+                "interfaceUnknownIndex": 7,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -3.1258119205562695e-10
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674214126904991e-10,
+            "conditioningMap": "dx=columnScale*v_equilibrated",
+            "equilibratedToOriginalMappingResidualL2": 4.957735936492767e-16,
+            "family": "EQUILIBRATED_MAPPED_TO_ORIGINAL",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -903910982.8302773
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 39732.73567209066
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 5374.552019343034
+              },
+              {
+                "interfaceUnknown": "xc_logit_6",
+                "interfaceUnknownIndex": 5,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.29237530138766216
+              },
+              {
+                "interfaceUnknown": "xd_logit_6",
+                "interfaceUnknownIndex": 11,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.29237530046315535
+              },
+              {
+                "interfaceUnknown": "xd_logit_2",
+                "interfaceUnknownIndex": 7,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.2825455725252614
+              }
+            ],
+            "rankCutoff": 9.267156141993089e-14,
+            "response": {
+              "capturedJacobianDirectionL2": 8.096207863050608e-15,
+              "directionL2": 1.0000000009837624,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 8.096207863050608e-15,
+                  "errorInf": 1.1570181094007267e-11,
+                  "errorL2": 1.410481783719541e-11,
+                  "finiteDifferenceL2": 1.4104816718649902e-11,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 8.096207863050608e-15,
+                  "errorInf": 1.421085471188001e-10,
+                  "errorL2": 2.0663778195899177e-10,
+                  "finiteDifferenceL2": 2.066377829116832e-10,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 8.096207863050608e-15,
+                  "errorInf": 5.329070518532951e-10,
+                  "errorL2": 8.09844631535979e-10,
+                  "finiteDifferenceL2": 8.09844631185593e-10,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                }
+              ]
+            },
+            "retainedRank": 187,
+            "singularIndex": 185,
+            "singularValue": 2.0620024656273816e-09
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": -5.651281715853714e-07
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -2.3995824611106057e-08
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 1.6177496571045565e-11
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 1.6177496545406282e-11
+              },
+              {
+                "interfaceUnknown": "xc_logit_3",
+                "interfaceUnknownIndex": 2,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -1.5421244156700828e-11
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674214126904991e-10,
+            "conditioningMap": "dx=columnScale*v_equilibrated",
+            "equilibratedToOriginalMappingResidualL2": 4.450615790630368e-16,
+            "family": "EQUILIBRATED_MAPPED_TO_ORIGINAL",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -48458646255.85168
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": -27385.34615607176
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1162.805176447048
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.7839395836415505
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.7839395823991056
+              },
+              {
+                "interfaceUnknown": "xc_logit_3",
+                "interfaceUnknownIndex": 2,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -0.7472926154146852
+              }
+            ],
+            "rankCutoff": 9.267156141993089e-14,
+            "response": {
+              "capturedJacobianDirectionL2": 6.278203237468203e-15,
+              "directionL2": 1.0000000000001599,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 6.278203237468203e-15,
+                  "errorInf": 3.5527136785119777e-12,
+                  "errorL2": 5.131020941886283e-12,
+                  "finiteDifferenceL2": 5.1310171047827656e-12,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 6.278203237468203e-15,
+                  "errorInf": 1.7070320764875226e-14,
+                  "errorL2": 1.9320998990380078e-14,
+                  "finiteDifferenceL2": 1.8271968534645565e-14,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 6.278203237468203e-15,
+                  "errorInf": 3.334903197518156e-13,
+                  "errorL2": 3.3354945140398986e-13,
+                  "finiteDifferenceL2": 3.334903419400104e-13,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                }
+              ]
+            },
+            "retainedRank": 187,
+            "singularIndex": 186,
+            "singularValue": 9.625885597372968e-10
+          }
+        ],
+        "interpretation": "Weak-direction relative errors are not treated as validation when the predicted response is near zero; absolute error and finite-difference response are reported instead.",
+        "method": "CAPTURED_JACOBIAN_WEAK_RETAINED_RIGHT_SINGULAR_DIRECTIONS;CENTRAL_FINITE_DIFFERENCE_AT_1E-3_1E-4_1E-5_SAFE_WIDTH"
+      },
+      "linearizationIndex": 0,
+      "stateSha256": "e7ff5f5bde3a5906237ea4f03b39ba9b87dc004ef5a161c16b3a2f0fad2bb03d"
+    },
+    {
+      "checks": {
+        "directions": [
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.999998204302753
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.6008431440134041
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.6008420651764323
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.19706868331319896
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.19706834984714955
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674203410572954e-10,
+            "conditioningMap": "IDENTITY_ORIGINAL_COORDINATES",
+            "equilibratedToOriginalMappingResidualL2": null,
+            "family": "ORIGINAL_RAW",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.5937433049831814
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.5937422387999632
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.3567465941030042
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.35674595355077504
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.11700821133906268
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.1170080133458284
+              }
+            ],
+            "rankCutoff": 1.0387161847527052e-10,
+            "response": {
+              "capturedJacobianDirectionL2": 0.0002907056001741578,
+              "directionL2": 1.684229517380967,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 0.0002907056001741578,
+                  "errorInf": 4.5446732054726935e-10,
+                  "errorL2": 6.883359728149707e-10,
+                  "finiteDifferenceL2": 0.00029070564068078554,
+                  "relativeErrorL2": 2.367811189060678e-06,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0002907056001741578,
+                  "errorInf": 6.807328347136722e-10,
+                  "errorL2": 1.263970786802929e-09,
+                  "finiteDifferenceL2": 0.0002907056024917213,
+                  "relativeErrorL2": 4.347940961734832e-06,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0002907056001741578,
+                  "errorInf": 5.412533020726622e-09,
+                  "errorL2": 1.1009628841481528e-08,
+                  "finiteDifferenceL2": 0.00029070560271027214,
+                  "relativeErrorL2": 3.787209064732777e-05,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 184,
+            "singularIndex": 182,
+            "singularValue": 0.00017260432761946433
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.9999983099370647
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.992993922921283
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.9929921416565505
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.9900299948374609
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.9900284311574274
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674203410572954e-10,
+            "conditioningMap": "IDENTITY_ORIGINAL_COORDINATES",
+            "equilibratedToOriginalMappingResidualL2": null,
+            "family": "ORIGINAL_RAW",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.296126657317541
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.2961261568448533
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.2940519711313115
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.29405144365134045
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.2931742730153197
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.29317380996797826
+              }
+            ],
+            "rankCutoff": 1.0387161847527052e-10,
+            "response": {
+              "capturedJacobianDirectionL2": 0.0005854064297729103,
+              "directionL2": 3.3769334010450867,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 0.0005854064297729103,
+                  "errorInf": 5.63782581817357e-10,
+                  "errorL2": 1.4393659992833766e-09,
+                  "finiteDifferenceL2": 0.0005854065162463885,
+                  "relativeErrorL2": 2.458746481212604e-06,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0005854064297729103,
+                  "errorInf": 7.316075835428482e-10,
+                  "errorL2": 1.5926898087376357e-09,
+                  "finiteDifferenceL2": 0.0005854064435253177,
+                  "relativeErrorL2": 2.7206565007416623e-06,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0005854064297729103,
+                  "errorInf": 5.700685102518146e-09,
+                  "errorL2": 9.692717319697407e-09,
+                  "finiteDifferenceL2": 0.0005854065370506226,
+                  "relativeErrorL2": 1.65572443805535e-05,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 184,
+            "singularIndex": 183,
+            "singularValue": 0.0001725218811209723
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.0008786980740439422
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": 1.6695193431096701e-09
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": 1.6665751582844607e-09
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": 1.6638178604678922e-09
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 2,
+                "phase": "continuous",
+                "value": -1.5811063911440561e-09
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674203410572954e-10,
+            "conditioningMap": "dx=columnScale*v_equilibrated",
+            "equilibratedToOriginalMappingResidualL2": 5.581717027071642e-16,
+            "family": "EQUILIBRATED_MAPPED_TO_ORIGINAL",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -788598898.7525728
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 692940.3335270595
+              },
+              {
+                "interfaceUnknown": "xc_logit_2",
+                "interfaceUnknownIndex": 1,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.29563241936968043
+              },
+              {
+                "interfaceUnknown": "xd_logit_2",
+                "interfaceUnknownIndex": 7,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.29563241863117473
+              },
+              {
+                "interfaceUnknown": "xc_logit_4",
+                "interfaceUnknownIndex": 3,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.2841990154729466
+              },
+              {
+                "interfaceUnknown": "xd_logit_4",
+                "interfaceUnknownIndex": 9,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -0.2841990142982571
+              }
+            ],
+            "rankCutoff": 9.268146858371328e-14,
+            "response": {
+              "capturedJacobianDirectionL2": 4.322095340041113e-08,
+              "directionL2": 1.0000003860550781,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 4.322095340041113e-08,
+                  "errorInf": 8.514831660467197e-11,
+                  "errorL2": 1.2628675984763372e-10,
+                  "finiteDifferenceL2": 4.322684517395779e-08,
+                  "relativeErrorL2": 0.002921887415987275,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 4.322095340041113e-08,
+                  "errorInf": 3.4638958364949064e-10,
+                  "errorL2": 6.402336308041051e-10,
+                  "finiteDifferenceL2": 4.3472948392978446e-08,
+                  "relativeErrorL2": 0.01481303813159325,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 4.322095340041113e-08,
+                  "errorInf": 5.387508321047437e-09,
+                  "errorL2": 7.305860199631042e-09,
+                  "finiteDifferenceL2": 4.6486159675894934e-08,
+                  "relativeErrorL2": 0.1690351467249574,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 186,
+            "singularIndex": 184,
+            "singularValue": 1.8510220714043808e-09
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.003807138757131547
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": 7.2335324144681585e-09
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": 7.2207760829235655e-09
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": 7.208829480653793e-09
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 2,
+                "phase": "continuous",
+                "value": -6.85046375703285e-09
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.674203410572954e-10,
+            "conditioningMap": "dx=columnScale*v_equilibrated",
+            "equilibratedToOriginalMappingResidualL2": 1.0274946334829225e-15,
+            "family": "EQUILIBRATED_MAPPED_TO_ORIGINAL",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 453729662.8774045
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 1727411.7848007977
+              },
+              {
+                "component": "SAT",
+                "numericalCell": 7,
+                "phase": "dispersed",
+                "value": -0.47386089194435815
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": 0.34379787955305796
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": 0.34319159212879274
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": 0.34262378980305813
+              }
+            ],
+            "rankCutoff": 9.268146858371328e-14,
+            "response": {
+              "capturedJacobianDirectionL2": 1.872635648512499e-07,
+              "directionL2": 1.0000072471264978,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 1.872635648512499e-07,
+                  "errorInf": 2.6644935237075324e-11,
+                  "errorL2": 7.988830138305236e-11,
+                  "finiteDifferenceL2": 1.872653952299768e-07,
+                  "relativeErrorL2": 0.00042660888916917967,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 1.872635648512499e-07,
+                  "errorInf": 5.699086445450707e-10,
+                  "errorL2": 1.0264194492973625e-09,
+                  "finiteDifferenceL2": 1.8749292377737882e-07,
+                  "relativeErrorL2": 0.00548114872272502,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 1.872635648512499e-07,
+                  "errorInf": 4.053752390542128e-09,
+                  "errorL2": 7.188373950044412e-09,
+                  "finiteDifferenceL2": 1.8637805538593764e-07,
+                  "relativeErrorL2": 0.03838639916822256,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 186,
+            "singularIndex": 185,
+            "singularValue": 8.937198434028266e-10
+          }
+        ],
+        "interpretation": "Weak-direction relative errors are not treated as validation when the predicted response is near zero; absolute error and finite-difference response are reported instead.",
+        "method": "CAPTURED_JACOBIAN_WEAK_RETAINED_RIGHT_SINGULAR_DIRECTIONS;CENTRAL_FINITE_DIFFERENCE_AT_1E-3_1E-4_1E-5_SAFE_WIDTH"
+      },
+      "linearizationIndex": 1,
+      "stateSha256": "5f6817db7ce9b54e22639f04e43790926cb3c2e30aea006bec4eb26a2dabe67a"
+    },
+    {
+      "checks": {
+        "directions": [
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.999998206232886
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.5979278765051529
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.5979268037383423
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.1997875316589464
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.19978719361664207
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.657532075285156e-10,
+            "conditioningMap": "IDENTITY_ORIGINAL_COORDINATES",
+            "equilibratedToOriginalMappingResidualL2": null,
+            "family": "ORIGINAL_RAW",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.5942431864907063
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 3,
+                "phase": "interface",
+                "value": -0.5942421205568207
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.35531456662604355
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.35531392914167564
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.11872237943412517
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 4,
+                "phase": "interface",
+                "value": 0.11872217855478909
+              }
+            ],
+            "rankCutoff": 1.0387161847783794e-10,
+            "response": {
+              "capturedJacobianDirectionL2": 0.0002904610654070967,
+              "directionL2": 1.6828127317798758,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 0.0002904610654070967,
+                  "errorInf": 1.3237927516326908e-09,
+                  "errorL2": 2.1318219959534647e-09,
+                  "finiteDifferenceL2": 0.000290461095522669,
+                  "relativeErrorL2": 7.339441494389625e-06,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0002904610654070967,
+                  "errorInf": 1.5556073191744235e-09,
+                  "errorL2": 2.7445613376295444e-09,
+                  "finiteDifferenceL2": 0.00029046105629187095,
+                  "relativeErrorL2": 9.448981858490723e-06,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.0002904610654070967,
+                  "errorInf": 5.403647767572148e-09,
+                  "errorL2": 9.745083664661839e-09,
+                  "finiteDifferenceL2": 0.0002904610684549587,
+                  "relativeErrorL2": 3.355039564770439e-05,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 184,
+            "singularIndex": 182,
+            "singularValue": 0.0001726043334447168
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.9999983099216976
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.9929354709545383
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.9929336911825495
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.9901556949487842
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.9901541271893773
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.657532075285156e-10,
+            "conditioningMap": "IDENTITY_ORIGINAL_COORDINATES",
+            "equilibratedToOriginalMappingResidualL2": null,
+            "family": "ORIGINAL_RAW",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.29612702082626635
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 7,
+                "phase": "interface",
+                "value": 0.2961265203484137
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.29403502288649314
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 0.29403449584791636
+              },
+              {
+                "interfaceUnknown": "xc_logit_5",
+                "interfaceUnknownIndex": 4,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.29321185609934486
+              },
+              {
+                "interfaceUnknown": "xd_logit_5",
+                "interfaceUnknownIndex": 10,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.2932113918434223
+              }
+            ],
+            "rankCutoff": 1.0387161847783794e-10,
+            "response": {
+              "capturedJacobianDirectionL2": 0.000585405715705052,
+              "directionL2": 3.376929255713288,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 0.000585405715705052,
+                  "errorInf": 1.279509409014834e-09,
+                  "errorL2": 2.6895853480482514e-09,
+                  "finiteDifferenceL2": 0.0005854057927566589,
+                  "relativeErrorL2": 4.594395435324652e-06,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.000585405715705052,
+                  "errorInf": 1.1915797454645216e-09,
+                  "errorL2": 2.8320544509055904e-09,
+                  "finiteDifferenceL2": 0.0005854057038624918,
+                  "relativeErrorL2": 4.837763579904094e-06,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 0.000585405715705052,
+                  "errorInf": 4.8646590252076655e-09,
+                  "errorL2": 1.029510705823366e-08,
+                  "finiteDifferenceL2": 0.0005854057495878372,
+                  "relativeErrorL2": 1.7586276973456642e-05,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 184,
+            "singularIndex": 183,
+            "singularValue": 0.00017252188137487429
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -1.0
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 0.00031534228763053075
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": 5.985505386178008e-10
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": 5.975926396791211e-10
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": 5.966955436044624e-10
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 2,
+                "phase": "continuous",
+                "value": -5.697851052664119e-10
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.657532075285156e-10,
+            "conditioningMap": "dx=columnScale*v_equilibrated",
+            "equilibratedToOriginalMappingResidualL2": 9.5066406141312e-16,
+            "family": "EQUILIBRATED_MAPPED_TO_ORIGINAL",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": -6187975860.751835
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": 1951330.4637319862
+              },
+              {
+                "component": "SAT",
+                "numericalCell": 7,
+                "phase": "dispersed",
+                "value": -0.519468887374048
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 5,
+                "phase": "continuous",
+                "value": 0.38797614735365776
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": 0.38735524416202194
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": 0.386773752948839
+              }
+            ],
+            "rankCutoff": 9.268297358214972e-14,
+            "response": {
+              "capturedJacobianDirectionL2": 1.54174967545774e-08,
+              "directionL2": 1.0000000497203778,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 1.54174967545774e-08,
+                  "errorInf": 6.226303678982128e-11,
+                  "errorL2": 1.137820617569023e-10,
+                  "finiteDifferenceL2": 1.5400260768111757e-08,
+                  "relativeErrorL2": 0.007380060691312993,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 1.54174967545774e-08,
+                  "errorInf": 8.747429052047746e-10,
+                  "errorL2": 1.3027823280579774e-09,
+                  "finiteDifferenceL2": 1.5281823844299735e-08,
+                  "relativeErrorL2": 0.08450024986521797,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 1.54174967545774e-08,
+                  "errorInf": 1.8626300827466447e-09,
+                  "errorL2": 4.632673888141918e-09,
+                  "finiteDifferenceL2": 1.4535320202879242e-08,
+                  "relativeErrorL2": 0.30048158672493275,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "RESOLVED_RESPONSE_ABSOLUTE_AND_RELATIVE_REPORTED"
+                }
+              ]
+            },
+            "retainedRank": 186,
+            "singularIndex": 184,
+            "singularValue": 3.092047421385549e-09
+          },
+          {
+            "boundSafeDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 1.0
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -8.754990694279823e-07
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 4,
+                "phase": "continuous",
+                "value": 2.9510482071668076e-11
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 2,
+                "phase": "continuous",
+                "value": 2.946378898152347e-11
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 1,
+                "phase": "continuous",
+                "value": -2.8108625614354487e-11
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 3,
+                "phase": "continuous",
+                "value": -2.8063448477478255e-11
+              }
+            ],
+            "boundSafeWidthMaximum": 9.54650513870577,
+            "boundSafeWidthMinimum": 4.657532075285156e-10,
+            "conditioningMap": "dx=columnScale*v_equilibrated",
+            "equilibratedToOriginalMappingResidualL2": 6.339658830073619e-16,
+            "family": "EQUILIBRATED_MAPPED_TO_ORIGINAL",
+            "mappedDirectionTopCoordinates": [
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 47742690536.92556
+              },
+              {
+                "interfaceUnknown": "total_flux_tanh",
+                "interfaceUnknownIndex": 12,
+                "numericalCell": 6,
+                "phase": "interface",
+                "value": -41798.681137066465
+              },
+              {
+                "interfaceUnknown": "xc_logit_4",
+                "interfaceUnknownIndex": 3,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 1.0174063616453732
+              },
+              {
+                "interfaceUnknown": "xd_logit_4",
+                "interfaceUnknownIndex": 9,
+                "numericalCell": 5,
+                "phase": "interface",
+                "value": 1.0174063608368302
+              },
+              {
+                "component": "SAT",
+                "numericalCell": 6,
+                "phase": "dispersed",
+                "value": -0.1932609433894474
+              },
+              {
+                "component": "NMP",
+                "numericalCell": 4,
+                "phase": "continuous",
+                "value": 0.14758385668779353
+              }
+            ],
+            "rankCutoff": 9.268297358214972e-14,
+            "response": {
+              "capturedJacobianDirectionL2": 6.805377902193707e-10,
+              "directionL2": 1.0000000000003832,
+              "samples": [
+                {
+                  "capturedJacobianDirectionL2": 6.805377902193707e-10,
+                  "errorInf": 7.558238583385356e-11,
+                  "errorL2": 1.1298618734211546e-10,
+                  "finiteDifferenceL2": 6.925357802874861e-10,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 0.001,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 6.805377902193707e-10,
+                  "errorInf": 9.186234479414073e-11,
+                  "errorL2": 2.446983740287187e-10,
+                  "finiteDifferenceL2": 7.637556403142561e-10,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 0.0001,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                },
+                {
+                  "capturedJacobianDirectionL2": 6.805377902193707e-10,
+                  "errorInf": 3.479117174274808e-10,
+                  "errorL2": 6.807654287046549e-10,
+                  "finiteDifferenceL2": 5.128092169398837e-12,
+                  "relativeErrorL2": null,
+                  "relativeSafeWidth": 1e-05,
+                  "responseInterpretation": "NEAR_ZERO_RESPONSE_ABSOLUTE_ERROR_ONLY;RELATIVE_ERROR_NOT_INTERPRETED"
+                }
+              ]
+            },
+            "retainedRank": 186,
+            "singularIndex": 185,
+            "singularValue": 1.8001196630508426e-09
+          }
+        ],
+        "interpretation": "Weak-direction relative errors are not treated as validation when the predicted response is near zero; absolute error and finite-difference response are reported instead.",
+        "method": "CAPTURED_JACOBIAN_WEAK_RETAINED_RIGHT_SINGULAR_DIRECTIONS;CENTRAL_FINITE_DIFFERENCE_AT_1E-3_1E-4_1E-5_SAFE_WIDTH"
+      },
+      "linearizationIndex": 2,
+      "stateSha256": "fadb79c2548336347e4854ca3fc0900c30188e4500f1b8a2b9b4ff3207a0c7e3"
+    }
+  ]
+}

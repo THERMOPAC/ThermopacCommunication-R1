@@ -46,3 +46,9 @@ An exact rejected-state replay requires the full hash-matching state vector, not
 **Why:** A hash verifies a supplied state but cannot reconstruct it; derivative accuracy and bound-limiting coordinates are state-specific. An almost fully column-space residual does not establish that the numerical Jacobian is accurate.
 
 **How to apply:** Check replay evidence availability before promising derivative tests. If rejected vectors are absent, report the evidence gap and separate recorded constrained-step difficulty from untested Jacobian accuracy.
+
+Weak-direction derivative checks must include the saturated total-flux transform, not only random directions with large responses.
+
+**Why:** Offline replay found almost saturated tanh flux coordinates whose analytic residual derivatives were far smaller than captured finite-difference columns. Good global directional agreement can hide these discrepancies, and Ruiz scaling can amplify them.
+
+**How to apply:** Compare analytic and multi-step finite-difference columns at the exact captured state. Treat near-zero responses using absolute errors; do not call them accurate based on global relative error, or declare numerical noise the proven cause.
