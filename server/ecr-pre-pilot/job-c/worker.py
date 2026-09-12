@@ -42,6 +42,34 @@ _last_progress={"phase":"initializing","completed":0,"total":None,
 _last_progress_emit=0.0
 _completed_results=[]
 _request_sha256=None
+_diagnostic_worker_files={}
+
+def diagnostic_linearization(np, state, residual, matrix, lower, upper,
+                             variable_scale, active_mask):
+    """Copy already-computed arrays only; never evaluate or correct a state."""
+    body={
+      "state":np.asarray(state).tolist(),
+      "residual":np.asarray(residual).tolist(),
+      "jacobian":np.asarray(matrix).tolist(),
+      "lowerBounds":np.asarray(lower).tolist(),
+      "upperBounds":np.asarray(upper).tolist(),
+      "variableScale":np.asarray(variable_scale).tolist(),
+      "activeMask":np.asarray(active_mask).tolist()}
+    for name in ("state","residual","jacobian"):
+        body[name+"Sha256"]=digest(body[name])
+    return {**body,"payloadSha256":digest(body)}
+
+def rejected_diagnostic_capture(state, coupled_attempts, request_sha256,
+                                worker_files):
+    """Bind rejected vectors to immutable inputs and the loaded worker files."""
+    body={
+      "schemaVersion":"ECR_JOB_C_REJECTED_DIAGNOSTIC_V1",
+      "diagnosticOnly":True,
+      "requestSha256":request_sha256,
+      "workerFilesSha256":dict(worker_files),
+      "selectedStateSha256":digest(state),
+      "coupledAttemptsSha256":digest(coupled_attempts)}
+    return {**body,"captureSha256":digest(body)}
 
 def progress(phase, completed=0, total=None, iteration=None, residual=None,
              residual_kind=None, height_candidate_m=None, throttle=False,
@@ -1886,6 +1914,8 @@ def case(r, name, dc, dd, solvers):
               proximity["nearLower"]|proximity["nearUpper"])
             audit={"shape":[int(matrix.shape[0]),int(matrix.shape[1])],
               "stateSha256":digest(np.asarray(state).tolist()),
+              "diagnosticLinearization":diagnostic_linearization(
+                np,state,fun,matrix,lower,upper,variable_scale,active),
               "linearizationQualification":
                 "SAME_STATE_RESIDUAL_AND_JACOBIAN_DIAGNOSTIC_ONLY",
               "activeLowerBoundCount":int(np.count_nonzero(active<0)),
@@ -2409,7 +2439,11 @@ def case(r, name, dc, dd, solvers):
                     "upperRejectedLambda"]),
                   "bracketRefinementTrial":continuation_trial,
                   "selectedStateSource":selected_source,
+                  "state":selected["state"].tolist(),
                   "stateSha256":digest(selected["state"].tolist()),
+                  "diagnosticCapture":rejected_diagnostic_capture(
+                    selected["state"].tolist(),coupled_attempts,
+                    _request_sha256,_diagnostic_worker_files),
                   "gateMetrics":coupled_metrics,
                   "deterministicConfirmation":selected["confirmation"],
                   "coupledAttempts":coupled_attempts,
@@ -2816,6 +2850,14 @@ def exact_qualify(r, nominal):
     record_completed_result("height-candidate","EXACT_QUALIFIED_HEIGHT_CANDIDATE",
       {"heightM":height,"selected":selected})
     return nominal
+
+# Freeze provenance before consuming requests; later workspace edits must not
+# relabel evidence from this loaded worker. No model calculation is performed.
+_diagnostic_worker_files={
+  "server/ecr-pre-pilot/job-c/"+name:
+    hashlib.sha256((Path(__file__).parent/name).read_bytes()).hexdigest()
+  for name in ("worker.py","candidate_interface.py",
+    "boundary_interface_qualifier.py","branch_continuation.py")}
 
 for line in sys.stdin:
  try:

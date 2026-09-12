@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
@@ -16,6 +17,128 @@ import {
   jobCCheckpointRequestPayload,
   validateJobCCheckpoint,
 } from '../server/ecr-pre-pilot/job-c-job-service';
+
+const diagnosticReplayScript = 'scripts/replay-job-c-rejection.py';
+const diagnosticReplayFiles = [
+  'server/ecr-pre-pilot/job-c/worker.py',
+  'server/ecr-pre-pilot/job-c/candidate_interface.py',
+  'server/ecr-pre-pilot/job-c/boundary_interface_qualifier.py',
+  'server/ecr-pre-pilot/job-c/branch_continuation.py',
+] as const;
+
+function diagnosticHashValue(value: any): any {
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('NON_FINITE_DIAGNOSTIC_FIXTURE');
+    const [mantissa, exponent] = value.toExponential(16).toLowerCase().split('e');
+    return { $number: `${mantissa}e${Number(exponent)}` };
+  }
+  if (Array.isArray(value)) return value.map(diagnosticHashValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [
+      key, diagnosticHashValue(child),
+    ]));
+  }
+  return value;
+}
+
+function diagnosticHash(value: any): string {
+  const canonical = (child: any): string => Array.isArray(child)
+    ? `[${child.map(canonical).join(',')}]`
+    : child && typeof child === 'object'
+      ? `{${Object.entries(child).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+        .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(',')}}`
+      : JSON.stringify(child);
+  return createHash('sha256').update(canonical(diagnosticHashValue(value))).digest('hex');
+}
+
+function writeDiagnosticReplayFixture(root: string) {
+  const state = Array.from({ length: 189 }, () => 0.1);
+  const residual = Array.from({ length: 189 }, () => 0.2);
+  const jacobian = Array.from({ length: 189 }, (_, row) =>
+    Array.from({ length: 189 }, (_, column) => row === column ? 1 : 0));
+  const lowerBounds = Array.from({ length: 189 }, () => -1);
+  const upperBounds = Array.from({ length: 189 }, () => 1);
+  const variableScale = Array.from({ length: 189 }, () => 1);
+  const activeMask = Array.from({ length: 189 }, () => 0);
+  const diagnosticBody = {
+    state, residual, jacobian, lowerBounds, upperBounds, variableScale, activeMask,
+    stateSha256: diagnosticHash(state),
+    residualSha256: diagnosticHash(residual),
+    jacobianSha256: diagnosticHash(jacobian),
+  };
+  const diagnosticLinearization = {
+    ...diagnosticBody,
+    payloadSha256: diagnosticHash(diagnosticBody),
+  };
+  const nestedAudit = {
+    stateSha256: diagnosticLinearization.stateSha256,
+    diagnosticLinearization,
+  };
+  const rootAudit = {
+    stateSha256: diagnosticLinearization.stateSha256,
+    diagnosticLinearization,
+    rankAwareCorrectionSequence: {
+      linearizations: [{
+        correctionIndex: 1,
+        startingStateSha256: diagnosticLinearization.stateSha256,
+        jacobianAudit: nestedAudit,
+      }],
+    },
+  };
+  const coupledAttempts = [{ accepted: false, jacobianAudit: rootAudit }];
+  const captureBody = {
+    schemaVersion: 'ECR_JOB_C_REJECTED_DIAGNOSTIC_V1',
+    diagnosticOnly: true,
+    requestSha256: diagnosticHash({ temperatureK: 333.15 }),
+    workerFilesSha256: Object.fromEntries(
+      diagnosticReplayFiles.map(relative => [
+        relative,
+        '',
+      ]),
+    ),
+    selectedStateSha256: diagnosticHash(state),
+    coupledAttemptsSha256: diagnosticHash(coupledAttempts),
+  };
+  for (const relative of diagnosticReplayFiles) {
+    const destination = join(root, relative);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, readFileSync(relative));
+    captureBody.workerFilesSha256[relative] = createHash('sha256')
+      .update(readFileSync(destination)).digest('hex');
+  }
+  const request = {
+    protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+    operation: 'SOLVE_HEIGHT',
+    temperatureK: 333.15,
+  };
+  const checkpointPath = join(root, 'checkpoint.json');
+  const requestPath = join(root, 'request.json');
+  const evidence = {
+    heightM: 2,
+    rejectedLambda: 0.2,
+    state,
+    stateSha256: diagnosticHash(state),
+    diagnosticCapture: { ...captureBody, captureSha256: diagnosticHash(captureBody) },
+    coupledAttempts,
+  };
+  const checkpoint = {
+    schemaVersion: 'ECR_JOB_C_PARTIAL_V1',
+    complete: false,
+    requestSha256: captureBody.requestSha256,
+    progress: { phase: 'synthetic rejected checkpoint', completed: 1 },
+    completedResults: [{
+      id: 'rejected-synthetic-1',
+      kind: 'REJECTED_COUPLED_CONTINUATION_TRIAL',
+      value: evidence,
+      inputSha256: captureBody.requestSha256,
+    }],
+  };
+  writeFileSync(requestPath, JSON.stringify(request));
+  writeFileSync(checkpointPath, JSON.stringify(checkpoint));
+  return {
+    checkpointPath, requestPath, runtimeRoot: root, checkpoint, evidence,
+  };
+}
 
 describe('ECR pre-pilot Job C governed numerical basis', () => {
   it('shows the four governing gates and keeps L2 diagnostic-only in Stage 4', () => {
@@ -1776,7 +1899,7 @@ print(json.dumps({
 
   it('backtracks, relinearizes, and retains only confirmed gate improvement', () => {
     const observed = JSON.parse(execFileSync('python3', ['-c', `
-import ast, json, math, numpy as np
+import ast, hashlib, json, math, numpy as np
 from pathlib import Path
 source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
 tree = ast.parse(source)
@@ -1785,12 +1908,13 @@ names = {
   "coupled_gate_score",
   "coupled_gauss_newton_candidate",
   "coupled_rank_aware_recovery",
+  "diagnostic_linearization", "native_json_scalar", "canonical", "hashed", "digest",
 }
 selected = [
   node for node in tree.body
   if isinstance(node, ast.FunctionDef) and node.name in names
 ]
-namespace = {"np": np, "math": math}
+namespace = {"np": np, "math": math, "hashlib": hashlib, "json": json}
 exec(compile(ast.Module(body=selected, type_ignores=[]),
              "job-c-rank-aware-recovery", "exec"), namespace)
 
@@ -1852,6 +1976,39 @@ result = namespace["coupled_rank_aware_recovery"](
   lambda: budget_checks.append(True),
   maximum_corrections=3, maximum_backtracks=6)
 
+baseline_calls = (audit_states.copy(), confirmed_states.copy(),
+                  jacobian_builds.copy(), budget_checks.copy())
+audit_states.clear()
+confirmed_states.clear()
+jacobian_builds.clear()
+budget_checks.clear()
+def capturing_audit(matrix, fun, state, active):
+  audit, correction = audit_for(matrix, fun, state, active)
+  audit["diagnosticLinearization"] = namespace["diagnostic_linearization"](
+    np, state, fun, matrix, np.asarray([0.0]), np.asarray([10.0]),
+    np.asarray([1.0]), active)
+  return audit, correction
+
+captured_result = namespace["coupled_rank_aware_recovery"](
+  np, np.asarray([3.0]), confirmed(np.asarray([3.0])),
+  np.asarray([3.0]), np.asarray([[1.0]]), np.asarray([0]),
+  np.asarray([0.0]), np.asarray([10.0]), capturing_audit, confirm,
+  lambda evaluation: np.asarray(evaluation),
+  build_jacobian, lambda state: f"{float(state[0]):.12f}",
+  lambda: budget_checks.append(True),
+  maximum_corrections=3, maximum_backtracks=6)
+def without_capture(value):
+  if isinstance(value, dict):
+    return {key: without_capture(child) for key, child in value.items()
+            if key != "diagnosticLinearization"}
+  if isinstance(value, list):
+    return [without_capture(child) for child in value]
+  if isinstance(value, np.ndarray):
+    return value.tolist()
+  return value
+capture_unchanged = (without_capture(captured_result) == without_capture(result)
+  and baseline_calls == (audit_states, confirmed_states, jacobian_builds, budget_checks))
+
 accepted_skip_calls = []
 accepted_skip = namespace["coupled_rank_aware_recovery"](
   np, np.asarray([2.0]), confirmed(np.asarray([2.0])),
@@ -1865,6 +2022,7 @@ accepted_skip = namespace["coupled_rank_aware_recovery"](
   maximum_corrections=3, maximum_backtracks=6)
 
 print(json.dumps({
+  "captureLeavesDecisionsAndEvaluationCountsUnchanged": capture_unchanged,
   "finalState": result["confirmed"]["state"].tolist(),
   "accepted": result["confirmed"]["accepted"],
   "sequence": result["sequence"],
@@ -1877,6 +2035,7 @@ print(json.dumps({
   "acceptedSkipSequence": accepted_skip["sequence"],
 }))
 `], { encoding: 'utf8' }));
+    expect(observed.captureLeavesDecisionsAndEvaluationCountsUnchanged).toBe(true);
     expect(observed.finalState).toEqual([2]);
     expect(observed.accepted).toBe(true);
     expect(observed.confirmedStates).toHaveLength(3);
@@ -1939,5 +2098,179 @@ print(json.dumps({
     expect(worker.slice(replay, result)).not.toContain('[:14*m]=0.0');
     expect(worker).toContain('COUPLED_BOUNDED_SPARSE_189_LAMBDA_ONE_REPLAY');
     expect(worker).not.toContain('LIMITED_189_EQUATION_POLISH_AFTER_PICARD');
+  });
+
+  it('round-trips a synthetic rejected checkpoint through read-only diagnostic algebra', () => {
+    const root = mkdtempSync(join(tmpdir(), 'job-c-rejection-replay-'));
+    const sentinel = join(root, 'design-output.json');
+    writeFileSync(sentinel, 'must-not-change');
+    try {
+      const fixture = writeDiagnosticReplayFixture(root);
+      const persisted = JSON.parse(JSON.stringify(fixture.checkpoint));
+      validateJobCCheckpoint(persisted, fixture.checkpoint.requestSha256);
+      expect(jobCResultHash(persisted)).toBe(jobCResultHash(fixture.checkpoint));
+      expect(persisted.completedResults[0].value).toEqual(fixture.evidence);
+      expect(diagnosticHash(persisted.completedResults[0].value.state))
+        .toBe(fixture.evidence.stateSha256);
+      const output = JSON.parse(execFileSync('python3', [
+        diagnosticReplayScript,
+        '--checkpoint', fixture.checkpointPath,
+        '--request', fixture.requestPath,
+        '--runtime-root', fixture.runtimeRoot,
+        '--id', 'rejected-synthetic-1',
+      ], { encoding: 'utf8' }));
+      expect(output).toMatchObject({
+        schemaVersion: 'ECR_JOB_C_REJECTION_REPLAY_DIAGNOSTIC_V1',
+        diagnosticOnly: true,
+        selectionId: 'rejected-synthetic-1',
+        requestSha256: diagnosticHash({ temperatureK: 333.15 }),
+        linearizationCount: 2,
+      });
+      expect(output.linearizations[0].jtResidualL2Norm).toBeCloseTo(
+        Math.sqrt(189) * 0.2, 12,
+      );
+      expect(output.linearizations[0].minimumLowerBoundDistance).toBeCloseTo(1.1, 12);
+      expect(output.linearizations[0].minimumUpperBoundDistance).toBeCloseTo(0.9, 12);
+      expect(readFileSync(sentinel, 'utf8')).toBe('must-not-change');
+      expect(readFileSync(fixture.checkpointPath, 'utf8')).toContain(
+        'rejected-synthetic-1',
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('uses the selected worker hash helpers without mutating captured arrays', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, contextlib, copy, hashlib, io, json
+from pathlib import Path
+import numpy as np
+source = Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree = ast.parse(source)
+names = {"native_json_scalar", "canonical", "hashed", "digest",
+         "diagnostic_linearization", "rejected_diagnostic_capture",
+         "record_completed_result", "checkpoint"}
+nodes = [copy.deepcopy(node) for node in tree.body
+         if isinstance(node, ast.FunctionDef) and node.name in names]
+namespace = {"hashlib": hashlib, "json": json, "np": np}
+namespace.update({"_completed_results": [], "_request_sha256": "a" * 64,
+                  "_last_progress": {"phase": "synthetic rejection"}})
+exec(compile(ast.fix_missing_locations(ast.Module(body=nodes, type_ignores=[])),
+             "<selected-worker-diagnostic-functions>", "exec"), namespace)
+state = np.full(189, 0.1)
+residual = np.full(189, 0.2)
+jacobian = np.eye(189)
+lower = np.full(189, -1.0)
+upper = np.full(189, 1.0)
+scale = np.ones(189)
+active = np.zeros(189)
+before = [state.tolist(), residual.tolist(), jacobian.tolist()]
+linearization = namespace["diagnostic_linearization"](
+  np, state, residual, jacobian, lower, upper, scale, active)
+capture = namespace["rejected_diagnostic_capture"](
+  state.tolist(), [{"jacobianAudit": {"diagnosticLinearization": linearization}}],
+  "a" * 64, {"worker.py": "b" * 64})
+namespace["record_completed_result"](
+  "synthetic-rejected", "REJECTED_COUPLED_CONTINUATION_TRIAL",
+  {"state": state.tolist(), "stateSha256": capture["selectedStateSha256"],
+   "diagnosticCapture": capture,
+   "coupledAttempts": [{"jacobianAudit": {"diagnosticLinearization": linearization}}]},
+  inputSha256="a" * 64)
+stream = io.StringIO()
+with contextlib.redirect_stdout(stream):
+  namespace["checkpoint"]()
+checkpoint = json.loads(stream.getvalue().removeprefix("JOB_C_CHECKPOINT "))
+print(json.dumps({
+  "before": before,
+  "after": [state.tolist(), residual.tolist(), jacobian.tolist()],
+  "linearization": linearization,
+  "capture": capture,
+  "checkpoint": checkpoint,
+  "checkpointSha256": namespace["digest"](checkpoint),
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.after).toEqual(observed.before);
+    validateJobCCheckpoint(observed.checkpoint, 'a'.repeat(64));
+    const persisted = JSON.parse(JSON.stringify(observed.checkpoint));
+    expect(jobCResultHash(persisted)).toBe(observed.checkpointSha256);
+    expect(persisted.completedResults[0].value.state).toEqual(observed.linearization.state);
+    expect(persisted.completedResults[0].value.coupledAttempts[0]
+      .jacobianAudit.diagnosticLinearization).toEqual(observed.linearization);
+    const diagnosticPayload = { ...observed.linearization };
+    delete diagnosticPayload.payloadSha256;
+    expect(observed.linearization.payloadSha256).toBe(diagnosticHash(diagnosticPayload));
+    expect(observed.linearization.stateSha256).toBe(
+      diagnosticHash(observed.linearization.state),
+    );
+    const capturePayload = { ...observed.capture };
+    delete capturePayload.captureSha256;
+    expect(observed.capture.captureSha256).toBe(diagnosticHash(capturePayload));
+    expect(observed.capture.selectedStateSha256).toBe(
+      diagnosticHash(observed.linearization.state),
+    );
+  });
+
+  it.each([
+    'missing-vector',
+    'tampered-vector',
+    'wrong-request-lineage',
+    'wrong-worker-lineage',
+  ])('refuses %s before diagnostic algebra', kind => {
+    const root = mkdtempSync(join(tmpdir(), `job-c-rejection-${kind}-`));
+    try {
+      const fixture = writeDiagnosticReplayFixture(root);
+      const checkpoint = JSON.parse(
+        readFileSync(fixture.checkpointPath, 'utf8'),
+      ) as Record<string, any>;
+      const evidence = checkpoint.completedResults[0].value;
+      if (kind === 'missing-vector') {
+        delete evidence.coupledAttempts[0].jacobianAudit
+          .rankAwareCorrectionSequence.linearizations[0]
+          .jacobianAudit.diagnosticLinearization;
+        evidence.diagnosticCapture.coupledAttemptsSha256 = diagnosticHash(
+          evidence.coupledAttempts,
+        );
+        const capturePayload = { ...evidence.diagnosticCapture };
+        delete capturePayload.captureSha256;
+        evidence.diagnosticCapture.captureSha256 = diagnosticHash(capturePayload);
+      } else if (kind === 'tampered-vector') {
+        evidence.coupledAttempts[0].jacobianAudit.diagnosticLinearization
+          .residual[0] = 9;
+        evidence.diagnosticCapture.coupledAttemptsSha256 = diagnosticHash(
+          evidence.coupledAttempts,
+        );
+        const capturePayload = { ...evidence.diagnosticCapture };
+        delete capturePayload.captureSha256;
+        evidence.diagnosticCapture.captureSha256 = diagnosticHash(capturePayload);
+      } else if (kind === 'wrong-request-lineage') {
+        writeFileSync(fixture.requestPath, JSON.stringify({
+          protocol: 'ECR_PRE_PILOT_JOB_C_V1',
+          operation: 'SOLVE_HEIGHT',
+          temperatureK: 334.15,
+        }));
+      } else {
+        const workerPath = join(
+          root, 'server/ecr-pre-pilot/job-c/worker.py',
+        );
+        writeFileSync(workerPath, `${readFileSync(workerPath, 'utf8')}\n# tampered\n`);
+      }
+      writeFileSync(fixture.checkpointPath, JSON.stringify(checkpoint));
+      let refused = false;
+      try {
+        execFileSync('python3', [
+          diagnosticReplayScript,
+          '--checkpoint', fixture.checkpointPath,
+          '--request', fixture.requestPath,
+          '--runtime-root', fixture.runtimeRoot,
+          '--id', 'rejected-synthetic-1',
+        ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      } catch (error: any) {
+        refused = true;
+        expect(String(error.stderr)).toContain('REPLAY_REFUSED');
+      }
+      expect(refused).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
