@@ -2,7 +2,19 @@
 
 ## Recommendation
 
-**Do not promote a production patch or restart Job C.** The bounded nonlinear experiment is diagnostic-only. A local threshold candidate does not establish independent-start reproduction, local stability, continuation-range acceptance, or design acceptance.
+**Historical offline recommendation (superseded for implementation by explicit
+user authorization):** this bounded nonlinear experiment is diagnostic-only.
+Its local threshold candidates do not establish independent-start reproduction,
+local stability, continuation-range acceptance, or design acceptance.  The
+production bounded-BVLS implementation must therefore report a retained
+intermediate residual decrease separately from final two-uncached-evaluation
+four-gate admission; it must not promote either to design acceptance.
+
+**Durable production selection principle:** admission priority precedes scalar
+gate score. A non-repeatable or otherwise unadmitted candidate may be retained
+only as diagnostic evidence; it must never outrank an admitted candidate merely
+because its numerical gate score is smaller. Among admitted candidates, the
+unchanged four-gate score supplies deterministic selection.
 
 True unchanged 189-residual L2 decrease plus strict positivity decide intermediate line-search acceptance. The four unchanged gate checks classify a local threshold candidate; they never soften an intermediate step. Linear predictions are recorded only for comparison.
 

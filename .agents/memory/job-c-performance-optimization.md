@@ -29,11 +29,17 @@ Optimization caches may serve byte-identical local equation evaluations during o
 
 **How to apply:** Key reuse on the complete local interface state plus both bulk compositions with no rounding. Treat cached arrays as immutable and keep the cache bounded. Never cache approximate matches.
 
-When a failed coupled state is dominated by an ill-conditioned or rank-deficient Jacobian, recovery may use solver-only Ruiz row/column equilibration followed by an SVD minimum-norm correction. Retain all equations and discard numerical null directions rather than adding replacement equations or physical regularization.
+Ruiz/SVD remains useful diagnostic evidence for ill-conditioned Jacobians, but bound-aware recovery proposals must not rely on an unconstrained minimum-norm correction through saturated coordinates.
 
-**Why:** Maxed-out iterative linear solves can stop improving while an exactly confirmed gate-feasible state remains nearby. The correction must improve the unchanged maximum gate ratio; numerical objective improvement alone is insufficient.
+**Why:** Saved-state qualification showed bounded corrections could close the unchanged residual gates where unconstrained corrections became enormous. An intermediate objective improvement alone is never scientific admission.
 
-**How to apply:** Keep recovery finite, backtrack strictly inside unchanged bounds, rebuild the Jacobian at every retained state, and retain only exact-confirmed strict gate-score improvements. Compare rejected terminal, best optimizer-base, and corrected states after two fresh uncached evaluations. A recovered state is accepted only if every existing scientific gate passes.
+**How to apply:** Keep recovery finite and strictly inside unchanged bounds, with a fresh Jacobian after each retained move. True residual L2 decrease controls intermediate retention only. Final admission requires all unchanged gates and exactly repeatable two-uncached-evaluation confirmation, independently of L2. Compare candidates by admission class first, gate score second, and bind selected diagnostic records to the selected state.
+
+Scientific admission must outrank lower-scoring non-repeatable candidates.
+
+**Why:** Review exposed a tracker edge case that reported success but returned an earlier unadmitted candidate with a lower numerical gate score.
+
+**How to apply:** Preserve admission-first selection and tests covering an admitted candidate following a better-scoring non-repeatable one. Keep returned confirmation, record, and state hashes aligned.
 
 Left-null-space diagnostics must decompose the same-state residual and Jacobian into column-space-removable and unresolved components using the same dimension-scaled SVD cutoff. Report original Euclidean and Ruiz-weighted projections separately; map weighted rows back through the inverse row scale before restoring FV units.
 
