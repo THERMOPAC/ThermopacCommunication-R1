@@ -272,6 +272,7 @@ def exact_residual_factory(
     candidate_module: Any,
     request: dict[str, Any],
     lam: float,
+    local_equations: Any = None,
 ):
     """Build only the raw_evaluate + residual_vector algebra, never solve."""
 
@@ -346,8 +347,13 @@ def exact_residual_factory(
         component_flux = []
         details = []
         for j in range(cells):
-            values_at_interface = solvers[j].equations(
-                interface_unknowns[j], x_continuous[j], x_dispersed[j]
+            values_at_interface = (
+                solvers[j].equations(
+                    interface_unknowns[j], x_continuous[j], x_dispersed[j]
+                ) if local_equations is None else local_equations(
+                    j, solvers[j], interface_unknowns[j],
+                    x_continuous[j], x_dispersed[j]
+                )
             )
             interface.extend(values_at_interface[0])
             component_flux.append(values_at_interface[4])

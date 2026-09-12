@@ -1,5 +1,7 @@
 # Job-C rejected continuation trial: bounded offline diagnostic report
 
+**Follow-on evidence:** `job-c-flux-column-diagnostics.md/json` resolves the cell-5/6 derivative discrepancy at the same saved states through exact default-stencil replay and isolated two-film cancellation measurements. It also compares diagnostic analytic-column replacement and bound-aware corrections. This original report remains the baseline; no production or design acceptance follows from either report.
+
 **Selection:** `coupled-rejection:2:root:1e-08:trial:0:lambda:1e-08`<br>
 **Job:** `d7262954-99be-49fb-b143-b303dd83d2bc`<br>
 **Mode:** immutable-source, residual/Jacobian diagnostic only. The Job-C worker, `case`, continuation, optimizer, and acceptance gate were not invoked.<br>

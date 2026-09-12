@@ -1,0 +1,500 @@
+{
+  "prepared": {
+    "workerRequest": {
+      "kc": [
+        2.0697571475263648e-05,
+        2.5290819638242433e-05,
+        2.470442706974115e-05,
+        2.178621720978457e-05,
+        1.617796054744031e-05,
+        2.612606048443349e-05,
+        3.259555594101926e-05
+      ],
+      "kd": [
+        1.2580432332110845e-06,
+        1.558999648564929e-06,
+        1.5203290160823486e-06,
+        1.3289601381399014e-06,
+        9.665613015270143e-07,
+        1.614202724692483e-06,
+        2.0464246124288777e-06
+      ],
+      "rpm": 30,
+      "d32M": 0.0024610913135695483,
+      "compartments": 7,
+      "temperatureK": 333.15,
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "columnDiameterM": 1.0287688499748642,
+      "operatingHoldup": 0.07794093924524428,
+      "dispersedFeedMolS": [
+        4.746208317058197,
+        0.5539193119271991,
+        0.2675472597151731,
+        0.09405273567654297,
+        0.04690128266241487,
+        0,
+        0
+      ],
+      "continuousFeedMolS": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        9.54650513870577,
+        0.26397344673829964
+      ],
+      "minimumRecoveryPct": 80,
+      "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+      "axialLocalContactProfile": [
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=9,stageFromFeedEnd=9]",
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=10,stageFromFeedEnd=10]"
+            ],
+            "sourceStageFromFeedEnd": [
+              9,
+              10
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 1,
+          "x_bulk_dispersed": [
+            0.7379986559120786,
+            0.016700006831304237,
+            0.01936997633833755,
+            0.004214046418969367,
+            6.781876371125973e-05,
+            0.1965784631391989,
+            0.02507103259640015
+          ],
+          "x_bulk_continuous": [
+            0.01645427548572527,
+            0.002152766998109829,
+            0.002532745729311622,
+            0.0005465607163633987,
+            7.276658743853083e-06,
+            0.953209755479602,
+            0.025096618932144023
+          ]
+        },
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=8,stageFromFeedEnd=8]"
+            ],
+            "sourceStageFromFeedEnd": [
+              8
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 2,
+          "x_bulk_dispersed": [
+            0.6060439299451347,
+            0.02741658403774708,
+            0.026738146911370667,
+            0.006502710182454568,
+            0.00019815174332748673,
+            0.31557190437182997,
+            0.017528572808135415
+          ],
+          "x_bulk_continuous": [
+            0.03641715657682821,
+            0.010421449675498913,
+            0.010990251341372,
+            0.0025778351076691706,
+            5.572946101775377e-05,
+            0.9209029578655933,
+            0.01863461997202058
+          ]
+        },
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=6,stageFromFeedEnd=6]",
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=7,stageFromFeedEnd=7]"
+            ],
+            "sourceStageFromFeedEnd": [
+              6,
+              7
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 3,
+          "x_bulk_dispersed": [
+            0.5645750177204546,
+            0.03682589541132407,
+            0.030023537285288004,
+            0.008069604563802993,
+            0.0004885512725173334,
+            0.34503127283866886,
+            0.014986120907944076
+          ],
+          "x_bulk_continuous": [
+            0.039561410814001066,
+            0.017013566128213704,
+            0.014700099023342107,
+            0.0038646361409977468,
+            0.00016843541998634064,
+            0.9082622001716609,
+            0.01642965230179819
+          ]
+        },
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=5,stageFromFeedEnd=5]"
+            ],
+            "sourceStageFromFeedEnd": [
+              5
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 4,
+          "x_bulk_dispersed": [
+            0.5312629151572865,
+            0.04652268497894043,
+            0.0322794927676931,
+            0.009474641219185176,
+            0.001037448048268097,
+            0.36662225023791306,
+            0.01280056759071375
+          ],
+          "x_bulk_continuous": [
+            0.04233328085311058,
+            0.02366045154326407,
+            0.017238108299333657,
+            0.0049819762888341996,
+            0.00038947284137299566,
+            0.8964683338841414,
+            0.014928376289943182
+          ]
+        },
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=3,stageFromFeedEnd=3]",
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=4,stageFromFeedEnd=4]"
+            ],
+            "sourceStageFromFeedEnd": [
+              3,
+              4
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 5,
+          "x_bulk_dispersed": [
+            0.5011150346815726,
+            0.05662312365041565,
+            0.033651666346288356,
+            0.010712017349949629,
+            0.00219378787841759,
+            0.38538312827652915,
+            0.010321241816827038
+          ],
+          "x_bulk_continuous": [
+            0.045319944537728564,
+            0.03085052740931609,
+            0.01908470848697902,
+            0.006018818189361329,
+            0.0008872668448992685,
+            0.8843863758326792,
+            0.013452358699036496
+          ]
+        },
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=2,stageFromFeedEnd=2]"
+            ],
+            "sourceStageFromFeedEnd": [
+              2
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 6,
+          "x_bulk_dispersed": [
+            0.47114457626490647,
+            0.06695110479317117,
+            0.03448203657701866,
+            0.011813339083349405,
+            0.004187050510009117,
+            0.404438711312335,
+            0.006983181459210339
+          ],
+          "x_bulk_continuous": [
+            0.04863950937218981,
+            0.03855428956815011,
+            0.020571752498865826,
+            0.007010598100093776,
+            0.0017968542801682784,
+            0.8717976265645977,
+            0.011629369615934523
+          ]
+        },
+        {
+          "provenance": {
+            "source": "PINNED_STAGE2_RECORDED_LOCAL_CONTACTS_REBINNED_TO_FV_CELLS",
+            "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+            "propertyPaths": [
+              "result_snapshot.trials[stageCount=10].stages[sourceIndex=1,stageFromFeedEnd=1]"
+            ],
+            "sourceStageFromFeedEnd": [
+              1
+            ],
+            "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+          },
+          "numericalCell": 7,
+          "x_bulk_dispersed": [
+            0.8314095020619517,
+            0.09703193550453776,
+            0.04686716619208694,
+            0.016475538558928395,
+            0.008215857682495201,
+            0,
+            0
+          ],
+          "x_bulk_continuous": [
+            0.05116017577173456,
+            0.04403918151188784,
+            0.021381395455575315,
+            0.007643175239976972,
+            0.0028441440483620703,
+            0.8630227248321913,
+            0.009909203140271914
+          ]
+        }
+      ],
+      "axialLocalContactProfileSha256": "5a2c59d8fb7a35f14ec4f15e20afb97813ac0aae49254750bf689318dcc0698e",
+      "dispersedTotalConcentrationMolM3": 5137.766016335574,
+      "axialLocalContactProfileAuthority": {
+        "mapping": "STAGE2_FEED_END_ASCENDING_EQUAL_BINS_REVERSED_TO_CONTINUOUS_INLET_FV_ORDER_V1",
+        "qualification": "GOVERNED_PINNED_STAGE2_AXIAL_LOCAL_CONTACT_PROFILE",
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "sourceStageCount": 10,
+        "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+        "targetNumericalCells": 7,
+        "stage2ResultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a"
+      },
+      "continuousTotalConcentrationMolM3": 10283.811255512808,
+      "boundaryBranchQualificationRequest": {
+        "T": 333.15,
+        "kc": [
+          2.0697571475263648e-05,
+          2.5290819638242433e-05,
+          2.470442706974115e-05,
+          2.178621720978457e-05,
+          1.617796054744031e-05,
+          2.612606048443349e-05,
+          3.259555594101926e-05
+        ],
+        "kd": [
+          1.2580432332110845e-06,
+          1.558999648564929e-06,
+          1.5203290160823486e-06,
+          1.3289601381399014e-06,
+          9.665613015270143e-07,
+          1.614202724692483e-06,
+          2.0464246124288777e-06
+        ],
+        "CtC": 9452.19511649356,
+        "CtD": 5137.773197608326,
+        "provenance": {
+          "dispersed": {
+            "role": "raffinateIncoming",
+            "source": "GOVERNED_STAGE2_RECORDED_INCOMING_BOUNDARY",
+            "stream": {
+              "mass": 100,
+              "flowMol": 0.6002063103195764,
+              "componentMass": [
+                85,
+                7,
+                4,
+                2,
+                2,
+                0,
+                0
+              ],
+              "massFractions": [
+                0.85,
+                0.07,
+                0.04,
+                0.02,
+                0.02,
+                0,
+                0
+              ],
+              "moleFractions": [
+                0.8314095020619517,
+                0.09703193550453776,
+                0.04686716619208694,
+                0.016475538558928395,
+                0.008215857682495201,
+                0,
+                0
+              ],
+              "componentMoles": [
+                0.49901722959724026,
+                0.05823917999234571,
+                0.02812996889528689,
+                0.009888722208982322,
+                0.00493120962572119,
+                0,
+                0
+              ]
+            },
+            "propertyPath": "result_snapshot.trials[stageCount=10].stages[stageFromFeedEnd=1].raffinateIncoming",
+            "phaseIdentity": "RAFFINATE_PHASE_BULK",
+            "qualification": {
+              "basis": "RECORDED_STAGE2_INCOMING_BOUNDARY_BULK",
+              "acceptedLleClaimed": false,
+              "inletBoundaryKnown": true,
+              "equilibriumOutletClaimed": false,
+              "mayBeUsedWhenRecordedOutputsFailed": true
+            },
+            "stageAccepted": true,
+            "trialAccepted": false,
+            "normalizedAsSaved": true
+          },
+          "continuous": {
+            "role": "extractIncoming",
+            "source": "GOVERNED_STAGE2_RECORDED_INCOMING_BOUNDARY",
+            "stream": {
+              "mass": 171.82447164722478,
+              "flowMol": 1.629003815804371,
+              "componentMass": [
+                14.195722936088979,
+                8.62271692630918,
+                4.952778286248325,
+                2.5181740102830372,
+                1.8791014210033747,
+                139.36517308046217,
+                0.2908049868297347
+              ],
+              "massFractions": [
+                0.082617585260116,
+                0.050183287884700147,
+                0.028824638532379387,
+                0.014655502712402546,
+                0.010936168771473857,
+                0.8110903629990188,
+                0.0016924538399093144
+              ],
+              "moleFractions": [
+                0.05116017577173456,
+                0.04403918151188784,
+                0.021381395455575315,
+                0.007643175239976972,
+                0.0028441440483620703,
+                0.8630227248321913,
+                0.009909203140271914
+              ],
+              "componentMoles": [
+                0.08334012154937792,
+                0.0717399947277666,
+                0.034830374784354426,
+                0.012450761630783975,
+                0.0046331215074791035,
+                1.4058673118775253,
+                0.016142129727083603
+              ]
+            },
+            "propertyPath": "result_snapshot.trials[stageCount=10].stages[stageFromFeedEnd=1].extractIncoming",
+            "phaseIdentity": "EXTRACT_PHASE_BULK",
+            "qualification": {
+              "basis": "RECORDED_STAGE2_INCOMING_BOUNDARY_BULK",
+              "acceptedLleClaimed": false,
+              "inletBoundaryKnown": true,
+              "equilibriumOutletClaimed": false,
+              "mayBeUsedWhenRecordedOutputsFailed": true
+            },
+            "stageAccepted": true,
+            "trialAccepted": false,
+            "normalizedAsSaved": true
+          },
+          "qualification": "RECORDED_STAGE2_FEED_END_LOCAL_CONTACT_STATE",
+          "stage2Provenance": {
+            "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+            "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+            "requestedNT": 7,
+            "stage2JobId": "95d64ff4-3750-49cf-93be-41b8372c7863",
+            "temperatureK": 333.15,
+            "componentOrder": [
+              "SAT",
+              "MONO",
+              "DI",
+              "POLY",
+              "PA",
+              "NMP",
+              "H2O"
+            ],
+            "sourceStageCount": 10,
+            "stageFromFeedEnd": 1,
+            "resultSnapshotHash": "3b85f679dd2f669ec9e598d04b3919f4da4e6f2e06652240dccf4a8e57e1202a",
+            "stage1ImmutableHash": "d003c5dcdb0bac9f8bd17c12e29646ba90e8b515197db7f0f2da90a8273ab86b",
+            "engineContractVersion": "7C-1.5.0",
+            "requestedNtWasDirectlyRecorded": false
+          }
+        },
+        "phase_config": "nmp-continuous-rrbo-dispersed",
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "x_bulk_dispersed": [
+          0.8314095020619517,
+          0.09703193550453776,
+          0.04686716619208694,
+          0.016475538558928395,
+          0.008215857682495201,
+          0,
+          0
+        ],
+        "sourceStateSha256": "b68728a7f7514b20bb7409a15f15b875d8cbaa13b8237010f3c3991fb19507ab",
+        "x_bulk_continuous": [
+          0.05116017577173456,
+          0.04403918151188784,
+          0.021381395455575315,
+          0.007643175239976972,
+          0.0028441440483620703,
+          0.8630227248321913,
+          0.009909203140271914
+        ]
+      }
+    }
+  }
+}

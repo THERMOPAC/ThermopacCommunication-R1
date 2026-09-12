@@ -126,3 +126,4 @@
 - [Job C bounded continuation](job-c-bounded-continuation.md) — after the first positive-λ rejection, persist exact two-evaluation evidence and allow at most three midpoint refinements.
 - [Job C performance optimization](job-c-performance-optimization.md) — profile wall-clock cost first; optimize only the dominant numerical kernel without changing scientific semantics.
 - [Programmatic Vite browser tests](programmatic-vite-browser-tests.md) — clear REPL_ID before createServer; authenticate and satisfy 2FA/attendance guards explicitly.
+- [Job C flux cancellation](job-c-flux-cancellation.md) — analytic columns alone do not repair Ruiz corrections; bound-aware proposals still require true nonlinear residual checks.
