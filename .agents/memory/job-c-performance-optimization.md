@@ -40,3 +40,9 @@ Left-null-space diagnostics must decompose the same-state residual and Jacobian 
 **Why:** Rank deficiency alone cannot distinguish a removable numerical residual from an incompatible local linearization. Weighted projections are not Euclidean-orthogonal after mapping back, and mixing FV and interface rows would compare incompatible units.
 
 **How to apply:** Label only the 98 FV rows by cell, phase, and component when ranking raw balance errors. Keep projection failures strictly diagnostic: an unavailable SVD vector projection must never suppress a valid correction, alter evaluation counts, or change any scientific decision.
+
+An exact rejected-state replay requires the full hash-matching state vector, not merely its digest and residual projections. Never substitute a nearby accepted state or regenerate a continuation trajectory under an offline-replay authorization.
+
+**Why:** A hash verifies a supplied state but cannot reconstruct it; derivative accuracy and bound-limiting coordinates are state-specific. An almost fully column-space residual does not establish that the numerical Jacobian is accurate.
+
+**How to apply:** Check replay evidence availability before promising derivative tests. If rejected vectors are absent, report the evidence gap and separate recorded constrained-step difficulty from untested Jacobian accuracy.
