@@ -300,6 +300,40 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
     },
   );
+  // This is an explicit, body-free continuation request.  The server selects
+  // and verifies an owned immutable strict-diagnostic source; callers cannot
+  // nominate a job, checkpoint, lambda, or any scientific input.
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/job-c/continuation/strict-anchor/jobs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
+      }
+      try {
+        const job = await enqueueJobC(Number((req.user as any).id), designId, {
+          strictContinuationAnchor: true,
+        });
+        res.setHeader('X-Job-C-Reused', job.reuse.reused ? 'true' : 'false');
+        return res.status(202).json(job);
+      } catch (error: any) {
+        const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
+        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
+          : message.includes('DEPENDENCY_BLOCKED:')
+            || message.startsWith('JOB_C_STRICT_CONTINUATION_ANCHOR_')
+            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
+        return res.status(status).json({
+          error: message,
+          ...(error?.details ? { details: error.details } : {}),
+        });
+      }
+    },
+  );
   // The governed Job-C endpoint deliberately remains the lambda=1 scientific
   // route.  The UI's temporary diagnostic control uses the separate route
   // above, so no partial endpoint can redefine ordinary acceptance.

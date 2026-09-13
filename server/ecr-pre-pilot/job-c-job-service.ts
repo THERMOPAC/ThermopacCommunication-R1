@@ -32,6 +32,18 @@ type EnqueueReuse = {
 };
 
 const PARTIAL_SCHEMA = 'ECR_JOB_C_PARTIAL_V1';
+const STRICT_DIAGNOSTIC_LAMBDA = JOB_C_TEMPORARY_DIAGNOSTIC_MODE.terminalLambda;
+const STRICT_DIAGNOSTIC_HEIGHT = JOB_C_TEMPORARY_DIAGNOSTIC_MODE.heightTrialM;
+const HASH = /^[a-f0-9]{64}$/;
+const STRICT_ANCHOR_SCHEMA = 'ECR_JOB_C_STRICT_PARTIAL_CONTINUATION_ANCHOR_V1';
+const STRICT_ANCHOR_LAMBDA = 8e-9;
+const STRICT_ANCHOR_HEIGHT_M = 2;
+const hashPattern = /^[a-f0-9]{64}$/;
+// This is the fully pinned worker digest on the already accepted diagnostic
+// record. It remains admissible solely as a source for re-evaluation by the
+// current continuation worker, never as a substitute for current execution.
+const HISTORICAL_STRICT_DIAGNOSTIC_WORKER_SHA256 =
+  '2c2e266b8424bfc2dc9917294bf758da7517c2d3896626f7aad31de37b197c25';
 
 export function validateJobCWorkerResponseStatus(result: {
   status: string;
@@ -62,6 +74,181 @@ function pristineRequestHash(snapshot: any) {
     throw new JobCError('JOB_C_CHECKPOINT_REQUEST_MISSING');
   }
   return jobCResultHash(jobCCheckpointRequestPayload(request));
+}
+
+function exactStrictDiagnosticMode(mode: any) {
+  return mode?.mode === JOB_C_TEMPORARY_DIAGNOSTIC_MODE.mode
+    && mode?.terminalLambda === STRICT_DIAGNOSTIC_LAMBDA
+    && mode?.heightTrialM === STRICT_DIAGNOSTIC_HEIGHT
+    && mode?.normalAcceptancePermitted === false
+    && mode?.workflowTestOnly !== true;
+}
+
+function confirmationEvidenceIsUncached(value: any) {
+  return value?.independentRawReevaluationCount === 2
+    && value?.bothScientificGateEvaluationsPassed === true
+    && value?.exactlyRepeatable === true
+    && value?.maximumMetricDifference === 0;
+}
+
+function gateMetricsAreAccepted(value: any) {
+  return value?.rawFvGatePassed === true
+    && value?.scaledFvGatePassed === true
+    && value?.originalJobBGatePassed === true
+    && value?.strictPositivityPassed === true
+    && value?.accepted === true
+    && [value?.rawFvResidualMolS, value?.scaledFvResidual,
+      value?.maximumOriginalJobBGateResidual, value?.minimumFlowMolS]
+      .every(item => typeof item === 'number' && Number.isFinite(item));
+}
+
+function diagnosticAnchorFromCheckpoint(row: any, sourceRequestHash: string) {
+  const checkpoint = row?.partial_result_snapshot;
+  if (!checkpoint
+    || typeof row.partial_result_hash !== 'string'
+    || !HASH.test(row.partial_result_hash)
+    || jobCResultHash(checkpoint) !== row.partial_result_hash
+    || checkpoint.schemaVersion !== PARTIAL_SCHEMA
+    || checkpoint.complete !== false
+    || checkpoint.requestSha256 !== sourceRequestHash
+    || !Array.isArray(checkpoint.completedResults)) {
+    return null;
+  }
+  const matches = checkpoint.completedResults.filter((candidate: any) =>
+    candidate?.kind === 'ACCEPTED_COUPLED_CONTINUATION_ANCHOR'
+    && candidate?.inputSha256 === sourceRequestHash
+    && candidate?.value?.heightM === STRICT_DIAGNOSTIC_HEIGHT
+    && candidate?.value?.lambda === STRICT_DIAGNOSTIC_LAMBDA);
+  if (matches.length !== 1) return null;
+  const completed = matches[0];
+  const value = completed.value;
+  const state = value?.state;
+  if (!completed || !value
+    || value.heightM !== STRICT_DIAGNOSTIC_HEIGHT
+    || value.lambda !== STRICT_DIAGNOSTIC_LAMBDA
+    || !Array.isArray(state) || state.length !== 189
+    || state.some((item: unknown) => typeof item !== 'number' || !Number.isFinite(item))
+    || !HASH.test(String(value.stateSha256 ?? ''))
+    || jobCResultHash(state) !== value.stateSha256
+    || !confirmationEvidenceIsUncached(value.deterministicConfirmation)) {
+    return null;
+  }
+  return {
+    checkpoint,
+    completed,
+    value,
+    stateSha256: value.stateSha256,
+  };
+}
+
+function sourceImplementationCompatible(sourceHash: unknown, currentHash: string) {
+  return sourceHash === currentHash
+    || sourceHash === HISTORICAL_STRICT_DIAGNOSTIC_WORKER_SHA256;
+}
+
+export function strictContinuationAttestationIsValid(worker: any, anchor: any) {
+  const attestation = worker?.strictContinuationAnchorAttestation;
+  const targets = attestation?.higherLambdaTargets;
+  return attestation?.schemaVersion
+      === 'ECR_JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_V1'
+    && attestation?.status
+      === 'ANCHOR_CONSUMED_AND_REEVALUATED_BEFORE_HIGHER_LAMBDA'
+    && attestation?.sourceJobId === anchor?.sourceJobId
+    && attestation?.sourceProfileStateSha256 === anchor?.profileStateSha256
+    && attestation?.consumedProfileStateSha256 === anchor?.profileStateSha256
+    && attestation?.lambda === STRICT_ANCHOR_LAMBDA
+    && attestation?.heightM === STRICT_ANCHOR_HEIGHT_M
+    && attestation?.independentExactReevaluationCount === 2
+    && attestation?.higherLambdaTargetReached === true
+    && Array.isArray(targets)
+    && targets[0] === STRICT_ANCHOR_LAMBDA
+    && targets.some((lambda: unknown) => typeof lambda === 'number'
+      && lambda > STRICT_ANCHOR_LAMBDA)
+    && targets.includes(1);
+}
+
+/** Fail closed at the execution boundary for every continuation response. */
+export function validateStrictContinuationExecutionResponse(
+  result: any,
+  frozenAnchor: any,
+) {
+  if (frozenAnchor == null) return;
+  if (result?.status === 'BLOCKED_PRELIMINARY_JOB_C') return;
+  const ordinaryCalculated = result?.status === 'CALCULATED_PRELIMINARY_JOB_C'
+    && result?.workerResult?.status === 'CALCULATED_PRELIMINARY_JOB_C';
+  if (!ordinaryCalculated) {
+    throw new JobCError('JOB_C_STRICT_CONTINUATION_RESPONSE_INVALID', {
+      required: 'BLOCKED_PRELIMINARY_JOB_C or matching calculated wrapper and worker response',
+      wrapperStatus: result?.status ?? null,
+      workerStatus: result?.workerResult?.status ?? null,
+    });
+  }
+  if (!strictContinuationAttestationIsValid(result.workerResult, frozenAnchor)) {
+    throw new JobCError('JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_INVALID', {
+      sourceJobId: frozenAnchor?.sourceJobId ?? null,
+      workerAttestation: result.workerResult?.strictContinuationAnchorAttestation
+        ?? null,
+    });
+  }
+}
+
+function validatedStrictDiagnosticAnchor(row: any) {
+  const snapshot = row?.input_snapshot;
+  const prepared = snapshot?.prepared;
+  const sourceMode = prepared?.responseBasis?.diagnosticMode;
+  const result = row?.result_snapshot;
+  const worker = result?.workerResult;
+  const endpoint = worker?.diagnosticPartialEndpoint;
+  if (!snapshot || !prepared || !exactStrictDiagnosticMode(sourceMode)
+    || row.status !== 'completed' || !row.completed_at
+    || !result || !HASH.test(String(row.input_hash ?? ''))
+    || jobCResultHash(snapshot) !== row.input_hash
+    || !HASH.test(String(row.result_hash ?? ''))
+    || jobCScientificResultHash(result) !== row.result_hash
+    || result.resultSha256 !== jobCResultHash(result)
+    || result.status !== 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C'
+    || worker?.status !== 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C'
+    || !HASH.test(String(worker?.resultSha256 ?? ''))
+    || jobCScientificResultHash(worker) !== worker?.resultSha256
+    || worker?.resultSha256 !== jobCScientificResultHash(worker)
+    || worker?.diagnosticOnly !== true
+    || !exactStrictDiagnosticMode(worker?.diagnosticMode)
+    || worker?.workflowTestOnly === true
+    || result?.workflowTestOnly === true
+    || endpoint?.status !== 'QUALIFIED_PARTIAL_TRANSFER_ENDPOINT'
+    || endpoint?.lambda !== STRICT_DIAGNOSTIC_LAMBDA
+    || endpoint?.heightTrialM !== STRICT_DIAGNOSTIC_HEIGHT
+    || !gateMetricsAreAccepted({
+      ...(endpoint?.gateMetrics ?? {}),
+      ...(endpoint?.gateDecision ?? {}),
+    })
+    || !confirmationEvidenceIsUncached(endpoint?.deterministicConfirmation)) {
+    return null;
+  }
+  const sourceRequestHash = pristineRequestHash(snapshot);
+  const anchor = diagnosticAnchorFromCheckpoint(row, sourceRequestHash);
+  if (!anchor || !gateMetricsAreAccepted({
+    ...(anchor.value.gateMetrics ?? {}),
+    ...(endpoint?.gateDecision ?? {}),
+  }) || jobCResultHash({
+    rawFvResidualMolS: anchor.value.gateMetrics?.rawFvResidualMolS,
+    scaledFvResidual: anchor.value.gateMetrics?.scaledFvResidual,
+    maximumOriginalJobBGateResidual:
+      anchor.value.gateMetrics?.maximumOriginalJobBGateResidual,
+    minimumFlowMolS: anchor.value.gateMetrics?.minimumFlowMolS,
+  }) !== jobCResultHash(endpoint?.gateMetrics)
+    || jobCResultHash(anchor.value.deterministicConfirmation)
+      !== jobCResultHash(endpoint?.deterministicConfirmation)) return null;
+  return {
+    row,
+    snapshot,
+    prepared,
+    sourceRequestHash,
+    result,
+    worker,
+    endpoint,
+    anchor,
+  };
 }
 
 export function validateJobCCheckpoint(
@@ -96,6 +283,169 @@ function validPartial(row: any) {
     && partial.requestSha256 === pristineRequestHash(row.input_snapshot)
     && Array.isArray(partial.completedResults)
     && partial.progress && typeof partial.progress.phase === 'string';
+}
+
+/**
+ * Diagnostic mode is intentionally the sole scientific-request difference
+ * permitted between the completed strict diagnostic and its future full Job-C
+ * continuation. workerRequestSha256 is derived from that request, so it is
+ * normalized from the diagnostic-free request rather than ignored.
+ */
+function diagnosticFreePrepared(prepared: any) {
+  const workerRequest = { ...(prepared?.workerRequest ?? {}) };
+  delete workerRequest.diagnosticMode;
+  delete workerRequest.continuationAnchor;
+  const responseBasis = { ...(prepared?.responseBasis ?? {}) };
+  delete responseBasis.diagnosticMode;
+  delete responseBasis.continuationAnchor;
+  const dependencies = { ...(responseBasis.dependencies ?? {}) };
+  delete dependencies.continuationAnchorSha256;
+  dependencies.workerRequestSha256 = jobCResultHash(workerRequest);
+  return {
+    ...prepared,
+    workerRequest,
+    responseBasis: { ...responseBasis, dependencies },
+  };
+}
+
+function sameGeometry(sourceRequest: any, currentRequest: any) {
+  const fields = [
+    'temperatureK', 'phaseConfiguration', 'compartments', 'columnDiameterM',
+    'rpm', 'operatingHoldup', 'd32M', 'continuousTotalConcentrationMolM3',
+    'dispersedTotalConcentrationMolM3', 'minimumRecoveryPct',
+    'axialLocalContactProfileSha256',
+  ];
+  return fields.every(field => sourceRequest?.[field] === currentRequest?.[field])
+    && jobCResultHash({
+      continuousFeedMolS: sourceRequest?.continuousFeedMolS,
+      dispersedFeedMolS: sourceRequest?.dispersedFeedMolS,
+      kc: sourceRequest?.kc,
+      kd: sourceRequest?.kd,
+      boundaryBranchQualificationRequest: sourceRequest?.boundaryBranchQualificationRequest,
+      axialLocalContactProfile: sourceRequest?.axialLocalContactProfile,
+    }) === jobCResultHash({
+      continuousFeedMolS: currentRequest?.continuousFeedMolS,
+      dispersedFeedMolS: currentRequest?.dispersedFeedMolS,
+      kc: currentRequest?.kc,
+      kd: currentRequest?.kd,
+      boundaryBranchQualificationRequest: currentRequest?.boundaryBranchQualificationRequest,
+      axialLocalContactProfile: currentRequest?.axialLocalContactProfile,
+    });
+}
+
+function strictContinuationAnchorFromSource(source: any, prepared: any, artifacts: ReturnType<typeof currentJobCArtifactHashes>) {
+  const validated = validatedStrictDiagnosticAnchor(source);
+  const sourcePrepared = source?.input_snapshot?.prepared;
+  const sourceRequest = sourcePrepared?.workerRequest;
+  const currentRequest = prepared?.workerRequest;
+  const sourceDependencies = sourcePrepared?.responseBasis?.dependencies;
+  const currentDependencies = prepared?.responseBasis?.dependencies;
+  const normalizedSource = diagnosticFreePrepared(sourcePrepared);
+  const normalizedCurrent = diagnosticFreePrepared(prepared);
+  const normalizedSourceDependencies = { ...(sourceDependencies ?? {}) };
+  const normalizedCurrentDependencies = { ...(currentDependencies ?? {}) };
+  delete normalizedSourceDependencies.workerRequestSha256;
+  delete normalizedCurrentDependencies.workerRequestSha256;
+  const compatible = validated != null
+    && jobCResultHash(normalizedSource) === jobCResultHash(normalizedCurrent)
+    && jobCResultHash(normalizedSourceDependencies)
+      === jobCResultHash(normalizedCurrentDependencies)
+    && sameGeometry(sourceRequest, currentRequest)
+    && source?.candidate_hash === artifacts.candidateHash
+    && sourceImplementationCompatible(source?.implementation_hash,
+      artifacts.implementationHash)
+    && source?.job_b_engine_hash === currentDependencies?.jobBInterfaceWorkerSha256
+    && sourceDependencies?.jobCBoundaryInterfaceQualifierSha256
+      === artifacts.boundaryQualifierHash
+    && sourceDependencies?.jobCBranchContinuationSha256
+      === artifacts.branchContinuationHash
+    && hashPattern.test(source?.implementation_hash ?? '');
+  if (!validated || !compatible) {
+    throw new JobCError('JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID', {
+      sourceJobId: source?.id ?? null,
+      failures: [
+        ...(validated ? [] : ['SOURCE_STATUS_OR_ENDPOINT_OR_CHECKPOINT_INTEGRITY']),
+        ...(compatible ? [] : ['SCIENTIFIC_DEPENDENCY_OR_GEOMETRY_MISMATCH']),
+      ],
+    });
+  }
+  const gateMetrics = {
+    rawFvResidualMolS: validated.anchor.value.gateMetrics.rawFvResidualMolS,
+    scaledFvResidual: validated.anchor.value.gateMetrics.scaledFvResidual,
+    maximumOriginalJobBGateResidual:
+      validated.anchor.value.gateMetrics.maximumOriginalJobBGateResidual,
+    minimumFlowMolS: validated.anchor.value.gateMetrics.minimumFlowMolS,
+  };
+  const lineage = {
+    schemaVersion: STRICT_ANCHOR_SCHEMA,
+    sourceJobId: source.id,
+    sourceInputSha256: source.input_hash,
+    sourcePreparedSha256: jobCResultHash(sourcePrepared),
+    sourceResultSha256: source.result_hash,
+    sourcePartialResultSha256: source.partial_result_hash,
+    sourceCheckpointRequestSha256: validated.anchor.checkpoint.requestSha256,
+    sourceRequestSha256: validated.sourceRequestHash,
+    sourceWorkerResultSha256: validated.worker?.resultSha256,
+    sourceImplementationSha256: source.implementation_hash,
+    continuationWorkerImplementationSha256: artifacts.implementationHash,
+    sourceImplementationCompatibility: source.implementation_hash
+      === artifacts.implementationHash ? 'CURRENT_WORKER_EXACT'
+      : 'HISTORICAL_STRICT_DIAGNOSTIC_WORKER_ALLOWLISTED',
+    sourceCandidateSha256: source.candidate_hash,
+    sourceDependencyLineageSha256: jobCResultHash(sourceDependencies),
+    lambda: STRICT_ANCHOR_LAMBDA,
+    heightM: STRICT_ANCHOR_HEIGHT_M,
+    profileStateSha256: validated.anchor.stateSha256,
+    profileState: validated.anchor.value.state,
+    gateMetrics,
+    gateDecision: validated.endpoint.gateDecision,
+    deterministicConfirmation: validated.anchor.value.deterministicConfirmation,
+    endpointConfirmation: validated.endpoint.deterministicConfirmation,
+    sourceScientificLineageHash: jobCResultHash({
+      workerRequest: normalizedSource.workerRequest,
+      responseBasis: normalizedSource.responseBasis,
+    }),
+    qualification: 'ACCEPTED_PARTIAL_TRANSFER_CONTINUATION_ANCHOR_ONLY_NOT_ENGINEERING_ANCHOR',
+  };
+  return {
+    lineage,
+    workerContract: {
+      ...lineage,
+      sourceJobId: String(source.id),
+      sourceInputSha256: source.input_hash,
+      sourcePreparedSha256: jobCResultHash(sourcePrepared),
+      sourceResultSha256: source.result_hash,
+      sourceWorkerResultSha256: validated.worker?.resultSha256,
+      sourceImplementationSha256: source.implementation_hash,
+      continuationWorkerImplementationSha256: artifacts.implementationHash,
+      sourceCandidateSha256: source.candidate_hash,
+      sourceDependencyLineageSha256: jobCResultHash(sourceDependencies),
+      sourcePartialResultSha256: source.partial_result_hash,
+      sourceCheckpointRequestSha256: validated.anchor.checkpoint.requestSha256,
+      profileStateSha256: validated.anchor.stateSha256,
+      profileState: validated.anchor.value.state,
+    },
+  };
+}
+
+function preparedWithStrictContinuationAnchor(prepared: any, anchor: ReturnType<typeof strictContinuationAnchorFromSource>) {
+  const workerRequest = {
+    ...prepared.workerRequest,
+    continuationAnchor: anchor.workerContract,
+  };
+  return {
+    ...prepared,
+    workerRequest,
+    responseBasis: {
+      ...prepared.responseBasis,
+      continuationAnchor: anchor.lineage,
+      dependencies: {
+        ...prepared.responseBasis.dependencies,
+        workerRequestSha256: jobCResultHash(workerRequest),
+        continuationAnchorSha256: jobCResultHash(anchor.lineage),
+      },
+    },
+  };
 }
 
 function publicJob(row: any, reuse?: EnqueueReuse) {
@@ -165,13 +515,46 @@ async function history(client: any, row: any, details: Record<string, unknown>) 
 export async function enqueueJobC(
   userId: number,
   designId: number,
-  options: { diagnosticOnly?: boolean; workflowTestOnly?: boolean } = {},
+  options: {
+    diagnosticOnly?: boolean;
+    workflowTestOnly?: boolean;
+    strictContinuationAnchor?: boolean;
+  } = {},
 ) {
   // This is the only mutable-state read used to construct the job. The entire
   // server-derived request and its audit/lineage are persisted before returning.
   const diagnosticMode = options.workflowTestOnly ? JOB_C_WORKFLOW_TEST_ONLY_MODE
     : options.diagnosticOnly ? JOB_C_TEMPORARY_DIAGNOSTIC_MODE : null;
-  const prepared = await prepareEcrPrePilotJobC(userId, designId, diagnosticMode);
+  let prepared = await prepareEcrPrePilotJobC(userId, designId, diagnosticMode);
+  if (options.strictContinuationAnchor) {
+    if (diagnosticMode) throw new JobCError('JOB_C_STRICT_CONTINUATION_ANCHOR_MODE_INVALID');
+    const source = await pool.query(
+      `SELECT * FROM ecr_pre_pilot_job_c_jobs
+        WHERE created_by=$1 AND design_id=$2
+          AND status='completed' AND completed_at IS NOT NULL
+          AND result_snapshot->>'status'='CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C'
+          AND result_snapshot#>>'{workerResult,status}'='CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C'
+        ORDER BY completed_at DESC,created_at DESC,id DESC`,
+      [userId, designId],
+    );
+    let anchor: ReturnType<typeof strictContinuationAnchorFromSource> | null = null;
+    let lastInvalid: unknown = null;
+    for (const candidate of source.rows) {
+      try {
+        anchor = strictContinuationAnchorFromSource(candidate, prepared, currentJobCArtifactHashes());
+        break;
+      } catch (error) {
+        lastInvalid = error;
+      }
+    }
+    if (!anchor) {
+      if (lastInvalid instanceof JobCError) throw lastInvalid;
+      throw new JobCError('JOB_C_STRICT_CONTINUATION_ANCHOR_NOT_FOUND', {
+        required: 'Completed strict diagnostic at lambda=8e-9, 2 m, with unchanged gates and two uncached confirmations',
+      });
+    }
+    prepared = preparedWithStrictContinuationAnchor(prepared, anchor);
+  }
   const snapshot = {
     schemaVersion: 'ECR_PRE_PILOT_JOB_C_QUEUE_SNAPSHOT_V1',
     prepared,
@@ -299,7 +682,7 @@ export async function enqueueJobC(
       [userId, designId, inputHash, artifacts.implementationHash, artifacts.candidateHash,
         jobBEngineHash, boundaryQualifierHash, boundarySourceStateHash],
     );
-    const resumeCheckpoint = validPartial(resumable.rows[0])
+    const resumeCheckpoint = !options.strictContinuationAnchor && validPartial(resumable.rows[0])
       && jobCResultHash(resumable.rows[0].input_snapshot.prepared) === preparedInputHash
       && jobCResultHash(resumable.rows[0].input_snapshot.prepared.responseBasis.dependencies)
         === frozenDependencyLineageHash
@@ -538,6 +921,32 @@ async function execute(row: any, token: string) {
         causeDetails: error?.details ?? null,
       });
     }
+    const frozenAnchor = snapshot?.prepared?.responseBasis?.continuationAnchor;
+    if (frozenAnchor != null) {
+      const source = await pool.query(
+        `SELECT * FROM ecr_pre_pilot_job_c_jobs
+          WHERE id=$1 AND created_by=$2 AND design_id=$3`,
+        [frozenAnchor?.sourceJobId, row.created_by, row.design_id],
+      );
+      let refreshedAnchor: ReturnType<typeof strictContinuationAnchorFromSource>;
+      try {
+        refreshedAnchor = strictContinuationAnchorFromSource(
+          source.rows[0], currentPrepared, artifacts,
+        );
+      } catch (error: any) {
+        throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE', {
+          reason: 'STRICT_CONTINUATION_SOURCE_REVALIDATION_FAILED',
+          cause: error?.message ?? String(error),
+          causeDetails: error?.details ?? null,
+        });
+      }
+      if (jobCResultHash(refreshedAnchor.lineage) !== jobCResultHash(frozenAnchor)) {
+        throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE', {
+          reason: 'STRICT_CONTINUATION_SOURCE_LINEAGE_CHANGED',
+        });
+      }
+      currentPrepared = preparedWithStrictContinuationAnchor(currentPrepared, refreshedAnchor);
+    }
     const frozenPreparedHash = jobCResultHash(snapshot.prepared);
     const currentPreparedHash = jobCResultHash(currentPrepared);
     if (currentPreparedHash !== frozenPreparedHash) {
@@ -619,6 +1028,7 @@ async function execute(row: any, token: string) {
         workerResult: result.workerResult,
       });
     }
+    validateStrictContinuationExecutionResponse(result, frozenAnchor);
     const blocked = result.status === 'BLOCKED_PRELIMINARY_JOB_C';
     const final = await guardedUpdate(row.id, token,
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,

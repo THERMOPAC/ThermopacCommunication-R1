@@ -129,3 +129,4 @@
 - [Job C flux cancellation](job-c-flux-cancellation.md) — analytic columns alone do not repair Ruiz corrections; bound-aware proposals still require true nonlinear residual checks.
 - [Job C partial diagnostics](job-c-partial-diagnostic-boundary.md) — partial lambda closure never promotes frozen hydraulic inputs or numerical geometry to accepted sizing.
 - [Job C physical sizing](job-c-physical-sizing-boundary.md) — candidate hydraulics require new film coefficients and height search; numerical cells and stage ratios do not establish hardware efficiency.
+- [Job C strict continuation anchor](ecr-job-c-strict-continuation-anchor.md) — a 2 m/λ=8e-9 partial diagnostic is a verified read-only 189-state seed only; it cannot establish physical sizing or engineering acceptance.

@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   claimedRow: null as any,
   terminalRow: null as any,
   completedScientificRows: [] as any[],
+  strictAnchorRows: [] as any[],
   queries: [] as Array<{ sql: string; values: unknown[] }>,
 }));
 
@@ -38,6 +39,10 @@ vi.mock('../server/db', () => {
         && row.input_snapshot.prepared.responseBasis.dependencies
           .boundaryBranchSourceStateSha256 === values[7];
       return { rows: matches ? [row] : [] };
+    }
+    if (sql.includes("status='completed' AND completed_at IS NOT NULL")
+      && sql.includes("CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C")) {
+      return { rows: state.strictAnchorRows };
     }
     if (sql.includes("status='completed' AND completed_at IS NOT NULL")
       && sql.includes("result_snapshot->>'status'='CALCULATED_PRELIMINARY_JOB_C'")) {
@@ -122,8 +127,11 @@ vi.mock('../server/ecr-pre-pilot/job-c', async (importOriginal) => {
 import {
   enqueueJobC,
   getLatestCompletedScientificJobC,
+  strictContinuationAttestationIsValid,
+  validateStrictContinuationExecutionResponse,
 } from '../server/ecr-pre-pilot/job-c-job-service';
 import { JobCError, jobCResultHash, jobCScientificResultHash } from '../server/ecr-pre-pilot/job-c';
+import { JOB_C_TEMPORARY_DIAGNOSTIC_MODE } from '../server/ecr-pre-pilot/job-c';
 import {
   executePreparedEcrPrePilotJobC,
   prepareEcrPrePilotJobC,
@@ -239,6 +247,106 @@ const acceptedPhysicalSizingParentResult = () => {
   return result;
 };
 
+const strictContinuationSource = (prepared: ReturnType<typeof makePrepared>) => {
+  const strictPrepared: any = {
+    ...prepared,
+    workerRequest: {
+      ...prepared.workerRequest,
+      diagnosticMode: JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+    },
+    responseBasis: {
+      ...prepared.responseBasis,
+      diagnosticMode: {
+        ...JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+        normalScientificAcceptance: 'BLOCKED_PARTIAL_TRANSFER_ENDPOINT_NEVER_ACCEPTED_DESIGN',
+      },
+    },
+  };
+  const metrics = {
+    rawFvResidualMolS: 1e-9,
+    scaledFvResidual: 1e-9,
+    maximumOriginalJobBGateResidual: 1e-9,
+    minimumFlowMolS: 1e-4,
+  };
+  const anchorMetrics = {
+    ...metrics,
+    rawFvGatePassed: true,
+    scaledFvGatePassed: true,
+    originalJobBGatePassed: true,
+    strictPositivityPassed: true,
+    accepted: true,
+  };
+  const worker: any = {
+    status: 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C',
+    diagnosticOnly: true,
+    workflowTestOnly: false,
+    diagnosticMode: JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+    diagnosticPartialEndpoint: {
+      status: 'QUALIFIED_PARTIAL_TRANSFER_ENDPOINT',
+      lambda: 8e-9,
+      heightTrialM: 2,
+      gateMetrics: metrics,
+      gateDecision: {
+        rawFvGatePassed: true, scaledFvGatePassed: true,
+        originalJobBGatePassed: true, strictPositivityPassed: true, accepted: true,
+      },
+      deterministicConfirmation: {
+        independentRawReevaluationCount: 2,
+        bothScientificGateEvaluationsPassed: true,
+        exactlyRepeatable: true,
+        maximumMetricDifference: 0,
+      },
+    },
+    sensitivityCases: [{ selected: {
+      heightTrialM: 2,
+      profileStateSha256: 'b'.repeat(64),
+    } }],
+  };
+  worker.resultSha256 = jobCScientificResultHash(worker);
+  const result: any = {
+    status: 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C',
+    workerResult: worker,
+  };
+  result.resultSha256 = jobCResultHash(result);
+  const input_snapshot = {
+    schemaVersion: 'ECR_PRE_PILOT_JOB_C_QUEUE_SNAPSHOT_V1',
+    prepared: strictPrepared,
+  };
+  const sourceRequestSha256 = jobCResultHash(strictPrepared.workerRequest);
+  const anchorState = Array.from({ length: 189 }, () => 0.001);
+  const checkpoint = {
+    schemaVersion: 'ECR_JOB_C_PARTIAL_V1',
+    complete: false,
+    requestSha256: sourceRequestSha256,
+    completedResults: [{
+      id: 'coupled-anchor:2:lambda:8e-9',
+      kind: 'ACCEPTED_COUPLED_CONTINUATION_ANCHOR',
+      inputSha256: sourceRequestSha256,
+      value: {
+        heightM: 2,
+        lambda: 8e-9,
+        state: anchorState,
+        stateSha256: jobCResultHash(anchorState),
+        gateMetrics: anchorMetrics,
+        deterministicConfirmation: worker.diagnosticPartialEndpoint.deterministicConfirmation,
+      },
+    }],
+    progress: { phase: 'terminal', completed: 1, total: 1 },
+  };
+  return {
+    ...makeRow(prepared, 'completed'),
+    id: '20000000-0000-4000-8000-000000000001',
+    input_snapshot,
+    input_hash: jobCResultHash(input_snapshot),
+    candidate_hash: '2'.repeat(64),
+    result_snapshot: result,
+    result_hash: jobCScientificResultHash(result),
+    partial_result_snapshot: checkpoint,
+    partial_result_hash: jobCResultHash(checkpoint),
+    completed_at: new Date('2026-01-01T00:00:02Z'),
+  };
+};
+
 describe('Job C queue blocked-result reuse', () => {
   beforeEach(() => {
     state.queries.length = 0;
@@ -251,6 +359,7 @@ describe('Job C queue blocked-result reuse', () => {
     state.claimedRow = null;
     state.terminalRow = null;
     state.completedScientificRows = [];
+    state.strictAnchorRows = [];
     vi.mocked(prepareEcrPrePilotJobC).mockClear();
     vi.mocked(executePreparedEcrPrePilotJobC).mockClear();
   });
@@ -514,6 +623,196 @@ describe('Job C queue blocked-result reuse', () => {
       sql.includes("status='completed' AND completed_at IS NOT NULL")
       && sql.includes("result_snapshot->>'status'='CALCULATED_PRELIMINARY_JOB_C'"));
     expect(selection?.values).toEqual([11, 22]);
+  });
+
+  it('creates a new full-transfer request only from the server-selected verified strict anchor', async () => {
+    state.reusableRow = null;
+    state.strictAnchorRows = [strictContinuationSource(state.prepared)];
+
+    const result = await enqueueJobC(11, 22, { strictContinuationAnchor: true });
+
+    expect(result).toMatchObject({ status: 'pending', reuse: { reused: false } });
+    const insert = state.queries.find(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'));
+    const insertedPrepared = (insert?.values[3] as any)?.prepared;
+    expect(insertedPrepared.workerRequest.continuationAnchor).toMatchObject({
+      sourceJobId: state.strictAnchorRows[0].id,
+      lambda: 8e-9,
+      heightM: 2,
+    });
+    expect(insertedPrepared.workerRequest).not.toHaveProperty('diagnosticMode');
+    expect(insertedPrepared.workerRequest).not.toHaveProperty('resumeCheckpoint');
+  });
+
+  it('selects the unique 8e-9/2m anchor from a multi-lambda checkpoint', async () => {
+    state.reusableRow = null;
+    const source = strictContinuationSource(state.prepared);
+    source.partial_result_snapshot.completedResults.unshift({
+      ...source.partial_result_snapshot.completedResults[0],
+      id: 'coupled-anchor:2:lambda:0',
+      value: {
+        ...source.partial_result_snapshot.completedResults[0].value,
+        lambda: 0,
+      },
+    });
+    source.partial_result_hash = jobCResultHash(source.partial_result_snapshot);
+    state.strictAnchorRows = [source];
+
+    await expect(enqueueJobC(11, 22, { strictContinuationAnchor: true }))
+      .resolves.toMatchObject({ status: 'pending' });
+  });
+
+  it('accepts the pinned historical strict-worker digest and records both worker hashes', async () => {
+    state.reusableRow = null;
+    const source = strictContinuationSource(state.prepared);
+    source.implementation_hash =
+      '2c2e266b8424bfc2dc9917294bf758da7517c2d3896626f7aad31de37b197c25';
+    state.strictAnchorRows = [source];
+
+    await expect(enqueueJobC(11, 22, { strictContinuationAnchor: true }))
+      .resolves.toMatchObject({ status: 'pending' });
+    const insert = state.queries.find(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'));
+    const anchor = (insert?.values[3] as any)?.prepared?.workerRequest
+      ?.continuationAnchor;
+    expect(anchor).toMatchObject({
+      sourceImplementationSha256: source.implementation_hash,
+      continuationWorkerImplementationSha256: '1'.repeat(64),
+    });
+  });
+
+  it('requires completion evidence that the source anchor was consumed before higher lambda', () => {
+    const anchor = {
+      sourceJobId: 'source-job',
+      profileStateSha256: 'b'.repeat(64),
+    };
+    const worker = {
+      strictContinuationAnchorAttestation: {
+        schemaVersion: 'ECR_JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_V1',
+        status: 'ANCHOR_CONSUMED_AND_REEVALUATED_BEFORE_HIGHER_LAMBDA',
+        sourceJobId: 'source-job',
+        sourceProfileStateSha256: 'b'.repeat(64),
+        consumedProfileStateSha256: 'b'.repeat(64),
+        lambda: 8e-9,
+        heightM: 2,
+        independentExactReevaluationCount: 2,
+        higherLambdaTargets: [8e-9, 1e-8, 1],
+        higherLambdaTargetReached: true,
+      },
+    };
+    expect(strictContinuationAttestationIsValid(worker, anchor)).toBe(true);
+    worker.strictContinuationAnchorAttestation.higherLambdaTargets = [8e-9];
+    expect(strictContinuationAttestationIsValid(worker, anchor)).toBe(false);
+  });
+
+  it('fails closed for every non-blocked strict-continuation execution response', () => {
+    const anchor = {
+      sourceJobId: 'source-job',
+      profileStateSha256: 'b'.repeat(64),
+    };
+    const attestation = {
+      schemaVersion: 'ECR_JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_V1',
+      status: 'ANCHOR_CONSUMED_AND_REEVALUATED_BEFORE_HIGHER_LAMBDA',
+      sourceJobId: 'source-job',
+      sourceProfileStateSha256: 'b'.repeat(64),
+      consumedProfileStateSha256: 'b'.repeat(64),
+      lambda: 8e-9, heightM: 2, independentExactReevaluationCount: 2,
+      higherLambdaTargets: [8e-9, 1e-8, 1],
+      higherLambdaTargetReached: true,
+    };
+    expect(() => validateStrictContinuationExecutionResponse({
+      status: 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C',
+      workerResult: { status: 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C' },
+    }, anchor)).toThrow('JOB_C_STRICT_CONTINUATION_RESPONSE_INVALID');
+    expect(() => validateStrictContinuationExecutionResponse({
+      status: 'CALCULATED_PRELIMINARY_JOB_C',
+      workerResult: { status: 'CALCULATED_PRELIMINARY_JOB_C' },
+    }, anchor)).toThrow('JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_INVALID');
+    expect(() => validateStrictContinuationExecutionResponse({
+      status: 'CALCULATED_PRELIMINARY_JOB_C',
+      workerResult: {
+        status: 'CALCULATED_PRELIMINARY_JOB_C',
+        strictContinuationAnchorAttestation: {
+          ...attestation, higherLambdaTargets: [8e-9, 1e-8],
+        },
+      },
+    }, anchor)).toThrow('JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_INVALID');
+    expect(() => validateStrictContinuationExecutionResponse({
+      status: 'CALCULATED_PRELIMINARY_JOB_C',
+      workerResult: {
+        status: 'CALCULATED_PRELIMINARY_JOB_C',
+        strictContinuationAnchorAttestation: attestation,
+      },
+    }, anchor)).not.toThrow();
+    expect(() => validateStrictContinuationExecutionResponse({
+      status: 'BLOCKED_PRELIMINARY_JOB_C',
+    }, anchor)).not.toThrow();
+  });
+
+  it('does not enqueue when the selected strict source has tampered repeat evidence', async () => {
+    state.reusableRow = null;
+    const source = strictContinuationSource(state.prepared);
+    source.result_snapshot.workerResult.diagnosticPartialEndpoint
+      .deterministicConfirmation.independentRawReevaluationCount = 1;
+    source.result_snapshot.workerResult.resultSha256 = jobCScientificResultHash(
+      source.result_snapshot.workerResult,
+    );
+    source.result_snapshot.resultSha256 = jobCResultHash(source.result_snapshot);
+    source.result_hash = jobCScientificResultHash(source.result_snapshot);
+    state.strictAnchorRows = [source];
+
+    await expect(enqueueJobC(11, 22, { strictContinuationAnchor: true }))
+      .rejects.toMatchObject({
+        message: 'JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID',
+      });
+    expect(state.queries.some(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(false);
+  });
+
+  it('blocks strict continuation when the frozen candidate lineage no longer matches', async () => {
+    state.reusableRow = null;
+    const source = strictContinuationSource(state.prepared);
+    source.candidate_hash = 'f'.repeat(64);
+    state.strictAnchorRows = [source];
+
+    await expect(enqueueJobC(11, 22, { strictContinuationAnchor: true }))
+      .rejects.toMatchObject({ message: 'JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID' });
+    expect(state.queries.some(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(false);
+  });
+
+  it('does not treat a workflow-only result as a strict continuation source', async () => {
+    state.reusableRow = null;
+    const source = strictContinuationSource(state.prepared);
+    source.input_snapshot.prepared.responseBasis.diagnosticMode = {
+      ...JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+      mode: 'TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1',
+      workflowTestOnly: true,
+    };
+    source.input_hash = jobCResultHash(source.input_snapshot);
+    state.strictAnchorRows = [source];
+
+    await expect(enqueueJobC(11, 22, { strictContinuationAnchor: true }))
+      .rejects.toMatchObject({ message: 'JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID' });
+    expect(state.queries.some(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(false);
+  });
+
+  it('blocks an otherwise-integral source whose diagnostic endpoint is not λ = 8e-9', async () => {
+    state.reusableRow = null;
+    const source = strictContinuationSource(state.prepared);
+    source.result_snapshot.workerResult.diagnosticPartialEndpoint.lambda = 1e-8;
+    source.result_snapshot.workerResult.resultSha256 = jobCScientificResultHash(
+      source.result_snapshot.workerResult,
+    );
+    source.result_snapshot.resultSha256 = jobCResultHash(source.result_snapshot);
+    source.result_hash = jobCScientificResultHash(source.result_snapshot);
+    state.strictAnchorRows = [source];
+
+    await expect(enqueueJobC(11, 22, { strictContinuationAnchor: true }))
+      .rejects.toMatchObject({ message: 'JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID' });
+    expect(state.queries.some(({ sql }) =>
+      sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(false);
   });
 
   it('fails closed when the selected completed parent result hash is not immutable', async () => {

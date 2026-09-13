@@ -11,6 +11,10 @@ PROTOCOL = "ECR_PRE_PILOT_JOB_C_V1"
 COMPONENTS = ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O")
 STRICT_PARTIAL_DIAGNOSTIC_MODE="TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1"
 WORKFLOW_TEST_ONLY_MODE="TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1"
+STRICT_CONTINUATION_ANCHOR_SCHEMA=(
+  "ECR_JOB_C_STRICT_PARTIAL_CONTINUATION_ANCHOR_V1")
+STRICT_CONTINUATION_ANCHOR_LAMBDA=8.0e-9
+STRICT_CONTINUATION_ANCHOR_HEIGHT_M=2.0
 
 def native_json_scalar(v):
     if type(v).__module__.split(".")[0]=="numpy" and hasattr(v,"item"):
@@ -233,6 +237,57 @@ def checkpoint_request_payload(request):
     """Remove transport/resume fields absent from the persisted pristine request."""
     return {key:value for key,value in request.items()
       if key not in ("protocol","operation","resumeCheckpoint")}
+
+def validate_strict_continuation_anchor(anchor):
+    """Validate the server-frozen diagnostic anchor before it enters a solve.
+
+    It contains source evidence, never a mutable checkpoint state.  The
+    ordinary coupled path must independently reconstruct and hash-match this
+    exact 2 m/lambda endpoint before it is permitted to advance.
+    """
+    if anchor is None:
+        return None
+    if not isinstance(anchor,dict):
+        raise ValueError("JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID")
+    hashes=("sourceInputSha256","sourcePreparedSha256","sourceResultSha256",
+      "sourceWorkerResultSha256","sourceImplementationSha256",
+      "continuationWorkerImplementationSha256","sourceCandidateSha256",
+      "sourceDependencyLineageSha256","profileStateSha256")
+    metrics=anchor.get("gateMetrics")
+    decision=anchor.get("gateDecision")
+    confirmation=anchor.get("deterministicConfirmation")
+    state=anchor.get("profileState")
+    if (anchor.get("schemaVersion")!=STRICT_CONTINUATION_ANCHOR_SCHEMA
+        or not isinstance(anchor.get("sourceJobId"),str)
+        or any(not isinstance(anchor.get(key),str)
+          or not re.fullmatch(r"[a-f0-9]{64}",anchor[key]) for key in hashes)
+        or anchor.get("lambda")!=STRICT_CONTINUATION_ANCHOR_LAMBDA
+        or anchor.get("heightM")!=STRICT_CONTINUATION_ANCHOR_HEIGHT_M
+        or not isinstance(state,list) or len(state)!=189
+        or any(not isinstance(value,(int,float)) or isinstance(value,bool)
+          or not math.isfinite(float(value)) for value in state)
+        or digest(state)!=anchor.get("profileStateSha256")
+        or not isinstance(metrics,dict) or not isinstance(decision,dict)
+        or not isinstance(confirmation,dict)):
+        raise ValueError("JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID")
+    try:
+        raw=float(metrics["rawFvResidualMolS"])
+        scaled=float(metrics["scaledFvResidual"])
+        interface=float(metrics["maximumOriginalJobBGateResidual"])
+        minimum=float(metrics["minimumFlowMolS"])
+    except (KeyError,TypeError,ValueError,OverflowError):
+        raise ValueError("JOB_C_STRICT_CONTINUATION_ANCHOR_INVALID")
+    expected=coupled_gate_decision(raw,scaled,interface,minimum)
+    if (not all(math.isfinite(value)
+          for value in (raw,scaled,interface,minimum))
+        or any(decision.get(key) is not True for key in expected)
+        or not expected["accepted"]
+        or confirmation.get("independentRawReevaluationCount")!=2
+        or confirmation.get("bothScientificGateEvaluationsPassed") is not True
+        or confirmation.get("exactlyRepeatable") is not True
+        or confirmation.get("maximumMetricDifference")!=0):
+        raise ValueError("JOB_C_STRICT_CONTINUATION_ANCHOR_EVIDENCE_INVALID")
+    return anchor
 
 def globally_conservative_interior_seed(np, feedc, feedd, cells, fraction,
                                         epsilon):
@@ -922,6 +977,7 @@ def find_resume_coupled_anchor(completed_results, height,
             and state_valid and kind_lambda_consistent
             and value.get("stateSha256")==digest(state)):
             candidates.append({"lambda":lam_value,"state":state,
+              "stateSha256":value.get("stateSha256"),
               "continuationBracket":value.get("continuationBracket"),
               "bracketRefinementTrial":
                 value.get("bracketRefinementTrial")})
@@ -930,6 +986,7 @@ def find_resume_coupled_anchor(completed_results, height,
     selected_candidate=max(candidates,key=lambda candidate:candidate["lambda"])
     selected={"lambda":selected_candidate["lambda"],
       "state":selected_candidate["state"],
+      "stateSha256":selected_candidate.get("stateSha256"),
       "continuationBracket":None,
       "bracketRefinementTrial":
         selected_candidate.get("bracketRefinementTrial")}
@@ -1743,6 +1800,7 @@ def case(r, name, dc, dd, solvers):
     workflow_test_only=(isinstance(diagnostic_mode,dict)
       and diagnostic_mode.get("mode")==WORKFLOW_TEST_ONLY_MODE)
     physical_sizing_trial=r.get("physicalSizingTrial")
+    continuation_anchor=r.get("continuationAnchor")
     diagnostic_terminal_lambda=(
       float(diagnostic_mode["terminalLambda"])
       if partial_diagnostic or workflow_test_only else None)
@@ -1940,6 +1998,8 @@ def case(r, name, dc, dd, solvers):
         resume_lambda=(float(warm["lambda"])
           if isinstance(warm,dict) and isinstance(warm.get("lambda"),(int,float))
           else None)
+        strict_anchor_replay=(isinstance(warm,dict)
+          and warm.get("strictAnchorReplay") is True)
         warm_state=(warm.get("state") if isinstance(warm,dict) else warm)
         resume_bracket=(warm.get("continuationBracket")
           if isinstance(warm,dict)
@@ -2227,10 +2287,30 @@ def case(r, name, dc, dd, solvers):
         seed_flows,seed_interface_warm=initial()
         seed_flows=validate_coupled_warm_flows(
           np,seed_flows,lower[:14*m],upper[:14*m],epsilon,h)
-        # V2/interface unknowns are lineage-only warm starts.  Recompute them
-        # on the evolving inventory seed before the first coupled residual.
-        seed_interfaces,_,seed_gate=solve_local_interfaces(
-          seed_flows,seed_interface_warm)
+        source_anchor_state=(np.asarray(warm_state,dtype=float)
+          if strict_anchor_replay else None)
+        if source_anchor_state is not None:
+            # The server contract already hash-checked all 189 accepted
+            # variables.  Preserve this exact state for the mandatory,
+            # uncached anchor re-evaluation rather than regenerating local
+            # interface unknowns or falling back to a zero-transfer seed.
+            if (source_anchor_state.shape!=(27*m,)
+                or not np.all(np.isfinite(source_anchor_state))
+                or np.any(source_anchor_state<lower)
+                or np.any(source_anchor_state>upper)):
+                raise JobCBlocked(
+                  "JOB_C_STRICT_CONTINUATION_ANCHOR_STATE_INVALID",{
+                    "heightM":h,"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+                    "physicalInfeasibilityClaimed":False})
+            seed_gate=0.0
+            x=source_anchor_state.copy()
+        else:
+            # V2/interface unknowns are lineage-only warm starts.  Recompute
+            # them on an ordinary evolving inventory seed before its first
+            # coupled residual.
+            seed_interfaces,_,seed_gate=solve_local_interfaces(
+              seed_flows,seed_interface_warm)
+            x=np.r_[seed_flows,seed_interfaces]
         # For workflow-only execution this is an observed scientific residual
         # failure, not a calculation error. Normal and strict-diagnostic paths
         # retain the original hard pre-solve scientific gate.
@@ -2238,7 +2318,7 @@ def case(r, name, dc, dd, solvers):
             raise JobCBlocked("JOB_C_INITIAL_INTERFACE_RECOMPUTATION_FAILED",
               {"heightM":h,"maximumCandidateGateResidual":seed_gate,
                "physicalInfeasibilityClaimed":False})
-        x=np.r_[seed_flows,seed_interfaces]; history=[]; started=time.monotonic()
+        history=[]; started=time.monotonic()
         global_inlet_full_scale_audit=frozen_boundary_audit(
           np,feedc,feedd,inlet_nc,inlet_nd,
           np.tile(inlet_nc,(m,1))*av*A*dz)
@@ -2343,6 +2423,12 @@ def case(r, name, dc, dd, solvers):
         if partial_diagnostic:
             lambda_targets=coupled_lambda_targets(
               bootstrap_lambda,diagnostic_terminal_lambda)
+        # A strict continuation starts at the immutable, verified 8e-9 state,
+        # never at a synthetic zero-transfer bootstrap.
+        if strict_anchor_replay:
+            lambda_targets=[STRICT_CONTINUATION_ANCHOR_LAMBDA]+[
+              target for target in lambda_targets
+              if target>STRICT_CONTINUATION_ANCHOR_LAMBDA]
         if resume_lambda is not None:
             lambda_targets=[resume_lambda]+[
               target for target in lambda_targets if target>resume_lambda]
@@ -2359,6 +2445,7 @@ def case(r, name, dc, dd, solvers):
           if resume_lambda is not None and resume_bracket is not None
           else {})
         rejected_trials=[]
+        strict_anchor_revalidation=None
         while lambda_index<len(lambda_targets):
             lam=lambda_targets[lambda_index]
             accepted_x=x.copy()
@@ -2390,6 +2477,43 @@ def case(r, name, dc, dd, solvers):
             evaluation_attribution[
               "preSolveDiagnosticResidualEvaluations"]+=1
             pre_metrics=gate_metrics(pre_ev)
+            if (strict_anchor_replay
+                and lam==STRICT_CONTINUATION_ANCHOR_LAMBDA):
+                # These two calls bypass the optimizer and its cache.  They
+                # re-evaluate the exact frozen 189-variable source state
+                # before any continuation target above the anchor is allowed.
+                anchor_ev_a=exact_raw_evaluate(accepted_x,lam)
+                anchor_ev_b=exact_raw_evaluate(accepted_x,lam)
+                anchor_metrics_a=gate_metrics(anchor_ev_a)
+                anchor_metrics_b=gate_metrics(anchor_ev_b)
+                anchor_observed={key:anchor_metrics_a[key] for key in (
+                  "rawFvResidualMolS","scaledFvResidual",
+                  "maximumOriginalJobBGateResidual","minimumFlowMolS")}
+                if (digest(accepted_x.tolist())!=continuation_anchor[
+                      "profileStateSha256"]
+                    or not anchor_metrics_a["accepted"]
+                    or digest(anchor_observed)!=digest(
+                      continuation_anchor["gateMetrics"])
+                    or digest(anchor_metrics_a)!=digest(anchor_metrics_b)):
+                    raise JobCBlocked(
+                      "JOB_C_STRICT_CONTINUATION_ANCHOR_REEVALUATION_FAILED",{
+                        "heightM":h,"lambda":lam,
+                        "expectedProfileStateSha256":continuation_anchor[
+                          "profileStateSha256"],
+                        "observedProfileStateSha256":digest(
+                          accepted_x.tolist()),
+                        "expectedGateMetrics":continuation_anchor[
+                          "gateMetrics"],
+                        "observedGateMetrics":anchor_observed,
+                        "independentExactReevaluations":2,
+                        "physicalInfeasibilityClaimed":False})
+                strict_anchor_revalidation={
+                  "status":"VERIFIED_TWO_UNCACHED_EXACT_REEVALUATIONS",
+                  "lambda":lam,"heightM":h,
+                  "sourceStateSha256":continuation_anchor[
+                    "profileStateSha256"],
+                  "gateMetrics":anchor_observed,
+                  "independentExactReevaluationCount":2}
             reference_ev=(raw_evaluate(accepted_x,reference_lambda)
               if reference_lambda is not None else None)
             if reference_ev is not None:
@@ -2647,6 +2771,34 @@ def case(r, name, dc, dd, solvers):
                 evaluation_attribution,time.monotonic()-lambda_started)})
             if coupled_accepted:
                 x=selected["state"]
+                if (strict_anchor_replay
+                    and lam==STRICT_CONTINUATION_ANCHOR_LAMBDA):
+                    observed_metrics={key:coupled_metrics[key] for key in (
+                      "rawFvResidualMolS","scaledFvResidual",
+                      "maximumOriginalJobBGateResidual","minimumFlowMolS")}
+                    observed_confirmation=selected["confirmation"]
+                    if (digest(x.tolist())!=continuation_anchor[
+                          "profileStateSha256"]
+                        or digest(observed_metrics)!=digest(
+                          continuation_anchor["gateMetrics"])
+                        or observed_confirmation.get(
+                          "independentRawReevaluationCount")!=2
+                        or observed_confirmation.get(
+                          "bothScientificGateEvaluationsPassed") is not True
+                        or observed_confirmation.get("exactlyRepeatable")
+                          is not True
+                        or observed_confirmation.get("maximumMetricDifference")
+                          !=0):
+                        raise JobCBlocked(
+                          "JOB_C_STRICT_CONTINUATION_ANCHOR_REEVALUATION_FAILED",{
+                            "heightM":h,"lambda":lam,
+                            "expectedProfileStateSha256":continuation_anchor[
+                              "profileStateSha256"],
+                            "observedProfileStateSha256":digest(x.tolist()),
+                            "expectedGateMetrics":continuation_anchor[
+                              "gateMetrics"],
+                            "observedGateMetrics":observed_metrics,
+                            "physicalInfeasibilityClaimed":False})
                 if active_bracket is not None:
                     active_bracket["lowerAcceptedLambda"]=lam
                     active_bracket["refinementsUsed"]=max(
@@ -2912,6 +3064,7 @@ def case(r, name, dc, dd, solvers):
           "scaled":float(np.max(np.abs(
             [v/scale[i%7] for i,v in enumerate(ev["fv"])]))),
           "global":global_balance,"positive":positive,"homotopyHistory":history,
+           "strictContinuationAnchorRevalidation":strict_anchor_revalidation,
           "interfaceCalls":0,"monolithicRuntimeSeconds":time.monotonic()-started,
           "jacobianNonzeros":int(sparsity.nnz)}
         if max(final["raw"],final["scaled"],max(abs(x) for x in global_balance))>1e-7 or positive<=0:
@@ -2996,26 +3149,64 @@ def case(r, name, dc, dd, solvers):
           "scaledFvResidual":scaled,"numericalCells":evidence,
           "monolithicRuntimeSeconds":ev["monolithicRuntimeSeconds"]}
 
-    # A checkpoint state is only a warm start.  solve_height reruns local
-    # interface closure and independently re-evaluates every unchanged
-    # lambda=0 gate before it can be accepted.
+    # Ordinary resumes may use their own checkpoint warm state. A strict
+    # continuation carries the verified 189-value source state in its new,
+    # immutable request; it never imports or rewrites the source checkpoint.
     resume_anchor=find_resume_coupled_anchor(
       _completed_results,2.0,expected_request_sha256=_request_sha256)
+    continuation_warm=(
+      {"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+       "state":continuation_anchor["profileState"],
+       "strictAnchorReplay":True}
+      if continuation_anchor is not None else resume_anchor)
+    strict_completion_attestation=None
     if physical_sizing_trial is not None:
         trial_height=float(physical_sizing_trial["installedHeightM"])
         progress("physical sizing transport revalidation",
           height_candidate_m=trial_height)
-        low=solve_height(trial_height,resume_anchor)
+        low=solve_height(trial_height,continuation_warm)
     elif partial_diagnostic or workflow_test_only:
         trial_height=diagnostic_height_trial
         progress("workflow test only height trial" if workflow_test_only
           else "partial-transfer diagnostic height trial",
           height_candidate_m=trial_height)
-        low=solve_height(trial_height,resume_anchor)
+        low=solve_height(trial_height,continuation_warm)
     else:
         trial_height=2.0
         progress("candidate 2m",height_candidate_m=2.0)
-        low=solve_height(2.0,resume_anchor)
+        if continuation_anchor is not None:
+            low=solve_height(2.0,continuation_warm)
+            revalidation=low.get("strictContinuationAnchorRevalidation")
+            targets=[row.get("lambda") for row in low.get("homotopyHistory",[])
+              if isinstance(row,dict)]
+            if (not isinstance(revalidation,dict)
+                or revalidation.get("status")!=
+                  "VERIFIED_TWO_UNCACHED_EXACT_REEVALUATIONS"
+                or not any(isinstance(value,(int,float))
+                  and value>STRICT_CONTINUATION_ANCHOR_LAMBDA
+                  for value in targets)):
+                raise JobCBlocked(
+                  "JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_MISSING",{
+                    "heightM":2.0,"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+                    "homotopyTargets":targets,
+                    "physicalInfeasibilityClaimed":False})
+            strict_completion_attestation={
+              "schemaVersion":
+                "ECR_JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_V1",
+              "status":"ANCHOR_CONSUMED_AND_REEVALUATED_BEFORE_HIGHER_LAMBDA",
+              "sourceJobId":continuation_anchor["sourceJobId"],
+              "sourceProfileStateSha256":continuation_anchor[
+                "profileStateSha256"],
+              "consumedProfileStateSha256":revalidation[
+                "sourceStateSha256"],
+              "lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+              "heightM":2.0,
+              "independentExactReevaluationCount":revalidation[
+                "independentExactReevaluationCount"],
+              "higherLambdaTargets":targets,
+              "higherLambdaTargetReached":True}
+        else:
+            low=solve_height(2.0,resume_anchor)
     if workflow_test_only:
         endpoint=low.get("workflowTestEndpoint",{})
         if (endpoint.get("status")!="WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED"
@@ -3209,7 +3400,8 @@ def case(r, name, dc, dd, solvers):
           "dispersedInlet":"DANCKWERTS_TOTAL_COMPONENT_FACE_FLUX_EQUALS_NEGATIVE_GOVERNED_INLET_MOL_S",
           "outlets":"ZERO_DISPERSIVE_GRADIENT"}}
     return {"name":name,"status":"CALCULATED_PRELIMINARY_SENSITIVITY",
-            "daxContinuousM2S":dc,"daxDispersedM2S":dd,"selected":out}
+            "daxContinuousM2S":dc,"daxDispersedM2S":dd,"selected":out,
+            "strictContinuationAnchorAttestation":strict_completion_attestation}
 
 def exact_qualify(r, nominal):
     if nominal.get("status")!="CALCULATED_PRELIMINARY_SENSITIVITY": return nominal
@@ -3374,6 +3566,13 @@ for line in sys.stdin:
       or r.get("operation") not in ("SOLVE_HEIGHT","REVALIDATE_PHYSICAL_TRIAL")
       or r.get("componentOrder")!=list(COMPONENTS)):
         raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
+    continuation_anchor=validate_strict_continuation_anchor(
+      r.get("continuationAnchor"))
+    if continuation_anchor is not None and (
+        r.get("diagnosticMode") is not None
+        or r.get("operation")!="SOLVE_HEIGHT"
+        or r.get("physicalSizingTrial") is not None):
+        raise ValueError("JOB_C_STRICT_CONTINUATION_ANCHOR_OPERATION_INVALID")
     validate_branch_request(r)
     if r.get("operation")=="REVALIDATE_PHYSICAL_TRIAL":
         validate_physical_sizing_trial(r)
@@ -3431,6 +3630,16 @@ for line in sys.stdin:
             "checkpointCompletedResultCount":len(resume.get("completedResults",[]))
               if isinstance(resume,dict) else 0},
           "sensitivityCases":cases}
+    if continuation_anchor is not None:
+        attestation=nominal.get("strictContinuationAnchorAttestation")
+        if (body["status"]!="CALCULATED_PRELIMINARY_JOB_C"
+            or not isinstance(attestation,dict)
+            or attestation.get("status")!=
+              "ANCHOR_CONSUMED_AND_REEVALUATED_BEFORE_HIGHER_LAMBDA"):
+            raise JobCBlocked(
+              "JOB_C_STRICT_CONTINUATION_COMPLETION_ATTESTATION_MISSING",{
+                "physicalInfeasibilityClaimed":False})
+        body["strictContinuationAnchorAttestation"]=attestation
     if r.get("operation")=="REVALIDATE_PHYSICAL_TRIAL":
         body["physicalSizingRevalidation"]={
           "status":"RECALCULATED_FULL_LAMBDA_TRANSPORT",

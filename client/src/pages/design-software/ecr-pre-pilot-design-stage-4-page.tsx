@@ -860,6 +860,46 @@ export default function EcrPrePilotDesignStage4Page() {
     }
   };
 
+  // This action intentionally contains no source job id, checkpoint, lambda,
+  // or physical input. The authenticated server chooses an owned immutable
+  // strict-diagnostic record and rejects it unless it remains compatible.
+  const runFullJobCFromStrictAnchor = async () => {
+    const id = Number(design?.id);
+    if (!Number.isFinite(id) || !canStartJobC || jobCRunning || jobCStopping) return;
+    setJobCSubmitting(true);
+    setError(null);
+    setJobCEvaluation(null);
+    setJobCDiagnostic(null);
+    setJobCPollError(null);
+    try {
+      const response = await fetch(
+        `/api/ecr-pre-pilot/designs/${id}/job-c/continuation/strict-anchor/jobs`,
+        { method: "POST", credentials: "include" },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const blockedPayload = object(payload);
+        const message = stringValue(read(blockedPayload, "message", "error"),
+          "Full Job C continuation could not be started.");
+        if (read(blockedPayload, "details")) {
+          setJobCDiagnostic({ error: message, details: object(read(blockedPayload, "details")) });
+        }
+        throw new Error(message);
+      }
+      applyJobCJob(payload);
+      toast({
+        title: "Full Job C continuation queued",
+        description: "The server selected a verified strict λ = 8.000e-9 / 2 m diagnostic anchor. The worker must re-evaluate that anchor before continuing the normal λ = 1 sequence. This action does not establish sizing eligibility.",
+      });
+    } catch (cause: unknown) {
+      const message = cause instanceof Error ? cause.message : "Full Job C continuation could not be started.";
+      setError(message);
+      toast({ title: "Full Job C continuation blocked", description: message, variant: "destructive" });
+    } finally {
+      setJobCSubmitting(false);
+    }
+  };
+
   const cancelJobC = async () => {
     const id = Number(design?.id);
     if (!Number.isFinite(id) || !jobCJob?.jobId || !["pending", "running"].includes(jobCJob.status) || jobCStopping) return;
@@ -1032,6 +1072,7 @@ export default function EcrPrePilotDesignStage4Page() {
             <Button type="button" onClick={() => void runEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-cyan-950 text-xs hover:bg-cyan-900"><Play className="h-3.5 w-3.5" />{activeJob === "A" ? "Evaluating Job-A…" : evaluation ? "Re-run Job-A" : "Evaluate Job-A"}</Button>
             <Button type="button" onClick={() => void runJobBEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-indigo-950 text-xs hover:bg-indigo-900"><Play className="h-3.5 w-3.5" />{activeJob === "B" ? "Evaluating Job-B…" : jobBEvaluation ? "Re-run Job-B" : "Test Job-B flux"}</Button>
             <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C strict diagnostic" : hasPriorJobC ? "Re-run Job C strict diagnostic" : "Run Job C strict diagnostic"}</Button>
+             <Button type="button" data-testid="run-full-job-c-from-strict-anchor" onClick={() => void runFullJobCFromStrictAnchor()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-fuchsia-950 text-xs hover:bg-fuchsia-900"><Play className="h-3.5 w-3.5" />Run full Job C from verified strict anchor</Button>
             {jobCRunning && <Button type="button" variant="destructive" onClick={() => void cancelJobC()} disabled={jobCStopping} className="h-8 gap-1.5 text-xs">{jobCStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}{jobCStopping ? "Stopping" : "Stop"}</Button>}
           </div>
         </header>

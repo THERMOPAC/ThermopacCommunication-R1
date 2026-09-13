@@ -220,6 +220,35 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
     stage2ResultSnapshotHash: string;
   };
   axialLocalContactProfileSha256: string;
+  /**
+   * Server-constructed only. It binds a verified strict diagnostic endpoint
+   * to a new normal full-transfer request; it is neither a checkpoint nor an
+   * engineering/sizing acceptance claim.
+   */
+  continuationAnchor?: {
+    schemaVersion: 'ECR_JOB_C_STRICT_PARTIAL_CONTINUATION_ANCHOR_V1';
+    sourceJobId: string;
+    sourceInputSha256: string;
+    sourcePreparedSha256: string;
+    sourceResultSha256: string;
+    sourceWorkerResultSha256: string;
+    sourceImplementationSha256: string;
+    continuationWorkerImplementationSha256: string;
+    sourceCandidateSha256: string;
+    sourceDependencyLineageSha256: string;
+    sourcePartialResultSha256?: string;
+    sourceCheckpointRequestSha256?: string;
+    lambda: number;
+    heightM: number;
+    profileStateSha256: string;
+    /** Exact 189-variable accepted source state; read-only provenance, not a
+     * resumable checkpoint supplied by the caller. */
+    profileState: number[];
+    gateMetrics: Record<string, number>;
+    gateDecision: Record<string, boolean>;
+    deterministicConfirmation: Record<string, unknown>;
+    qualification: string;
+  };
   diagnosticMode?: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE
     | typeof JOB_C_WORKFLOW_TEST_ONLY_MODE;
 }
