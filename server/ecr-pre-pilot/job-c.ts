@@ -5,6 +5,18 @@ import path from 'node:path';
 
 export const JOB_C_PROTOCOL = 'ECR_PRE_PILOT_JOB_C_V1' as const;
 export const JOB_C_COMPONENT_ORDER = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'] as const;
+/**
+ * The only authorized partial-transfer route.  This is deliberately a
+ * server-owned constant rather than a request-body option: it is copied into
+ * each queued worker request and therefore becomes part of immutable lineage.
+ */
+export const JOB_C_TEMPORARY_DIAGNOSTIC_MODE = Object.freeze({
+  mode: 'TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1',
+  terminalLambda: 6.5e-9,
+  heightTrialM: 2,
+  normalAcceptancePermitted: false,
+  qualification: 'USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY',
+});
 export const JOB_C_PRELIMINARY_SENSITIVITY_BASIS = Object.freeze({
   authorization: 'USER_AUTHORIZED_PROJECT_CONTROLLED_PRELIMINARY_SENSITIVITY_BASIS',
   axialDispersionContinuousM2S: { nominal: 0.010, minimum: 0.003, maximum: 0.030 },
@@ -119,6 +131,7 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
     stage2ResultSnapshotHash: string;
   };
   axialLocalContactProfileSha256: string;
+  diagnosticMode?: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE;
 }
 
 export async function runJobCWorker(request: JobCWorkerRequest, options: {

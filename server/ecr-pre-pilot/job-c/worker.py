@@ -75,7 +75,7 @@ def progress(phase, completed=0, total=None, iteration=None, residual=None,
              residual_kind=None, height_candidate_m=None, throttle=False,
              lambda_value=None, continuation_trial=None,
              accepted_lower_lambda=None, rejected_upper_lambda=None,
-             gate_metrics=None):
+             gate_metrics=None, clear_gate_metrics=False):
     """Emit an honest, machine-readable live state (never a guessed total)."""
     global _last_progress,_last_progress_emit
     now=time.monotonic()
@@ -89,7 +89,11 @@ def progress(phase, completed=0, total=None, iteration=None, residual=None,
       "maximumOriginalJobBGateResidual","minimumFlowMolS",
       "rawFvGatePassed","scaledFvGatePassed","originalJobBGatePassed",
       "strictPositivityPassed","accepted")}
-    gate_values={key:gates.get(key,previous_gates[key]) for key in previous_gates}
+    # A just-announced diagnostic lambda has no gate result yet.  Do not carry
+    # a previous lambda's values into that new candidate's live display.
+    gate_values={key:(gates.get(key) if key in gates else
+      (None if clear_gate_metrics else previous_gates[key]))
+      for key in previous_gates}
     _last_progress={"phase":phase,"completed":completed,"total":total,
       "iteration":iteration if isinstance(iteration,int) else None,
       "residual":float(residual) if finite_residual else None,
@@ -274,11 +278,15 @@ def split_coupled_warm_state(np, warm, cells):
            "physicalInfeasibilityClaimed":False})
     return state[:14*cells].copy(),state[14*cells:].copy()
 
-def coupled_lambda_targets(bootstrap_lambda):
+def coupled_lambda_targets(bootstrap_lambda, terminal_lambda=None):
     """Return the deterministic continuation path with lambda=0 first."""
-    return sorted(set([0.0,1e-10,3e-10,1e-9,3e-9,bootstrap_lambda,
+    targets=sorted(set([0.0,1e-10,3e-10,1e-9,3e-9,bootstrap_lambda,
       3e-8,1e-7,3e-7,1e-6,3e-6,1e-5,3e-5,1e-4,3e-4,1e-3,
       3e-3,1e-2,3e-2,1e-1,3e-1,1.0]))
+    if terminal_lambda is None:
+        return targets
+    return sorted(set(target for target in targets if target<=terminal_lambda)
+      | {terminal_lambda})
 
 def coupled_bounded_bracket_next(lower_accepted, upper_rejected,
                                  refinements_used, maximum_refinements,
@@ -1687,6 +1695,14 @@ def validate_branch_request(r):
 def case(r, name, dc, dd, solvers):
     np=solvers[0].np
     m=r["compartments"]; A=math.pi*r["columnDiameterM"]**2/4
+    diagnostic_mode=r.get("diagnosticMode")
+    partial_diagnostic=(isinstance(diagnostic_mode,dict)
+      and diagnostic_mode.get("mode")==
+        "TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1")
+    diagnostic_terminal_lambda=(
+      float(diagnostic_mode["terminalLambda"]) if partial_diagnostic else None)
+    diagnostic_height_trial=(
+      float(diagnostic_mode["heightTrialM"]) if partial_diagnostic else None)
     feedc=[float(x) for x in r["continuousFeedMolS"]]; feedd=[float(x) for x in r["dispersedFeedMolS"]]
     if m<1 or min(sum(feedc),sum(feedd))<=0 or any(len(x)!=7 for x in [feedc,feedd,r["kc"],r["kd"]]):
         raise ValueError("JOB_C_INVALID_GOVERNED_FLOW_INPUT")
@@ -1865,6 +1881,8 @@ def case(r, name, dc, dd, solvers):
     if not profile_interval_probe_lambda>0.0:
         raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
           profile_audit)
+    # The governed scientific route retains its 1e-8 bootstrap.  The isolated
+    # diagnostic route merely stops before it, at the immutable partial target.
     bootstrap_lambda=1e-8
     colored_sparsity_cache={}
 
@@ -2195,6 +2213,9 @@ def case(r, name, dc, dd, solvers):
          # precomputed-source stage: raw_evaluate recomputes local interface equations and
          # fluxes from the evolving bulk state on every residual evaluation.
         lambda_targets=coupled_lambda_targets(bootstrap_lambda)
+        if partial_diagnostic:
+            lambda_targets=coupled_lambda_targets(
+              bootstrap_lambda,diagnostic_terminal_lambda)
         if resume_lambda is not None:
             lambda_targets=[resume_lambda]+[
               target for target in lambda_targets if target>resume_lambda]
@@ -2230,7 +2251,8 @@ def case(r, name, dc, dd, solvers):
               if lam==0.0 else f"direct coupled lambda {lam:g}",
               lambda_value=lam,continuation_trial=continuation_trial,
               accepted_lower_lambda=accepted_lower,
-              rejected_upper_lambda=rejected_upper)
+              rejected_upper_lambda=rejected_upper,
+              clear_gate_metrics=partial_diagnostic)
             lambda_started=time.monotonic()
             coupled_attempts=[]
             evaluation_attribution=coupled_evaluation_attribution()
@@ -2579,7 +2601,8 @@ def case(r, name, dc, dd, solvers):
                       accepted_lower_lambda=active_bracket[
                         "lowerAcceptedLambda"],
                       rejected_upper_lambda=active_bracket[
-                        "upperRejectedLambda"])
+                        "upperRejectedLambda"],
+                      clear_gate_metrics=partial_diagnostic)
                 lambda_index+=1
                 continue
             # A failed direct solve is a numerical positive-feasibility
@@ -2644,7 +2667,8 @@ def case(r, name, dc, dd, solvers):
                       continuation_trial=next_step["trial"],
                       accepted_lower_lambda=previous_lambda,
                       rejected_upper_lambda=active_bracket[
-                        "upperRejectedLambda"])
+                        "upperRejectedLambda"],
+                      clear_gate_metrics=partial_diagnostic)
                     continue
             raise JobCBlocked(
               "JOB_C_ZERO_TRANSFER_BOOTSTRAP_UNRESOLVED" if lam==0.0
@@ -2680,6 +2704,21 @@ def case(r, name, dc, dd, solvers):
                "physicalInfeasibilityClaimed":False,
                "claimsEmitted":{"height":False,"efficiency":False,
                  "finalRpm":False,"jobD":False,"release":False}})
+        # The diagnostic terminal state has already passed the unchanged four
+        # gates through two uncached full-system confirmations.  It is not a
+        # physical lambda=1 solution, so it must leave here before the normal
+        # lambda-one replay.  The caller labels this only as a height trial.
+        if partial_diagnostic:
+            if (not history or history[-1].get("lambda")
+                !=diagnostic_terminal_lambda):
+                raise JobCBlocked("JOB_C_DIAGNOSTIC_PARTIAL_ENDPOINT_UNQUALIFIED",{
+                  "heightTrialM":h,"terminalLambda":diagnostic_terminal_lambda,
+                  "acceptedContinuationHistory":history,
+                  "physicalInfeasibilityClaimed":False})
+            return {"height":h,"solution":x.tolist(),
+              "homotopyHistory":history,
+              "qualification":
+                "PARTIAL_TRANSFER_ONLY_FOUR_GATES_AND_UNCACHED_REPEAT_CONFIRMED"}
         # Replay lambda=1 with the same square coupled system for final
         # verification; no frozen-source state is used to establish acceptance.
         progress("lambda 1 monolithic replay")
@@ -2835,8 +2874,69 @@ def case(r, name, dc, dd, solvers):
     # lambda=0 gate before it can be accepted.
     resume_anchor=find_resume_coupled_anchor(
       _completed_results,2.0,expected_request_sha256=_request_sha256)
-    progress("candidate 2m",height_candidate_m=2.0)
-    low=solve_height(2.0,resume_anchor)
+    if partial_diagnostic:
+        trial_height=diagnostic_height_trial
+        progress("partial-transfer diagnostic height trial",
+          height_candidate_m=trial_height)
+        low=solve_height(trial_height,resume_anchor)
+    else:
+        trial_height=2.0
+        progress("candidate 2m",height_candidate_m=2.0)
+        low=solve_height(2.0,resume_anchor)
+    if partial_diagnostic:
+        endpoint=low["homotopyHistory"][-1] if low["homotopyHistory"] else {}
+        required_confirmation=endpoint.get("coupledAttempts",[])
+        confirmation=(required_confirmation[-1].get("deterministicConfirmation")
+          if required_confirmation else None)
+        endpoint_gates=({key:required_confirmation[-1].get(key) for key in (
+          "rawFvGatePassed","scaledFvGatePassed","originalJobBGatePassed",
+          "strictPositivityPassed","accepted")}
+          if required_confirmation else {})
+        if (endpoint.get("lambda")!=diagnostic_terminal_lambda
+            or not isinstance(confirmation,dict)
+            or confirmation.get("independentRawReevaluationCount")!=2
+            or confirmation.get("bothScientificGateEvaluationsPassed") is not True
+            or confirmation.get("exactlyRepeatable") is not True
+            or any(endpoint_gates.get(key) is not True for key in (
+              "rawFvGatePassed","scaledFvGatePassed",
+              "originalJobBGatePassed","strictPositivityPassed","accepted"))):
+            raise JobCBlocked("JOB_C_DIAGNOSTIC_PARTIAL_ENDPOINT_UNQUALIFIED",{
+              "heightTrialM":trial_height,
+              "terminalLambda":diagnostic_terminal_lambda,
+              "endpointHistory":endpoint,
+              "physicalInfeasibilityClaimed":False})
+        return {"name":name,"status":"CALCULATED_DIAGNOSTIC_PARTIAL_SENSITIVITY",
+          "daxContinuousM2S":dc,"daxDispersedM2S":dd,
+          "selected":{"heightTrialM":trial_height,
+            "partialTransferLambda":diagnostic_terminal_lambda,
+            "criterionSatisfyingDiagnosticHeight":False,
+            "heightQualification":
+              "PARTIAL_TRANSFER_HEIGHT_TRIAL_NOT_RECOVERY_CRITERION_SATISFYING",
+            "gateMetrics":{
+              "rawFvResidualMolS":endpoint.get("rawFvResidualMolS"),
+              "scaledFvResidual":endpoint.get("scaledFvResidual"),
+              "maximumOriginalJobBGateResidual":endpoint.get(
+                "maximumOriginalJobBGateResidual"),
+              "minimumFlowMolS":endpoint.get("minimumFlowMolS")},
+            "gateDecision":endpoint_gates,
+            "deterministicConfirmation":confirmation,
+            "profileStateSha256":endpoint.get("stateSha256"),
+            "homotopyHistory":low["homotopyHistory"],
+            "qualification":
+              "FOUR_UNCHANGED_GATES_AND_TWO_UNCACHED_REPEAT_CONFIRMATIONS"},
+          "diagnosticPartialEndpoint":{
+            "status":"QUALIFIED_PARTIAL_TRANSFER_ENDPOINT",
+            "lambda":diagnostic_terminal_lambda,
+            "heightTrialM":trial_height,
+            "criterionSatisfyingDiagnosticHeight":False,
+            "gateMetrics":{
+              "rawFvResidualMolS":endpoint.get("rawFvResidualMolS"),
+              "scaledFvResidual":endpoint.get("scaledFvResidual"),
+              "maximumOriginalJobBGateResidual":endpoint.get(
+                "maximumOriginalJobBGateResidual"),
+              "minimumFlowMolS":endpoint.get("minimumFlowMolS")},
+            "gateDecision":endpoint_gates,
+            "deterministicConfirmation":confirmation}}
     h2_benchmark=qualify_h2(low)
     h2_benchmark["outletDuty"]=outlet_duty_report(low)
     progress("candidate20m",height_candidate_m=20.0)
@@ -3066,6 +3166,13 @@ for line in sys.stdin:
           value for value in completed if isinstance(value,dict)]
     if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     validate_branch_request(r)
+    diagnostic_mode=r.get("diagnosticMode")
+    if diagnostic_mode is not None and diagnostic_mode != {
+      "mode":"TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1",
+      "terminalLambda":6.5e-9,"heightTrialM":2,
+      "normalAcceptancePermitted":False,
+      "qualification":"USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY"}:
+        raise ValueError("JOB_C_DIAGNOSTIC_MODE_INVALID")
     temporary,engine,_,_=job_b.scientific.build_engine(r["temperatureK"],0.0)
     try:
        solvers=[CandidateInterfaceSolver(engine,r["temperatureK"],r["kc"],r["kd"],
@@ -3073,9 +3180,18 @@ for line in sys.stdin:
          r["phaseConfiguration"]) for _ in range(r["compartments"])]
        nominal=case(r,"NOMINAL",.010,.0010,solvers)
     finally: temporary.cleanup()
-    nominal=exact_qualify(r,nominal)
+    if diagnostic_mode is None:
+        nominal=exact_qualify(r,nominal)
     cases=[nominal]+[{"name":x,"status":"NOT_RUN_PENDING_NOMINAL","reason":"SENSITIVITIES_DEFERRED_UNTIL_NOMINAL_VIABLE"} for x in ("CONTINUOUS_LOW","CONTINUOUS_HIGH","DISPERSED_LOW","DISPERSED_HIGH")]
-    body={"protocol":PROTOCOL,"status":"CALCULATED_PRELIMINARY_JOB_C" if nominal["status"].startswith("CALCULATED") else "BLOCKED_PRELIMINARY_JOB_C","componentOrder":list(COMPONENTS),
+    partial_endpoint=nominal.get("diagnosticPartialEndpoint")
+    body={"protocol":PROTOCOL,"status":(
+       "CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C" if diagnostic_mode is not None
+       and nominal["status"]=="CALCULATED_DIAGNOSTIC_PARTIAL_SENSITIVITY"
+       else "CALCULATED_PRELIMINARY_JOB_C" if nominal["status"].startswith("CALCULATED")
+       else "BLOCKED_PRELIMINARY_JOB_C"),"componentOrder":list(COMPONENTS),
+           **({"diagnosticOnly":True,"diagnosticMode":diagnostic_mode,
+               "diagnosticPartialEndpoint":partial_endpoint}
+              if diagnostic_mode is not None else {}),
           "candidateInterfaceImplementation":{"version":CANDIDATE_VERSION,
             "sha256":hashlib.sha256((Path(__file__).parent/"candidate_interface.py").read_bytes()).hexdigest(),
             "qualification":"CANDIDATE_ONLY_NO_STABILITY_CLAIM"},

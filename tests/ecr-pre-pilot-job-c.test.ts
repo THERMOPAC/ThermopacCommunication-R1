@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path';
 import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
+  JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
   jobCResultHash,
   jobCScientificResultHash,
   runJobCWorker,
@@ -39,6 +40,9 @@ it('retains the original worker failure while rejecting invalid response statuse
   for (const status of ['BLOCKED_PRELIMINARY_JOB_C', 'CALCULATED_PRELIMINARY_JOB_C']) {
     expect(() => validateJobCWorkerResponseStatus({ status })).not.toThrow();
   }
+  expect(() => validateJobCWorkerResponseStatus({
+    status: 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C',
+  })).not.toThrow();
 });
 
 const diagnosticReplayFiles = [
@@ -378,6 +382,77 @@ sys.stdout.flush()
       axialDispersionDispersedM2S: { nominal: 0.0010, minimum: 0.0003, maximum: 0.0030 },
       activeHeightSearchM: { minimum: 2, maximum: 20, use: 'NUMERICAL_SEARCH_ONLY' },
     });
+  });
+
+  it('pins the server-owned partial-transfer diagnostic without changing the standard lambda-one route', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
+    const queue = readFileSync('server/ecr-pre-pilot/job-c-job-service.ts', 'utf8');
+    const route = readFileSync('server/ecr-pre-pilot/routes.ts', 'utf8');
+    const page = readFileSync(
+      'client/src/pages/design-software/ecr-pre-pilot-design-stage-4-page.tsx', 'utf8',
+    );
+    expect(JOB_C_TEMPORARY_DIAGNOSTIC_MODE).toEqual({
+      mode: 'TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1',
+      terminalLambda: 6.5e-9,
+      heightTrialM: 2,
+      normalAcceptancePermitted: false,
+      qualification: 'USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY',
+    });
+    expect(worker).toContain('bootstrap_lambda,diagnostic_terminal_lambda');
+    expect(worker).toContain('clear_gate_metrics=partial_diagnostic');
+    expect(worker).toContain('FOUR_UNCHANGED_GATES_AND_TWO_UNCACHED_REPEAT_CONFIRMATIONS');
+    expect(worker).toContain('progress("lambda 1 monolithic replay")');
+    expect(worker).toContain('JOB_C_DIAGNOSTIC_MODE_INVALID');
+    expect(service).toContain('BLOCKED_PARTIAL_TRANSFER_ENDPOINT_NEVER_ACCEPTED_DESIGN');
+    expect(service).toContain('criterionSatisfyingDiagnosticHeight: false');
+    expect(queue).toContain('options.diagnosticOnly');
+    expect(queue).toContain('scientificCompleted: !diagnosticOnly');
+    expect(route).toContain('diagnosticOnly: true');
+    expect(route).toContain("'/api/ecr-pre-pilot/designs/:id/job-c/diagnostic/jobs'");
+    expect(route).toContain("'/api/ecr-pre-pilot/designs/:id/job-c/jobs'");
+    expect(page).toContain('Provisional downstream diagnostic only');
+    expect(page).toContain('partial-transfer endpoint');
+    expect(page).toContain('not optimized');
+  });
+
+  it('caps the diagnostic schedule before lambda one and returns before its replay', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json
+from pathlib import Path
+source=Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree=ast.parse(source)
+targets=next(node for node in tree.body
+  if isinstance(node,ast.FunctionDef) and node.name=="coupled_lambda_targets")
+namespace={}
+exec(compile(ast.Module(body=[targets],type_ignores=[]),"diagnostic-targets","exec"),namespace)
+case=next(node for node in tree.body
+  if isinstance(node,ast.FunctionDef) and node.name=="case")
+case_source=ast.get_source_segment(source,case)
+guard='PARTIAL_TRANSFER_ONLY_FOUR_GATES_AND_UNCACHED_REPEAT_CONFIRMED'
+replay='progress("lambda 1 monolithic replay")'
+unavailable='JOB_C_DIAGNOSTIC_PARTIAL_ENDPOINT_UNQUALIFIED'
+print(json.dumps({
+  "targets":namespace["coupled_lambda_targets"](1e-8,6.5e-9),
+  "guardBeforeReplay":case_source.index(guard)<case_source.index(replay),
+  "guardRaisesDiagnosticReason":unavailable in case_source,
+  "normalStillIncludesOne":1.0 in namespace["coupled_lambda_targets"](1e-8),
+  "diagnosticGateConfirmation":all(token in case_source for token in [
+    "independentRawReevaluationCount", "bothScientificGateEvaluationsPassed",
+    "exactlyRepeatable", "rawFvGatePassed", "scaledFvGatePassed",
+    "originalJobBGatePassed", "strictPositivityPassed"]),
+}))
+`], { encoding: 'utf8' }));
+    expect(observed.targets[observed.targets.length - 1]).toBe(6.5e-9);
+    expect(Math.max(...observed.targets)).toBe(6.5e-9);
+    expect(observed.guardBeforeReplay).toBe(true);
+    expect(observed.guardRaisesDiagnosticReason).toBe(true);
+    expect(observed.normalStillIncludesOne).toBe(true);
+    expect(observed.diagnosticGateConfirmation).toBe(true);
+
+    const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
+    const unavailable = service.slice(service.indexOf("status: 'UNAVAILABLE_ENDPOINT_NOT_QUALIFIED'"));
+    expect(unavailable.slice(0, unavailable.indexOf(': undefined;'))).not.toContain('fields:');
   });
 
   it('produces deterministic hashes and excludes its own result field', () => {

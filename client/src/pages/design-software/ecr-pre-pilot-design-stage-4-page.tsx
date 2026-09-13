@@ -41,6 +41,7 @@ type JobCJob = {
   partialResult: RecordValue | null;
   partialResultHash: string | null;
   diagnostics?: RecordValue | null;
+  diagnosticOnly: boolean;
   error: string | null;
 };
 
@@ -192,6 +193,10 @@ function normalizeJobCJob(value: unknown): JobCJob {
   const partialResult = parseObject(read(payload, "partialResult", "partial_result", "partialResultSnapshot"));
   const scientificCompletedValue = read(payload, "scientificCompleted", "scientific_completed");
   const residualKind = read(progress, "residualKind") ?? read(payload, "residualKind");
+  const queuedPrepared = object(read(object(read(payload, "input")), "prepared"));
+  const queuedResponseBasis = object(read(queuedPrepared, "responseBasis"));
+  const diagnosticOnly = Boolean(read(result, "diagnosticOnly")
+    ?? read(queuedResponseBasis, "diagnosticMode"));
   return {
     jobId: stringValue(read(payload, "jobId", "id"), ""),
     status,
@@ -222,13 +227,16 @@ function normalizeJobCJob(value: unknown): JobCJob {
     result: Object.keys(result).length ? result : null,
     // Older jobs did not expose this field; their completed result remains
     // displayable while new jobs require the explicit scientific completion.
-    scientificCompleted: typeof scientificCompletedValue === "boolean" ? scientificCompletedValue : status === "completed",
+    scientificCompleted: !diagnosticOnly && (
+      typeof scientificCompletedValue === "boolean" ? scientificCompletedValue : status === "completed"
+    ),
     partialResult: Object.keys(partialResult).length ? partialResult : null,
     partialResultHash: read(payload, "partialResultHash", "partial_result_hash") == null ? null : String(read(payload, "partialResultHash", "partial_result_hash")),
     diagnostics: (() => {
       const diagnostics = parseObject(read(payload, "scientificDiagnostics", "diagnostics", "details"));
       return Object.keys(diagnostics).length ? diagnostics : null;
     })(),
+    diagnosticOnly,
     error: read(payload, "error", "message") == null ? null : String(read(payload, "error", "message")),
   };
 }
@@ -296,7 +304,12 @@ export default function EcrPrePilotDesignStage4Page() {
     const job = normalizeJobCJob(value);
     setJobCJob(job);
     if (!["pending", "running"].includes(job.status)) setJobCStopping(false);
-    if (job.status === "completed" && job.scientificCompleted && job.result) {
+    if (job.diagnosticOnly && job.result) {
+      // A qualified partial-transfer endpoint is intentionally not fed into
+      // the normal calculated-height panel or scientific acceptance state.
+      setJobCEvaluation(null);
+      setJobCDiagnostic(job.result);
+    } else if (job.status === "completed" && job.scientificCompleted && job.result) {
       setJobCEvaluation(job.result);
       setJobCDiagnostic(null);
     } else if (job.status === "cancelled") {
@@ -457,7 +470,7 @@ export default function EcrPrePilotDesignStage4Page() {
     setJobCDiagnostic(null);
     setJobCPollError(null);
     try {
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-c/jobs`, { method: "POST", credentials: "include" });
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-c/diagnostic/jobs`, { method: "POST", credentials: "include" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const blockedPayload = object(payload);
@@ -468,7 +481,7 @@ export default function EcrPrePilotDesignStage4Page() {
         throw new Error(message);
       }
       applyJobCJob(payload);
-      toast({ title: "Job C queued", description: "Scientific calculation progress will update here while the background worker runs." });
+      toast({ title: "Job C diagnostic queued", description: "The server-owned partial-transfer diagnostic will stop at λ = 6.5e-9; it cannot accept a design." });
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : "Job C could not be started.";
       setError(message);
@@ -603,6 +616,8 @@ export default function EcrPrePilotDesignStage4Page() {
     ? "Strict positivity"
     : limitingResidualGate ?? "Pending first gate evaluation";
   const hasPriorJobC = Boolean(jobCJob || jobCEvaluation || jobCDiagnostic);
+  const jobCDownstreamDiagnostic = object(read(jobCDiagnostic ?? {}, "diagnosticDownstreamSizing"));
+  const jobCDownstreamFields = object(read(jobCDownstreamDiagnostic, "fields"));
   const jobCDiagnosticDetails = object(read(jobCDiagnostic ?? {}, "details"));
   const jobCScientificDiagnostics = object(read(jobCDiagnostic ?? {}, "scientificDiagnostics", "diagnostics"));
   const nestedJobCCauseDetails = object(
@@ -646,7 +661,7 @@ export default function EcrPrePilotDesignStage4Page() {
             <Button type="button" variant="outline" onClick={() => void loadDesign()} disabled={loading || running} className="h-8 gap-1.5 text-xs"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh design</Button>
             <Button type="button" onClick={() => void runEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-cyan-950 text-xs hover:bg-cyan-900"><Play className="h-3.5 w-3.5" />{activeJob === "A" ? "Evaluating Job-A…" : evaluation ? "Re-run Job-A" : "Evaluate Job-A"}</Button>
             <Button type="button" onClick={() => void runJobBEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-indigo-950 text-xs hover:bg-indigo-900"><Play className="h-3.5 w-3.5" />{activeJob === "B" ? "Evaluating Job-B…" : jobBEvaluation ? "Re-run Job-B" : "Test Job-B flux"}</Button>
-            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C" : hasPriorJobC ? "Re-run Job C" : "Start Job C"}</Button>
+            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C diagnostic" : hasPriorJobC ? "Re-run Job C diagnostic" : "Run Job C diagnostic"}</Button>
             {jobCRunning && <Button type="button" variant="destructive" onClick={() => void cancelJobC()} disabled={jobCStopping} className="h-8 gap-1.5 text-xs">{jobCStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}{jobCStopping ? "Stopping" : "Stop"}</Button>}
           </div>
         </header>
@@ -774,7 +789,28 @@ export default function EcrPrePilotDesignStage4Page() {
               <details className="mt-2"><summary className="cursor-pointer text-xs font-semibold">Interface and adapter diagnostics</summary><pre className="mt-2 max-h-64 overflow-auto rounded bg-white p-3 text-[10px]">{JSON.stringify({ interfaceDiagnostics: read(jobBDiagnostic, "interfaceDiagnostics"), adapterStatus: read(jobBDiagnostic, "adapterStatus") }, null, 2)}</pre></details>
               <div className="-mx-4 -mb-4 mt-4 text-slate-900"><JobBStateAudit inputAudit={failedJobBInputAudit} /></div>
             </section>}
-            {jobCDiagnostic && <section role="alert" className="rounded-md border border-violet-300 bg-violet-50 p-4 text-violet-950">
+            {Object.keys(jobCDownstreamDiagnostic).length > 0 && <section role="status" className="rounded-md border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · temporary partial-transfer diagnostic</p>
+              <h2 className="mt-1 text-sm font-semibold">Provisional downstream diagnostic only</h2>
+              <p className="mt-1 text-xs font-semibold">WARNING: λ = 6.5e-9 is a partial-transfer endpoint. It is not λ = 1, does not satisfy the recovery criterion, and cannot be accepted as a column design.</p>
+              <p className="mt-1 text-[10px]">{stringValue(read(jobCDownstreamDiagnostic, "warning", "unavailableReason"))}</p>
+              {Object.keys(jobCDownstreamFields).length > 0 ? <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  ["d32 [m]", "d32M"], ["Holdup", "holdup"], ["Flooding holdup", "flooding"],
+                  ["RPM (frozen input; not optimized)", "rpm"], ["Diameter [m] (frozen input; not optimized)", "diameterM"],
+                  ["Height trial [m]; not criterion-satisfying", "heightM"], ["Compartments (numerical FV)", "compartments"],
+                ].map(([label, key]) => {
+                  const field = object(read(jobCDownstreamFields, key));
+                  return <div key={key} className="rounded border border-amber-300 bg-white p-2">
+                    <p className="text-[9px] font-semibold text-slate-600">{label}</p>
+                    <p className="mt-1 font-mono text-[10px]">{numberValue(read(field, "value"))}</p>
+                    <p className="mt-1 break-words text-[9px] text-slate-600">{stringValue(read(field, "provenance", "unavailableReason"))}</p>
+                  </div>;
+                })}
+              </div> : <p className="mt-3 text-xs font-semibold">Unavailable — endpoint failure retains worker diagnostics; no downstream values were derived.</p>}
+              <details className="mt-3"><summary className="cursor-pointer text-xs font-semibold">Partial endpoint evidence and provenance</summary><pre className="mt-2 max-h-72 overflow-auto rounded bg-white p-3 text-[10px] text-slate-900">{JSON.stringify(jobCDiagnostic, null, 2)}</pre></details>
+            </section>}
+            {jobCDiagnostic && Object.keys(jobCDownstreamDiagnostic).length === 0 && <section role="alert" className="rounded-md border border-violet-300 bg-violet-50 p-4 text-violet-950">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · blocked result</p>
               <h2 className="mt-1 text-sm font-semibold">Job-C calculation blocked</h2>
               <p className="mt-1 font-mono text-[10px]">{stringValue(read(jobCDiagnostic, "error", "message", "status"))}</p>

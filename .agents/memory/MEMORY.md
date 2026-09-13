@@ -127,3 +127,4 @@
 - [Job C performance optimization](job-c-performance-optimization.md) — profile wall-clock cost first; optimize only the dominant numerical kernel without changing scientific semantics.
 - [Programmatic Vite browser tests](programmatic-vite-browser-tests.md) — clear REPL_ID before createServer; authenticate and satisfy 2FA/attendance guards explicitly.
 - [Job C flux cancellation](job-c-flux-cancellation.md) — analytic columns alone do not repair Ruiz corrections; bound-aware proposals still require true nonlinear residual checks.
+- [Job C partial diagnostics](job-c-partial-diagnostic-boundary.md) — partial lambda closure never promotes frozen hydraulic inputs or numerical geometry to accepted sizing.

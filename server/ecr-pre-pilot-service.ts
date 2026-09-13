@@ -42,6 +42,7 @@ import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
   JobCError,
+  JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
   currentJobCArtifactHashes,
   jobCResultHash,
   runJobCWorker,
@@ -720,7 +721,11 @@ export function prepareJobCAxialLocalContactProfile(
  * Body-free Job C evaluation. All physical and duty inputs are reloaded from
  * the authenticated design's verified Job A/B/Stage 1/Stage 3 lineage.
  */
-export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
+export async function prepareEcrPrePilotJobC(
+  userId: number,
+  designId: number,
+  diagnosticMode: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE | null = null,
+) {
   const jobCArtifacts = currentJobCArtifactHashes();
   const jobA = await evaluateEcrPrePilotJobA(userId, designId);
   const jobB = await evaluateEcrPrePilotJobB(userId, designId);
@@ -1026,11 +1031,18 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
     axialLocalContactProfile,
     axialLocalContactProfileAuthority,
     axialLocalContactProfileSha256,
+    ...(diagnosticMode ? { diagnosticMode } : {}),
   };
   const responseBasis = {
     schemaVersion: 'ECR_PRE_PILOT_JOB_C_V1' as const,
     labels: ['PRELIMINARY', 'PRE_PILOT_PREDICTIVE', 'NOT_PILOT_VALIDATED',
       'NOT_RELEASE_ELIGIBLE', 'NOT_FINAL_DESIGN'],
+    ...(diagnosticMode ? {
+      diagnosticMode: {
+        ...diagnosticMode,
+        normalScientificAcceptance: 'BLOCKED_PARTIAL_TRANSFER_ENDPOINT_NEVER_ACCEPTED_DESIGN',
+      },
+    } : {}),
     componentOrder: [...JOB_C_COMPONENT_ORDER],
     preliminarySensitivityBasis: JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
     theoreticalCompartmentAuthority: {
@@ -1052,6 +1064,7 @@ export async function prepareEcrPrePilotJobC(userId: number, designId: number) {
       trialId: jobA.dependencies.selectedTrialId, columnDiameterM: trial.columnDiameterM,
       rpm: trial.rpm, d32M: trial.d32M,
       operatingHoldup: trial.operatingHydraulics.operatingHoldup,
+      floodHoldup: trial.operatingHydraulics.floodHoldup,
       status: 'INPUT_STATE_ONLY_NOT_FINAL_RPM_SELECTION',
     },
     dependencies: {
@@ -1094,10 +1107,39 @@ export async function executePreparedEcrPrePilotJobC(
   options: Parameters<typeof runJobCWorker>[1] = {},
 ) {
   const workerResult = await runJobCWorker(prepared.workerRequest, options);
+  const diagnosticMode = (prepared.responseBasis as any).diagnosticMode;
+  const endpoint = workerResult?.diagnosticPartialEndpoint;
+  const diagnosticDownstreamSizing = diagnosticMode
+    ? endpoint?.status === 'QUALIFIED_PARTIAL_TRANSFER_ENDPOINT'
+      ? {
+        status: 'PROVISIONAL_DIAGNOSTIC_PARTIAL_TRANSFER',
+        warning: 'Partial-transfer diagnostic only. This is a height trial, not a criterion-satisfying height or an accepted design.',
+        partialTransferLambda: endpoint.lambda,
+        criterionSatisfyingDiagnosticHeight: false,
+        fields: {
+          d32M: { value: prepared.workerRequest.d32M, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_D32_INPUT' },
+          holdup: { value: prepared.workerRequest.operatingHoldup, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_OPERATING_HOLDUP_INPUT' },
+          flooding: { value: (prepared.responseBasis as any).selectedStage3State?.floodHoldup ?? null,
+            provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_FLOOD_HOLDUP',
+            unavailableReason: (prepared.responseBasis as any).selectedStage3State?.floodHoldup == null
+              ? 'STAGE3_SELECTED_TRIAL_HAS_NO_SUPPORTED_FLOOD_HOLDUP_CALCULATION' : null },
+          rpm: { value: prepared.workerRequest.rpm, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_INPUT_NOT_OPTIMIZED' },
+          diameterM: { value: prepared.workerRequest.columnDiameterM, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_INPUT_NOT_OPTIMIZED' },
+          heightM: { value: endpoint.heightTrialM, provenance: 'JOB_C_PARTIAL_TRANSFER_HEIGHT_TRIAL_NOT_RECOVERY_CRITERION_SATISFYING' },
+          compartments: { value: prepared.workerRequest.compartments, provenance: 'FIXED_JOB_C_NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT' },
+        },
+      }
+      : {
+        status: 'UNAVAILABLE_ENDPOINT_NOT_QUALIFIED',
+        warning: 'No downstream diagnostic values are reported because the partial-transfer endpoint did not qualify.',
+        unavailableReason: workerResult?.error ?? 'PARTIAL_TRANSFER_ENDPOINT_NOT_AVAILABLE',
+      }
+    : undefined;
   const body = {
     ...prepared.responseBasis,
     status: workerResult.status,
     workerResult,
+    ...(diagnosticDownstreamSizing ? { diagnosticDownstreamSizing } : {}),
   };
   return { ...body, resultSha256: jobCResultHash(body) };
 }
