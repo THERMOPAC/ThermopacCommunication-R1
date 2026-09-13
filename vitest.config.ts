@@ -8,7 +8,8 @@ export default defineConfig({
     enforce: 'pre',
     transform(code, id) {
       if (!id.endsWith('/ecr-pre-pilot-design-stage-4-page.tsx')
-        && !id.endsWith('/components/ecr-pre-pilot/predictive-nt-progress.tsx')) return;
+        && !id.endsWith('/components/ecr-pre-pilot/predictive-nt-progress.tsx')
+        && !id.endsWith('/components/ecr-pre-pilot/stage4-pre-pilot-sizing-panel.tsx')) return;
       return ts.transpileModule(code, {
         compilerOptions: {
           jsx: ts.JsxEmit.ReactJSX,

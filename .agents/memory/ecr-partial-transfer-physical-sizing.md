@@ -5,17 +5,23 @@ description: Separate pre-pilot candidate solves do not confer full-transfer eng
 
 ## Current engineering direction
 
-The user subsequently chose theoretical-stage-based pre-pilot sizing: COSMO-SAC separation duty plus Stage-3 hydraulics plus a supported Kühni efficiency/HETS model. Job C and full-transfer convergence are later validation/refinement, not prerequisites for this estimate.
+The user chose theoretical-stage-based pre-pilot sizing: COSMO-SAC separation duty plus Stage-3 hydraulics plus a supported Kühni transfer/mixing model for calculated overall efficiency. Job C and full-transfer convergence are later validation/refinement, not prerequisites for this estimate.
 
 **Why:** Requiring a 189-equation solve per geometry candidate complicated Stage 4 without delivering a practical preliminary sizing method.
 
-**How to apply:** Inventory existing correlations and geometry evidence first. Report missing efficiency/HETS closure or compartment-pitch basis before implementing assumptions. Never equate a theoretical-stage default or seven FV cells with calculated physical compartments. Keep predictive estimates explicitly non-final.
+**How to apply:** Establish the supported transfer/mixing closure first and identify exact missing physical parameters for engineering review before numerical implementation. The user rejected delivering a placeholder-only framework. Never equate a theoretical-stage default or seven FV cells with physical compartments. Keep predictive estimates explicitly non-final.
 
 The refined physical-stage calculation consumes the selected Stage-3 diameter rather than reselecting hydraulics. The user explicitly permits compartment pitch \(h/D=0.5\) as a labelled pre-pilot geometry assumption, pending mechanical verification. Efficiency must be computed from a supported transfer/mixing model, not supplied as an assumed efficiency or HETS value.
 
 **Why:** Separating hydraulic selection from stage conversion avoids repeatedly re-solving geometry and makes the actual missing efficiency closure visible.
 
 **How to apply:** Keep the pitch assumption explicit and show all transfer/mixing intermediates. Distinguish local component/Murphree efficiencies from the overall equivalent-stage efficiency needed by \(N_\mathrm{physical}=\lceil N_T/E_o\rceil\).
+
+Published Kühni axial-dispersion balance models are not themselves predictive mixing closures. Laitinen 2019 (doi:10.1016/j.cherd.2019.04.018) needs axial-mixing inputs; the 2017 study's cited Kumar–Hartland dispersion source is for RDC/ARDC, not inherently Kühni.
+
+**Why:** Treating fitted dispersion coefficients or another column's correlation as a supported Kühni predictor would merely hide an assumed efficiency inside the model.
+
+**How to apply:** Verify primary equations, units, geometry and applicability before adopting a mixing correlation; obtain phase-specific mixing evidence where prediction remains unsupported.
 
 ## Historical nonlinear diagnostic route
 
