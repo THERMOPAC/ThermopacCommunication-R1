@@ -3,6 +3,16 @@ name: Partial-transfer nonlinear sizing boundary
 description: Separate pre-pilot candidate solves do not confer full-transfer engineering acceptance.
 ---
 
+## Current engineering direction
+
+The user subsequently chose theoretical-stage-based pre-pilot sizing: COSMO-SAC separation duty plus Stage-3 hydraulics plus a supported Kühni efficiency/HETS model. Job C and full-transfer convergence are later validation/refinement, not prerequisites for this estimate.
+
+**Why:** Requiring a 189-equation solve per geometry candidate complicated Stage 4 without delivering a practical preliminary sizing method.
+
+**How to apply:** Inventory existing correlations and geometry evidence first. Report missing efficiency/HETS closure or compartment-pitch basis before implementing assumptions. Never equate a theoretical-stage default or seven FV cells with calculated physical compartments. Keep predictive estimates explicitly non-final.
+
+## Historical nonlinear diagnostic route
+
 The user chose direct nonlinear partial-transfer sizing rather than frozen-secant extrapolation. The accepted partial anchor is a warm start, not accepted candidate geometry.
 
 **Why:** Frozen local scalar coefficients failed the real anchor's applicability check; repeating its diameter and trial height was not sizing.

@@ -296,7 +296,12 @@ export type PartialTransferSizingTrial = {
   candidateOrdinal: number;
   heightM: number;
   lambda: 8e-9;
-  runtimeBudgetSeconds: number;
+  /**
+   * Only USER_TRIGGERED_SINGLE_QUALIFICATION_V1 may use null.  This is an
+   * explicit scientific contract, not a general worker timeout escape hatch.
+   */
+  runtimeBudgetSeconds: number | null;
+  qualificationContract?: 'USER_TRIGGERED_SINGLE_QUALIFICATION_V1';
   profileState: number[];
 };
 

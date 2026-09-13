@@ -671,6 +671,7 @@ function samePartialTransferTrial(value: any, expected: PartialTransferSizingTri
     && value?.heightM === expected.heightM
     && value?.lambda === expected.lambda
     && value?.runtimeBudgetSeconds === expected.runtimeBudgetSeconds
+    && value?.qualificationContract === expected.qualificationContract
     && Array.isArray(value?.profileState)
     && value.profileState.length === expected.profileState.length
     && value.profileState.every((entry: unknown, index: number) =>
@@ -691,6 +692,14 @@ export type DirectPartialTransferCandidateInput = {
   heightM: number;
   /** Parent search deadline; cancellation kills the isolated child process. */
   signal?: AbortSignal;
+  /**
+   * The persisted single-qualification lifecycle owns this callback.  It is
+   * intentionally not a general Job-C queue progress channel.
+   */
+  onProgress?: (progress: Record<string, any>) => void | Promise<void>;
+  /** Null is legal only for the narrow explicit qualification contract. */
+  runtimeBudgetSeconds?: number | null;
+  qualificationContract?: 'USER_TRIGGERED_SINGLE_QUALIFICATION_V1';
 };
 
 /**
@@ -741,31 +750,24 @@ export async function solveDirectPartialTransferSizingCandidate(
     candidateOrdinal: input.candidate.candidate.ordinal,
     heightM: input.heightM,
     lambda: 8e-9,
-    runtimeBudgetSeconds: 90,
+    runtimeBudgetSeconds: input.runtimeBudgetSeconds === undefined ? 90 : input.runtimeBudgetSeconds,
+    ...(input.qualificationContract
+      ? { qualificationContract: input.qualificationContract } : {}),
     profileState: [...input.anchor.profileState],
   };
   const controller = new AbortController();
-  let timedOut = false;
   let parentCancelled = false;
   const abortForParent = () => {
     parentCancelled = true;
     controller.abort();
   };
   input.signal?.addEventListener('abort', abortForParent, { once: true });
-  // The worker has matching internal 90 s qualification/solver budgets. This
-  // parent deadline also covers a child that fails to return after reporting
-  // its budget state; it is a timeout result, never a negative feasibility
-  // conclusion.
-  const timer = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, 95_000);
-  timer.unref();
   const execute = (candidateRequest: JobCWorkerRequest) => testWorkerTransport
     ? testWorkerTransport(candidateRequest, { operation: 'SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL' })
     : runJobCWorker(candidateRequest, {
       operation: 'SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL',
       signal: controller.signal,
+      onProgress: (_phase, _completed, _total, progress) => input.onProgress?.(progress ?? {}),
     });
   try {
     const response = await execute({
@@ -815,16 +817,13 @@ export async function solveDirectPartialTransferSizingCandidate(
     };
   } catch (error) {
     return {
-      status: timedOut ? 'TRANSPORT_TIMEOUT' as const
-        : parentCancelled ? 'TRANSPORT_CANCELLED' as const
-          : 'TRANSPORT_EXECUTION_FAILED' as const,
+      status: parentCancelled ? 'TRANSPORT_CANCELLED' as const
+        : 'TRANSPORT_EXECUTION_FAILED' as const,
       candidateOrdinal: input.candidate.candidate.ordinal,
       heightM: input.heightM,
-      reason: timedOut ? 'PARTIAL_TRANSFER_CANDIDATE_RUNTIME_BUDGET_EXHAUSTED'
-        : error instanceof Error ? error.message : 'PARTIAL_TRANSFER_WORKER_UNKNOWN_FAILURE',
+      reason: error instanceof Error ? error.message : 'PARTIAL_TRANSFER_WORKER_UNKNOWN_FAILURE',
     };
   } finally {
-    clearTimeout(timer);
     input.signal?.removeEventListener('abort', abortForParent);
   }
 }

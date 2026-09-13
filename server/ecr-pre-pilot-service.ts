@@ -1671,7 +1671,7 @@ export async function getLatestCompletedJobCPhysicalSizing(userId: number, desig
   };
 }
 
-async function currentOwnedStrictPartialAnchor(userId: number, designId: number) {
+export async function currentOwnedStrictPartialAnchor(userId: number, designId: number) {
   const sources = await pool.query(
     `SELECT id,status,completed_at,input_snapshot,input_hash,result_snapshot,result_hash,
              partial_result_snapshot,partial_result_hash,implementation_hash,candidate_hash,

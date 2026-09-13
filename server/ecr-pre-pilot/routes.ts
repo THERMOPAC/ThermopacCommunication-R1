@@ -39,6 +39,12 @@ import {
   getLatestJobC,
   startJobCWorker,
 } from './job-c-job-service';
+import {
+  cancelSinglePartialTransferQualification,
+  getSinglePartialTransferQualification,
+  markInterruptedSinglePartialTransferQualifications,
+  startSinglePartialTransferQualification,
+} from './partial-transfer-qualification-service';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
@@ -46,6 +52,9 @@ export function setupEcrPrePilotRoutes(app: Express): void {
   // only persisted queue entries; route registration itself never creates a
   // new Job-C request.
   startJobCWorker();
+  // Recovery is intentionally terminal only.  This never starts or resumes a
+  // scientific child after a crash; the user must click the explicit control.
+  void markInterruptedSinglePartialTransferQualifications().catch(() => undefined);
   setupKuhniResolverPreview(app);
   app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
     return res.json({
@@ -441,22 +450,11 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         || Object.keys(req.body).length)) {
         return res.status(400).json({ error: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CLIENT_INPUT_PROHIBITED' });
       }
-      try {
-        const cancellation = new AbortController();
-        const abort = () => cancellation.abort();
-        req.once('aborted', abort);
-        res.once('close', () => {
-          if (!res.writableEnded) abort();
-        });
-        const result = await evaluatePartialTransferPhysicalSizing(
-          Number((req.user as any).id), designId, { signal: cancellation.signal },
-        );
-        return res.status(result.status === 'DEPENDENCY_BLOCKED' ? 409 : 200).json(result);
-      } catch (error: any) {
-        const message = error?.message ?? 'PARTIAL_TRANSFER_PHYSICAL_SIZING_EVALUATION_FAILED';
-        return res.status(message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422)
-          .json({ error: message });
-      }
+      // A full D/H screen is intentionally paused.  In particular, do not
+      // turn a browser POST/disconnect into background scientific work here.
+      return res.status(409).json({
+        error: 'PARTIAL_TRANSFER_DH_SEARCH_DISABLED_USE_EXPLICIT_SINGLE_QUALIFICATION',
+      });
     },
   );
   app.get(
@@ -478,6 +476,78 @@ export function setupEcrPrePilotRoutes(app: Express): void {
           error: error?.message ?? 'PARTIAL_TRANSFER_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE',
         });
       }
+    },
+  );
+  // The first accepted-anchor qualification is a separate persisted lifecycle,
+  // not the older D/H sizing search and never a Job-C enqueue endpoint.
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/partial-transfer-qualification/jobs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'SINGLE_QUALIFICATION_CLIENT_INPUT_PROHIBITED' });
+      }
+      try {
+        const job = await startSinglePartialTransferQualification(
+          Number((req.user as any).id), designId,
+        );
+        return res.status(job.reused ? 200 : 202).json(job);
+      } catch (error: any) {
+        const message = error?.message ?? 'SINGLE_QUALIFICATION_START_FAILED';
+        return res.status(message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 409)
+          .json({ error: message });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/partial-transfer-qualification/jobs/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      const job = await getSinglePartialTransferQualification(
+        Number((req.user as any).id), designId,
+      );
+      return job ? res.json(job) : res.status(404).json({ error: 'SINGLE_QUALIFICATION_NOT_FOUND' });
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/partial-transfer-qualification/jobs/:jobId',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      const job = await getSinglePartialTransferQualification(
+        Number((req.user as any).id), designId, req.params.jobId,
+      );
+      return job ? res.json(job) : res.status(404).json({ error: 'SINGLE_QUALIFICATION_NOT_FOUND' });
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/partial-transfer-qualification/jobs/:jobId/cancel',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'SINGLE_QUALIFICATION_CANCEL_BODY_PROHIBITED' });
+      }
+      const job = await cancelSinglePartialTransferQualification(
+        Number((req.user as any).id), designId, req.params.jobId,
+      );
+      return job ? res.json(job) : res.status(404).json({ error: 'SINGLE_QUALIFICATION_NOT_FOUND' });
     },
   );
   app.get(

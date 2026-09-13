@@ -1816,11 +1816,17 @@ def validate_partial_transfer_sizing_trial(r):
         or isinstance(trial.get("heightM"),bool)
         or not math.isfinite(float(trial["heightM"]))
         or float(trial["heightM"])<=0
-        or not isinstance(trial.get("runtimeBudgetSeconds"),(int,float))
-        or isinstance(trial.get("runtimeBudgetSeconds"),bool)
-        or not math.isfinite(float(trial["runtimeBudgetSeconds"]))
-        or float(trial["runtimeBudgetSeconds"])<=0
-        or float(trial["runtimeBudgetSeconds"])>90.0
+        or not (
+          (trial.get("qualificationContract")==
+             "USER_TRIGGERED_SINGLE_QUALIFICATION_V1"
+           and trial.get("runtimeBudgetSeconds") is None)
+          or (isinstance(trial.get("runtimeBudgetSeconds"),(int,float))
+              and not isinstance(trial.get("runtimeBudgetSeconds"),bool)
+              and math.isfinite(float(trial["runtimeBudgetSeconds"]))
+              and float(trial["runtimeBudgetSeconds"])>0
+              and float(trial["runtimeBudgetSeconds"])<=90.0
+              and trial.get("qualificationContract") is None)
+        )
         or not isinstance(state,list) or len(state)!=189
         or any(not isinstance(value,(int,float)) or isinstance(value,bool)
           or not math.isfinite(float(value)) for value in state)
@@ -1849,15 +1855,17 @@ def case(r, name, dc, dd, solvers):
     if m<1 or min(sum(feedc),sum(feedd))<=0 or any(len(x)!=7 for x in [feedc,feedd,r["kc"],r["kd"]]):
         raise ValueError("JOB_C_INVALID_GOVERNED_FLOW_INPUT")
     case_started=time.monotonic()
+    partial_runtime_budget=(
+      None if partial_transfer_sizing_trial.get("runtimeBudgetSeconds") is None
+      else float(partial_transfer_sizing_trial["runtimeBudgetSeconds"])
+    ) if direct_partial_transfer_trial else None
     qualification_budget={"started":case_started,
-      "maximumSeconds":float(partial_transfer_sizing_trial["runtimeBudgetSeconds"])
-        if direct_partial_transfer_trial
+      "maximumSeconds":partial_runtime_budget if direct_partial_transfer_trial
         else QUALIFICATION_BUDGET_SECONDS}
     budget={"calls":0,"residualCalls":0,"started":None,"heightCandidateM":None,
             # This separate user-triggered operation has a bounded honest
             # timeout.  The ordinary Job-C route retains its existing policy.
-            "maximumSeconds":float(partial_transfer_sizing_trial["runtimeBudgetSeconds"])
-              if direct_partial_transfer_trial
+            "maximumSeconds":partial_runtime_budget if direct_partial_transfer_trial
               else NONLINEAR_SOLVER_BUDGET_SECONDS}
     global _active_runtime_budgets
     _active_runtime_budgets={"caseStarted":case_started,
@@ -3054,6 +3062,23 @@ def case(r, name, dc, dd, solvers):
                   "heightM":h,"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
                   "candidateOrdinal":partial_transfer_sizing_trial["candidateOrdinal"],
                   "gateMetrics":metrics,"physicalInfeasibilityClaimed":False})
+            # This direct qualification never borrows the anchor flux at the
+            # new hydraulics/height.  Preserve two independent uncached gate
+            # evaluations before exposing this converged state as a neighbour
+            # warm-start candidate; neither is a physical-target claim.
+            confirmation_ev=exact_raw_evaluate(
+              x,STRICT_CONTINUATION_ANCHOR_LAMBDA)
+            confirmation_metrics=gate_metrics(confirmation_ev)
+            if (not confirmation_metrics["accepted"]
+                or confirmation_metrics!=metrics):
+                raise JobCBlocked(
+                  "PARTIAL_TRANSFER_DIRECT_CANDIDATE_UNCACHED_GATE_CONFIRMATION_FAILED",{
+                    "heightM":h,"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+                    "candidateOrdinal":partial_transfer_sizing_trial[
+                      "candidateOrdinal"],
+                    "firstGateMetrics":metrics,
+                    "secondGateMetrics":confirmation_metrics,
+                    "physicalInfeasibilityClaimed":False})
             c,d,u=unpack(x)
             numerical_cells=[]
             for j,values in enumerate(ev["details"]):
@@ -3092,7 +3117,15 @@ def case(r, name, dc, dd, solvers):
               "directSolve":{"status":"DIRECT_FIXED_PARTIAL_LAMBDA_189_EQUATION_SOLVE",
                 "lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
                 "homotopyUsed":False,"sourceAnchorStateSha256":
-                  partial_transfer_sizing_trial["sourceAnchorStateSha256"]}}
+                   partial_transfer_sizing_trial["sourceAnchorStateSha256"],
+                 "uncachedGateConfirmations":{
+                   "count":2,"first":metrics,"second":confirmation_metrics,
+                   "allGatesPassed":True},
+                 "eligibleNeighbourWarmStart":{
+                   "eligible":True,"state":x.tolist(),
+                   "stateSha256":digest(x.tolist()),
+                   "basis":"CONVERGED_DIRECT_NONLINEAR_SOLVE_AND_TWO_UNCACHED_ALL_GATE_EVALUATIONS",
+                   "doesNotSatisfyPhysicalTargets":True}}}
         if partial_diagnostic:
             if (not history or history[-1].get("lambda")
                 !=diagnostic_terminal_lambda):

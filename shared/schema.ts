@@ -17328,6 +17328,28 @@ export const ecrPrePilotPartialTransferPhysicalSizingResults = pgTable('ecr_pre_
     .on(table.createdBy, table.designId, table.createdAt),
 }));
 
+export const ecrPrePilotPartialTransferQualificationJobs = pgTable('ecr_pre_pilot_partial_transfer_qualification_jobs', {
+  id: uuid('id').primaryKey(),
+  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  inputSnapshot: jsonb('input_snapshot').notNull(),
+  inputHash: varchar('input_hash', { length: 64 }).notNull(),
+  resultSnapshot: jsonb('result_snapshot'),
+  resultHash: varchar('result_hash', { length: 64 }),
+  progress: jsonb('progress').notNull().default(sql`'{}'::jsonb`),
+  error: text('error'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  startedAt: timestamp('started_at'),
+  completedAt: timestamp('completed_at'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  scopeIndex: index('ecr_pre_pilot_partial_transfer_qualification_scope_idx')
+    .on(table.createdBy, table.designId, table.createdAt),
+  statusCheck: check('ecr_pre_pilot_partial_transfer_qualification_jobs_status_chk',
+    sql`status IN ('pending', 'running', 'completed', 'failed', 'cancelled', 'interrupted')`),
+}));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });

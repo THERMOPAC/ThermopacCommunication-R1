@@ -61,6 +61,14 @@ type JobCJob = {
   workflowTestOnly: boolean;
   error: string | null;
 };
+type SingleQualificationJob = {
+  qualificationId: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "interrupted";
+  progress: RecordValue;
+  result: RecordValue | null;
+  error: string | null;
+  inputHash: string | null;
+};
 
 const STAGE_3_PATH = "/design-software/ecr-pre-pilot-design/stage-3";
 const fixedOrderNotice = "The server returns the governed seven-component order. No client-side component order or coefficient is inferred.";
@@ -625,6 +633,64 @@ export function PartialTransferPhysicalSizingPanel({
   </section>;
 }
 
+/** Read-only polling and explicit controls for the one historical D/H point. */
+export function SinglePartialTransferQualificationPanel({
+  job, loading, onStart, onCancel, onRefresh, disabled,
+}: {
+  job: SingleQualificationJob | null; loading: boolean; onStart: () => void;
+  onCancel: () => void; onRefresh: () => void; disabled: boolean;
+}) {
+  const active = job?.status === "pending" || job?.status === "running";
+  const result = object(job?.result);
+  const targetChecks = object(read(result, "targetChecks"));
+  const transport = object(read(result, "transport"));
+  const selected = object(read(transport, "selected"));
+  const hydraulic = object(read(transport, "hydraulic"));
+  const gates = object(read(selected, "gateMetrics"));
+  return <section data-testid="single-partial-transfer-qualification-panel" className="overflow-hidden rounded-md border-2 border-emerald-700/50 bg-white">
+    <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-800">Explicit single qualification</p>
+      <h2 className="mt-1 text-sm font-semibold text-slate-950">Accepted anchor D=1.02876885 m · H=2 m · λ=8e-9</h2>
+      <p className="mt-2 text-[10px] leading-4 text-slate-700">This is one user-triggered direct 189-equation qualification seeded with the exact saved 189-coordinate anchor. It is not a D/H search, physical-compartment sizing, or Job-C queue action.</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button type="button" data-testid="qualify-accepted-partial-anchor" onClick={onStart}
+          disabled={disabled || loading || active} className="rounded border border-emerald-700 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50">
+          {active ? "Qualification running…" : "Qualify accepted anchor"}
+        </button>
+        {active ? <button type="button" data-testid="cancel-accepted-partial-qualification" onClick={onCancel}
+          className="rounded border border-red-700 bg-white px-2 py-1 text-[10px] font-semibold text-red-900">Cancel qualification</button> : null}
+        <button type="button" onClick={onRefresh} disabled={loading}
+          className="rounded border border-slate-500 bg-white px-2 py-1 text-[10px] font-semibold text-slate-800 disabled:opacity-50">Refresh saved status</button>
+      </div>
+      {active ? <p role="status" className="mt-2 text-[10px] text-emerald-950">Phase: {stringValue(read(job?.progress ?? {}, "phase"))} · elapsed: {metricValue(read(job?.progress ?? {}, "elapsedSeconds"), "s")}. Polling is read-only and never restarts work.</p> : null}
+    </div>
+    {!job ? <p className="p-3 text-[10px] text-slate-600">No saved single qualification. It begins only after the explicit button click.</p>
+      : <div className="space-y-2 p-3 text-[10px]">
+        <p><span className="font-semibold">Lifecycle:</span> {job.status} · <span className="font-mono">{job.qualificationId}</span></p>
+        {job.error ? <p role="alert" className="font-mono text-red-800">{job.error}</p> : null}
+        {Object.keys(result).length ? <>
+          <p><span className="font-semibold">Numerical qualification:</span> {stringValue(read(result, "numericalQualification"))}; <span className="font-semibold">Target result:</span> {stringValue(read(result, "targetQualification"))}. A missed target is reported separately from numerical qualification.</p>
+          <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["Recovery", read(selected, "recoveryPctNmpFreeRrboHydrocarbonMassBasis")],
+              ["Raw FV residual", read(gates, "rawFvResidualMolS")],
+              ["Scaled FV residual", read(gates, "scaledFvResidual")],
+              ["Interface residual", read(gates, "maximumOriginalJobBGateResidual")],
+              ["Minimum flow", read(gates, "minimumFlowMolS")],
+              ["Operating holdup", read(hydraulic, "operatingHoldup")],
+              ["Flood holdup", read(hydraulic, "floodHoldup")],
+              ["Flood margin", read(hydraulic, "floodMargin")],
+            ].map(([label, value]) => <div key={String(label)} className="rounded border border-emerald-200 bg-emerald-50/30 p-2"><dt className="text-slate-500">{label}</dt><dd className="font-mono">{scalarOrUnavailable(value)}</dd></div>)}
+          </dl>
+          {Array.isArray(read(targetChecks, "criteria")) ? <ul className="font-mono">{(read(targetChecks, "criteria") as unknown[]).map((entry, index) => {
+            const item = object(entry); return <li key={index}>{stringValue(read(item, "name"))}: {stringValue(read(item, "status"))} ({scalarOrUnavailable(read(item, "actual"))} {stringValue(read(item, "comparator"))} {scalarOrUnavailable(read(item, "target"))})</li>;
+          })}</ul> : null}
+          <details><summary className="cursor-pointer font-semibold">Show persisted actual transport, compositions, interfaces, and gates</summary><pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre></details>
+        </> : null}
+      </div>}
+  </section>;
+}
+
 function booleanValue(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
@@ -779,6 +845,8 @@ export default function EcrPrePilotDesignStage4Page() {
   const [partialTransferRunStatus, setPartialTransferRunStatus] = useState<PartialTransferControllerPhase>("idle");
   const [partialTransferRunError, setPartialTransferRunError] = useState<string | null>(null);
   const [partialTransferRunBaseline, setPartialTransferRunBaseline] = useState<PartialTransferResultIdentity | null>(null);
+  const [singleQualification, setSingleQualification] = useState<SingleQualificationJob | null>(null);
+  const [singleQualificationLoading, setSingleQualificationLoading] = useState(false);
   const priorJobCStatus = useRef<JobCStatus | null>(null);
   const partialTransferDesignId = useRef<number | null>(null);
   partialTransferDesignId.current = Number.isFinite(Number(design?.id)) ? Number(design?.id) : null;
@@ -812,6 +880,8 @@ export default function EcrPrePilotDesignStage4Page() {
     });
   }
   const jobCRunning = jobCSubmitting || jobCJob?.status === "pending" || jobCJob?.status === "running";
+  const singleQualificationRunning = singleQualification?.status === "pending"
+    || singleQualification?.status === "running";
   // The server owns all Job B lineage and prerequisite validation. Requiring
   // Job B React state here incorrectly disables Job C after a page reload.
   const canStartJobC = Boolean(design);
@@ -911,6 +981,52 @@ export default function EcrPrePilotDesignStage4Page() {
     return partialTransferController.current?.refresh(designId);
   }, []);
 
+  const loadSingleQualification = useCallback(async (designId: number) => {
+    setSingleQualificationLoading(true);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-qualification/jobs/latest`, { credentials: "include" });
+      if (response.status === 404) { setSingleQualification(null); return; }
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(stringValue(read(object(payload), "error", "message"), "Qualification status could not be loaded."));
+      const value = object(payload);
+      setSingleQualification({
+        qualificationId: stringValue(read(value, "qualificationId"), ""),
+        status: stringValue(read(value, "status"), "failed") as SingleQualificationJob["status"],
+        progress: object(read(value, "progress")), result: Object.keys(object(read(value, "result"))).length ? object(read(value, "result")) : null,
+        error: read(value, "error") == null ? null : String(read(value, "error")),
+        inputHash: read(value, "inputHash") == null ? null : String(read(value, "inputHash")),
+      });
+    } finally { setSingleQualificationLoading(false); }
+  }, []);
+
+  const startSingleQualification = useCallback(async () => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId) || singleQualificationRunning) return;
+    setSingleQualificationLoading(true);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-qualification/jobs`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(stringValue(read(object(payload), "error", "message"), "Qualification could not start."));
+      await loadSingleQualification(designId);
+    } catch (cause) {
+      setSingleQualification({
+        qualificationId: "", status: "failed", progress: {}, result: null,
+        error: cause instanceof Error ? cause.message : "Qualification could not start.", inputHash: null,
+      });
+    } finally { setSingleQualificationLoading(false); }
+  }, [design?.id, loadSingleQualification, singleQualificationRunning]);
+
+  const cancelSingleQualification = useCallback(async () => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId) || !singleQualification?.qualificationId) return;
+    await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-qualification/jobs/${singleQualification.qualificationId}/cancel`, {
+      method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}",
+    });
+    await loadSingleQualification(designId);
+  }, [design?.id, loadSingleQualification, singleQualification?.qualificationId]);
+
   const evaluatePartialTransferSizing = useCallback(() => {
     const designId = Number(design?.id);
     if (!Number.isFinite(designId) || loading || partialTransferSizingLoading
@@ -1006,6 +1122,18 @@ export default function EcrPrePilotDesignStage4Page() {
       partialTransferController.current?.stop();
     };
   }, [design?.id, loadPartialTransferSizing]);
+
+  useEffect(() => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId)) return;
+    void loadSingleQualification(designId);
+  }, [design?.id, loadSingleQualification]);
+  useEffect(() => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId) || !singleQualificationRunning) return;
+    const timer = window.setInterval(() => void loadSingleQualification(designId), 1500);
+    return () => window.clearInterval(timer);
+  }, [design?.id, loadSingleQualification, singleQualificationRunning]);
 
   useEffect(() => {
     const id = Number(design?.id);
@@ -1408,6 +1536,18 @@ export default function EcrPrePilotDesignStage4Page() {
               runStatus={partialTransferRunStatus}
               runError={partialTransferRunError}
               baseline={partialTransferRunBaseline}
+              disabled
+            />
+            <SinglePartialTransferQualificationPanel
+              job={singleQualification}
+              loading={singleQualificationLoading}
+              onStart={() => void startSingleQualification()}
+              onCancel={() => void cancelSingleQualification()}
+              onRefresh={() => {
+                const designId = Number(design?.id);
+                if (Number.isFinite(designId)) void loadSingleQualification(designId);
+              }}
+              disabled={loading}
             />
             {activeJob === "B" && <div role="status" className="flex items-start gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><p>Evaluating Job-A dependencies and solving the simultaneous interface chemical-potential and two-film equations before calculating fluxes. This may take several minutes. No sizing is performed.</p></div>}
             {jobCJob && <section role="status" className="rounded-md border border-violet-200 bg-violet-50 p-3 text-violet-950">
