@@ -282,6 +282,38 @@ describe('Job C queue blocked-result reuse', () => {
       && (values[16] as any)?.event === 'enqueue_reused')).toBe(true);
   });
 
+  it('allows a user retry after a pre-solve prepared-snapshot mismatch without reusing the old block', async () => {
+    state.reusableRow.error = 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE';
+    state.reusableRow.result_snapshot = { diagnostics: {
+      reason: 'COMPLETE_PREPARED_DEPENDENCY_SNAPSHOT_CHANGED',
+      frozenPreparedHash: 'b'.repeat(64),
+      currentPreparedHash: 'c'.repeat(64),
+    } };
+    state.reusableRow.result_hash = jobCScientificResultHash(state.reusableRow.result_snapshot);
+    const historical = JSON.stringify(state.reusableRow);
+    const result = await enqueueJobC(11, 22);
+    // Drain the immediate empty-queue poll before the next test installs
+    // its claimed-row fixture; the queue's busy flag is module-scoped.
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(result.reuse.reused).toBe(false);
+    expect(result.status).toBe('pending');
+    expect(prepareEcrPrePilotJobC).toHaveBeenCalled();
+    expect(state.queries.some(({ sql }) => sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(true);
+    expect(JSON.stringify(state.reusableRow)).toBe(historical);
+    expect(executePreparedEcrPrePilotJobC).not.toHaveBeenCalled();
+  });
+
+  it('still reuses other immutable-lineage blocks rather than bypassing scientific dependencies', async () => {
+    state.reusableRow.error = 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE';
+    state.reusableRow.result_snapshot = { diagnostics: {
+      reason: 'CURRENT_PINNED_DEPENDENCY_REVALIDATION_FAILED',
+    } };
+    state.reusableRow.result_hash = jobCScientificResultHash(state.reusableRow.result_snapshot);
+    const result = await enqueueJobC(11, 22);
+    expect(result.reuse.reused).toBe(true);
+    expect(state.queries.some(({ sql }) => sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(false);
+  });
+
   it('persists a sparse axial-profile block without creating a worker request', async () => {
     state.reusableRow = null;
     state.claimedRow = {
@@ -324,7 +356,9 @@ describe('Job C queue blocked-result reuse', () => {
         reason: 'NEW_JOB_ENQUEUED',
       },
     });
-    await vi.waitFor(() => expect(state.terminalRow).not.toBeNull());
+    // A prior enqueue may already have started the worker, so allow its
+    // one-second polling interval as well as the immediate-start path.
+    await vi.waitFor(() => expect(state.terminalRow).not.toBeNull(), { timeout: 3_000 });
     expect(state.terminalRow).toMatchObject({
       status: 'blocked',
       error: 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE',

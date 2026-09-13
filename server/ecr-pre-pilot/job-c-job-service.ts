@@ -251,12 +251,21 @@ export async function enqueueJobC(
       ],
     );
     const reusableRow = reusable.rows[0];
+    // This pre-solve failure is not a scientific result. Preparation above
+    // has freshly validated the current authorities; execution must still
+    // compare them again. Do not permanently cache a transient disagreement
+    // between the enqueue and execution processes as a transport failure.
+    const preparedSnapshotMismatch = reusableRow?.error
+      === 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE'
+      && reusableRow?.result_snapshot?.diagnostics?.reason
+        === 'COMPLETE_PREPARED_DEPENDENCY_SNAPSHOT_CHANGED';
     const storedResultHashValid = reusableRow
       && reusableRow.result_snapshot != null
       && typeof reusableRow.result_hash === 'string'
       && /^[a-f0-9]{64}$/.test(reusableRow.result_hash)
       && jobCScientificResultHash(reusableRow.result_snapshot) === reusableRow.result_hash;
     if (reusableRow
+      && !preparedSnapshotMismatch
       && jobCResultHash(reusableRow.input_snapshot) === reusableRow.input_hash
       && jobCResultHash(reusableRow.input_snapshot.prepared) === preparedInputHash
       && jobCResultHash(

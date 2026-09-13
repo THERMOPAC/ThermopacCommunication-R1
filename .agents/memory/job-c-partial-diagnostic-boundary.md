@@ -21,6 +21,12 @@ The user subsequently chose strict diagnostic convergence for the normal diagnos
 
 **How to apply:** Keep the button label and endpoint aligned with strict diagnostics. Preserve historical workflow-test results and their labels; do not silently reinterpret them as strict results.
 
+Do not reuse a pre-solve complete-prepared-snapshot mismatch as a permanent scientific blocked result.
+
+**Why:** A strict run blocked before solving was returned on every subsequent button click even after fresh preparation reproduced the original hash; changing the UI route alone did not unblock execution.
+
+**How to apply:** Permit a user-requested new attempt for this specific mismatch after fresh preparation, then enforce the full execution-time lineage check again. Keep scientific-block deduplication and historical snapshots intact.
+
 Keep new worker result labels ASCII-safe unless cross-language Unicode hash canonicalization is explicitly versioned and tested.
 
 **Why:** Python's default JSON escapes Unicode while JavaScript emits Unicode literally. An em dash in a result label caused an integrity failure after the real evaluation completed; prior numeric-only hash tests missed it.
