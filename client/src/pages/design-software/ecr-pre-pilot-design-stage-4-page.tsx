@@ -5,6 +5,22 @@ import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import {
+  isNewerPartialTransferResult,
+  partialTransferResultIdentity,
+  PartialTransferResultController,
+  type PartialTransferControllerPhase,
+  type PartialTransferResultIdentity,
+} from "@/lib/partial-transfer-result-controller";
+export {
+  isNewerPartialTransferResult,
+  partialTransferResultIdentity,
+} from "@/lib/partial-transfer-result-controller";
+export type {
+  PartialTransferControllerPhase,
+  PartialTransferResultIdentity,
+  PartialTransferRunStatus,
+} from "@/lib/partial-transfer-result-controller";
 
 type RecordValue = Record<string, unknown>;
 type JobAResponse = RecordValue & { result?: RecordValue; data?: RecordValue };
@@ -440,9 +456,37 @@ export function PhysicalSizingPanel({
 
 /** A separate server-owned nonlinear candidate operation; it never shares Job-C queue state. */
 export function PartialTransferPhysicalSizingPanel({
-  value, loading, error, onEvaluate, evaluating, canEvaluate,
-}: PhysicalSizingPanelProps) {
-  const status = stringValue(read(value ?? {}, "status"), loading ? "LOADING" : "NOT_AVAILABLE");
+  value,
+  loading,
+  error,
+  onEvaluate,
+  evaluating,
+  canEvaluate,
+  onRefresh,
+  refreshing = false,
+  disabled = false,
+  runStatus = "idle",
+  runError = null,
+  baseline = null,
+}: PhysicalSizingPanelProps & {
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  disabled?: boolean;
+  runStatus?: PartialTransferControllerPhase;
+  runError?: string | null;
+  baseline?: PartialTransferResultIdentity | null;
+}) {
+  const runInProgress = runStatus === "baseline" || runStatus === "running" || runStatus === "reconciling";
+  const runHasUnreconciledOutcome = runStatus !== "idle" && runStatus !== "completed";
+  const status = runStatus === "baseline"
+    ? "READING SAVED RESULT"
+    : runStatus === "running"
+      ? "RUNNING"
+      : runStatus === "reconciling" || runStatus === "timed_out"
+        ? "OUTCOME_UNKNOWN"
+        : runStatus === "blocked"
+          ? "BLOCKED"
+          : stringValue(read(value ?? {}, "status"), loading ? "LOADING" : "NOT_AVAILABLE");
   const geometry = object(read(value ?? {}, "stage3Geometry"));
   const target = object(read(value ?? {}, "target"));
   const solve = object(read(value ?? {}, "solve"));
@@ -451,6 +495,16 @@ export function PartialTransferPhysicalSizingPanel({
   const efficiencyReason = read(value ?? {}, "efficiencyNullReason");
   const targetCriteria = Array.isArray(read(target, "criteria")) ? read(target, "criteria") as unknown[] : [];
   const assumptions = flagsOf(read(value ?? {}, "assumptions"));
+  const trials = records(read(value ?? {}, "trialEvidence", "provenanceTrials", "trials"));
+  const identity = partialTransferResultIdentity(value);
+  // A missing baseline means the authoritative pre-run GET failed; the
+  // displayed row must never be treated as the current run's outcome.
+  const valueIsNewerThanBaseline = baseline
+    ? isNewerPartialTransferResult(value, baseline)
+    : false;
+  const savedResultLabel = identity.id == null && identity.createdAt == null
+    ? "saved result"
+    : `saved result ${identity.id == null ? "" : `#${identity.id}`} ${identity.createdAt == null ? "" : `from ${new Date(identity.createdAt).toLocaleString()}`}`.trim();
   return <section data-testid="partial-transfer-physical-sizing-panel" className="overflow-hidden rounded-md border-2 border-cyan-700/50 bg-white">
     <div className="border-b border-cyan-200 bg-cyan-50 px-4 py-3">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-800">Stage 4 · separate partial-transfer pre-pilot estimate</p>
@@ -459,16 +513,52 @@ export function PartialTransferPhysicalSizingPanel({
         <span className="rounded border border-cyan-300 bg-white px-2 py-1 font-mono text-[10px] font-semibold">Status: {status}</span>
       </div>
       <p className="mt-2 text-[10px] leading-4 text-slate-700">User-triggered, isolated D/H candidate search seeded by the owned verified strict λ=8e-9, 2 m anchor. Every candidate re-solves the coupled 189 equations at λ=8e-9; it does not queue, resume, or run λ=1 Job C.</p>
-      <button type="button" data-testid="evaluate-partial-transfer-physical-sizing" onClick={onEvaluate}
-        disabled={!canEvaluate || evaluating} className="mt-2 rounded border border-cyan-700 bg-white px-2 py-1 text-[10px] font-semibold text-cyan-900 disabled:cursor-not-allowed disabled:opacity-50">
-        {evaluating ? "Solving bounded candidates…" : "Run partial-transfer candidate sizing"}
-      </button>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <button type="button" data-testid="evaluate-partial-transfer-physical-sizing" onClick={onEvaluate}
+           disabled={!canEvaluate || disabled || evaluating || runInProgress} className="rounded border border-cyan-700 bg-white px-2 py-1 text-[10px] font-semibold text-cyan-900 disabled:cursor-not-allowed disabled:opacity-50">
+          {evaluating || runInProgress ? "Solving bounded candidates…" : "Run partial-transfer candidate sizing"}
+        </button>
+        {onRefresh ? <button type="button" data-testid="refresh-partial-transfer-saved-result" onClick={onRefresh}
+           disabled={!canEvaluate || disabled || refreshing} className="rounded border border-slate-500 bg-white px-2 py-1 text-[10px] font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50">
+          {refreshing ? "Refreshing saved result…" : "Refresh saved result"}
+        </button> : null}
+      </div>
+      {runInProgress ? <div role="status" aria-live="polite" className="mt-2 rounded border border-cyan-400 bg-white p-2 text-[10px] text-cyan-950">
+        <p className="font-semibold">{runStatus === "baseline" ? "READING SAVED RESULT — establishing an authoritative baseline." : runStatus === "running" ? "RUNNING — waiting for a newer saved child result." : "OUTCOME UNKNOWN — the POST response did not establish the saved child outcome."}</p>
+        <p className="mt-1">{runStatus === "baseline" ? "The explicit solver request has not started. A failed baseline GET will not start a solver." : "Monitoring uses read-only GET requests only; it never starts another solver."} {value ? `The ${savedResultLabel} below is retained as historical evidence until a newer id/time is observed.` : "No saved result is available yet."}</p>
+      </div> : null}
+      {runStatus === "blocked" ? <div role="alert" className="mt-2 rounded border border-red-400 bg-red-50 p-2 text-[10px] text-red-950">
+        <p className="font-semibold">BLOCKED — definitive dependency result; no solver remains in flight.</p>
+        <p className="mt-1">{runError ?? "The server rejected this request before a saved result was created."}</p>
+      </div> : null}
+      {runStatus === "timed_out" ? <div role="alert" className="mt-2 rounded border border-amber-400 bg-amber-50 p-2 text-[10px] text-amber-950">
+        <p className="font-semibold">POST response unavailable; bounded reconciliation stopped.</p>
+        <p className="mt-1">{runError ?? "No newer saved result was observed before the reconciliation deadline."}</p>
+        {value ? <p className="mt-1">The displayed record remains the last saved result and is not presented as this run.</p> : null}
+      </div> : null}
+      {runStatus === "completed" ? <p role="status" className="mt-2 rounded border border-emerald-300 bg-emerald-50 p-2 text-[10px] font-semibold text-emerald-950">Latest saved child reconciled from the read-only endpoint.</p> : null}
+      {runError && runInProgress ? <p role="alert" className="mt-2 font-mono text-[10px] text-amber-800">{runError}</p> : null}
     </div>
     {loading ? <div role="status" className="p-4 text-xs text-slate-600">Loading separate partial-transfer estimate…</div>
-      : !value ? <div className="p-4 text-xs text-slate-700">No separate estimate is available.{error ? <p className="mt-1 font-mono text-[10px] text-amber-800">{error}</p> : null}</div>
+      : !value ? <div className="p-4 text-xs text-slate-700"><p>{runInProgress ? "No saved result is available while this run is in progress." : "No separate estimate is available."}</p>{error ? <p className="mt-1 font-mono text-[10px] text-amber-800">{error}</p> : null}</div>
       : <div className="space-y-3 p-3">
         {error ? <p className="font-mono text-[10px] text-amber-800">{error}</p> : null}
         {read(value, "staleStatus") ? <p className="rounded border border-amber-300 bg-amber-50 p-2 text-[10px] font-semibold text-amber-950">STALE: {stringValue(read(value, "reason"))}</p> : null}
+        {runHasUnreconciledOutcome && !valueIsNewerThanBaseline ? <p data-testid="partial-transfer-historical-result" className="rounded border border-amber-300 bg-amber-50 p-2 text-[10px] font-semibold text-amber-950">
+          HISTORICAL SAVED RESULT — {savedResultLabel}. This record predates the run under review and is not its outcome.
+        </p> : null}
+        {read(value, "reason", "statusReason", "blockingReason") ? <p data-testid="partial-transfer-result-reason" className="rounded border border-cyan-200 bg-cyan-50/30 p-2 text-[10px] text-slate-800">
+          <span className="font-semibold">Saved result reason:</span> {stringValue(read(value, "reason", "statusReason", "blockingReason"))}
+        </p> : null}
+        <section data-testid="partial-transfer-result-provenance" className="rounded border border-cyan-200 bg-cyan-50/30 p-2 text-[10px]">
+          <h3 className="font-semibold text-slate-900">Saved result provenance</h3>
+          <dl className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div><dt className="text-slate-500">Saved result ID</dt><dd className="font-mono">{stringValue(read(value, "id", "resultId", "savedId"), "Unavailable")}</dd></div>
+            <div><dt className="text-slate-500">Saved result time</dt><dd className="font-mono">{stringValue(read(value, "createdAt", "created_at", "savedAt"), "Unavailable")}</dd></div>
+            <div><dt className="text-slate-500">Source run ID</dt><dd className="break-all font-mono">{stringValue(read(value, "sourceRunId", "sourceJobId", "anchorJobId") ?? read(anchor, "sourceRunId", "sourceJobId", "anchorJobId"), "Unavailable")}</dd></div>
+            <div><dt className="text-slate-500">Source run time</dt><dd className="font-mono">{stringValue(read(value, "sourceRunTime", "sourceRunCreatedAt", "sourceRunCompletedAt", "sourceCreatedAt", "sourceCompletedAt") ?? read(anchor, "sourceRunTime", "sourceRunCreatedAt", "sourceRunCompletedAt", "createdAt", "completedAt"), "Unavailable")}</dd></div>
+          </dl>
+        </section>
         <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {[
             ["Required active height", metricValue(read(value, "requiredActiveHeightM"), "m")],
@@ -497,6 +587,40 @@ export function PartialTransferPhysicalSizingPanel({
         <p className="text-[10px] text-slate-700">Stage efficiency is intentionally not inferred from N<sub>T</sub>, numerical cells, or height. Missing prerequisite: <span className="font-mono">{stringValue(efficiencyReason, "SUPPORTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED")}</span>.</p>
         <p className="text-[10px] text-slate-700">Equations: <span className="font-mono break-all">{flagsOf(read(value, "equations")).join(" | ")}</span></p>
         {assumptions.length ? <ul className="list-disc space-y-0.5 pl-4 text-[10px] text-slate-600">{assumptions.map(item => <li key={item}>{item}</li>)}</ul> : null}
+        <section data-testid="partial-transfer-trial-diagnostics" className="rounded border border-cyan-200 bg-white p-2">
+          <h3 className="text-[10px] font-semibold text-slate-900">Full candidate trial diagnostics</h3>
+          {trials.length ? <div className="mt-2 overflow-x-auto"><table className="w-full min-w-[980px] text-left text-[10px]">
+            <thead className="bg-cyan-950 text-white"><tr><th className="px-2 py-2">Trial</th><th className="px-2 py-2">Status / reason</th><th className="px-2 py-2">Candidate D [m]</th><th className="px-2 py-2">Candidate H [m]</th><th className="px-2 py-2">Solver / timeout evidence</th><th className="px-2 py-2">Returned diagnostic record</th></tr></thead>
+            <tbody className="divide-y divide-slate-200">{trials.map((trial, index) => {
+              const candidate = object(read(trial, "candidate", "selectedCandidate", "design"));
+              const candidateDiameter = read(candidate, "columnDiameterM", "diameterM")
+                ?? read(trial, "columnDiameterM", "diameterM")
+                ?? read(geometry, "columnDiameterM");
+              const candidateHeight = read(candidate, "compartmentHeightM", "heightM")
+                ?? read(trial, "heightM", "compartmentHeightM")
+                ?? read(object(read(trial, "selected")), "heightM");
+              const checkpoints = ["lowerBracket", "upperBracket", "seed", "maximum", "middle", "selected"]
+                .map(key => [key, object(read(trial, key))] as const)
+                .filter(([, checkpoint]) => Object.keys(checkpoint).length > 0);
+              const solverEvidence = [
+                read(trial, "solverReason", "terminationReason", "timeoutReason", "failureReason", "reason"),
+                ...checkpoints.map(([key, checkpoint]) => {
+                  const reason = read(checkpoint, "solverReason", "terminationReason", "timeoutReason", "failureReason", "reason", "message", "error");
+                  const statusValue = read(checkpoint, "solverStatus", "terminationStatus", "status");
+                  return reason ?? (statusValue == null ? null : `${key}: ${String(statusValue)}`);
+                }),
+              ].filter(item => item != null).map(String);
+              return <tr key={`${stringValue(read(trial, "trialId", "ordinal"), index)}-${index}`} className="align-top">
+                <td className="px-2 py-2 font-mono">{stringValue(read(trial, "trialId", "ordinal"), String(index + 1))}</td>
+                <td className="px-2 py-2"><span className="font-semibold">{stringValue(read(trial, "status", "hydraulicStatus"))}</span>{read(trial, "reason") ? <><br /><span className="text-slate-600">{String(read(trial, "reason"))}</span></> : null}</td>
+                <td className="px-2 py-2 font-mono">{metricValue(candidateDiameter, "m")}</td>
+                <td className="px-2 py-2 font-mono">{metricValue(candidateHeight, "m")}</td>
+                <td className="px-2 py-2 font-mono break-words">{solverEvidence.length ? solverEvidence.join(" · ") : "No solver/timeout reason returned"}</td>
+                <td className="px-2 py-2"><details><summary className="cursor-pointer font-semibold">Show actual fields</summary><pre className="mt-1 max-h-48 max-w-[460px] overflow-auto whitespace-pre-wrap">{JSON.stringify(trial, null, 2)}</pre></details></td>
+              </tr>;
+            })}</tbody>
+          </table></div> : <p className="mt-2 text-[10px] text-slate-600">No trial evidence was returned.</p>}
+        </section>
       </div>}
   </section>;
 }
@@ -650,7 +774,43 @@ export default function EcrPrePilotDesignStage4Page() {
   const [partialTransferSizingLoading, setPartialTransferSizingLoading] = useState(false);
   const [partialTransferSizingError, setPartialTransferSizingError] = useState<string | null>(null);
   const [partialTransferSizingSubmitting, setPartialTransferSizingSubmitting] = useState(false);
+  // These hooks intentionally follow the existing state list: a few static
+  // server-rendered regression tests provide positional state values.
+  const [partialTransferRunStatus, setPartialTransferRunStatus] = useState<PartialTransferControllerPhase>("idle");
+  const [partialTransferRunError, setPartialTransferRunError] = useState<string | null>(null);
+  const [partialTransferRunBaseline, setPartialTransferRunBaseline] = useState<PartialTransferResultIdentity | null>(null);
   const priorJobCStatus = useRef<JobCStatus | null>(null);
+  const partialTransferDesignId = useRef<number | null>(null);
+  partialTransferDesignId.current = Number.isFinite(Number(design?.id)) ? Number(design?.id) : null;
+  const partialTransferController = useRef<PartialTransferResultController | null>(null);
+  if (!partialTransferController.current) {
+    partialTransferController.current = new PartialTransferResultController({
+      callbacks: {
+        onPhase: (phase) => {
+          setPartialTransferRunStatus(phase);
+          if (phase === "baseline") setPartialTransferRunBaseline(null);
+          if (["completed", "blocked", "timed_out"].includes(phase)) {
+            setPartialTransferSizingSubmitting(false);
+          }
+        },
+        onResult: (value, source) => {
+          setPartialTransferSizing(value);
+          setPartialTransferSizingError(null);
+          if (source === "baseline") {
+            setPartialTransferRunBaseline(partialTransferResultIdentity(value));
+          }
+        },
+        onGetError: (message, source) => {
+          // Keep any saved row visible alongside a meaningful read error.
+          setPartialTransferSizingError(message);
+          if (source === "baseline") setPartialTransferRunError(message);
+        },
+        onPostError: (message) => setPartialTransferRunError(message),
+        onLoading: setPartialTransferSizingLoading,
+      },
+      isDesignCurrent: (designId) => partialTransferDesignId.current === designId,
+    });
+  }
   const jobCRunning = jobCSubmitting || jobCJob?.status === "pending" || jobCJob?.status === "running";
   // The server owns all Job B lineage and prerequisite validation. Requiring
   // Job B React state here incorrectly disables Job C after a page reload.
@@ -712,6 +872,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const evaluatePhysicalSizing = useCallback(async () => {
     const designId = Number(design?.id);
     if (!Number.isFinite(designId)) return;
+    const isCurrent = () => partialTransferDesignId.current === designId;
     setPhysicalSizingSubmitting(true);
     // POST is only an evaluation request. Its response can become stale before
     // it reaches the browser, so only GET's current-lineage representation may
@@ -728,79 +889,40 @@ export default function EcrPrePilotDesignStage4Page() {
         ? stringValue(read(object(payload), "reason", "message", "error"),
           "Physical sizing could not be evaluated.")
         : null;
+      if (!isCurrent()) return;
       await loadPhysicalSizing(designId);
+      if (!isCurrent()) return;
       if (!response.ok) {
         setPhysicalSizingError(evaluationError);
       }
     } catch (cause: unknown) {
+      if (!isCurrent()) return;
       // A timeout can occur after the server has persisted a child result;
       // reload current authority rather than leaving a direct POST value.
       await loadPhysicalSizing(designId);
       setPhysicalSizingError(cause instanceof Error ? cause.message : "Physical sizing could not be evaluated.");
     } finally {
+      if (!isCurrent()) return;
       setPhysicalSizingSubmitting(false);
     }
   }, [design?.id, loadPhysicalSizing]);
 
   const loadPartialTransferSizing = useCallback(async (designId: number) => {
-    setPartialTransferSizingLoading(true);
-    setPartialTransferSizingError(null);
-    try {
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-physical-sizing/latest`, { credentials: "include" });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        setPartialTransferSizing(null);
-        setPartialTransferSizingError(stringValue(read(object(payload), "error", "message"), "The separate estimate is unavailable."));
-        return;
-      }
-      setPartialTransferSizing(object(payload));
-    } catch (cause: unknown) {
-      setPartialTransferSizing(null);
-      setPartialTransferSizingError(cause instanceof Error ? cause.message : "The separate estimate could not be loaded.");
-    } finally {
-      setPartialTransferSizingLoading(false);
-    }
+    return partialTransferController.current?.refresh(designId);
   }, []);
 
-  const evaluatePartialTransferSizing = useCallback(async () => {
+  const evaluatePartialTransferSizing = useCallback(() => {
     const designId = Number(design?.id);
-    if (!Number.isFinite(designId)) return;
+    if (!Number.isFinite(designId) || loading || partialTransferSizingLoading
+      || ["baseline", "running", "reconciling"].includes(partialTransferRunStatus)) return;
+    setPartialTransferRunError(null);
     setPartialTransferSizingSubmitting(true);
     setPartialTransferSizingError(null);
-    try {
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-physical-sizing/evaluate`, {
-        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}",
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        const blocked = object(payload);
-        // 409 is an expected server-owned dependency/staleness result. Keep
-        // its structured status/reason visible instead of reducing it to a
-        // transport failure.
-        if (typeof blocked.status === "string") setPartialTransferSizing(blocked);
-        setPartialTransferSizingError(stringValue(
-          read(blocked, "reason", "error", "message"),
-          "The separate estimate could not be evaluated.",
-        ));
-        return;
-      }
-      // A model-invalid or dependency-blocked assessment is intentionally a
-      // truthful direct server outcome even when no immutable child can be
-      // saved (for example, an untrusted source hash). It is still not
-      // browser reconstruction.
-      const direct = object(payload);
-      setPartialTransferSizing(Object.keys(direct).length ? direct : null);
-      if (direct.status === "CALCULATED_EVALUABLE_TARGETS_WITH_SULFUR_AND_EFFICIENCY_BLOCKED"
-        || direct.status === "NO_FEASIBLE_CANDIDATE"
-        || direct.status === "INDETERMINATE") {
-        await loadPartialTransferSizing(designId);
-      }
-    } catch (cause: unknown) {
-      setPartialTransferSizingError(cause instanceof Error ? cause.message : "The separate estimate could not be evaluated.");
-    } finally {
-      setPartialTransferSizingSubmitting(false);
-    }
-  }, [design?.id, loadPartialTransferSizing]);
+    // The explicit POST route /partial-transfer-physical-sizing/evaluate is
+    // intentionally kept in the controller; this call starts no solver until
+    // the authoritative baseline GET succeeds.
+    void partialTransferController.current?.evaluate(designId);
+  }, [design?.id, loading, partialTransferRunStatus, partialTransferSizingLoading]);
 
   useEffect(() => {
     const status = jobCJob?.status ?? null;
@@ -822,6 +944,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const loadDesign = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setActiveJob(null);
     setEvaluation(null);
     setJobBEvaluation(null);
     setJobBDiagnostic(null);
@@ -829,8 +952,11 @@ export default function EcrPrePilotDesignStage4Page() {
     setJobCDiagnostic(null);
     setJobCJob(null);
     setJobCPollError(null);
+    setJobCSubmitting(false);
+    setJobCStopping(false);
     setPhysicalSizing(null);
     setPhysicalSizingError(null);
+    setPartialTransferSizingLoading(true);
     setPartialTransferSizing(null);
     setPartialTransferSizingError(null);
     try {
@@ -839,14 +965,20 @@ export default function EcrPrePilotDesignStage4Page() {
       if (response.status === 404) throw new Error("Save Stage 1 inputs before opening Job-A coefficient testing.");
       if (!response.ok) throw new Error(stringValue(read(object(payload), "message", "error"), "The latest saved design could not be loaded."));
       const loadedDesign = object(payload);
+      // Keep evaluate disabled during the hand-off to the authoritative
+      // latest-result GET started by the design-id effect.
+      setPartialTransferSizingLoading(true);
       setDesign(loadedDesign);
       const designId = Number(loadedDesign.id);
       if (Number.isFinite(designId)) {
+        // The state update renders on the next turn; establish the lineage
+        // guard before starting these read-only child requests.
+        partialTransferDesignId.current = designId;
         void loadPhysicalSizing(designId);
-        void loadPartialTransferSizing(designId);
       }
     } catch (cause: unknown) {
       setDesign(null);
+      setPartialTransferSizingLoading(false);
       setError(cause instanceof Error ? cause.message : "The latest saved design could not be loaded.");
     } finally {
       setLoading(false);
@@ -854,6 +986,26 @@ export default function EcrPrePilotDesignStage4Page() {
   }, [loadPhysicalSizing, loadPartialTransferSizing]);
 
   useEffect(() => { void loadDesign(); }, [loadDesign]);
+
+  useEffect(() => {
+    // A design change invalidates every in-flight child GET and every
+    // reconciliation timer. Polling is deliberately never a solver trigger.
+    partialTransferController.current?.stop();
+    setPartialTransferRunStatus("idle");
+    setPartialTransferRunError(null);
+    setPartialTransferRunBaseline(null);
+    setPartialTransferSizingSubmitting(false);
+    setPartialTransferSizingLoading(false);
+    setActiveJob(null);
+    setPhysicalSizingSubmitting(false);
+    setJobCSubmitting(false);
+    setJobCStopping(false);
+    const id = Number(design?.id);
+    if (Number.isFinite(id)) void loadPartialTransferSizing(id);
+    return () => {
+      partialTransferController.current?.stop();
+    };
+  }, [design?.id, loadPartialTransferSizing]);
 
   useEffect(() => {
     const id = Number(design?.id);
@@ -909,6 +1061,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const runEvaluation = async () => {
     const id = Number(design?.id);
     if (!Number.isFinite(id)) return;
+    const isCurrent = () => partialTransferDesignId.current === id;
     setActiveJob("A");
     setError(null);
     setEvaluation(null);
@@ -921,14 +1074,17 @@ export default function EcrPrePilotDesignStage4Page() {
     try {
       const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-a/evaluate`, { method: "POST", credentials: "include" });
       const payload = await response.json().catch(() => ({}));
+      if (!isCurrent()) return;
       if (!response.ok) throw new Error(stringValue(read(object(payload), "message", "error"), "Job-A evaluation did not complete."));
       setEvaluation(object(payload));
       toast({ title: "Job-A evaluation completed", description: "The returned coefficients are shown below without client-side reconstruction." });
     } catch (cause: unknown) {
+      if (!isCurrent()) return;
       const message = cause instanceof Error ? cause.message : "Job-A evaluation did not complete.";
       setError(message);
       toast({ title: "Job-A evaluation blocked", description: message, variant: "destructive" });
     } finally {
+      if (!isCurrent()) return;
       setActiveJob(null);
     }
   };
@@ -936,6 +1092,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const runJobBEvaluation = async () => {
     const id = Number(design?.id);
     if (!Number.isFinite(id)) return;
+    const isCurrent = () => partialTransferDesignId.current === id;
     setActiveJob("B");
     setError(null);
     setJobBEvaluation(null);
@@ -947,6 +1104,7 @@ export default function EcrPrePilotDesignStage4Page() {
     try {
       const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-b/evaluate`, { method: "POST", credentials: "include" });
       const payload = await response.json().catch(() => ({}));
+      if (!isCurrent()) return;
       if (!response.ok) {
         if (payload.details) setJobBDiagnostic(object(payload.details));
         throw new Error(stringValue(read(object(payload), "message", "error"), "Job-B local flux test did not complete."));
@@ -954,10 +1112,12 @@ export default function EcrPrePilotDesignStage4Page() {
       setJobBEvaluation(object(payload));
       toast({ title: "Job-B local test completed", description: "Seven-component fluxes and local Stage-3 coupling are shown below. No column sizing was performed." });
     } catch (cause: unknown) {
+      if (!isCurrent()) return;
       const message = cause instanceof Error ? cause.message : "Job-B local flux test did not complete.";
       setError(message);
       toast({ title: "Job-B local test blocked", description: message, variant: "destructive" });
     } finally {
+      if (!isCurrent()) return;
       setActiveJob(null);
     }
   };
@@ -965,6 +1125,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const runJobCEvaluation = async () => {
     const id = Number(design?.id);
     if (!Number.isFinite(id) || !canStartJobC || jobCRunning || jobCStopping) return;
+    const isCurrent = () => partialTransferDesignId.current === id;
     setJobCSubmitting(true);
     setError(null);
     setJobCEvaluation(null);
@@ -973,6 +1134,7 @@ export default function EcrPrePilotDesignStage4Page() {
     try {
       const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-c/diagnostic/strict/jobs`, { method: "POST", credentials: "include" });
       const payload = await response.json().catch(() => ({}));
+      if (!isCurrent()) return;
       if (!response.ok) {
         const blockedPayload = object(payload);
         const message = stringValue(read(blockedPayload, "message", "error"), "Job C could not be started.");
@@ -984,10 +1146,12 @@ export default function EcrPrePilotDesignStage4Page() {
       applyJobCJob(payload);
       toast({ title: "Job C strict diagnostic queued", description: "Strict partial-transfer target λ = 8.000e-9. The solver attempts convergence with all scientific gates enforced. An earlier blocker may prevent reaching the target; this cannot accept a column design." });
     } catch (cause: unknown) {
+      if (!isCurrent()) return;
       const message = cause instanceof Error ? cause.message : "Job C could not be started.";
       setError(message);
       toast({ title: "Job C could not start", description: message, variant: "destructive" });
     } finally {
+      if (!isCurrent()) return;
       setJobCSubmitting(false);
     }
   };
@@ -998,6 +1162,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const runFullJobCFromStrictAnchor = async () => {
     const id = Number(design?.id);
     if (!Number.isFinite(id) || !canStartJobC || jobCRunning || jobCStopping) return;
+    const isCurrent = () => partialTransferDesignId.current === id;
     setJobCSubmitting(true);
     setError(null);
     setJobCEvaluation(null);
@@ -1009,6 +1174,7 @@ export default function EcrPrePilotDesignStage4Page() {
         { method: "POST", credentials: "include" },
       );
       const payload = await response.json().catch(() => ({}));
+      if (!isCurrent()) return;
       if (!response.ok) {
         const blockedPayload = object(payload);
         const message = stringValue(read(blockedPayload, "message", "error"),
@@ -1024,10 +1190,12 @@ export default function EcrPrePilotDesignStage4Page() {
         description: "The server selected a verified strict λ = 8.000e-9 / 2 m diagnostic anchor. The worker must re-evaluate that anchor before continuing the normal λ = 1 sequence. This action does not establish sizing eligibility.",
       });
     } catch (cause: unknown) {
+      if (!isCurrent()) return;
       const message = cause instanceof Error ? cause.message : "Full Job C continuation could not be started.";
       setError(message);
       toast({ title: "Full Job C continuation blocked", description: message, variant: "destructive" });
     } finally {
+      if (!isCurrent()) return;
       setJobCSubmitting(false);
     }
   };
@@ -1035,6 +1203,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const cancelJobC = async () => {
     const id = Number(design?.id);
     if (!Number.isFinite(id) || !jobCJob?.jobId || !["pending", "running"].includes(jobCJob.status) || jobCStopping) return;
+    const isCurrent = () => partialTransferDesignId.current === id;
     setJobCStopping(true);
     try {
       const response = await fetch(
@@ -1042,6 +1211,7 @@ export default function EcrPrePilotDesignStage4Page() {
         { method: "POST", credentials: "include" },
       );
       const payload = await response.json().catch(() => ({}));
+      if (!isCurrent()) return;
       if (!response.ok) throw new Error(stringValue(read(object(payload), "error", "message"), "Job C could not be cancelled."));
       // Some compatible cancel endpoints acknowledge only the request. Keep
       // the live record in that case so the status poll can observe cancelled.
@@ -1049,6 +1219,7 @@ export default function EcrPrePilotDesignStage4Page() {
       setJobCPollError(null);
       toast({ title: "Job C stop requested", description: "Polling continues until the calculation reports its terminal status." });
     } catch (cause: unknown) {
+      if (!isCurrent()) return;
       setJobCStopping(false);
       toast({
         title: "Job C could not be cancelled",
@@ -1220,6 +1391,7 @@ export default function EcrPrePilotDesignStage4Page() {
               onEvaluate={() => void evaluatePhysicalSizing()}
               evaluating={physicalSizingSubmitting}
               canEvaluate={Boolean(design?.id)}
+              disabled={loading || partialTransferSizingLoading}
             />
             <PartialTransferPhysicalSizingPanel
               value={partialTransferSizing}
@@ -1228,6 +1400,14 @@ export default function EcrPrePilotDesignStage4Page() {
               onEvaluate={() => void evaluatePartialTransferSizing()}
               evaluating={partialTransferSizingSubmitting}
               canEvaluate={Boolean(design?.id)}
+              onRefresh={() => {
+                const designId = Number(design?.id);
+                if (Number.isFinite(designId)) void loadPartialTransferSizing(designId);
+              }}
+              refreshing={partialTransferSizingLoading}
+              runStatus={partialTransferRunStatus}
+              runError={partialTransferRunError}
+              baseline={partialTransferRunBaseline}
             />
             {activeJob === "B" && <div role="status" className="flex items-start gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><p>Evaluating Job-A dependencies and solving the simultaneous interface chemical-potential and two-film equations before calculating fluxes. This may take several minutes. No sizing is performed.</p></div>}
             {jobCJob && <section role="status" className="rounded-md border border-violet-200 bg-violet-50 p-3 text-violet-950">

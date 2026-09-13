@@ -14,3 +14,9 @@ Minimum-height claims are bounded by the explored domain, resolved brackets, and
 **Why:** Recovery and quality impose different constraints; their conjunction is not a generally monotone height predicate. An endpoint failure cannot exclude an interior feasible interval.
 
 **How to apply:** Preserve per-target evidence and search limits. Do not weaken gates to obtain a result. Physical-stage efficiency still requires a supported physical-compartment model; numerical cells or a bare theoretical-to-physical count ratio do not supply it.
+
+Saved assessment identity, not the long-running HTTP response or displayed previous status, determines whether a new outcome is available.
+
+**Why:** A completed search saved an indeterminate result while the browser retained the older invalid-model assessment after a request failure.
+
+**How to apply:** Establish a server-read baseline before explicit evaluation; reconcile newer saved outcomes through read-only requests. Separate transport uncertainty from running-state evidence, and never trigger another solve to refresh results.

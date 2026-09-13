@@ -2130,9 +2130,35 @@ export async function getLatestPartialTransferPhysicalSizing(userId: number, des
   // A stale assessment remains useful audit evidence. Preserve its saved
   // server-derived geometry/null reasons while clearly overriding status so
   // the UI cannot present it as current.
+  let sourceRun: {
+    id: string | number;
+    created_at: string | Date | null;
+    started_at: string | Date | null;
+    completed_at: string | Date | null;
+    status: string | null;
+  } | null = null;
+  try {
+    const sourceRunResult = await pool.query(
+      `SELECT id,created_at,started_at,completed_at,status
+         FROM ecr_pre_pilot_job_c_jobs
+        WHERE id=$1 AND design_id=$2 AND created_by=$3`,
+      [row.anchor_job_id, designId, userId],
+    );
+    sourceRun = sourceRunResult.rows[0] ?? null;
+  } catch {
+    // The immutable child remains readable if an older deployment does not
+    // expose optional source-run metadata. Hash and lineage checks below are
+    // still authoritative.
+  }
   const savedAssessment = {
+    ...row.result_snapshot,
     id: Number(row.id), createdAt: new Date(row.created_at).toISOString(),
-    resultHash: row.result_hash, immutableHash: row.immutable_hash, ...row.result_snapshot,
+    resultHash: row.result_hash, immutableHash: row.immutable_hash,
+    sourceRunId: row.anchor_job_id,
+    sourceRunCreatedAt: sourceRun?.created_at ? new Date(sourceRun.created_at).toISOString() : null,
+    sourceRunStartedAt: sourceRun?.started_at ? new Date(sourceRun.started_at).toISOString() : null,
+    sourceRunCompletedAt: sourceRun?.completed_at ? new Date(sourceRun.completed_at).toISOString() : null,
+    sourceRunStatus: sourceRun?.status ?? null,
   };
   const design = await pool.query<{ input_data: unknown }>(
     `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`, [designId, userId],
