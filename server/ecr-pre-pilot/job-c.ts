@@ -12,7 +12,7 @@ export const JOB_C_COMPONENT_ORDER = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 
  */
 export const JOB_C_TEMPORARY_DIAGNOSTIC_MODE = Object.freeze({
   mode: 'TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1',
-  terminalLambda: 6.5e-9,
+  terminalLambda: 8.0e-9,
   heightTrialM: 2,
   normalAcceptancePermitted: false,
   qualification: 'USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY',
@@ -24,7 +24,7 @@ export const JOB_C_TEMPORARY_DIAGNOSTIC_MODE = Object.freeze({
  */
 export const JOB_C_WORKFLOW_TEST_ONLY_MODE = Object.freeze({
   mode: 'TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1',
-  terminalLambda: 6.5e-9,
+  terminalLambda: 8.0e-9,
   heightTrialM: 2,
   normalAcceptancePermitted: false,
   workflowTestOnly: true,

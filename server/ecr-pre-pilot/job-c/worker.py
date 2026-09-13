@@ -3293,12 +3293,12 @@ for line in sys.stdin:
     diagnostic_mode=r.get("diagnosticMode")
     strict_diagnostic_config={
       "mode":STRICT_PARTIAL_DIAGNOSTIC_MODE,
-      "terminalLambda":6.5e-9,"heightTrialM":2,
+      "terminalLambda":8.0e-9,"heightTrialM":2,
       "normalAcceptancePermitted":False,
       "qualification":"USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY"}
     workflow_test_config={
       "mode":WORKFLOW_TEST_ONLY_MODE,
-      "terminalLambda":6.5e-9,"heightTrialM":2,
+      "terminalLambda":8.0e-9,"heightTrialM":2,
       "normalAcceptancePermitted":False,"workflowTestOnly":True,
       "qualification":"USER_AUTHORIZED_WORKFLOW_TEST_ONLY_NOT_ACCEPTED_DESIGN"}
     if diagnostic_mode is not None and diagnostic_mode not in (
