@@ -43,6 +43,15 @@ counters after one expensive coupled calculation.
 **How to apply:** Treat scheduling separately from frozen scientific equations
 and gates. Do not automatically launch a sweep after changing its implementation.
 
+The user explicitly approved completed-trial-only collapsible results, with
+PASS/FAIL visible while collapsed, rather than a table of unfinished stage rows.
+
+**Why:** The latter confused stages within a trial with progress across the
+ten-trial sweep. Approval confirmed on 2026-09-13.
+
+**How to apply:** Preserve this presentation when improving progress reporting;
+keep unfinished work in the progress indicator, not placeholder result rows.
+
 Checkpoint completion and continuation eligibility are independent. A fully
 saved sweep can retain a continuation seed from an earlier eligible trial.
 
