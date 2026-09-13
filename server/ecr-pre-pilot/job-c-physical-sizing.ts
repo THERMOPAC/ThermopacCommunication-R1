@@ -20,6 +20,7 @@ import {
   runJobCWorker,
   type JobCPhysicalSizingTrial,
   type JobCWorkerRequest,
+  type PartialTransferSizingTrial,
 } from './job-c';
 
 const HASH = /^[a-f0-9]{64}$/;
@@ -477,7 +478,10 @@ export type PinnedJobAFilmRecalculationBasis = Omit<
 
 type WorkerTransport = (
   request: JobCWorkerRequest,
-  options: { operation: 'SOLVE_HEIGHT' | 'REVALIDATE_PHYSICAL_TRIAL' },
+  options: {
+    operation: 'SOLVE_HEIGHT' | 'REVALIDATE_PHYSICAL_TRIAL'
+      | 'SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL'
+  },
 ) => Promise<Record<string, any>>;
 
 let testWorkerTransport: WorkerTransport | null = null;
@@ -622,8 +626,21 @@ function candidateWorkerRequest(
     kd: films.kd,
   };
   const { sourceStateSha256: _ignored, ...branchSource } = branch;
+  // A strict diagnostic request contains diagnosticMode by construction.  It
+  // is provenance for the anchor, not input to this new direct operation.
+  // Explicitly omit every operation-bearing field instead of spreading a
+  // source request that the worker must reject.
+  const {
+    diagnosticMode: _diagnosticMode,
+    continuationAnchor: _continuationAnchor,
+    resumeCheckpoint: _resumeCheckpoint,
+    resume: _resume,
+    physicalSizingTrial: _physicalSizingTrial,
+    partialTransferSizingTrial: _partialTransferSizingTrial,
+    ...baseRequest
+  } = workerRequest;
   return {
-    ...workerRequest,
+    ...baseRequest,
     columnDiameterM: item.candidate.columnDiameterM,
     rpm: item.candidate.rpm,
     operatingHoldup: hydraulic.operatingHoldup,
@@ -635,6 +652,181 @@ function candidateWorkerRequest(
       sourceStateSha256: jobCResultHash(branchSource),
     },
   };
+}
+
+function finiteGateMetrics(gates: any) {
+  return finite(gates?.rawFvResidualMolS) && gates.rawFvResidualMolS <= 1e-7
+    && finite(gates?.scaledFvResidual) && gates.scaledFvResidual <= 1e-7
+    && finite(gates?.maximumOriginalJobBGateResidual)
+      && gates.maximumOriginalJobBGateResidual <= 1e-7
+    && finite(gates?.minimumFlowMolS) && gates.minimumFlowMolS > 0;
+}
+
+function samePartialTransferTrial(value: any, expected: PartialTransferSizingTrial) {
+  return value?.sourceAnchorJobId === expected.sourceAnchorJobId
+    && value?.sourceAnchorResultSha256 === expected.sourceAnchorResultSha256
+    && value?.sourceAnchorStateSha256 === expected.sourceAnchorStateSha256
+    && value?.stage3ImmutableHash === expected.stage3ImmutableHash
+    && value?.candidateOrdinal === expected.candidateOrdinal
+    && value?.heightM === expected.heightM
+    && value?.lambda === expected.lambda
+    && value?.runtimeBudgetSeconds === expected.runtimeBudgetSeconds
+    && Array.isArray(value?.profileState)
+    && value.profileState.length === expected.profileState.length
+    && value.profileState.every((entry: unknown, index: number) =>
+      entry === expected.profileState[index]);
+}
+
+export type DirectPartialTransferCandidateInput = {
+  anchor: {
+    sourceJobId: string;
+    sourceResultHash: string;
+    profileStateSha256: string;
+    profileState: number[];
+    sourceDependencies: Record<string, any>;
+  };
+  workerRequest: JobCWorkerRequest;
+  processBasis: HydrodynamicProcessBasis;
+  candidate: PhysicalSizingHydraulicCandidate;
+  heightM: number;
+  /** Parent search deadline; cancellation kills the isolated child process. */
+  signal?: AbortSignal;
+};
+
+/**
+ * Execute one bounded, isolated candidate solve at the already accepted
+ * strict partial-transfer lambda.  The source state is a warm start only:
+ * changed hydraulics and Job-A films are rebuilt before the worker solves the
+ * unchanged 189-equation system directly.  It neither queues nor resumes Job
+ * C and cannot use a lambda-one continuation.
+ */
+export async function solveDirectPartialTransferSizingCandidate(
+  input: DirectPartialTransferCandidateInput,
+) {
+  const hydraulic = resolveKuhniOperatingHoldupV110({
+    processBasis: input.processBasis,
+    columnDiameterM: input.candidate.candidate.columnDiameterM,
+    rpm: input.candidate.candidate.rpm,
+  });
+  if (hydraulic.status !== 'OPERATING_HOLDUP_CALCULATED') {
+    return {
+      status: 'HYDRAULICALLY_INFEASIBLE' as const,
+      reason: hydraulic.reason,
+      candidateOrdinal: input.candidate.candidate.ordinal,
+    };
+  }
+  if (hydraulic.applicability.status !== 'CALCULATED_IN_RANGE') {
+    return {
+      status: 'HYDRAULIC_APPLICABILITY_REJECTED' as const,
+      reason: 'PARTIAL_TRANSFER_CANDIDATE_HYDRAULIC_CORRELATION_EXTRAPOLATED',
+      candidateOrdinal: input.candidate.candidate.ordinal,
+      hydraulic: {
+        ...hydraulic,
+        d32M: hydraulic.d32M,
+      },
+    };
+  }
+  const pseudoInput = {
+    workerRequest: input.workerRequest,
+    processBasis: input.processBasis,
+    jobCResult: { dependencies: input.anchor.sourceDependencies },
+  } as AcceptedJobCWorkerPhysicalSizingInput;
+  const films = recomputeCandidateJobAFilms(pseudoInput, input.candidate, hydraulic);
+  const request = candidateWorkerRequest(input.workerRequest, input.candidate, hydraulic, films);
+  const trial: PartialTransferSizingTrial = {
+    sourceAnchorJobId: input.anchor.sourceJobId,
+    sourceAnchorResultSha256: input.anchor.sourceResultHash,
+    sourceAnchorStateSha256: input.anchor.profileStateSha256,
+    stage3ImmutableHash: input.anchor.sourceDependencies.stage3ImmutableHash,
+    candidateOrdinal: input.candidate.candidate.ordinal,
+    heightM: input.heightM,
+    lambda: 8e-9,
+    runtimeBudgetSeconds: 90,
+    profileState: [...input.anchor.profileState],
+  };
+  const controller = new AbortController();
+  let timedOut = false;
+  let parentCancelled = false;
+  const abortForParent = () => {
+    parentCancelled = true;
+    controller.abort();
+  };
+  input.signal?.addEventListener('abort', abortForParent, { once: true });
+  // The worker has matching internal 90 s qualification/solver budgets. This
+  // parent deadline also covers a child that fails to return after reporting
+  // its budget state; it is a timeout result, never a negative feasibility
+  // conclusion.
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, 95_000);
+  timer.unref();
+  const execute = (candidateRequest: JobCWorkerRequest) => testWorkerTransport
+    ? testWorkerTransport(candidateRequest, { operation: 'SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL' })
+    : runJobCWorker(candidateRequest, {
+      operation: 'SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL',
+      signal: controller.signal,
+    });
+  try {
+    const response = await execute({
+      ...request,
+      partialTransferSizingTrial: trial,
+    } as JobCWorkerRequest);
+    const selected = response?.sensitivityCases?.[0]?.selected;
+    const gates = selected?.gateMetrics;
+    const gatesPassed = gates?.rawFvGatePassed === true
+      && gates?.scaledFvGatePassed === true
+      && gates?.originalJobBGatePassed === true
+      && gates?.strictPositivityPassed === true && gates?.accepted === true;
+    if (response?.status !== 'CALCULATED_DIRECT_PARTIAL_TRANSFER_CANDIDATE'
+      || selected?.partialTransferLambda !== 8e-9
+      || selected?.profileSolvedHeightM !== input.heightM
+      || selected?.directSolve?.homotopyUsed !== false
+      || selected?.directSolve?.sourceAnchorStateSha256 !== input.anchor.profileStateSha256
+      || !Array.isArray(selected?.numericalCells)
+      || selected.numericalCells.length !== 7
+      || !gatesPassed
+      || !finiteGateMetrics(gates)
+      || !samePartialTransferTrial(
+        response?.partialTransferSizingRevalidation?.partialTransferSizingTrial,
+        trial,
+      )) {
+      return {
+        status: 'TRANSPORT_GATE_REJECTED' as const,
+        candidateOrdinal: input.candidate.candidate.ordinal,
+        heightM: input.heightM,
+        response,
+        reason: response?.error ?? 'PARTIAL_TRANSFER_DIRECT_CANDIDATE_RESPONSE_OR_GATE_INVALID',
+      };
+    }
+    return {
+      status: 'TRANSPORT_GATES_PASSED' as const,
+      candidateOrdinal: input.candidate.candidate.ordinal,
+      heightM: input.heightM,
+      hydraulic: { ...hydraulic, d32M: hydraulic.d32M },
+      films: {
+        recalculatedJobAResultSha256: films.jobA.resultSha256,
+        slipVelocityMS: films.slipVelocityMS,
+        kc: films.kc,
+        kd: films.kd,
+      },
+      response,
+      selected,
+    };
+  } catch (error) {
+    return {
+      status: timedOut ? 'TRANSPORT_TIMEOUT' as const
+        : parentCancelled ? 'TRANSPORT_CANCELLED' as const
+          : 'TRANSPORT_EXECUTION_FAILED' as const,
+      candidateOrdinal: input.candidate.candidate.ordinal,
+      heightM: input.heightM,
+      reason: timedOut ? 'PARTIAL_TRANSFER_CANDIDATE_RUNTIME_BUDGET_EXHAUSTED'
+        : error instanceof Error ? error.message : 'PARTIAL_TRANSFER_WORKER_UNKNOWN_FAILURE',
+    };
+  } finally {
+    clearTimeout(timer);
+    input.signal?.removeEventListener('abort', abortForParent);
+  }
 }
 
 function physicalTrialCandidateMatches(

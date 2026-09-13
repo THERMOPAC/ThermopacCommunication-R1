@@ -1,13 +1,16 @@
-# ECR partial-transfer physical sizing boundary
+---
+name: Partial-transfer nonlinear sizing boundary
+description: Separate pre-pilot candidate solves do not confer full-transfer engineering acceptance.
+---
 
-The separate Stage-4 pre-pilot estimate reads only an owned, hash-verified
-strict Job-C diagnostic anchor at lambda=8e-9 and H=2 m. It must never queue,
-resume, or execute Job C, and it does not require lambda=1 acceptance.
+The user chose direct nonlinear partial-transfer sizing rather than frozen-secant extrapolation. The accepted partial anchor is a warm start, not accepted candidate geometry.
 
-It is an unvalidated local partial-transfer extrapolation. Reuse the matched
-persisted Stage-3 screening diameter and compartment height; never replace
-them with inferred numerical geometry. Preserve blockers rather than inventing
-coefficients, targets, geometry, or efficiency.
+**Why:** Frozen local scalar coefficients failed the real anchor's applicability check; repeating its diameter and trial height was not sizing.
 
-Any reported overall efficiency is conditional on an aligned calculated Stage-2
-stage count and is not compartment, Murphree, calibrated, or FV efficiency.
+**How to apply:** Recompute candidate transport and hydraulics through an explicitly user-triggered isolated partial solve. Never enqueue or resume Job C automatically. Keep the full-transfer route unchanged.
+
+Minimum-height claims are bounded by the explored domain, resolved brackets, and evaluated separation targets. Timeouts, unknown solves, and incomplete envelope searches remain indeterminate.
+
+**Why:** Recovery and quality impose different constraints; their conjunction is not a generally monotone height predicate. An endpoint failure cannot exclude an interior feasible interval.
+
+**How to apply:** Preserve per-target evidence and search limits. Do not weaken gates to obtain a result. Physical-stage efficiency still requires a supported physical-compartment model; numerical cells or a bare theoretical-to-physical count ratio do not supply it.

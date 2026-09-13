@@ -426,9 +426,9 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
     },
   );
-  // This separately-owned, read-only estimator consumes only the persisted
-  // strict lambda=8e-9 / 2m anchor. It deliberately has no Job-C enqueue,
-  // resume, continuation, or full-lambda prerequisite.
+  // This separately-owned, direct nonlinear candidate operation consumes the
+  // persisted strict lambda=8e-9 / 2m anchor only as a seed. It deliberately
+  // has no Job-C enqueue, resume, continuation, or full-lambda prerequisite.
   app.post(
     '/api/ecr-pre-pilot/designs/:id/partial-transfer-physical-sizing/evaluate',
     ensureAuthenticated,
@@ -442,8 +442,14 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         return res.status(400).json({ error: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CLIENT_INPUT_PROHIBITED' });
       }
       try {
+        const cancellation = new AbortController();
+        const abort = () => cancellation.abort();
+        req.once('aborted', abort);
+        res.once('close', () => {
+          if (!res.writableEnded) abort();
+        });
         const result = await evaluatePartialTransferPhysicalSizing(
-          Number((req.user as any).id), designId,
+          Number((req.user as any).id), designId, { signal: cancellation.signal },
         );
         return res.status(result.status === 'DEPENDENCY_BLOCKED' ? 409 : 200).json(result);
       } catch (error: any) {

@@ -3,6 +3,9 @@ import {
   prepareFrozenPartialTransferBvp,
   solveFrozenSecantPlugFlowBvp,
   verifyOwnedStrictPartialAnchor,
+  evaluateDirectPartialTransferStage1Targets,
+  eligibleDirectPartialTransferCandidates,
+  partialTransferHeightBracketResolved,
 } from '../server/ecr-pre-pilot/stage4-partial-transfer-sizing';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -142,5 +145,80 @@ describe('frozen strict-anchor partial-transfer coefficients', () => {
     expect(latest).toContain('PARTIAL_TRANSFER_PHYSICAL_SIZING_SAVED_STAGE3_LINEAGE_MISMATCH');
     expect(latest).toContain('PARTIAL_TRANSFER_PHYSICAL_SIZING_CURRENT_STAGE3_LINEAGE_CHANGED');
     expect(latest).toContain('getKuhniGeometryResolverRuns(userId, designId, true)');
+  });
+});
+
+describe('direct partial-transfer Stage-1 target evaluator', () => {
+  const targets = {
+    minimumRecoveryPct: 90, minimumRaffinateSaturatesWt: 50,
+    targetRaffinateTotalAromaticsWt: 40, targetRaffinatePolarAromaticsWt: 10,
+    maximumNmpRaffinateWt: 5, targetRaffinateSulfurPpm: 10,
+  };
+  const cells = Array.from({ length: 7 }, (_, index) => ({
+    numericalCell: index + 1,
+    continuousOutMolS: [1, 1, 1, 1, 1, 1, 1],
+    dispersedOutMolS: [3, .1, .1, .1, .01, .01, .01],
+  }));
+  it('uses the phase-aware raffinate face and distinct hydrocarbon/full-stream bases', () => {
+    const dispersed = evaluateDirectPartialTransferStage1Targets({
+      phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      numericalCells: cells, recoveryPct: 95, targets, recoveryTolerancePct: .01,
+    });
+    expect(dispersed).toMatchObject({
+      valid: true, allEvaluatedNonSulfurTargetsPassed: true,
+      massBasis: { hydrocarbonExcludes: ['NMP', 'H2O'] },
+    });
+    const continuous = evaluateDirectPartialTransferStage1Targets({
+      phaseConfiguration: 'rrbo-continuous-nmp-dispersed',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      numericalCells: cells, recoveryPct: 95, targets, recoveryTolerancePct: .01,
+    });
+    expect(continuous.valid).toBe(true);
+    if (continuous.valid) expect(continuous.raffinateOutletMolS).toEqual(cells[6].continuousOutMolS);
+  });
+  it('rejects null, malformed ordinals, and source component-order poisoning without coercion', () => {
+    expect(evaluateDirectPartialTransferStage1Targets({
+      phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'POISON'],
+      numericalCells: cells, recoveryPct: 95, targets, recoveryTolerancePct: .01,
+    }).valid).toBe(false);
+    const poisoned = structuredClone(cells);
+    poisoned[0].numericalCell = 2;
+    (poisoned[0].dispersedOutMolS as any)[0] = null;
+    expect(evaluateDirectPartialTransferStage1Targets({
+      phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      numericalCells: poisoned, recoveryPct: null, targets, recoveryTolerancePct: .01,
+    }).valid).toBe(false);
+  });
+  it('distinguishes a synthetic interior-feasible point when the high-H recovery endpoint fails', () => {
+    const interior = evaluateDirectPartialTransferStage1Targets({
+      phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      numericalCells: cells, recoveryPct: 95, targets, recoveryTolerancePct: .01,
+    });
+    const upperRecoveryFail = evaluateDirectPartialTransferStage1Targets({
+      phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      numericalCells: cells, recoveryPct: 80, targets, recoveryTolerancePct: .01,
+    });
+    expect(interior).toMatchObject({
+      valid: true, allEvaluatedNonSulfurTargetsPassed: true,
+    });
+    expect(upperRecoveryFail).toMatchObject({
+      valid: true, qualityTargetsPassed: true,
+      recoveryAndNmpTargetsPassed: false, allEvaluatedNonSulfurTargetsPassed: false,
+    });
+  });
+  it('resolves a height bracket only at or within its explicit tolerance', () => {
+    expect(partialTransferHeightBracketResolved(2, 2.02, .02)).toBe(true);
+    expect(partialTransferHeightBracketResolved(2, 2.0200001, .02)).toBe(false);
+  });
+  it('retains every eligible persisted envelope candidate rather than truncating the screen', () => {
+    const envelope = Array.from({ length: 13 }, (_, ordinal) => ({ ordinal, eligible: ordinal !== 4 }));
+    const selected = eligibleDirectPartialTransferCandidates(envelope, candidate => candidate.eligible);
+    expect(selected).toHaveLength(12);
+    expect(selected.at(-1)).toEqual({ ordinal: 12, eligible: true });
   });
 });

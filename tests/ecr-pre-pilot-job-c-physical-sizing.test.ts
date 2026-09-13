@@ -5,6 +5,7 @@ import {
   summarizeJobCPhysicalSizingDependency,
   assessAcceptedJobCForPhysicalSizing,
   setJobCPhysicalSizingWorkerTransportForTest,
+  solveDirectPartialTransferSizingCandidate,
   type AcceptedJobCPhysicalSizingInput,
 } from '../server/ecr-pre-pilot/job-c-physical-sizing';
 import {
@@ -577,6 +578,86 @@ describe('accepted Job-C physical Kühni sizing bridge', () => {
       if (result.status === 'NO_PHYSICAL_SIZING_SOLUTION') {
         expect(result.trialEvidence[0]).not.toHaveProperty('physicalTrial');
       }
+    } finally {
+      restore();
+    }
+  });
+
+  it('recalculates films and sends a seeded, direct fixed-partial-lambda trial without a Job-C continuation', async () => {
+    const { source, workerRequest, processBasis, hydraulicCandidates } = workerTransportInput();
+    (workerRequest as any).diagnosticMode = {
+      mode: 'STRICT_PARTIAL_TRANSFER_DIAGNOSTIC_LAMBDA_8E_MINUS_9_V1',
+      terminalLambda: 8e-9, heightTrialM: 2, normalAcceptancePermitted: false,
+    };
+    (workerRequest as any).continuationAnchor = { poisonedSourceModeMustNotLeak: true };
+    const anchorState = Array(189).fill(1);
+    const anchor: any = {
+      sourceJobId: 'strict-anchor-id',
+      sourceResultHash: hash,
+      profileStateSha256: jobCResultHash(anchorState),
+      profileState: anchorState,
+      sourceDependencies: source.dependencies,
+    };
+    const calls: Array<{ request: JobCWorkerRequest; operation: string }> = [];
+    const restore = setJobCPhysicalSizingWorkerTransportForTest(async (request, { operation }) => {
+      calls.push({ request, operation });
+      const trial = request.partialTransferSizingTrial;
+      const echoedTrial = calls.length === 2
+        ? { ...trial, sourceAnchorResultSha256: 'b'.repeat(64) } : trial;
+      const rawResidual = calls.length === 3 ? Number.POSITIVE_INFINITY : 1e-8;
+      return {
+        status: 'CALCULATED_DIRECT_PARTIAL_TRANSFER_CANDIDATE',
+        partialTransferSizingRevalidation: { partialTransferSizingTrial: echoedTrial },
+        sensitivityCases: [{
+          selected: {
+            partialTransferLambda: 8e-9,
+            profileSolvedHeightM: 3,
+            recoveryPctNmpFreeRrboHydrocarbonMassBasis: 91,
+            directSolve: {
+              homotopyUsed: false,
+              sourceAnchorStateSha256: trial?.sourceAnchorStateSha256,
+            },
+            numericalCells: Array.from({ length: 7 }, (_, index) => ({ numericalCell: index + 1 })),
+            gateMetrics: {
+              rawFvGatePassed: true, scaledFvGatePassed: true,
+              originalJobBGatePassed: true, strictPositivityPassed: true, accepted: true,
+              rawFvResidualMolS: rawResidual, scaledFvResidual: 1e-8,
+              maximumOriginalJobBGateResidual: 1e-8, minimumFlowMolS: 0.1,
+            },
+          },
+        }],
+      };
+    });
+    try {
+      const result = await solveDirectPartialTransferSizingCandidate({
+        anchor, workerRequest, processBasis, candidate: hydraulicCandidates[0], heightM: 3,
+      });
+      expect(result.status).toBe('TRANSPORT_GATES_PASSED');
+      expect(calls).toHaveLength(1);
+      expect(calls[0].operation).toBe('SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL');
+      expect(calls[0].request.kc).not.toEqual(workerRequest.kc);
+      expect(calls[0].request.kd).not.toEqual(workerRequest.kd);
+      expect(calls[0].request.partialTransferSizingTrial).toMatchObject({
+        sourceAnchorJobId: 'strict-anchor-id', lambda: 8e-9, heightM: 3,
+        profileState: anchorState,
+      });
+      expect(calls[0].request).not.toHaveProperty('continuationAnchor');
+      expect(calls[0].request).not.toHaveProperty('resumeCheckpoint');
+      expect(calls[0].request).not.toHaveProperty('diagnosticMode');
+      const poisonedEcho = await solveDirectPartialTransferSizingCandidate({
+        anchor, workerRequest, processBasis, candidate: hydraulicCandidates[0], heightM: 3,
+      });
+      expect(poisonedEcho).toMatchObject({
+        status: 'TRANSPORT_GATE_REJECTED',
+        reason: 'PARTIAL_TRANSFER_DIRECT_CANDIDATE_RESPONSE_OR_GATE_INVALID',
+      });
+      const nonFiniteGate = await solveDirectPartialTransferSizingCandidate({
+        anchor, workerRequest, processBasis, candidate: hydraulicCandidates[0], heightM: 3,
+      });
+      expect(nonFiniteGate).toMatchObject({
+        status: 'TRANSPORT_GATE_REJECTED',
+        reason: 'PARTIAL_TRANSFER_DIRECT_CANDIDATE_RESPONSE_OR_GATE_INVALID',
+      });
     } finally {
       restore();
     }

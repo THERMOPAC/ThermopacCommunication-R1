@@ -438,7 +438,7 @@ export function PhysicalSizingPanel({
   );
 }
 
-/** A separate server-owned estimate; it never shares Job-C UI state. */
+/** A separate server-owned nonlinear candidate operation; it never shares Job-C queue state. */
 export function PartialTransferPhysicalSizingPanel({
   value, loading, error, onEvaluate, evaluating, canEvaluate,
 }: PhysicalSizingPanelProps) {
@@ -446,20 +446,22 @@ export function PartialTransferPhysicalSizingPanel({
   const geometry = object(read(value ?? {}, "stage3Geometry"));
   const target = object(read(value ?? {}, "target"));
   const solve = object(read(value ?? {}, "solve"));
+  const residualDiagnostics = object(read(solve, "residualDiagnostics"));
   const anchor = object(read(value ?? {}, "anchor"));
-  const efficiency = read(value ?? {}, "conditionalOverallTheoreticalToPhysicalEstimate");
+  const efficiencyReason = read(value ?? {}, "efficiencyNullReason");
+  const targetCriteria = Array.isArray(read(target, "criteria")) ? read(target, "criteria") as unknown[] : [];
   const assumptions = flagsOf(read(value ?? {}, "assumptions"));
   return <section data-testid="partial-transfer-physical-sizing-panel" className="overflow-hidden rounded-md border-2 border-cyan-700/50 bg-white">
     <div className="border-b border-cyan-200 bg-cyan-50 px-4 py-3">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-800">Stage 4 · separate partial-transfer pre-pilot estimate</p>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-slate-950">Frozen-local-coefficient physical sizing</h2>
+        <h2 className="text-sm font-semibold text-slate-950">Direct nonlinear partial-transfer candidate sizing</h2>
         <span className="rounded border border-cyan-300 bg-white px-2 py-1 font-mono text-[10px] font-semibold">Status: {status}</span>
       </div>
-      <p className="mt-2 text-[10px] leading-4 text-slate-700">Explicit read-only estimate from the owned verified strict λ=8e-9, 2 m anchor. It does not start, queue, resume, or require full-λ Job C.</p>
+      <p className="mt-2 text-[10px] leading-4 text-slate-700">User-triggered, isolated D/H candidate search seeded by the owned verified strict λ=8e-9, 2 m anchor. Every candidate re-solves the coupled 189 equations at λ=8e-9; it does not queue, resume, or run λ=1 Job C.</p>
       <button type="button" data-testid="evaluate-partial-transfer-physical-sizing" onClick={onEvaluate}
         disabled={!canEvaluate || evaluating} className="mt-2 rounded border border-cyan-700 bg-white px-2 py-1 text-[10px] font-semibold text-cyan-900 disabled:cursor-not-allowed disabled:opacity-50">
-        {evaluating ? "Evaluating separate estimate…" : "Evaluate partial-transfer estimate"}
+        {evaluating ? "Solving bounded candidates…" : "Run partial-transfer candidate sizing"}
       </button>
     </div>
     {loading ? <div role="status" className="p-4 text-xs text-slate-600">Loading separate partial-transfer estimate…</div>
@@ -470,18 +472,29 @@ export function PartialTransferPhysicalSizingPanel({
         <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {[
             ["Required active height", metricValue(read(value, "requiredActiveHeightM"), "m")],
-            ["Stage 3 reused diameter", metricValue(read(geometry, "columnDiameterM"), "m")],
-            ["Persisted hcomp", metricValue(read(geometry, "compartmentHeightM"), "m")],
-            ["Nphysical = ceil(H/hcomp)", scalarOrUnavailable(read(value, "physicalCompartments"))],
-            ["Conditional Eo = Nt/Nphysical", scalarOrUnavailable(efficiency)],
+            ["Selected candidate diameter", metricValue(read(geometry, "columnDiameterM"), "m")],
+            ["Selected candidate RPM", scalarOrUnavailable(read(geometry, "rpm"))],
+            ["Physical compartments", "Not inferred from numerical FV cells"],
+            ["Stage efficiency", "Not calculated — physical model evidence required"],
             ["Stage 1 recovery target", metricValue(read(target, "recoveryPct"), "%")],
-            ["Solved recovery", metricValue(read(solve, "recoveryPct"), "%")],
-            ["Balance residual", scalarOrUnavailable(read(solve, "maximumComponentBalanceResidualMolS"))],
-            ["Minimum flow", scalarOrUnavailable(read(solve, "minimumFlowMolS"))],
+            ["Solved recovery", metricValue(read(solve, "recoveryPctNmpFreeRrboHydrocarbonMassBasis"), "%")],
+            ["Balance residual", scalarOrUnavailable(read(residualDiagnostics, "maxGlobalComponentBalanceResidualMolS"))],
+            ["Minimum flow", scalarOrUnavailable(read(residualDiagnostics, "minimumLocalComponentFlowMolS"))],
             ["Strict anchor state", stringValue(read(anchor, "profileStateSha256"), "Unavailable")],
           ].map(([label, item]) => <div key={String(label)} className="rounded border border-cyan-200 bg-cyan-50/40 p-2"><dt className="text-[9px] text-slate-600">{label}</dt><dd className="mt-1 break-words font-mono text-[10px] text-slate-900">{item}</dd></div>)}
         </dl>
-        <p className="text-[10px] text-slate-700">Efficiency label: <span className="font-semibold">CONDITIONAL OVERALL THEORETICAL-TO-PHYSICAL ESTIMATE</span>. It is not calibrated compartment, Murphree, or FV efficiency. Null reason: <span className="font-mono">{stringValue(read(value, "efficiencyNullReason"), "none")}</span>.</p>
+        {targetCriteria.length ? <div className="rounded border border-cyan-200 bg-cyan-50/30 p-2 text-[10px] text-slate-700">
+          <p className="font-semibold text-slate-900">Saved Stage 1 target checks</p>
+          <ul className="mt-1 space-y-0.5 font-mono">{targetCriteria.map((entry, index) => {
+            const criterion = object(entry);
+            return <li key={`${stringValue(read(criterion, "name"), "criterion")}-${index}`}>
+              {stringValue(read(criterion, "name"))}: {stringValue(read(criterion, "status"), "NOT_EVALUATED")}
+              {" "}({scalarOrUnavailable(read(criterion, "actual"))} {stringValue(read(criterion, "comparator"))} {scalarOrUnavailable(read(criterion, "target"))})
+            </li>;
+          })}</ul>
+          <p className="mt-1 text-amber-900">Sulfur is explicitly not evaluated by this seven-component model; it is not treated as a passed separation criterion.</p>
+        </div> : null}
+        <p className="text-[10px] text-slate-700">Stage efficiency is intentionally not inferred from N<sub>T</sub>, numerical cells, or height. Missing prerequisite: <span className="font-mono">{stringValue(efficiencyReason, "SUPPORTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED")}</span>.</p>
         <p className="text-[10px] text-slate-700">Equations: <span className="font-mono break-all">{flagsOf(read(value, "equations")).join(" | ")}</span></p>
         {assumptions.length ? <ul className="list-disc space-y-0.5 pl-4 text-[10px] text-slate-600">{assumptions.map(item => <li key={item}>{item}</li>)}</ul> : null}
       </div>}
@@ -777,9 +790,9 @@ export default function EcrPrePilotDesignStage4Page() {
       // browser reconstruction.
       const direct = object(payload);
       setPartialTransferSizing(Object.keys(direct).length ? direct : null);
-      if (direct.status === "CALCULATED_PRELIMINARY_PARTIAL_TRANSFER_PHYSICAL_SIZING"
-        || direct.status === "CALCULATED_WITH_EFFICIENCY_BLOCKED"
-        || direct.status === "TARGET_NOT_BRACKETED") {
+      if (direct.status === "CALCULATED_EVALUABLE_TARGETS_WITH_SULFUR_AND_EFFICIENCY_BLOCKED"
+        || direct.status === "NO_FEASIBLE_CANDIDATE"
+        || direct.status === "INDETERMINATE") {
         await loadPartialTransferSizing(designId);
       }
     } catch (cause: unknown) {

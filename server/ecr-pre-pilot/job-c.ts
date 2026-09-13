@@ -262,6 +262,8 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
   };
   diagnosticMode?: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE
     | typeof JOB_C_WORKFLOW_TEST_ONLY_MODE;
+  /** Server-owned only; accepted solely by the fixed partial-lambda operation. */
+  partialTransferSizingTrial?: PartialTransferSizingTrial;
 }
 
 /**
@@ -281,6 +283,23 @@ export type JobCPhysicalSizingTrial = {
   candidateOrdinal: number;
 };
 
+/**
+ * Server-owned trial contract for the separate partial-transfer sizing route.
+ * Unlike a continuation anchor, this is a seed for one direct fixed-lambda
+ * solve at a candidate D/H; it cannot authorize a lambda-one Job-C route.
+ */
+export type PartialTransferSizingTrial = {
+  sourceAnchorJobId: string;
+  sourceAnchorResultSha256: string;
+  sourceAnchorStateSha256: string;
+  stage3ImmutableHash: string;
+  candidateOrdinal: number;
+  heightM: number;
+  lambda: 8e-9;
+  runtimeBudgetSeconds: number;
+  profileState: number[];
+};
+
 export async function runJobCWorker(request: JobCWorkerRequest, options: {
   signal?: AbortSignal;
   onProgress?: (
@@ -292,7 +311,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
   onCheckpoint?: (checkpoint: Record<string, any>) => void | Promise<void>;
   /** Research capture only; never bypasses the response integrity check. */
   onRawResponse?: (raw: string) => void;
-  operation?: 'SOLVE_HEIGHT' | 'REVALIDATE_PHYSICAL_TRIAL';
+  operation?: 'SOLVE_HEIGHT' | 'REVALIDATE_PHYSICAL_TRIAL' | 'SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL';
 } = {}) {
   const workerRoot = process.env.JOB_C_RUNTIME_ROOT
     ? path.resolve(process.env.JOB_C_RUNTIME_ROOT)

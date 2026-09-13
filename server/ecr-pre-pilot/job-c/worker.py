@@ -158,10 +158,11 @@ _profile_qualification_context=None
 _active_qualification_pool=None
 _active_qualification_jobs=None
 _active_runtime_budgets=None
-# Qualification has no wall-clock deadline; cancellation remains authoritative.
+# Normal Job-C retains no wall-clock deadline; the isolated direct
+# partial-transfer sizing operation overrides this with a finite budget.
 QUALIFICATION_BUDGET_SECONDS=None
-# Wall-clock limits are intentionally absent.  Solver iteration criteria remain
-# finite and conservative; orchestration cancellation is handled by SIGTERM.
+# Normal Job-C wall-clock limits are intentionally absent.  Solver iteration
+# criteria remain finite and conservative; direct sizing overrides the budget.
 NONLINEAR_SOLVER_BUDGET_SECONDS=None
 
 class JobCInterrupted(BaseException):
@@ -1791,6 +1792,41 @@ def validate_physical_sizing_trial(r):
         or float(trial["installedHeightM"])<=0):
         raise ValueError("JOB_C_PHYSICAL_SIZING_TRIAL_INVALID")
 
+def validate_partial_transfer_sizing_trial(r):
+    """Validate a read-only strict-anchor seed for one candidate D/H solve.
+
+    This is deliberately not a resume checkpoint or a continuation contract.
+    The candidate is solved directly at the fixed strict-diagnostic lambda and
+    the 189 coordinates are only an initialization/provenance payload.
+    """
+    trial=r.get("partialTransferSizingTrial")
+    if not isinstance(trial,dict):
+        raise ValueError("PARTIAL_TRANSFER_SIZING_TRIAL_REQUIRED")
+    hashes=("sourceAnchorResultSha256","sourceAnchorStateSha256",
+      "stage3ImmutableHash")
+    state=trial.get("profileState")
+    if (not isinstance(trial.get("sourceAnchorJobId"),str)
+        or any(not isinstance(trial.get(key),str)
+          or not re.fullmatch(r"[a-f0-9]{64}",trial[key]) for key in hashes)
+        or not isinstance(trial.get("candidateOrdinal"),int)
+        or isinstance(trial.get("candidateOrdinal"),bool)
+        or trial["candidateOrdinal"]<0
+        or trial.get("lambda")!=STRICT_CONTINUATION_ANCHOR_LAMBDA
+        or not isinstance(trial.get("heightM"),(int,float))
+        or isinstance(trial.get("heightM"),bool)
+        or not math.isfinite(float(trial["heightM"]))
+        or float(trial["heightM"])<=0
+        or not isinstance(trial.get("runtimeBudgetSeconds"),(int,float))
+        or isinstance(trial.get("runtimeBudgetSeconds"),bool)
+        or not math.isfinite(float(trial["runtimeBudgetSeconds"]))
+        or float(trial["runtimeBudgetSeconds"])<=0
+        or float(trial["runtimeBudgetSeconds"])>90.0
+        or not isinstance(state,list) or len(state)!=189
+        or any(not isinstance(value,(int,float)) or isinstance(value,bool)
+          or not math.isfinite(float(value)) for value in state)
+        or digest(state)!=trial["sourceAnchorStateSha256"]):
+        raise ValueError("PARTIAL_TRANSFER_SIZING_TRIAL_INVALID")
+
 def case(r, name, dc, dd, solvers):
     np=solvers[0].np
     m=r["compartments"]; A=math.pi*r["columnDiameterM"]**2/4
@@ -1800,6 +1836,8 @@ def case(r, name, dc, dd, solvers):
     workflow_test_only=(isinstance(diagnostic_mode,dict)
       and diagnostic_mode.get("mode")==WORKFLOW_TEST_ONLY_MODE)
     physical_sizing_trial=r.get("physicalSizingTrial")
+    partial_transfer_sizing_trial=r.get("partialTransferSizingTrial")
+    direct_partial_transfer_trial=partial_transfer_sizing_trial is not None
     continuation_anchor=r.get("continuationAnchor")
     diagnostic_terminal_lambda=(
       float(diagnostic_mode["terminalLambda"])
@@ -1812,9 +1850,15 @@ def case(r, name, dc, dd, solvers):
         raise ValueError("JOB_C_INVALID_GOVERNED_FLOW_INPUT")
     case_started=time.monotonic()
     qualification_budget={"started":case_started,
-      "maximumSeconds":QUALIFICATION_BUDGET_SECONDS}
+      "maximumSeconds":float(partial_transfer_sizing_trial["runtimeBudgetSeconds"])
+        if direct_partial_transfer_trial
+        else QUALIFICATION_BUDGET_SECONDS}
     budget={"calls":0,"residualCalls":0,"started":None,"heightCandidateM":None,
-            "maximumSeconds":NONLINEAR_SOLVER_BUDGET_SECONDS}
+            # This separate user-triggered operation has a bounded honest
+            # timeout.  The ordinary Job-C route retains its existing policy.
+            "maximumSeconds":float(partial_transfer_sizing_trial["runtimeBudgetSeconds"])
+              if direct_partial_transfer_trial
+              else NONLINEAR_SOLVER_BUDGET_SECONDS}
     global _active_runtime_budgets
     _active_runtime_budgets={"caseStarted":case_started,
       "qualification":qualification_budget,"nonlinearSolver":budget}
@@ -2420,7 +2464,12 @@ def case(r, name, dc, dd, solvers):
          # precomputed-source stage: raw_evaluate recomputes local interface equations and
          # fluxes from the evolving bulk state on every residual evaluation.
         lambda_targets=coupled_lambda_targets(bootstrap_lambda)
-        if partial_diagnostic:
+        if direct_partial_transfer_trial:
+            # No lambda homotopy is permitted on this separate route.  A
+            # source 189-state is only a warm start for this candidate's
+            # changed films/hydraulics/height.
+            lambda_targets=[STRICT_CONTINUATION_ANCHOR_LAMBDA]
+        elif partial_diagnostic:
             lambda_targets=coupled_lambda_targets(
               bootstrap_lambda,diagnostic_terminal_lambda)
         # A strict continuation starts at the immutable, verified 8e-9 state,
@@ -2987,6 +3036,63 @@ def case(r, name, dc, dd, solvers):
         # gates through two uncached full-system confirmations.  It is not a
         # physical lambda=1 solution, so it must leave here before the normal
         # lambda-one replay.  The caller labels this only as a height trial.
+        if direct_partial_transfer_trial:
+            if (not history or history[-1].get("lambda")
+                !=STRICT_CONTINUATION_ANCHOR_LAMBDA):
+                raise JobCBlocked("PARTIAL_TRANSFER_DIRECT_CANDIDATE_UNQUALIFIED",{
+                  "heightM":h,"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+                  "candidateOrdinal":partial_transfer_sizing_trial["candidateOrdinal"],
+                  "physicalInfeasibilityClaimed":False})
+            # Reconstruct the complete candidate result from an uncached
+            # evaluation.  This preserves local interfaces, original-film
+            # fluxes, all 98 FV balances and all 91 local equations; no frozen
+            # secant/source term is used.
+            ev=exact_raw_evaluate(x,STRICT_CONTINUATION_ANCHOR_LAMBDA)
+            metrics=gate_metrics(ev)
+            if not metrics["accepted"]:
+                raise JobCBlocked("PARTIAL_TRANSFER_DIRECT_CANDIDATE_GATES_FAILED",{
+                  "heightM":h,"lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+                  "candidateOrdinal":partial_transfer_sizing_trial["candidateOrdinal"],
+                  "gateMetrics":metrics,"physicalInfeasibilityClaimed":False})
+            c,d,u=unpack(x)
+            numerical_cells=[]
+            for j,values in enumerate(ev["details"]):
+                eq,xi_c,xi_d,n,nc,nd,delta=values
+                local_interface={"candidateOnly":True,
+                  "candidate":{"version":CANDIDATE_VERSION,"unknowns":u[j].tolist(),
+                    "interfaceContinuousMoleFractions":xi_c.tolist(),
+                    "interfaceDispersedMoleFractions":xi_d.tolist(),
+                    "totalMolarFluxMolM2S":float(n),
+                    "continuousComponentFluxMolM2S":nc.tolist(),
+                    "dispersedComponentFluxMolM2S":nd.tolist(),
+                    "maximumEquationResidual":float(np.max(np.abs(eq))),
+                    "maximumIsoactivityResidual":float(np.max(np.abs(eq[:7]))),
+                    "maximumScaledFluxEqualityResidual":float(np.max(np.abs(delta)/solvers[j].scale)),
+                    "qualification":"CANDIDATE_ONLY_NO_STABILITY_CLAIM"}}
+                numerical_cells.append({"numericalCell":j+1,
+                  "continuousLocalComponentMolarFlowMolS":c[j].tolist(),
+                  "dispersedLocalComponentMolarFlowMolS":d[j].tolist(),
+                  "continuousInMolS":ev["fc"][j].tolist(),
+                  "continuousOutMolS":ev["fc"][j+1].tolist(),
+                  "dispersedInMolS":(-ev["fd"][j+1]).tolist(),
+                  "dispersedOutMolS":(-ev["fd"][j]).tolist(),
+                  "transferContinuousToDispersedMolS":ev["tr"][j].tolist(),
+                  "localInterface":local_interface,
+                  "continuousResidualMolS":ev["rc"][j].tolist(),
+                  "dispersedResidualMolS":ev["rd"][j].tolist()})
+            global_balance=[feedc[i]+feedd[i]-ev["fc"][m][i]+ev["fd"][0][i]
+              for i in range(7)]
+            return {"height":h,"solution":x.tolist(),"state":[c.tolist(),d.tolist()],
+              "fc":ev["fc"].tolist(),"fd":ev["fd"].tolist(),"tr":ev["tr"].tolist(),
+              "rc":ev["rc"].tolist(),"rd":ev["rd"].tolist(),
+              "raw":metrics["rawFvResidualMolS"],
+              "scaled":metrics["scaledFvResidual"],"positive":metrics["minimumFlowMolS"],
+              "global":global_balance,"gateMetrics":metrics,
+              "numericalCells":numerical_cells,"homotopyHistory":history,
+              "directSolve":{"status":"DIRECT_FIXED_PARTIAL_LAMBDA_189_EQUATION_SOLVE",
+                "lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+                "homotopyUsed":False,"sourceAnchorStateSha256":
+                  partial_transfer_sizing_trial["sourceAnchorStateSha256"]}}
         if partial_diagnostic:
             if (not history or history[-1].get("lambda")
                 !=diagnostic_terminal_lambda):
@@ -3160,7 +3266,15 @@ def case(r, name, dc, dd, solvers):
        "strictAnchorReplay":True}
       if continuation_anchor is not None else resume_anchor)
     strict_completion_attestation=None
-    if physical_sizing_trial is not None:
+    if direct_partial_transfer_trial:
+        trial_height=float(partial_transfer_sizing_trial["heightM"])
+        progress("direct fixed partial-lambda candidate solve",
+          height_candidate_m=trial_height,
+          lambda_value=STRICT_CONTINUATION_ANCHOR_LAMBDA)
+        low=solve_height(trial_height,{
+          "lambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+          "state":partial_transfer_sizing_trial["profileState"]})
+    elif physical_sizing_trial is not None:
         trial_height=float(physical_sizing_trial["installedHeightM"])
         progress("physical sizing transport revalidation",
           height_candidate_m=trial_height)
@@ -3286,6 +3400,23 @@ def case(r, name, dc, dd, solvers):
               "minimumFlowMolS":endpoint.get("minimumFlowMolS")},
             "gateDecision":endpoint_gates,
             "deterministicConfirmation":confirmation}}
+    if direct_partial_transfer_trial:
+        selected=low
+        out={"heightM":trial_height,"profileSolvedHeightM":selected["height"],
+          "partialTransferLambda":STRICT_CONTINUATION_ANCHOR_LAMBDA,
+          "recoveryPctNmpFreeRrboHydrocarbonMassBasis":recovery(selected),
+          "numericalCells":selected["numericalCells"],
+          "residualDiagnostics":{"maxCellResidualMolS":selected["raw"],
+            "maxScaledCellResidual":selected["scaled"],
+            "maxGlobalComponentBalanceResidualMolS":max(abs(x) for x in selected["global"]),
+            "minimumLocalComponentFlowMolS":selected["positive"]},
+          "gateMetrics":selected["gateMetrics"],
+          "globalComponentBalanceResidualMolS":selected["global"],
+          "directSolve":selected["directSolve"],
+          "partialTransferSizingTrial":partial_transfer_sizing_trial,
+          "qualification":"DIRECT_FIXED_PARTIAL_LAMBDA_189_EQUATION_CANDIDATE_NOT_LAMBDA_ONE"}
+        return {"name":name,"status":"CALCULATED_DIRECT_PARTIAL_TRANSFER_CANDIDATE",
+          "daxContinuousM2S":dc,"daxDispersedM2S":dd,"selected":out}
     if physical_sizing_trial is not None:
         # The physical compartment count is a hardware mapping supplied by the
         # separately admitted mechanical basis.  m remains the pinned seven
@@ -3563,7 +3694,8 @@ for line in sys.stdin:
         _completed_results=[
           value for value in completed if isinstance(value,dict)]
     if (r.get("protocol")!=PROTOCOL
-      or r.get("operation") not in ("SOLVE_HEIGHT","REVALIDATE_PHYSICAL_TRIAL")
+      or r.get("operation") not in ("SOLVE_HEIGHT","REVALIDATE_PHYSICAL_TRIAL",
+        "SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL")
       or r.get("componentOrder")!=list(COMPONENTS)):
         raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     continuation_anchor=validate_strict_continuation_anchor(
@@ -3580,6 +3712,14 @@ for line in sys.stdin:
             raise ValueError("JOB_C_PHYSICAL_SIZING_DIAGNOSTIC_MODE_PROHIBITED")
         if r.get("resume") is not None:
             raise ValueError("JOB_C_PHYSICAL_SIZING_RESUME_PROHIBITED")
+    if r.get("operation")=="SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL":
+        validate_partial_transfer_sizing_trial(r)
+        if (r.get("diagnosticMode") is not None or r.get("resumeCheckpoint") is not None
+            or r.get("physicalSizingTrial") is not None
+            or r.get("continuationAnchor") is not None):
+            raise ValueError("PARTIAL_TRANSFER_SIZING_TRIAL_CONTINUATION_OR_RESUME_PROHIBITED")
+    elif r.get("partialTransferSizingTrial") is not None:
+        raise ValueError("PARTIAL_TRANSFER_SIZING_TRIAL_FIXED_OPERATION_REQUIRED")
     diagnostic_mode=r.get("diagnosticMode")
     strict_diagnostic_config={
       "mode":STRICT_PARTIAL_DIAGNOSTIC_MODE,
@@ -3601,7 +3741,7 @@ for line in sys.stdin:
          r["phaseConfiguration"]) for _ in range(r["compartments"])]
        nominal=case(r,"NOMINAL",.010,.0010,solvers)
     finally: temporary.cleanup()
-    if diagnostic_mode is None:
+    if diagnostic_mode is None and r.get("operation")!="SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL":
         nominal=exact_qualify(r,nominal)
     cases=[nominal]+[{"name":x,"status":"NOT_RUN_PENDING_NOMINAL","reason":"SENSITIVITIES_DEFERRED_UNTIL_NOMINAL_VIABLE"} for x in ("CONTINUOUS_LOW","CONTINUOUS_HIGH","DISPERSED_LOW","DISPERSED_HIGH")]
     partial_endpoint=nominal.get("diagnosticPartialEndpoint")
@@ -3611,6 +3751,8 @@ for line in sys.stdin:
        and nominal["status"]=="CALCULATED_WORKFLOW_TEST_ONLY_PARTIAL_SENSITIVITY"
        else "CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C" if diagnostic_mode is not None
        and nominal["status"]=="CALCULATED_DIAGNOSTIC_PARTIAL_SENSITIVITY"
+       else "CALCULATED_DIRECT_PARTIAL_TRANSFER_CANDIDATE"
+        if nominal["status"]=="CALCULATED_DIRECT_PARTIAL_TRANSFER_CANDIDATE"
        else "CALCULATED_PRELIMINARY_JOB_C" if nominal["status"].startswith("CALCULATED")
        else "BLOCKED_PRELIMINARY_JOB_C"),"componentOrder":list(COMPONENTS),
             **({"diagnosticOnly":True,
@@ -3646,6 +3788,13 @@ for line in sys.stdin:
           "physicalSizingTrial":r["physicalSizingTrial"],
           "equationSystem":"UNCHANGED_COUPLED_189_EQUATIONS",
           "normalJobCStartedOrRepeated":False}
+    if r.get("operation")=="SOLVE_FIXED_PARTIAL_TRANSFER_TRIAL":
+        body["partialTransferSizingRevalidation"]={
+          "status":"DIRECT_FIXED_PARTIAL_LAMBDA_TRANSPORT_RECALCULATED",
+          "partialTransferSizingTrial":r["partialTransferSizingTrial"],
+          "equationSystem":"UNCHANGED_COUPLED_189_EQUATIONS",
+          "normalJobCStartedOrRepeated":False,
+          "continuationOrHomotopyUsed":False}
  except JobCInterrupted:
     body={"protocol":PROTOCOL,"status":"INTERRUPTED_PRELIMINARY_JOB_C",
       "requestSha256":_request_sha256,"complete":False,

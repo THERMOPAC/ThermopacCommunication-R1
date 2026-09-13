@@ -54,14 +54,16 @@ import {
 } from "./ecr-pre-pilot/job-c";
 import {
   assessAcceptedJobCForPhysicalSizing,
+  solveDirectPartialTransferSizingCandidate,
   sizeAcceptedJobCWithWorkerTransport,
   summarizeJobCPhysicalSizingDependency,
 } from "./ecr-pre-pilot/job-c-physical-sizing";
 import {
   PARTIAL_TRANSFER_ANCHOR_HEIGHT_M,
   PARTIAL_TRANSFER_SIZING_VERSION,
-  decodeFrozenLocalCoefficients,
-  prepareFrozenPartialTransferBvp,
+  evaluateDirectPartialTransferStage1Targets,
+  eligibleDirectPartialTransferCandidates,
+  partialTransferHeightBracketResolved,
   verifyOwnedStrictPartialAnchor,
   type StrictPartialAnchor,
 } from "./ecr-pre-pilot/stage4-partial-transfer-sizing";
@@ -1687,10 +1689,16 @@ async function currentOwnedStrictPartialAnchor(userId: number, designId: number)
 }
 
 /**
- * The strict partial-transfer anchor is read as immutable evidence only.
- * This path has no queue import, no worker invocation, and no continuation.
+ * The strict partial-transfer anchor is immutable seed/provenance evidence.
+ * This path runs only explicitly requested, isolated fixed-lambda candidate
+ * worker trials; it has no queue import, resume, continuation, or lambda-one
+ * solve.
  */
-export async function evaluatePartialTransferPhysicalSizing(userId: number, designId: number) {
+export async function evaluatePartialTransferPhysicalSizing(
+  userId: number,
+  designId: number,
+  options: { signal?: AbortSignal } = {},
+) {
   const found = await pool.query<{ input_data: unknown }>(
     `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
     [designId, userId],
@@ -1699,7 +1707,14 @@ export async function evaluatePartialTransferPhysicalSizing(userId: number, desi
   const stage1 = validateStage1Snapshot(found.rows[0].input_data);
   const source = await currentOwnedStrictPartialAnchor(userId, designId);
   if (!source) {
-    throw new Error('PARTIAL_TRANSFER_STRICT_LAMBDA_8E_MINUS_9_2M_ANCHOR_NOT_FOUND_OR_INVALID');
+    return {
+      status: 'DEPENDENCY_BLOCKED',
+      reason: 'PARTIAL_TRANSFER_STRICT_LAMBDA_8E_MINUS_9_2M_ANCHOR_NOT_FOUND_OR_INVALID',
+      requiredActiveHeightM: null,
+      physicalCompartments: null,
+      conditionalOverallTheoreticalToPhysicalEstimate: null,
+      efficiencyNullReason: 'VERIFIED_STRICT_PARTIAL_TRANSFER_ANCHOR_REQUIRED',
+    };
   }
   if (source.anchor.stage1SnapshotHash !== stage1.immutableHash) {
     return {
@@ -1714,161 +1729,363 @@ export async function evaluatePartialTransferPhysicalSizing(userId: number, desi
   const stage3 = (await getKuhniGeometryResolverRuns(userId, designId))
     .find((item: any) => item.immutableHash === source.anchor.sourceDependencies.stage3ImmutableHash);
   const request = source.anchor.workerRequest;
-  const candidate = (stage3?.result?.hydraulicRpmEnvelope ?? []).find((item: any) =>
-    item?.status === 'CALCULATED_IN_RANGE'
-      && item?.operatingHydraulics?.status === 'OPERATING_HOLDUP_CALCULATED'
-      && item.columnDiameterM === request.columnDiameterM
-      && item.rpm === request.rpm
-      && item.d32M === request.d32M
-      && item.operatingHydraulics.operatingHoldup === request.operatingHoldup);
-  if (!stage3 || !candidate || !Number.isFinite(candidate.compartmentHeightM)
-    || !(candidate.compartmentHeightM > 0)) {
+  if (!stage3) {
     return {
       status: 'DEPENDENCY_BLOCKED',
-      reason: 'PARTIAL_TRANSFER_MATCHED_STAGE3_SELECTED_HYDRAULIC_MECHANICAL_GEOMETRY_REQUIRED',
+      reason: 'PARTIAL_TRANSFER_ANCHOR_STAGE3_IMMUTABLE_GEOMETRY_AUTHORITY_REQUIRED',
       anchorJobId: source.anchor.sourceJobId,
       stage3ImmutableHash: source.anchor.sourceDependencies.stage3ImmutableHash,
     };
   }
-  const failedModelBase = {
-    classification: 'PRE_PILOT_FROZEN_LOCAL_COEFFICIENT_EXTRAPOLATION_NOT_VALIDATED',
-    anchor: {
-      sourceJobId: source.anchor.sourceJobId, sourceResultHash: source.anchor.sourceResultHash,
+  const targetRecoveryPct = stage1.stage1.minimumRecoveryPct;
+  const recoveryTolerancePct = 0.01;
+  const minimumSearchHeightM = 0.25;
+  const maximumSearchHeightM = 20;
+  const heightToleranceM = 0.02;
+  const separationCriteria = (trial: any) => evaluateDirectPartialTransferStage1Targets({
+    phaseConfiguration: request.phaseConfiguration,
+    componentOrder: trial?.response?.componentOrder,
+    numericalCells: trial?.selected?.numericalCells,
+    recoveryPct: trial?.selected?.recoveryPctNmpFreeRrboHydrocarbonMassBasis,
+    targets: {
+      minimumRecoveryPct: targetRecoveryPct,
+      minimumRaffinateSaturatesWt: stage1.stage1.minimumRaffinateSaturatesWt,
+      targetRaffinateTotalAromaticsWt: stage1.stage1.targetRaffinateTotalAromaticsWt,
+      targetRaffinatePolarAromaticsWt: stage1.stage1.targetRaffinatePolarAromaticsWt,
+      maximumNmpRaffinateWt: stage1.stage1.maximumNmpRaffinateWt,
+      targetRaffinateSulfurPpm: stage1.stage1.targetRaffinateSulfurPpm,
+    },
+    recoveryTolerancePct,
+  });
+  const processBasis = makeStage1HydrodynamicProcessBasis(stage1);
+  // D=1.02877 m/H=2 m are source trials, never the answer.  Every eligible
+  // persisted Stage-3 D/RPM candidate is rechecked; cap work explicitly so a
+  // direct user request cannot turn into an unbounded Job-C workload.
+  const sourceCandidateRecords = ((stage3 as any)?.result?.hydraulicRpmEnvelope ?? [])
+    .map((item: any, ordinal: number) => ({
+      candidate: {
+        ordinal, trialId: `stage3:${ordinal}`, trialImmutableHash: (stage3 as any).immutableHash,
+        rpm: item?.rpm, columnDiameterM: item?.columnDiameterM,
+        compartmentHeightM: item?.compartmentHeightM, powerVolumeWM3: item?.powerVolumeWM3,
+        status: item?.status, applicability: item?.applicability ?? [],
+        uncertainty: item?.uncertainty ?? [], pilotValidated: false, hydraulicallyFeasible: true,
+      },
+      stage3Evidence: {
+        columnDiameterM: item?.columnDiameterM, rpm: item?.rpm,
+        compartmentHeightM: item?.compartmentHeightM, d32M: item?.d32M,
+        operatingHoldup: item?.operatingHydraulics?.operatingHoldup,
+        floodHoldup: item?.operatingHydraulics?.floodHoldup,
+      },
+    }));
+  const sourceCandidates = eligibleDirectPartialTransferCandidates(
+    sourceCandidateRecords,
+    (item: any) => item.candidate.status === 'CALCULATED_IN_RANGE'
+      && Number.isFinite(item.candidate.columnDiameterM) && item.candidate.columnDiameterM > 0
+      && Number.isFinite(item.candidate.rpm) && item.candidate.rpm > 0,
+  );
+  if (!sourceCandidates.length) {
+    const result = {
+      status: 'NO_FEASIBLE_CANDIDATE',
+      reason: 'PARTIAL_TRANSFER_NO_ELIGIBLE_STAGE3_DIAMETER_RPM_CANDIDATES',
+      classification: 'PRE_PILOT_DIRECT_PARTIAL_LAMBDA_NOT_RELEASE_ELIGIBLE',
+      requiredActiveHeightM: null, physicalCompartments: null,
+      conditionalOverallTheoreticalToPhysicalEstimate: null,
+      efficiencyNullReason: 'SUPPORTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED',
+      trialEvidence: [],
+    };
+    await persistPartialTransferPhysicalSizing({
+      userId, designId, anchor: source.anchor, stage1,
+      stage3ImmutableHash: (stage3 as any).immutableHash, result,
+    });
+    return result;
+  }
+  const trialEvidence: any[] = [];
+  const feasible: any[] = [];
+  let searchIndeterminate = false;
+  const searchController = new AbortController();
+  let searchDeadlineExceeded = false;
+  let searchCallBudgetExceeded = false;
+  let searchClientCancelled = false;
+  let callsStarted = 0;
+  const searchTimer = setTimeout(() => {
+    searchDeadlineExceeded = true;
+    searchController.abort();
+  }, 120_000);
+  searchTimer.unref();
+  const abortForClient = () => {
+    searchClientCancelled = true;
+    searchController.abort();
+  };
+  options.signal?.addEventListener('abort', abortForClient, { once: true });
+  for (const candidateTrial of sourceCandidates) {
+    const evaluateAt = async (heightM: number) => {
+      if (searchController.signal.aborted || callsStarted >= 16) {
+        searchCallBudgetExceeded ||= !searchController.signal.aborted;
+        return {
+          status: 'SEARCH_BUDGET_EXHAUSTED' as const,
+          candidateOrdinal: candidateTrial.candidate.ordinal, heightM,
+          reason: searchDeadlineExceeded
+            ? 'PARTIAL_TRANSFER_AGGREGATE_RUNTIME_BUDGET_EXHAUSTED'
+            : searchClientCancelled ? 'PARTIAL_TRANSFER_CLIENT_CANCELLED'
+            : 'PARTIAL_TRANSFER_AGGREGATE_CALL_BUDGET_EXHAUSTED',
+        };
+      }
+      callsStarted += 1;
+      try {
+        return await solveDirectPartialTransferSizingCandidate({
+          anchor: source.anchor, workerRequest: request as any, processBasis,
+          candidate: candidateTrial, heightM, signal: searchController.signal,
+        });
+      } catch (error) {
+        return {
+          status: 'TRANSPORT_RECALCULATION_FAILED' as const,
+          candidateOrdinal: candidateTrial.candidate.ordinal,
+          heightM,
+          reason: error instanceof Error ? error.message : 'PARTIAL_TRANSFER_CANDIDATE_RECALCULATION_FAILED',
+        };
+      }
+    };
+    const recoveryAt = (value: any) => {
+      const recovery = value?.selected?.recoveryPctNmpFreeRrboHydrocarbonMassBasis;
+      return typeof recovery === 'number' && Number.isFinite(recovery) ? recovery : Number.NaN;
+    };
+    const criteriaPassed = (value: any) => {
+      const criteria = separationCriteria(value);
+      return criteria.valid && criteria.allEvaluatedNonSulfurTargetsPassed;
+    };
+    const qualityPassed = (value: any) => {
+      const criteria = separationCriteria(value);
+      return criteria.valid && criteria.qualityTargetsPassed;
+    };
+    const transportPassed = (value: any) => value?.status === 'TRANSPORT_GATES_PASSED'
+      && Number.isFinite(recoveryAt(value));
+    const indeterminate = (value: any) => [
+      'TRANSPORT_TIMEOUT', 'TRANSPORT_CANCELLED', 'SEARCH_BUDGET_EXHAUSTED',
+    ].includes(value?.status);
+    const unknownTransportOutcome = (value: any) => ![
+      'HYDRAULICALLY_INFEASIBLE', 'HYDRAULIC_APPLICABILITY_REJECTED',
+    ].includes(value?.status);
+    // Search below the 2 m seed first.  0.25 m is an explicit direct-model
+    // lower bound (not a mechanical compartment assertion); if it passes all
+    // evaluable targets there is no unsupported claim of a smaller H.
+    let lowerBracket = await evaluateAt(minimumSearchHeightM);
+    if (indeterminate(lowerBracket)) {
+      searchIndeterminate = true;
+      trialEvidence.push({ candidate: candidateTrial.candidate, status: 'INDETERMINATE', lowerBracket });
+      continue;
+    }
+    if (!transportPassed(lowerBracket)) {
+      searchIndeterminate ||= unknownTransportOutcome(lowerBracket);
+      trialEvidence.push({ candidate: candidateTrial.candidate, status: 'LOWER_HEIGHT_TRANSPORT_FAILED',
+        lowerBracket, reason: 'PARTIAL_TRANSFER_LOWER_SEARCH_BOUND_TRANSPORT_NOT_QUALIFIED' });
+      continue;
+    }
+    let upperBracket: any = lowerBracket;
+    let selected: any = criteriaPassed(lowerBracket)
+      ? lowerBracket : null;
+    if (!selected) {
+      const seed = await evaluateAt(PARTIAL_TRANSFER_ANCHOR_HEIGHT_M);
+      if (indeterminate(seed)) {
+        searchIndeterminate = true;
+        trialEvidence.push({ candidate: candidateTrial.candidate, status: 'INDETERMINATE', lowerBracket, seed });
+        continue;
+      }
+      if (!transportPassed(seed)) {
+        searchIndeterminate ||= unknownTransportOutcome(seed);
+        trialEvidence.push({ candidate: candidateTrial.candidate, status: 'SEED_HEIGHT_TRANSPORT_FAILED',
+          lowerBracket, seed, reason: 'PARTIAL_TRANSFER_2M_SEED_TRANSPORT_NOT_QUALIFIED' });
+        continue;
+      }
+      upperBracket = seed;
+      if (criteriaPassed(seed)) selected = seed;
+    }
+    if (!selected) {
+      const maximum = await evaluateAt(maximumSearchHeightM);
+      if (indeterminate(maximum)) {
+        searchIndeterminate = true;
+        trialEvidence.push({ candidate: candidateTrial.candidate, status: 'INDETERMINATE',
+          lowerBracket, upperBracket, maximum });
+        continue;
+      }
+      if (!transportPassed(maximum)) {
+        searchIndeterminate ||= unknownTransportOutcome(maximum);
+        trialEvidence.push({ candidate: candidateTrial.candidate, status: 'UPPER_HEIGHT_TRANSPORT_FAILED',
+          lowerBracket, upperBracket, maximum,
+          reason: 'PARTIAL_TRANSFER_UPPER_SEARCH_BOUND_TRANSPORT_NOT_QUALIFIED' });
+        continue;
+      }
+      if (!criteriaPassed(maximum)) {
+        // Quality (SAT/total aromatics/PA) is treated separately from
+        // recovery/NMP.  It may first pass at high H while recovery or NMP
+        // fails there, so bracket its observed transition and explicitly
+        // check the other constraints at the quality boundary.  Neither
+        // endpoint failure proves the interval has no feasible interior.
+        if (qualityPassed(maximum) && !qualityPassed(lowerBracket)) {
+          let qualityLo = lowerBracket.heightM;
+          let qualityHi = maximum.heightM;
+          let qualityBoundary: any = maximum;
+          while (!partialTransferHeightBracketResolved(
+            qualityLo, qualityHi, heightToleranceM,
+          )) {
+            const middle = await evaluateAt((qualityLo + qualityHi) / 2);
+            if (indeterminate(middle) || !transportPassed(middle)) {
+              searchIndeterminate = true;
+              trialEvidence.push({ candidate: candidateTrial.candidate,
+                status: 'QUALITY_BOUNDARY_INDETERMINATE', lowerBracket, maximum, middle });
+              qualityBoundary = null;
+              break;
+            }
+            if (qualityPassed(middle)) {
+              qualityHi = middle.heightM;
+              qualityBoundary = middle;
+            } else {
+              qualityLo = middle.heightM;
+            }
+          }
+          if (qualityBoundary && criteriaPassed(qualityBoundary)) {
+            selected = qualityBoundary;
+            upperBracket = qualityBoundary;
+          } else {
+            searchIndeterminate = true;
+            trialEvidence.push({ candidate: candidateTrial.candidate,
+              status: 'QUALITY_BOUNDARY_RECOVERY_OR_NMP_NOT_PROVEN',
+              lowerBracket, maximum, qualityBoundary,
+              reason: 'SPARSE_OR_NONMONOTONIC_RECOVERY_NMP_BEHAVIOR_CANNOT_PROVE_NO_INTERIOR_FEASIBLE_HEIGHT' });
+            continue;
+          }
+        } else {
+          searchIndeterminate = true;
+          trialEvidence.push({ candidate: candidateTrial.candidate, status: 'SPARSE_INTERVAL_TARGETS_UNRESOLVED',
+            lowerBracket, upperBracket, maximum,
+            reason: 'ENDPOINT_TARGET_FAILURE_DOES_NOT_PROVE_NO_INTERIOR_PARTIAL_TRANSFER_SOLUTION' });
+          continue;
+        }
+      }
+      if (!selected) {
+        // The actual passing upper point, never the preceding failing point,
+        // is the initial selected candidate.
+        selected = maximum;
+        upperBracket = maximum;
+      }
+    }
+    let lo = lowerBracket.heightM; let hi = selected.heightM;
+    for (let iteration = 0; !partialTransferHeightBracketResolved(
+      lo, hi, heightToleranceM,
+    ); iteration += 1) {
+      const middle = await evaluateAt((lo + hi) / 2);
+      if (indeterminate(middle)) {
+        searchIndeterminate = true;
+        trialEvidence.push({ candidate: candidateTrial.candidate, status: 'INDETERMINATE',
+          iteration, lowerBracket, upperBracket, middle });
+        selected = null;
+        break;
+      }
+      if (!transportPassed(middle)) {
+        searchIndeterminate ||= unknownTransportOutcome(middle);
+        trialEvidence.push({ candidate: candidateTrial.candidate, status: 'HEIGHT_SEARCH_TRANSPORT_FAILED',
+          iteration, lowerBracket, upperBracket, middle });
+        selected = null;
+        break;
+      }
+      if (criteriaPassed(middle)) {
+        hi = middle.heightM; selected = middle; upperBracket = middle;
+      } else {
+        lo = middle.heightM; lowerBracket = middle;
+      }
+    }
+    if (!selected) continue;
+    const selectedCriteria = separationCriteria(selected);
+    if (!selectedCriteria.valid) {
+      searchIndeterminate = true;
+      trialEvidence.push({ candidate: candidateTrial.candidate, status: 'TARGET_EVALUATION_INVALID',
+        selected, criteria: selectedCriteria });
+      continue;
+    }
+    feasible.push({ candidate: candidateTrial, selected, lowerBracket, upperBracket,
+      criteria: selectedCriteria });
+    trialEvidence.push({ candidate: candidateTrial.candidate, status: 'FEASIBLE',
+      lowerBracket, upperBracket, selected, criteria: separationCriteria(selected),
+      hydraulicClosure: {
+        status: 'HEIGHT_INDEPENDENT_AT_FIXED_D_RPM_AND_PROCESS_THROUGHPUT',
+        basis: 'V110_HOLDUP_D32_CLOSURE_RECALCULATED_PER_D_RPM;_H_DOES_NOT_APPEAR_IN_THE_CLOSURE',
+        hydraulic: selected.hydraulic,
+      } });
+  }
+  clearTimeout(searchTimer);
+  options.signal?.removeEventListener('abort', abortForClient);
+  const chosen = feasible.sort((left, right) =>
+    left.selected.heightM - right.selected.heightM
+    || left.candidate.candidate.columnDiameterM - right.candidate.candidate.columnDiameterM
+    || left.candidate.candidate.rpm - right.candidate.candidate.rpm)[0];
+  const searchIncomplete = searchIndeterminate || searchDeadlineExceeded
+    || searchCallBudgetExceeded || searchClientCancelled;
+  const result = (!chosen || searchIncomplete) ? {
+    status: searchIncomplete
+      ? 'INDETERMINATE' : 'NO_FEASIBLE_CANDIDATE',
+    reason: searchIncomplete
+      ? 'PARTIAL_TRANSFER_SEARCH_INCOMPLETE;_UNQUALIFIED_OR_TIMED_OUT_DIRECT_SOLVES_ARE_NOT_FEASIBILITY_EVIDENCE'
+      : 'PARTIAL_TRANSFER_NO_CANDIDATE_MET_ALL_EVALUABLE_STAGE1_TARGETS_AFTER_DIRECT_189_TRANSPORT_AND_HYDRAULIC_GATES',
+    classification: 'PRE_PILOT_DIRECT_PARTIAL_LAMBDA_NOT_RELEASE_ELIGIBLE',
+    requiredActiveHeightM: null, physicalCompartments: null,
+    conditionalOverallTheoreticalToPhysicalEstimate: null,
+    efficiencyNullReason: 'SUPPORTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED',
+    trialEvidence,
+    candidateScreeningBasis: sourceCandidates,
+    searchBudget: {
+      maximumWallClockSeconds: 120, maximumWorkerCalls: 16, callsStarted,
+      deadlineExceeded: searchDeadlineExceeded, callBudgetExceeded: searchCallBudgetExceeded,
+      clientCancelled: searchClientCancelled,
+    },
+    searchQualification: {
+      targetMonotonicity: 'NOT_PROVEN;_SPARSE_OR_UNQUALIFIED_INTERVALS_ARE_INDETERMINATE',
+      requiredHeight: 'NOT_CALCULATED_BECAUSE_THE_BOUNDED_SEARCH_DID_NOT_COMPLETE',
+    },
+    provisionalBestCandidate: chosen ? {
+      candidateOrdinal: chosen.candidate.candidate.ordinal,
+      heightM: chosen.selected.heightM,
+      qualification: 'NOT_A_FINAL_SELECTION_BECAUSE_BOUNDED_SEARCH_DID_NOT_COMPLETE',
+    } : null,
+  } : {
+    status: 'CALCULATED_EVALUABLE_TARGETS_WITH_SULFUR_AND_EFFICIENCY_BLOCKED',
+    classification: 'PRE_PILOT_DIRECT_NONLINEAR_PARTIAL_LAMBDA_NOT_RELEASE_ELIGIBLE',
+    reason: 'SULFUR_NOT_EVALUATED_AND_SUPPORTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED',
+    anchor: { sourceJobId: source.anchor.sourceJobId, sourceResultHash: source.anchor.sourceResultHash,
       lambda: 8e-9, heightM: 2, profileStateSha256: source.anchor.profileStateSha256,
-      verification: 'OWNED_IMMUTABLE_STRICT_DIAGNOSTIC_CHECKPOINT_VERIFIED_READ_ONLY',
-    },
-    stage3Geometry: {
-      immutableHash: (stage3 as any).immutableHash, columnDiameterM: candidate.columnDiameterM,
-      compartmentHeightM: candidate.compartmentHeightM,
-      provenance: 'MATCHED_PERSISTED_STAGE3_SELECTED_HYDRAULIC_SCREENING_TRIAL_REUSED_NOT_OPTIMIZED',
-    },
-    target: {
-      recoveryPct: stage1.stage1.minimumRecoveryPct,
+      verification: 'OWNED_IMMUTABLE_STRICT_DIAGNOSTIC_CHECKPOINT_VERIFIED_READ_ONLY' },
+    stage3Geometry: { immutableHash: (stage3 as any).immutableHash,
+      columnDiameterM: chosen.candidate.candidate.columnDiameterM, rpm: chosen.candidate.candidate.rpm,
+      provenance: 'CANDIDATE_SPECIFIC_HYDRAULICS_AND_FILMS_RECALCULATED' },
+    target: { recoveryPct: targetRecoveryPct,
       basis: 'STAGE1_MINIMUM_RECOVERY_PCT_NMP_FREE_RRBO_HYDROCARBON_MASS_SAT_MONO_DI_POLY_PA',
-      lowerBracket: null, upperBracket: null,
-    },
-    requiredActiveHeightM: null,
+      lowerBracket: { heightM: chosen.lowerBracket.heightM, recoveryPct: recoveryAt(chosen.lowerBracket) },
+      upperBracket: { heightM: chosen.upperBracket.heightM, recoveryPct: recoveryAt(chosen.upperBracket) },
+      recoveryTolerancePct,
+      criteria: chosen.criteria.criteria,
+      allEvaluableNonSulfurTargetsPassed: true,
+      sulfur: chosen.criteria.sulfurCriterion },
+    requiredActiveHeightM: chosen.selected.heightM,
     physicalCompartments: null,
     conditionalOverallTheoreticalToPhysicalEstimate: null,
-    efficiencyNullReason: 'MODEL_INVALID_NO_CONDITIONAL_EFFICIENCY',
-  };
-  let bands;
-  try {
-    bands = decodeFrozenLocalCoefficients({
-      state: source.anchor.profileState,
-      workerRequest: request,
-    });
-  } catch (error: any) {
-    const result = {
-      status: 'MODEL_INVALID', reason: error?.message ?? 'PARTIAL_TRANSFER_COEFFICIENT_DECODING_FAILED',
-      ...failedModelBase,
-      anchorJobId: source.anchor.sourceJobId, anchorStateSha256: source.anchor.profileStateSha256,
-      coefficientBands: null,
-      coefficientNullReason: 'STRICT_ANCHOR_LOCAL_SECANTS_INVALID_OR_ILL_CONDITIONED',
-    };
-    await persistPartialTransferPhysicalSizing({
-      userId, designId, anchor: source.anchor, stage1,
-      stage3ImmutableHash: (stage3 as any).immutableHash, result,
-    });
-    return result;
-  }
-  const targetRecoveryPct = stage1.stage1.minimumRecoveryPct;
-  let prepared: ReturnType<typeof prepareFrozenPartialTransferBvp>;
-  try {
-    // 2 m is the immutable strict-anchor height, not a fabricated physical
-    // result. The lower bound is one persisted Stage-3 compartment.
-    prepared = prepareFrozenPartialTransferBvp({
-      workerRequest: request, bands, compartmentHeightM: candidate.compartmentHeightM,
-      targetRecoveryPct,
-    });
-  } catch (error: any) {
-    const result = {
-      status: 'MODEL_INVALID', reason: error?.message ?? 'PARTIAL_TRANSFER_BVP_FAILED',
-      ...failedModelBase,
-      anchorJobId: source.anchor.sourceJobId, coefficientBands: bands,
-      coefficientNullReason: null,
-    };
-    await persistPartialTransferPhysicalSizing({
-      userId, designId, anchor: source.anchor, stage1,
-      stage3ImmutableHash: (stage3 as any).immutableHash, result,
-    });
-    return result;
-  }
-  const { lower, upper, selected, targetFailure } = prepared;
-  const theoretical = (stage3 as any)?.theoreticalStages;
-  const nt = theoretical?.provenance === 'STAGE_2_CALCULATED_NT'
-    && Number.isInteger(theoretical?.value) && theoretical.value > 0
-    ? theoretical.value : null;
-  const physicalCompartments = selected
-    ? Math.ceil(selected.heightM / candidate.compartmentHeightM) : null;
-  const overallEfficiency = selected && nt && physicalCompartments && physicalCompartments > 0
-    ? nt / physicalCompartments : null;
-  const efficiencyNullReason = !nt
-    ? 'COMPATIBLE_CALCULATED_STAGE2_NT_REQUIRED_FOR_CONDITIONAL_OVERALL_ESTIMATE'
-    : !physicalCompartments ? 'PHYSICAL_COMPARTMENT_COUNT_UNAVAILABLE'
-    : overallEfficiency == null || overallEfficiency <= 0 || overallEfficiency > 1
-      ? 'CONDITIONAL_OVERALL_THEORETICAL_TO_PHYSICAL_RATIO_OUTSIDE_(0,1]'
-      : null;
-  const result = {
-    status: selected && !efficiencyNullReason ? 'CALCULATED_PRELIMINARY_PARTIAL_TRANSFER_PHYSICAL_SIZING'
-      : selected ? 'CALCULATED_WITH_EFFICIENCY_BLOCKED' : 'TARGET_NOT_BRACKETED',
-    classification: 'PRE_PILOT_FROZEN_LOCAL_COEFFICIENT_EXTRAPOLATION_NOT_VALIDATED',
-    ...(targetFailure ? { reason: targetFailure } : {}),
-    anchor: {
-      sourceJobId: source.anchor.sourceJobId, sourceResultHash: source.anchor.sourceResultHash,
-      lambda: 8e-9, heightM: 2, profileStateSha256: source.anchor.profileStateSha256,
-      verification: 'OWNED_IMMUTABLE_STRICT_DIAGNOSTIC_CHECKPOINT_VERIFIED_READ_ONLY',
+    efficiencyLabel: 'NOT_CALCULATED',
+    efficiencyNullReason: 'SUPPORTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED',
+    solve: chosen.selected.selected,
+    trialEvidence,
+    candidateScreeningBasis: sourceCandidates,
+    searchBudget: {
+      maximumWallClockSeconds: 120, maximumWorkerCalls: 16, callsStarted,
+      deadlineExceeded: searchDeadlineExceeded, callBudgetExceeded: searchCallBudgetExceeded,
+      clientCancelled: searchClientCancelled,
     },
-    stage3Geometry: {
-      immutableHash: (stage3 as any).immutableHash, columnDiameterM: candidate.columnDiameterM,
-      compartmentHeightM: candidate.compartmentHeightM,
-      provenance: 'MATCHED_PERSISTED_STAGE3_SELECTED_HYDRAULIC_SCREENING_TRIAL_REUSED_NOT_OPTIMIZED',
+    searchQualification: {
+      targetMonotonicity: 'OBSERVED_LOCALLY_FOR_BISECTION_ONLY;_NOT_A_GLOBAL_MONOTONICITY_CLAIM',
+      requiredHeight: 'BOUNDED_ESTIMATE_WITHIN_THE_LAST_QUALIFIED_ALL_TARGET_INTERVAL_AT_0.02_M_OR_LESS',
     },
-    target: {
-      recoveryPct: targetRecoveryPct,
-      basis: 'STAGE1_MINIMUM_RECOVERY_PCT_NMP_FREE_RRBO_HYDROCARBON_MASS_SAT_MONO_DI_POLY_PA',
-      lowerBracket: { heightM: lower.heightM, recoveryPct: lower.recoveryPct },
-      upperBracket: { heightM: upper.heightM, recoveryPct: upper.recoveryPct },
-    },
-    coordinateSignConvention: {
-      z: 'continuous inlet z=0 to continuous outlet z=H',
-      N: 'positive continuous-to-dispersed',
-      equations: 'dFc/dz=dFd/dz=-a*A*N; therefore Fc(H)+Fd(0)=Fc(0)+Fd(H)',
-      verifiedBy: 'strictly positive flows and componentwise counter-current balance gate',
-    },
-    requiredActiveHeightM: selected?.heightM ?? null,
-    physicalCompartments,
-    conditionalOverallTheoreticalToPhysicalEstimate: overallEfficiency,
-    efficiencyLabel: 'CONDITIONAL OVERALL THEORETICAL-TO-PHYSICAL ESTIMATE',
-    efficiencyNullReason,
-    theoreticalStages: nt == null ? null : { value: nt, provenance: 'STAGE_2_CALCULATED_NT' },
-    solve: selected ? {
-      recoveryPct: selected.recoveryPct, minimumFlowMolS: selected.minimumFlowMolS,
-      maximumComponentBalanceResidualMolS: selected.maximumComponentBalanceResidualMolS,
-      iterations: selected.iterations,
-    } : null,
-    coefficientBands: bands,
-    coefficientUnits: {
-      kcAndKd: 'm/s',
-      CtCAndCtD: 'mol/m3',
-      rawcAndN: 'mol/m2/s',
-      equilibriumSecantM: 'dimensionless',
-      frozenK: 'mol/m2/s per mole-fraction driving force',
-      signConvention: 'POSITIVE_CONTINUOUS_TO_DISPERSED; K is accepted only when positive and N/K driving-force signs agree',
-    },
-    assumptions: [
-      'Frozen per-component equilibrium secants and K values are decoded from the exact 189-state strict anchor.',
-      'Opposite-feed plug flow only; no axial dispersion and no backmixing.',
-      'a=6*holdup/d32; A=pi*COLUMN_D^2/4; original unscaled Job-C films are used in flux reconstruction.',
-      'Local coefficient extrapolation away from the strict anchor is explicitly unvalidated.',
-      'No Job-C worker, queue, continuation, or lambda=1 result is used by this separate estimate.',
-    ],
-    equations: [
-      'rawc=kc*CtC*(xc-xic); jc=rawc-xic*sum(rawc); N=jc+xic*n',
-      'm=xid/xic; K=N/(m*xc-xd)',
-      'dFc/dz=dFd/dz=-a*A*K*(m*xc-xd)',
-      'Nphysical=ceil(H/hcomp); Eo=Nt/Nphysical',
-    ],
+    assumptions: ['Each D/RPM/H point re-solves local interfaces, original Job-A films, and the coupled 189 equations at lambda=8e-9.',
+      'The 189-coordinate strict anchor is a seed and immutable provenance only; no frozen secant coefficients or homotopy are used.',
+      'No supported physical-compartment efficiency model or actual mechanical spacing evidence is available; no stage efficiency is reported.',
+      'This isolated operation does not enqueue, resume, or run lambda=1 Job C.'],
+    equations: ['Unchanged coupled 98 finite-volume balances + 91 local interface equations.',
+      'Candidate local film fluxes and FV source terms are recomputed at every D/RPM/H trial.'],
   };
   await persistPartialTransferPhysicalSizing({
     userId, designId, anchor: source.anchor, stage1, stage3ImmutableHash: (stage3 as any).immutableHash, result,
@@ -1945,7 +2162,7 @@ export async function getLatestPartialTransferPhysicalSizing(userId: number, des
       sourceStage3ImmutableHash: anchor.sourceDependencies.stage3ImmutableHash,
       savedStage3ImmutableHash: row.stage3_immutable_hash };
   }
-  const currentStage3 = (await getKuhniGeometryResolverRuns(userId, designId, true))[0];
+  const currentStage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
   if (!currentStage3 || currentStage3.immutableHash !== row.stage3_immutable_hash) {
     return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
       reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CURRENT_STAGE3_LINEAGE_CHANGED',

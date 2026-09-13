@@ -6,9 +6,12 @@ import {
 } from './job-c';
 
 export const PARTIAL_TRANSFER_SIZING_VERSION =
-  'ECR_PRE_PILOT_STAGE4_PARTIAL_TRANSFER_FROZEN_SECANT_BVP_V1';
+  'ECR_PRE_PILOT_STAGE4_DIRECT_NONLINEAR_PARTIAL_TRANSFER_CANDIDATE_V2';
 export const PARTIAL_TRANSFER_ANCHOR_LAMBDA = 8e-9;
 export const PARTIAL_TRANSFER_ANCHOR_HEIGHT_M = 2;
+export const PARTIAL_TRANSFER_COMPONENT_ORDER =
+  ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'] as const;
+const PARTIAL_TRANSFER_MW_G_MOL = [170.3348, 120.194, 142.1971, 202.2506, 405.58, 119.16, 18.01528];
 
 const HASH = /^[a-f0-9]{64}$/;
 const finite = (value: unknown): value is number =>
@@ -17,6 +20,124 @@ const vector = (value: unknown, length: number): value is number[] =>
   Array.isArray(value) && value.length === length && value.every(finite);
 const nonnegativeVector = (value: unknown, length: number): value is number[] =>
   vector(value, length) && value.every(item => item >= 0);
+
+export type PartialTransferStage1Targets = {
+  minimumRecoveryPct: number;
+  minimumRaffinateSaturatesWt: number;
+  targetRaffinateTotalAromaticsWt: number;
+  targetRaffinatePolarAromaticsWt: number;
+  maximumNmpRaffinateWt: number;
+  targetRaffinateSulfurPpm: number;
+};
+
+/**
+ * Pure, phase-aware product-duty evaluator for a direct partial-transfer
+ * worker response.  It accepts only the exact seven-cell worker shape, never
+ * coerces null/strings into numbers, and explicitly leaves sulfur unevaluated
+ * because sulfur is absent from this seven-component transport model.
+ */
+export function evaluateDirectPartialTransferStage1Targets(input: {
+  phaseConfiguration: unknown;
+  componentOrder: unknown;
+  numericalCells: unknown;
+  recoveryPct: unknown;
+  targets: PartialTransferStage1Targets;
+  recoveryTolerancePct: number;
+}) {
+  if (JSON.stringify(input.componentOrder) !== JSON.stringify(PARTIAL_TRANSFER_COMPONENT_ORDER)
+    || !finite(input.recoveryPct) || !finite(input.recoveryTolerancePct)
+    || input.recoveryTolerancePct < 0
+    || !Object.values(input.targets).every(finite)
+    || !Array.isArray(input.numericalCells) || input.numericalCells.length !== 7) {
+    return { valid: false as const, reason: 'PARTIAL_TRANSFER_TARGET_INPUT_SHAPE_INVALID' };
+  }
+  const cells = input.numericalCells;
+  if (!cells.every((cell, index) => cell && typeof cell === 'object'
+    && (cell as any).numericalCell === index + 1)) {
+    return { valid: false as const, reason: 'PARTIAL_TRANSFER_TARGET_NUMERICAL_CELL_ORDINALS_INVALID' };
+  }
+  const rrboContinuous = input.phaseConfiguration === 'rrbo-continuous-nmp-dispersed';
+  const rrboDispersed = input.phaseConfiguration === 'nmp-continuous-rrbo-dispersed';
+  if (!rrboContinuous && !rrboDispersed) {
+    return { valid: false as const, reason: 'PARTIAL_TRANSFER_TARGET_PHASE_CONFIGURATION_INVALID' };
+  }
+  const outlet = rrboContinuous
+    ? (cells[6] as any).continuousOutMolS
+    : (cells[0] as any).dispersedOutMolS;
+  if (!nonnegativeVector(outlet, 7)) {
+    return { valid: false as const, reason: 'PARTIAL_TRANSFER_TARGET_RAFFINATE_OUTLET_INVALID' };
+  }
+  const masses = outlet.map((flow, index) => flow * PARTIAL_TRANSFER_MW_G_MOL[index]);
+  const hydrocarbonMass = masses.slice(0, 5).reduce((sum, value) => sum + value, 0);
+  const fullMass = masses.reduce((sum, value) => sum + value, 0);
+  if (!(hydrocarbonMass > 0) || !(fullMass > 0) || !masses.every(Number.isFinite)) {
+    return { valid: false as const, reason: 'PARTIAL_TRANSFER_TARGET_MASS_DENOMINATOR_INVALID' };
+  }
+  const criteria = [
+    {
+      name: 'NMP_FREE_RRBO_HYDROCARBON_RECOVERY_PCT', comparator: 'GTE',
+      target: input.targets.minimumRecoveryPct - input.recoveryTolerancePct,
+      actual: input.recoveryPct,
+    },
+    {
+      name: 'RAFFINATE_SATURATES_WT_PCT_NMP_FREE_HYDROCARBON', comparator: 'GTE',
+      target: input.targets.minimumRaffinateSaturatesWt, actual: 100 * masses[0] / hydrocarbonMass,
+    },
+    {
+      name: 'RAFFINATE_TOTAL_AROMATICS_WT_PCT_NMP_FREE_HYDROCARBON', comparator: 'LTE',
+      target: input.targets.targetRaffinateTotalAromaticsWt,
+      actual: 100 * (masses[1] + masses[2] + masses[3] + masses[4]) / hydrocarbonMass,
+    },
+    {
+      name: 'RAFFINATE_POLAR_AROMATICS_WT_PCT_NMP_FREE_HYDROCARBON', comparator: 'LTE',
+      target: input.targets.targetRaffinatePolarAromaticsWt, actual: 100 * masses[4] / hydrocarbonMass,
+    },
+    {
+      name: 'RAFFINATE_NMP_WT_PCT_FULL_RAFFINATE_STREAM', comparator: 'LTE',
+      target: input.targets.maximumNmpRaffinateWt, actual: 100 * masses[5] / fullMass,
+    },
+  ].map(metric => ({ ...metric,
+    status: (metric.comparator === 'GTE' ? metric.actual >= metric.target : metric.actual <= metric.target)
+      ? 'PASSED' as const : 'FAILED' as const }));
+  return {
+    valid: true as const,
+    criteria: [...criteria, {
+      name: 'RAFFINATE_SULFUR_PPM', comparator: 'LTE', target: input.targets.targetRaffinateSulfurPpm,
+      actual: null, status: 'NOT_EVALUATED_NO_SULFUR_COMPONENT_OR_CALIBRATED_MODEL' as const,
+    }],
+    allEvaluatedNonSulfurTargetsPassed: criteria.every(metric => metric.status === 'PASSED'),
+    qualityTargetsPassed: criteria.slice(1, 4).every(metric => metric.status === 'PASSED'),
+    recoveryAndNmpTargetsPassed: criteria[0].status === 'PASSED'
+      && criteria[4].status === 'PASSED',
+    recoveryPct: input.recoveryPct,
+    raffinateOutletMolS: outlet,
+    massBasis: {
+      hydrocarbonMassGPerS: hydrocarbonMass, fullRaffinateMassGPerS: fullMass,
+      hydrocarbonExcludes: ['NMP', 'H2O'],
+    },
+  };
+}
+
+/** Pure search termination predicate; equality is intentionally sufficient. */
+export function partialTransferHeightBracketResolved(
+  lowerHeightM: unknown,
+  upperHeightM: unknown,
+  toleranceM: unknown,
+) {
+  return finite(lowerHeightM) && finite(upperHeightM) && finite(toleranceM)
+    && toleranceM > 0 && upperHeightM >= lowerHeightM
+    && upperHeightM - lowerHeightM <= toleranceM
+      + Number.EPSILON * Math.max(1, Math.abs(lowerHeightM), Math.abs(upperHeightM));
+}
+
+/** Preserve the complete persisted candidate envelope; runtime budgets may
+ * stop evaluation, but they must not silently discard candidate records. */
+export function eligibleDirectPartialTransferCandidates<T>(
+  candidates: readonly T[],
+  eligible: (candidate: T) => boolean,
+) {
+  return candidates.filter(eligible);
+}
 
 export type FrozenCoefficientBand = {
   numericalCell: number;
