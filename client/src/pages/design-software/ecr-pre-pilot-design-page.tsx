@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PredictiveNtProgress } from "@/components/ecr-pre-pilot/predictive-nt-progress";
 import {
   predictiveStageVerdict,
+  lowestPassingPredictiveNt,
 } from "@/lib/predictive-nt-stage-display";
 
 type FormState = {
@@ -1305,6 +1306,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
   }, [form]);
 
   const liveValidationErrors = useMemo(() => validateForm(form), [form]);
+  const lowestPassingNt = lowestPassingPredictiveNt(predictiveJob?.result?.trials ?? []);
   const sectionHasIssues = (...keys: Array<keyof ValidationErrors>) => keys.some((key) => Boolean(liveValidationErrors[key]));
 
   const designFeedRateIsValid = isAllowedOption(form.designFeedRateLph, FEED_RATE_OPTIONS);
@@ -2183,12 +2185,16 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                   </p>
                 </div>
                 <div className="rounded-md border bg-white p-3">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Established theoretical stages</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {predictiveJob?.result
-                      ? predictiveJob.result.establishedTheoreticalStages ?? "Not established"
-                      : "—"}
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Lowest passing Nₜ</p>
+                  <p data-testid="predictive-nt-pass-summary" className={`mt-1 text-sm font-semibold ${lowestPassingNt !== null ? "text-emerald-700" : "text-slate-900"}`}>
+                    {lowestPassingNt !== null
+                      ? `Nₜ = ${lowestPassingNt} — PASS`
+                      : !predictiveJob ? "Not run"
+                      : predictiveJob.status === "pending" || predictiveJob.status === "running"
+                        ? "No Nₜ PASS yet"
+                        : "No accepted Nₜ"}
                   </p>
+                  <p className="mt-1 text-[11px] text-slate-600">Overall acceptance from saved trials, not individual stage checks. Pre-pilot result only.</p>
                 </div>
               </div>
               {predictiveJob && (
@@ -2516,7 +2522,10 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                       return (
                         <details key={`${predictiveJob.id}-${trial.stageCount}`} className="rounded-md border bg-white" data-testid={`predictive-nt-completed-trial-${trial.stageCount}`}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                             Nₜ = {trial.stageCount} · Trial acceptance: {predictiveStageVerdict(trial)} · Numerical gates: {predictiveStageVerdict({ accepted: trial.numericalAcceptancePassed })} · Max balance residual: {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
+                             <span className={trial.accepted === true ? "text-emerald-700" : trial.accepted === false ? "text-red-700" : "text-slate-600"}>
+                               Nₜ = {trial.stageCount} — {predictiveStageVerdict(trial)}
+                             </span>
+                             {" "}· Overall trial acceptance · Numerical gates: {predictiveStageVerdict({ accepted: trial.numericalAcceptancePassed })} · Max balance residual: {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

@@ -12,6 +12,13 @@ export function predictiveStageVerdict(stage: Record<string, unknown> | null | u
   return "NOT RECORDED";
 }
 
+export function lowestPassingPredictiveNt(trials: readonly { stageCount: number; accepted?: unknown }[]): number | null {
+  const acceptedCounts = trials
+    .filter((trial) => trial.accepted === true && integerInRange(trial.stageCount, 1, 10))
+    .map((trial) => trial.stageCount);
+  return acceptedCounts.length ? Math.min(...acceptedCounts) : null;
+}
+
 export type PredictiveStageDisplayRow = {
   stageFromFeedEnd: number;
   status: PredictiveStageDisplayStatus;
