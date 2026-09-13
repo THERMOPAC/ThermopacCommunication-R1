@@ -42,7 +42,7 @@ const hashPattern = /^[a-f0-9]{64}$/;
 // This is the fully pinned worker digest on the already accepted diagnostic
 // record. It remains admissible solely as a source for re-evaluation by the
 // current continuation worker, never as a substitute for current execution.
-const HISTORICAL_STRICT_DIAGNOSTIC_WORKER_SHA256 =
+export const HISTORICAL_STRICT_DIAGNOSTIC_WORKER_SHA256 =
   '2c2e266b8424bfc2dc9917294bf758da7517c2d3896626f7aad31de37b197c25';
 
 export function validateJobCWorkerResponseStatus(result: {
@@ -333,7 +333,7 @@ function sameGeometry(sourceRequest: any, currentRequest: any) {
     });
 }
 
-function strictContinuationAnchorFromSource(source: any, prepared: any, artifacts: ReturnType<typeof currentJobCArtifactHashes>) {
+export function strictContinuationAnchorFromSource(source: any, prepared: any, artifacts: ReturnType<typeof currentJobCArtifactHashes>) {
   const validated = validatedStrictDiagnosticAnchor(source);
   const sourcePrepared = source?.input_snapshot?.prepared;
   const sourceRequest = sourcePrepared?.workerRequest;

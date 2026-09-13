@@ -13,6 +13,8 @@ import {
   evaluateEcrPrePilotJobC,
   evaluateCompletedJobCPhysicalSizing,
   getLatestCompletedJobCPhysicalSizing,
+  evaluatePartialTransferPhysicalSizing,
+  getLatestPartialTransferPhysicalSizing,
 } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
@@ -421,6 +423,54 @@ export function setupEcrPrePilotRoutes(app: Express): void {
           : res.status(404).json({ error: 'JOB_C_PHYSICAL_SIZING_RESULT_NOT_FOUND' });
       } catch (error: any) {
         return res.status(409).json({ error: error?.message ?? 'JOB_C_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE' });
+      }
+    },
+  );
+  // This separately-owned, read-only estimator consumes only the persisted
+  // strict lambda=8e-9 / 2m anchor. It deliberately has no Job-C enqueue,
+  // resume, continuation, or full-lambda prerequisite.
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/partial-transfer-physical-sizing/evaluate',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CLIENT_INPUT_PROHIBITED' });
+      }
+      try {
+        const result = await evaluatePartialTransferPhysicalSizing(
+          Number((req.user as any).id), designId,
+        );
+        return res.status(result.status === 'DEPENDENCY_BLOCKED' ? 409 : 200).json(result);
+      } catch (error: any) {
+        const message = error?.message ?? 'PARTIAL_TRANSFER_PHYSICAL_SIZING_EVALUATION_FAILED';
+        return res.status(message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422)
+          .json({ error: message });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/partial-transfer-physical-sizing/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        const result = await getLatestPartialTransferPhysicalSizing(
+          Number((req.user as any).id), designId,
+        );
+        return result ? res.json(result) : res.status(404)
+          .json({ error: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_RESULT_NOT_FOUND' });
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'PARTIAL_TRANSFER_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE',
+        });
       }
     },
   );

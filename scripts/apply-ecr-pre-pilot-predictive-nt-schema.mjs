@@ -8,6 +8,7 @@ const migrationPaths = [
   'migrations/ecr_pre_pilot_kuhni_hydrodynamics.sql',
   'migrations/ecr_pre_pilot_kuhni_geometry_resolver.sql',
   'migrations/ecr_pre_pilot_job_c_physical_sizing_results.sql',
+  'migrations/ecr_pre_pilot_partial_transfer_physical_sizing_results.sql',
 ].map((migrationPath) => path.resolve(process.cwd(), migrationPath));
 const migration = migrationPaths.map((migrationPath) => fs.readFileSync(migrationPath, 'utf8')).join('\n');
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });

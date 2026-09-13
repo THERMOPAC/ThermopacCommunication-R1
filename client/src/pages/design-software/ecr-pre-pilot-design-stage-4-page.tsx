@@ -438,6 +438,56 @@ export function PhysicalSizingPanel({
   );
 }
 
+/** A separate server-owned estimate; it never shares Job-C UI state. */
+export function PartialTransferPhysicalSizingPanel({
+  value, loading, error, onEvaluate, evaluating, canEvaluate,
+}: PhysicalSizingPanelProps) {
+  const status = stringValue(read(value ?? {}, "status"), loading ? "LOADING" : "NOT_AVAILABLE");
+  const geometry = object(read(value ?? {}, "stage3Geometry"));
+  const target = object(read(value ?? {}, "target"));
+  const solve = object(read(value ?? {}, "solve"));
+  const anchor = object(read(value ?? {}, "anchor"));
+  const efficiency = read(value ?? {}, "conditionalOverallTheoreticalToPhysicalEstimate");
+  const assumptions = flagsOf(read(value ?? {}, "assumptions"));
+  return <section data-testid="partial-transfer-physical-sizing-panel" className="overflow-hidden rounded-md border-2 border-cyan-700/50 bg-white">
+    <div className="border-b border-cyan-200 bg-cyan-50 px-4 py-3">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-800">Stage 4 · separate partial-transfer pre-pilot estimate</p>
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-950">Frozen-local-coefficient physical sizing</h2>
+        <span className="rounded border border-cyan-300 bg-white px-2 py-1 font-mono text-[10px] font-semibold">Status: {status}</span>
+      </div>
+      <p className="mt-2 text-[10px] leading-4 text-slate-700">Explicit read-only estimate from the owned verified strict λ=8e-9, 2 m anchor. It does not start, queue, resume, or require full-λ Job C.</p>
+      <button type="button" data-testid="evaluate-partial-transfer-physical-sizing" onClick={onEvaluate}
+        disabled={!canEvaluate || evaluating} className="mt-2 rounded border border-cyan-700 bg-white px-2 py-1 text-[10px] font-semibold text-cyan-900 disabled:cursor-not-allowed disabled:opacity-50">
+        {evaluating ? "Evaluating separate estimate…" : "Evaluate partial-transfer estimate"}
+      </button>
+    </div>
+    {loading ? <div role="status" className="p-4 text-xs text-slate-600">Loading separate partial-transfer estimate…</div>
+      : !value ? <div className="p-4 text-xs text-slate-700">No separate estimate is available.{error ? <p className="mt-1 font-mono text-[10px] text-amber-800">{error}</p> : null}</div>
+      : <div className="space-y-3 p-3">
+        {error ? <p className="font-mono text-[10px] text-amber-800">{error}</p> : null}
+        {read(value, "staleStatus") ? <p className="rounded border border-amber-300 bg-amber-50 p-2 text-[10px] font-semibold text-amber-950">STALE: {stringValue(read(value, "reason"))}</p> : null}
+        <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            ["Required active height", metricValue(read(value, "requiredActiveHeightM"), "m")],
+            ["Stage 3 reused diameter", metricValue(read(geometry, "columnDiameterM"), "m")],
+            ["Persisted hcomp", metricValue(read(geometry, "compartmentHeightM"), "m")],
+            ["Nphysical = ceil(H/hcomp)", scalarOrUnavailable(read(value, "physicalCompartments"))],
+            ["Conditional Eo = Nt/Nphysical", scalarOrUnavailable(efficiency)],
+            ["Stage 1 recovery target", metricValue(read(target, "recoveryPct"), "%")],
+            ["Solved recovery", metricValue(read(solve, "recoveryPct"), "%")],
+            ["Balance residual", scalarOrUnavailable(read(solve, "maximumComponentBalanceResidualMolS"))],
+            ["Minimum flow", scalarOrUnavailable(read(solve, "minimumFlowMolS"))],
+            ["Strict anchor state", stringValue(read(anchor, "profileStateSha256"), "Unavailable")],
+          ].map(([label, item]) => <div key={String(label)} className="rounded border border-cyan-200 bg-cyan-50/40 p-2"><dt className="text-[9px] text-slate-600">{label}</dt><dd className="mt-1 break-words font-mono text-[10px] text-slate-900">{item}</dd></div>)}
+        </dl>
+        <p className="text-[10px] text-slate-700">Efficiency label: <span className="font-semibold">CONDITIONAL OVERALL THEORETICAL-TO-PHYSICAL ESTIMATE</span>. It is not calibrated compartment, Murphree, or FV efficiency. Null reason: <span className="font-mono">{stringValue(read(value, "efficiencyNullReason"), "none")}</span>.</p>
+        <p className="text-[10px] text-slate-700">Equations: <span className="font-mono break-all">{flagsOf(read(value, "equations")).join(" | ")}</span></p>
+        {assumptions.length ? <ul className="list-disc space-y-0.5 pl-4 text-[10px] text-slate-600">{assumptions.map(item => <li key={item}>{item}</li>)}</ul> : null}
+      </div>}
+  </section>;
+}
+
 function booleanValue(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
@@ -583,6 +633,10 @@ export default function EcrPrePilotDesignStage4Page() {
   const [physicalSizingLoading, setPhysicalSizingLoading] = useState(false);
   const [physicalSizingError, setPhysicalSizingError] = useState<string | null>(null);
   const [physicalSizingSubmitting, setPhysicalSizingSubmitting] = useState(false);
+  const [partialTransferSizing, setPartialTransferSizing] = useState<RecordValue | null>(null);
+  const [partialTransferSizingLoading, setPartialTransferSizingLoading] = useState(false);
+  const [partialTransferSizingError, setPartialTransferSizingError] = useState<string | null>(null);
+  const [partialTransferSizingSubmitting, setPartialTransferSizingSubmitting] = useState(false);
   const priorJobCStatus = useRef<JobCStatus | null>(null);
   const jobCRunning = jobCSubmitting || jobCJob?.status === "pending" || jobCJob?.status === "running";
   // The server owns all Job B lineage and prerequisite validation. Requiring
@@ -675,6 +729,66 @@ export default function EcrPrePilotDesignStage4Page() {
     }
   }, [design?.id, loadPhysicalSizing]);
 
+  const loadPartialTransferSizing = useCallback(async (designId: number) => {
+    setPartialTransferSizingLoading(true);
+    setPartialTransferSizingError(null);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-physical-sizing/latest`, { credentials: "include" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setPartialTransferSizing(null);
+        setPartialTransferSizingError(stringValue(read(object(payload), "error", "message"), "The separate estimate is unavailable."));
+        return;
+      }
+      setPartialTransferSizing(object(payload));
+    } catch (cause: unknown) {
+      setPartialTransferSizing(null);
+      setPartialTransferSizingError(cause instanceof Error ? cause.message : "The separate estimate could not be loaded.");
+    } finally {
+      setPartialTransferSizingLoading(false);
+    }
+  }, []);
+
+  const evaluatePartialTransferSizing = useCallback(async () => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId)) return;
+    setPartialTransferSizingSubmitting(true);
+    setPartialTransferSizingError(null);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/partial-transfer-physical-sizing/evaluate`, {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}",
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const blocked = object(payload);
+        // 409 is an expected server-owned dependency/staleness result. Keep
+        // its structured status/reason visible instead of reducing it to a
+        // transport failure.
+        if (typeof blocked.status === "string") setPartialTransferSizing(blocked);
+        setPartialTransferSizingError(stringValue(
+          read(blocked, "reason", "error", "message"),
+          "The separate estimate could not be evaluated.",
+        ));
+        return;
+      }
+      // A model-invalid or dependency-blocked assessment is intentionally a
+      // truthful direct server outcome even when no immutable child can be
+      // saved (for example, an untrusted source hash). It is still not
+      // browser reconstruction.
+      const direct = object(payload);
+      setPartialTransferSizing(Object.keys(direct).length ? direct : null);
+      if (direct.status === "CALCULATED_PRELIMINARY_PARTIAL_TRANSFER_PHYSICAL_SIZING"
+        || direct.status === "CALCULATED_WITH_EFFICIENCY_BLOCKED"
+        || direct.status === "TARGET_NOT_BRACKETED") {
+        await loadPartialTransferSizing(designId);
+      }
+    } catch (cause: unknown) {
+      setPartialTransferSizingError(cause instanceof Error ? cause.message : "The separate estimate could not be evaluated.");
+    } finally {
+      setPartialTransferSizingSubmitting(false);
+    }
+  }, [design?.id, loadPartialTransferSizing]);
+
   useEffect(() => {
     const status = jobCJob?.status ?? null;
     const prior = priorJobCStatus.current;
@@ -704,6 +818,8 @@ export default function EcrPrePilotDesignStage4Page() {
     setJobCPollError(null);
     setPhysicalSizing(null);
     setPhysicalSizingError(null);
+    setPartialTransferSizing(null);
+    setPartialTransferSizingError(null);
     try {
       const response = await fetch("/api/ecr-pre-pilot/designs/latest-saved", { credentials: "include" });
       const payload = await response.json().catch(() => ({}));
@@ -712,14 +828,17 @@ export default function EcrPrePilotDesignStage4Page() {
       const loadedDesign = object(payload);
       setDesign(loadedDesign);
       const designId = Number(loadedDesign.id);
-      if (Number.isFinite(designId)) void loadPhysicalSizing(designId);
+      if (Number.isFinite(designId)) {
+        void loadPhysicalSizing(designId);
+        void loadPartialTransferSizing(designId);
+      }
     } catch (cause: unknown) {
       setDesign(null);
       setError(cause instanceof Error ? cause.message : "The latest saved design could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, [loadPhysicalSizing]);
+  }, [loadPhysicalSizing, loadPartialTransferSizing]);
 
   useEffect(() => { void loadDesign(); }, [loadDesign]);
 
@@ -1087,6 +1206,14 @@ export default function EcrPrePilotDesignStage4Page() {
               error={physicalSizingError}
               onEvaluate={() => void evaluatePhysicalSizing()}
               evaluating={physicalSizingSubmitting}
+              canEvaluate={Boolean(design?.id)}
+            />
+            <PartialTransferPhysicalSizingPanel
+              value={partialTransferSizing}
+              loading={partialTransferSizingLoading}
+              error={partialTransferSizingError}
+              onEvaluate={() => void evaluatePartialTransferSizing()}
+              evaluating={partialTransferSizingSubmitting}
               canEvaluate={Boolean(design?.id)}
             />
             {activeJob === "B" && <div role="status" className="flex items-start gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><p>Evaluating Job-A dependencies and solving the simultaneous interface chemical-potential and two-film equations before calculating fluxes. This may take several minutes. No sizing is performed.</p></div>}

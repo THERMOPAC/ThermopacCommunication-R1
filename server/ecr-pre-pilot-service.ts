@@ -57,6 +57,14 @@ import {
   sizeAcceptedJobCWithWorkerTransport,
   summarizeJobCPhysicalSizingDependency,
 } from "./ecr-pre-pilot/job-c-physical-sizing";
+import {
+  PARTIAL_TRANSFER_ANCHOR_HEIGHT_M,
+  PARTIAL_TRANSFER_SIZING_VERSION,
+  decodeFrozenLocalCoefficients,
+  prepareFrozenPartialTransferBvp,
+  verifyOwnedStrictPartialAnchor,
+  type StrictPartialAnchor,
+} from "./ecr-pre-pilot/stage4-partial-transfer-sizing";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -1659,4 +1667,298 @@ export async function getLatestCompletedJobCPhysicalSizing(userId: number, desig
     immutableHash: row.immutable_hash,
     ...row.result_snapshot,
   };
+}
+
+async function currentOwnedStrictPartialAnchor(userId: number, designId: number) {
+  const sources = await pool.query(
+    `SELECT id,status,completed_at,input_snapshot,input_hash,result_snapshot,result_hash,
+             partial_result_snapshot,partial_result_hash,implementation_hash,candidate_hash,
+             job_b_engine_hash
+       FROM ecr_pre_pilot_job_c_jobs
+      WHERE created_by=$1 AND design_id=$2 AND status='completed'
+      ORDER BY completed_at DESC,created_at DESC,id DESC`,
+    [userId, designId],
+  );
+  for (const row of sources.rows) {
+    const anchor = verifyOwnedStrictPartialAnchor(row);
+    if (anchor) return { row, anchor };
+  }
+  return null;
+}
+
+/**
+ * The strict partial-transfer anchor is read as immutable evidence only.
+ * This path has no queue import, no worker invocation, and no continuation.
+ */
+export async function evaluatePartialTransferPhysicalSizing(userId: number, designId: number) {
+  const found = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!found.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(found.rows[0].input_data);
+  const source = await currentOwnedStrictPartialAnchor(userId, designId);
+  if (!source) {
+    throw new Error('PARTIAL_TRANSFER_STRICT_LAMBDA_8E_MINUS_9_2M_ANCHOR_NOT_FOUND_OR_INVALID');
+  }
+  if (source.anchor.stage1SnapshotHash !== stage1.immutableHash) {
+    return {
+      status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
+      reason: 'PARTIAL_TRANSFER_ANCHOR_STAGE1_LINEAGE_MISMATCH',
+      sourceStage1SnapshotHash: source.anchor.stage1SnapshotHash,
+      actualStage1SnapshotHash: stage1.immutableHash,
+    };
+  }
+  // Reuse the resolver's self-authenticating immutable-result reader. Raw
+  // database JSON is never sufficient authority for this calculation.
+  const stage3 = (await getKuhniGeometryResolverRuns(userId, designId))
+    .find((item: any) => item.immutableHash === source.anchor.sourceDependencies.stage3ImmutableHash);
+  const request = source.anchor.workerRequest;
+  const candidate = (stage3?.result?.hydraulicRpmEnvelope ?? []).find((item: any) =>
+    item?.status === 'CALCULATED_IN_RANGE'
+      && item?.operatingHydraulics?.status === 'OPERATING_HOLDUP_CALCULATED'
+      && item.columnDiameterM === request.columnDiameterM
+      && item.rpm === request.rpm
+      && item.d32M === request.d32M
+      && item.operatingHydraulics.operatingHoldup === request.operatingHoldup);
+  if (!stage3 || !candidate || !Number.isFinite(candidate.compartmentHeightM)
+    || !(candidate.compartmentHeightM > 0)) {
+    return {
+      status: 'DEPENDENCY_BLOCKED',
+      reason: 'PARTIAL_TRANSFER_MATCHED_STAGE3_SELECTED_HYDRAULIC_MECHANICAL_GEOMETRY_REQUIRED',
+      anchorJobId: source.anchor.sourceJobId,
+      stage3ImmutableHash: source.anchor.sourceDependencies.stage3ImmutableHash,
+    };
+  }
+  const failedModelBase = {
+    classification: 'PRE_PILOT_FROZEN_LOCAL_COEFFICIENT_EXTRAPOLATION_NOT_VALIDATED',
+    anchor: {
+      sourceJobId: source.anchor.sourceJobId, sourceResultHash: source.anchor.sourceResultHash,
+      lambda: 8e-9, heightM: 2, profileStateSha256: source.anchor.profileStateSha256,
+      verification: 'OWNED_IMMUTABLE_STRICT_DIAGNOSTIC_CHECKPOINT_VERIFIED_READ_ONLY',
+    },
+    stage3Geometry: {
+      immutableHash: (stage3 as any).immutableHash, columnDiameterM: candidate.columnDiameterM,
+      compartmentHeightM: candidate.compartmentHeightM,
+      provenance: 'MATCHED_PERSISTED_STAGE3_SELECTED_HYDRAULIC_SCREENING_TRIAL_REUSED_NOT_OPTIMIZED',
+    },
+    target: {
+      recoveryPct: stage1.stage1.minimumRecoveryPct,
+      basis: 'STAGE1_MINIMUM_RECOVERY_PCT_NMP_FREE_RRBO_HYDROCARBON_MASS_SAT_MONO_DI_POLY_PA',
+      lowerBracket: null, upperBracket: null,
+    },
+    requiredActiveHeightM: null,
+    physicalCompartments: null,
+    conditionalOverallTheoreticalToPhysicalEstimate: null,
+    efficiencyNullReason: 'MODEL_INVALID_NO_CONDITIONAL_EFFICIENCY',
+  };
+  let bands;
+  try {
+    bands = decodeFrozenLocalCoefficients({
+      state: source.anchor.profileState,
+      workerRequest: request,
+    });
+  } catch (error: any) {
+    const result = {
+      status: 'MODEL_INVALID', reason: error?.message ?? 'PARTIAL_TRANSFER_COEFFICIENT_DECODING_FAILED',
+      ...failedModelBase,
+      anchorJobId: source.anchor.sourceJobId, anchorStateSha256: source.anchor.profileStateSha256,
+      coefficientBands: null,
+      coefficientNullReason: 'STRICT_ANCHOR_LOCAL_SECANTS_INVALID_OR_ILL_CONDITIONED',
+    };
+    await persistPartialTransferPhysicalSizing({
+      userId, designId, anchor: source.anchor, stage1,
+      stage3ImmutableHash: (stage3 as any).immutableHash, result,
+    });
+    return result;
+  }
+  const targetRecoveryPct = stage1.stage1.minimumRecoveryPct;
+  let prepared: ReturnType<typeof prepareFrozenPartialTransferBvp>;
+  try {
+    // 2 m is the immutable strict-anchor height, not a fabricated physical
+    // result. The lower bound is one persisted Stage-3 compartment.
+    prepared = prepareFrozenPartialTransferBvp({
+      workerRequest: request, bands, compartmentHeightM: candidate.compartmentHeightM,
+      targetRecoveryPct,
+    });
+  } catch (error: any) {
+    const result = {
+      status: 'MODEL_INVALID', reason: error?.message ?? 'PARTIAL_TRANSFER_BVP_FAILED',
+      ...failedModelBase,
+      anchorJobId: source.anchor.sourceJobId, coefficientBands: bands,
+      coefficientNullReason: null,
+    };
+    await persistPartialTransferPhysicalSizing({
+      userId, designId, anchor: source.anchor, stage1,
+      stage3ImmutableHash: (stage3 as any).immutableHash, result,
+    });
+    return result;
+  }
+  const { lower, upper, selected, targetFailure } = prepared;
+  const theoretical = (stage3 as any)?.theoreticalStages;
+  const nt = theoretical?.provenance === 'STAGE_2_CALCULATED_NT'
+    && Number.isInteger(theoretical?.value) && theoretical.value > 0
+    ? theoretical.value : null;
+  const physicalCompartments = selected
+    ? Math.ceil(selected.heightM / candidate.compartmentHeightM) : null;
+  const overallEfficiency = selected && nt && physicalCompartments && physicalCompartments > 0
+    ? nt / physicalCompartments : null;
+  const efficiencyNullReason = !nt
+    ? 'COMPATIBLE_CALCULATED_STAGE2_NT_REQUIRED_FOR_CONDITIONAL_OVERALL_ESTIMATE'
+    : !physicalCompartments ? 'PHYSICAL_COMPARTMENT_COUNT_UNAVAILABLE'
+    : overallEfficiency == null || overallEfficiency <= 0 || overallEfficiency > 1
+      ? 'CONDITIONAL_OVERALL_THEORETICAL_TO_PHYSICAL_RATIO_OUTSIDE_(0,1]'
+      : null;
+  const result = {
+    status: selected && !efficiencyNullReason ? 'CALCULATED_PRELIMINARY_PARTIAL_TRANSFER_PHYSICAL_SIZING'
+      : selected ? 'CALCULATED_WITH_EFFICIENCY_BLOCKED' : 'TARGET_NOT_BRACKETED',
+    classification: 'PRE_PILOT_FROZEN_LOCAL_COEFFICIENT_EXTRAPOLATION_NOT_VALIDATED',
+    ...(targetFailure ? { reason: targetFailure } : {}),
+    anchor: {
+      sourceJobId: source.anchor.sourceJobId, sourceResultHash: source.anchor.sourceResultHash,
+      lambda: 8e-9, heightM: 2, profileStateSha256: source.anchor.profileStateSha256,
+      verification: 'OWNED_IMMUTABLE_STRICT_DIAGNOSTIC_CHECKPOINT_VERIFIED_READ_ONLY',
+    },
+    stage3Geometry: {
+      immutableHash: (stage3 as any).immutableHash, columnDiameterM: candidate.columnDiameterM,
+      compartmentHeightM: candidate.compartmentHeightM,
+      provenance: 'MATCHED_PERSISTED_STAGE3_SELECTED_HYDRAULIC_SCREENING_TRIAL_REUSED_NOT_OPTIMIZED',
+    },
+    target: {
+      recoveryPct: targetRecoveryPct,
+      basis: 'STAGE1_MINIMUM_RECOVERY_PCT_NMP_FREE_RRBO_HYDROCARBON_MASS_SAT_MONO_DI_POLY_PA',
+      lowerBracket: { heightM: lower.heightM, recoveryPct: lower.recoveryPct },
+      upperBracket: { heightM: upper.heightM, recoveryPct: upper.recoveryPct },
+    },
+    coordinateSignConvention: {
+      z: 'continuous inlet z=0 to continuous outlet z=H',
+      N: 'positive continuous-to-dispersed',
+      equations: 'dFc/dz=dFd/dz=-a*A*N; therefore Fc(H)+Fd(0)=Fc(0)+Fd(H)',
+      verifiedBy: 'strictly positive flows and componentwise counter-current balance gate',
+    },
+    requiredActiveHeightM: selected?.heightM ?? null,
+    physicalCompartments,
+    conditionalOverallTheoreticalToPhysicalEstimate: overallEfficiency,
+    efficiencyLabel: 'CONDITIONAL OVERALL THEORETICAL-TO-PHYSICAL ESTIMATE',
+    efficiencyNullReason,
+    theoreticalStages: nt == null ? null : { value: nt, provenance: 'STAGE_2_CALCULATED_NT' },
+    solve: selected ? {
+      recoveryPct: selected.recoveryPct, minimumFlowMolS: selected.minimumFlowMolS,
+      maximumComponentBalanceResidualMolS: selected.maximumComponentBalanceResidualMolS,
+      iterations: selected.iterations,
+    } : null,
+    coefficientBands: bands,
+    coefficientUnits: {
+      kcAndKd: 'm/s',
+      CtCAndCtD: 'mol/m3',
+      rawcAndN: 'mol/m2/s',
+      equilibriumSecantM: 'dimensionless',
+      frozenK: 'mol/m2/s per mole-fraction driving force',
+      signConvention: 'POSITIVE_CONTINUOUS_TO_DISPERSED; K is accepted only when positive and N/K driving-force signs agree',
+    },
+    assumptions: [
+      'Frozen per-component equilibrium secants and K values are decoded from the exact 189-state strict anchor.',
+      'Opposite-feed plug flow only; no axial dispersion and no backmixing.',
+      'a=6*holdup/d32; A=pi*COLUMN_D^2/4; original unscaled Job-C films are used in flux reconstruction.',
+      'Local coefficient extrapolation away from the strict anchor is explicitly unvalidated.',
+      'No Job-C worker, queue, continuation, or lambda=1 result is used by this separate estimate.',
+    ],
+    equations: [
+      'rawc=kc*CtC*(xc-xic); jc=rawc-xic*sum(rawc); N=jc+xic*n',
+      'm=xid/xic; K=N/(m*xc-xd)',
+      'dFc/dz=dFd/dz=-a*A*K*(m*xc-xd)',
+      'Nphysical=ceil(H/hcomp); Eo=Nt/Nphysical',
+    ],
+  };
+  await persistPartialTransferPhysicalSizing({
+    userId, designId, anchor: source.anchor, stage1, stage3ImmutableHash: (stage3 as any).immutableHash, result,
+  });
+  return result;
+}
+
+async function persistPartialTransferPhysicalSizing(input: {
+  userId: number; designId: number; anchor: StrictPartialAnchor;
+  stage1: EcrPrePilotStage1Snapshot; stage3ImmutableHash: string; result: Record<string, any>;
+}) {
+  const inputSnapshot = {
+    schemaVersion: PARTIAL_TRANSFER_SIZING_VERSION,
+    anchorJobId: input.anchor.sourceJobId, anchorResultHash: input.anchor.sourceResultHash,
+    anchorStateSha256: input.anchor.profileStateSha256, stage1SnapshotHash: input.stage1.immutableHash,
+    stage3ImmutableHash: input.stage3ImmutableHash,
+  };
+  const resultHash = jobCResultHash(input.result);
+  await pool.query(
+    `INSERT INTO ecr_pre_pilot_partial_transfer_physical_sizing_results
+      (anchor_job_id,design_id,created_by,anchor_result_hash,stage1_snapshot_hash,
+       stage3_immutable_hash,input_snapshot,result_snapshot,result_hash,immutable_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [input.anchor.sourceJobId, input.designId, input.userId, input.anchor.sourceResultHash,
+      input.stage1.immutableHash, input.stage3ImmutableHash, inputSnapshot, input.result, resultHash,
+      jobCResultHash({ inputSnapshot, result: input.result })],
+  );
+}
+
+export async function getLatestPartialTransferPhysicalSizing(userId: number, designId: number) {
+  const rows = await pool.query(
+    `SELECT * FROM ecr_pre_pilot_partial_transfer_physical_sizing_results
+      WHERE created_by=$1 AND design_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1`,
+    [userId, designId],
+  );
+  const row = rows.rows[0];
+  if (!row) return null;
+  if (jobCResultHash(row.result_snapshot) !== row.result_hash
+    || jobCResultHash({ inputSnapshot: row.input_snapshot, result: row.result_snapshot }) !== row.immutable_hash) {
+    throw new Error('PARTIAL_TRANSFER_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE');
+  }
+  // A stale assessment remains useful audit evidence. Preserve its saved
+  // server-derived geometry/null reasons while clearly overriding status so
+  // the UI cannot present it as current.
+  const savedAssessment = {
+    id: Number(row.id), createdAt: new Date(row.created_at).toISOString(),
+    resultHash: row.result_hash, immutableHash: row.immutable_hash, ...row.result_snapshot,
+  };
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`, [designId, userId],
+  );
+  const stage1 = design.rows[0] && validateStage1Snapshot(design.rows[0].input_data);
+  if (!stage1 || stage1.immutableHash !== row.stage1_snapshot_hash) {
+    return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
+      reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CURRENT_STAGE1_LINEAGE_CHANGED',
+      sourceStage1SnapshotHash: row.stage1_snapshot_hash,
+      actualStage1SnapshotHash: stage1?.immutableHash ?? null };
+  }
+  const parent = await pool.query(
+    `SELECT id,status,completed_at,input_snapshot,input_hash,result_snapshot,result_hash,
+             partial_result_snapshot,partial_result_hash,implementation_hash,candidate_hash,
+             job_b_engine_hash FROM ecr_pre_pilot_job_c_jobs
+      WHERE id=$1 AND design_id=$2 AND created_by=$3`,
+    [row.anchor_job_id, designId, userId],
+  );
+  const anchor = verifyOwnedStrictPartialAnchor(parent.rows[0]);
+  if (!anchor || anchor.sourceResultHash !== row.anchor_result_hash) {
+    return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
+      reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_STRICT_ANCHOR_UNAVAILABLE_OR_TAMPERED' };
+  }
+  if (anchor.sourceDependencies.stage3ImmutableHash !== row.stage3_immutable_hash) {
+    return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
+      reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_SAVED_STAGE3_LINEAGE_MISMATCH',
+      sourceStage3ImmutableHash: anchor.sourceDependencies.stage3ImmutableHash,
+      savedStage3ImmutableHash: row.stage3_immutable_hash };
+  }
+  const currentStage3 = (await getKuhniGeometryResolverRuns(userId, designId, true))[0];
+  if (!currentStage3 || currentStage3.immutableHash !== row.stage3_immutable_hash) {
+    return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
+      reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CURRENT_STAGE3_LINEAGE_CHANGED',
+      savedStage3ImmutableHash: row.stage3_immutable_hash,
+      actualStage3ImmutableHash: currentStage3?.immutableHash ?? null };
+  }
+  const currentAnchor = await currentOwnedStrictPartialAnchor(userId, designId);
+  if (!currentAnchor || currentAnchor.anchor.sourceJobId !== anchor.sourceJobId
+    || currentAnchor.anchor.sourceResultHash !== anchor.sourceResultHash) {
+    return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
+      reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_STRICT_ANCHOR_SUPERSEDED',
+      sourceAnchorJobId: anchor.sourceJobId,
+      currentAnchorJobId: currentAnchor?.anchor.sourceJobId ?? null };
+  }
+  return savedAssessment;
 }

@@ -71,6 +71,17 @@ export const jobCScientificResultHash = (value: unknown) => {
     : value;
   return createHash('sha256').update(canonical(hashValue(snapshot))).digest('hex');
 };
+/** Exact Python-worker digest for a literal numerical state array. */
+export const jobCWorkerStateHash = (state: number[]) => {
+  if (!Array.isArray(state) || state.some(value => !Number.isFinite(value))) {
+    throw new Error('JOB_C_NON_FINITE_STATE_HASH_INPUT');
+  }
+  const encoded = state.map((value) => {
+    const [mantissa, exponent] = (value === 0 ? 0 : value).toExponential(16).split('e');
+    return `{"$number":${JSON.stringify(`${mantissa}e${Number(exponent)}`)}}`;
+  });
+  return createHash('sha256').update(`[${encoded.join(',')}]`).digest('hex');
+};
 export function currentJobCArtifactHashes() {
   const root = process.env.JOB_C_RUNTIME_ROOT
     ? path.resolve(process.env.JOB_C_RUNTIME_ROOT)

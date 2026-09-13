@@ -17310,6 +17310,24 @@ export const ecrPrePilotJobCPhysicalSizingResults = pgTable('ecr_pre_pilot_job_c
     .on(table.parentJobId, table.createdAt),
 }));
 
+export const ecrPrePilotPartialTransferPhysicalSizingResults = pgTable('ecr_pre_pilot_partial_transfer_physical_sizing_results', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  anchorJobId: uuid('anchor_job_id').notNull(),
+  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  anchorResultHash: varchar('anchor_result_hash', { length: 64 }).notNull(),
+  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
+  stage3ImmutableHash: varchar('stage3_immutable_hash', { length: 64 }).notNull(),
+  inputSnapshot: jsonb('input_snapshot').notNull(),
+  resultSnapshot: jsonb('result_snapshot').notNull(),
+  resultHash: varchar('result_hash', { length: 64 }).notNull(),
+  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  scopeIndex: index('ecr_pre_pilot_partial_transfer_physical_sizing_scope_idx')
+    .on(table.createdBy, table.designId, table.createdAt),
+}));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });
