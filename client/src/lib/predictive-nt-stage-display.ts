@@ -4,6 +4,14 @@ export type PredictiveStageDisplayStatus =
   | "AWAITING_AUDIT"
   | "NO_RESULT_SNAPSHOT";
 
+/** The worker owns acceptance; numeric payload presence is not a pass. */
+export function predictiveStageVerdict(stage: Record<string, unknown> | null | undefined): "PASS" | "FAIL" | "PENDING" | "NOT RECORDED" {
+  if (!stage) return "PENDING";
+  if (stage.accepted === true) return "PASS";
+  if (stage.accepted === false) return "FAIL";
+  return "NOT RECORDED";
+}
+
 export type PredictiveStageDisplayRow = {
   stageFromFeedEnd: number;
   status: PredictiveStageDisplayStatus;

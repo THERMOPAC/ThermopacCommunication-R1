@@ -11,8 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { PredictiveNtProgress } from "@/components/ecr-pre-pilot/predictive-nt-progress";
 import {
-  predictiveNtStageDisplay,
-  type PredictiveStageDisplayStatus,
+  predictiveStageVerdict,
 } from "@/lib/predictive-nt-stage-display";
 
 type FormState = {
@@ -649,20 +648,6 @@ function formatRecordedStageNumber(value: unknown, digits = 3): string {
     ? value.toExponential(digits)
     : "Not recorded";
 }
-
-function formatRecordedStageVector(value: unknown): string {
-  if (!Array.isArray(value) || value.length === 0) return "Not recorded";
-  return value
-    .map((entry) => formatRecordedStageNumber(entry))
-    .join(" · ");
-}
-
-const STAGE_AUDIT_STATUS_LABELS: Record<PredictiveStageDisplayStatus, string> = {
-  RECORDED: "Recorded numeric payload",
-  AUDIT_OBSERVED_NO_PAYLOAD: "Audit observed · numeric payload not persisted",
-  AWAITING_AUDIT: "Awaiting stage audit",
-  NO_RESULT_SNAPSHOT: "No result snapshot yet",
-};
 
 function nmpComplement(value: string): string | null {
   const trimmed = value.trim();
@@ -1321,9 +1306,6 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
 
   const liveValidationErrors = useMemo(() => validateForm(form), [form]);
   const sectionHasIssues = (...keys: Array<keyof ValidationErrors>) => keys.some((key) => Boolean(liveValidationErrors[key]));
-  const predictiveStageDisplay = predictiveJob
-    ? predictiveNtStageDisplay(predictiveJob)
-    : null;
 
   const designFeedRateIsValid = isAllowedOption(form.designFeedRateLph, FEED_RATE_OPTIONS);
 
@@ -2212,80 +2194,6 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               {predictiveJob && (
                 <PredictiveNtProgress job={predictiveJob} monitoringPaused={predictivePollingPaused} />
               )}
-              {predictiveJob && predictiveStageDisplay && predictiveStageDisplay.recordedCount < predictiveStageDisplay.maximum && (
-                <div
-                  className="space-y-3 rounded-md border border-indigo-200 bg-indigo-50/40 p-3"
-                  data-testid="predictive-nt-stage-audit"
-                >
-                  <div>
-                    <h3 className="text-sm font-semibold text-indigo-950">
-                      Live stage audit record · {predictiveStageDisplay.recordedCount}/{predictiveStageDisplay.maximum} numeric stage payloads
-                    </h3>
-                    <p className="mt-1 text-[11px] leading-5 text-indigo-900">
-                      {predictiveStageDisplay.reason}
-                    </p>
-                  </div>
-                  <div className="overflow-x-auto rounded border border-indigo-100 bg-white">
-                    <table className="w-full min-w-[760px] border-collapse text-left text-[11px]">
-                      <thead>
-                        <tr className="border-b bg-indigo-50/70 text-indigo-950">
-                          <th className="p-2">Stage</th>
-                          <th className="p-2">Status</th>
-                          <th className="p-2">Local balance</th>
-                          <th className="p-2">Isoactivity</th>
-                          <th className="p-2">Stability / TPD</th>
-                          <th className="p-2">Outlet compositions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {predictiveStageDisplay.rows.map((row) => {
-                          const stage = row.stage;
-                          const localStability = stage?.localPostSplitStability as Record<string, any> | undefined;
-                          const tpd = stage?.postSplitTpdSearch as Record<string, any> | undefined;
-                          return (
-                            <tr
-                              key={row.stageFromFeedEnd}
-                              className="border-b align-top last:border-0"
-                              data-testid={`predictive-nt-stage-row-${row.stageFromFeedEnd}`}
-                            >
-                              <td className="p-2 font-semibold">{row.stageFromFeedEnd}</td>
-                              <td className={`p-2 ${
-                                row.status === "RECORDED"
-                                  ? "font-semibold text-emerald-700"
-                                  : "text-slate-600"
-                              }`}>
-                                {STAGE_AUDIT_STATUS_LABELS[row.status]}
-                              </td>
-                              <td className="p-2 font-mono">
-                                {formatRecordedStageNumber(stage?.maximumComponentBalanceResidualMol)}
-                              </td>
-                              <td className="p-2 font-mono">
-                                {formatRecordedStageNumber(stage?.isoactivityLogResidual)}
-                              </td>
-                              <td className="p-2 font-mono text-[10px]">
-                                R eig={formatRecordedStageNumber(localStability?.raffinate?.minimumEigenvalue)} ·{" "}
-                                E eig={formatRecordedStageNumber(localStability?.extract?.minimumEigenvalue)}<br />
-                                R TPD={formatRecordedStageNumber(tpd?.raffinate?.minimum)} ·{" "}
-                                E TPD={formatRecordedStageNumber(tpd?.extract?.minimum)}
-                              </td>
-                              <td className="p-2 font-mono text-[10px]">
-                                R mole: {formatRecordedStageVector((stage?.raffinateLeaving as Record<string, unknown> | undefined)?.moleFractions)}<br />
-                                E mole: {formatRecordedStageVector((stage?.extractLeaving as Record<string, unknown> | undefined)?.moleFractions)}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                  {predictiveStageDisplay.observedAuditCount > predictiveStageDisplay.recordedCount && (
-                    <p className="text-[11px] leading-5 text-indigo-900">
-                      Audit counter: {predictiveStageDisplay.observedAuditCount}/{predictiveStageDisplay.maximum} stages assembled and audited.
-                      Numeric rows remain blank until the worker acknowledges the complete trial checkpoint.
-                    </p>
-                  )}
-                </div>
-              )}
               {predictivePollingPaused && predictiveJob && (
                 <div className="flex flex-col gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-[11px] text-red-800">
@@ -2584,11 +2492,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                     );
                   })()}
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-slate-900">Complete stage trials and diagnostics</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">Completed Nₜ trials · expand for stage diagnostics</h3>
+                    <p className="text-[11px] text-slate-600">Only saved trial checkpoints appear here. Click a trial to expand or collapse its stage results. Stage PASS / FAIL is separate from overall trial acceptance.</p>
                     {(predictiveJob.result.trials ?? []).length === 0 && (
                       <p className="rounded border border-indigo-200 bg-indigo-50 p-3 text-[11px] leading-5 text-indigo-900">
-                        No complete trial checkpoint has been acknowledged for this job yet. The live stage audit table above
-                        shows persisted counters and numeric stage data only when the server has received it.
+                        No complete trial checkpoint has been acknowledged yet. Each trial will appear here once its result is saved.
                       </p>
                     )}
                     {(predictiveJob.result.trials ?? []).map((trial) => {
@@ -2606,9 +2514,9 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                        const calculableTargets = Object.values(trial.targetCompliance ?? {})
                          .filter(({ status }) => status !== "NOT_CALCULABLE");
                       return (
-                        <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
+                        <details key={`${predictiveJob.id}-${trial.stageCount}`} className="rounded-md border bg-white" data-testid={`predictive-nt-completed-trial-${trial.stageCount}`}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                             Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0", "7C-1.6.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "PRE-PILOT DIAGNOSTIC"} — {trial.accepted ? "ACCEPTED" : "NOT ACCEPTED"} · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
+                             Nₜ = {trial.stageCount} · Trial acceptance: {predictiveStageVerdict(trial)} · Numerical gates: {predictiveStageVerdict({ accepted: trial.numericalAcceptancePassed })} · Max balance residual: {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -2732,7 +2640,10 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                 <tbody>{(trial.stages ?? []).map((stage) => (
                                   <tr key={stage.stageFromFeedEnd} className="border-b align-top last:border-0">
                                     <td className="p-2">{stage.stageFromFeedEnd}</td>
-                                    <td className="p-2 font-semibold text-emerald-700">Recorded numeric payload</td>
+                                    <td className={`p-2 font-semibold ${stage.accepted === true ? "text-emerald-700" : stage.accepted === false ? "text-red-700" : "text-slate-600"}`}>
+                                      {predictiveStageVerdict(stage)}
+                                      <div className="font-normal text-slate-600">Recorded numeric payload</div>
+                                    </td>
                                     <td className="p-2 font-mono">
                                       {formatRecordedStageNumber(stage.maximumComponentBalanceResidualMol)} ·{" "}
                                       {typeof stage.maximumComponentBalanceResidualMol === "number" && Number.isFinite(stage.maximumComponentBalanceResidualMol)
