@@ -10,6 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PredictiveNtProgress } from "@/components/ecr-pre-pilot/predictive-nt-progress";
+import {
+  predictiveNtStageDisplay,
+  type PredictiveStageDisplayStatus,
+} from "@/lib/predictive-nt-stage-display";
 
 type FormState = {
   projectReference: string;
@@ -191,6 +195,10 @@ type PredictiveNtResult = {
   pilotValidated: boolean;
   releaseEligible: boolean;
   sulfurPrediction?: PredictiveTrial["sulfurPrediction"];
+  internalProgress?: {
+    completedInternalStages: number;
+    maximumInternalStages: number;
+  };
   trialsAttempted?: number;
   governedTrialsAccepted?: number;
   diagnosticTrialsCalculated?: number;
@@ -639,6 +647,26 @@ function parseNumber(value: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
+
+function formatRecordedStageNumber(value: unknown, digits = 3): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toExponential(digits)
+    : "Not recorded";
+}
+
+function formatRecordedStageVector(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return "Not recorded";
+  return value
+    .map((entry) => formatRecordedStageNumber(entry))
+    .join(" · ");
+}
+
+const STAGE_AUDIT_STATUS_LABELS: Record<PredictiveStageDisplayStatus, string> = {
+  RECORDED: "Recorded numeric payload",
+  AUDIT_OBSERVED_NO_PAYLOAD: "Audit observed · numeric payload not persisted",
+  AWAITING_AUDIT: "Awaiting stage audit",
+  NO_RESULT_SNAPSHOT: "No result snapshot yet",
+};
 
 function nmpComplement(value: string): string | null {
   const trimmed = value.trim();
@@ -1295,6 +1323,9 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
 
   const liveValidationErrors = useMemo(() => validateForm(form), [form]);
   const sectionHasIssues = (...keys: Array<keyof ValidationErrors>) => keys.some((key) => Boolean(liveValidationErrors[key]));
+  const predictiveStageDisplay = predictiveJob
+    ? predictiveNtStageDisplay(predictiveJob)
+    : null;
 
   const designFeedRateIsValid = isAllowedOption(form.designFeedRateLph, FEED_RATE_OPTIONS);
 
@@ -2176,6 +2207,80 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               {predictiveJob && (
                 <PredictiveNtProgress job={predictiveJob} monitoringPaused={predictivePollingPaused} />
               )}
+              {predictiveJob && predictiveStageDisplay && predictiveStageDisplay.recordedCount < predictiveStageDisplay.maximum && (
+                <div
+                  className="space-y-3 rounded-md border border-indigo-200 bg-indigo-50/40 p-3"
+                  data-testid="predictive-nt-stage-audit"
+                >
+                  <div>
+                    <h3 className="text-sm font-semibold text-indigo-950">
+                      Live stage audit record · {predictiveStageDisplay.recordedCount}/{predictiveStageDisplay.maximum} numeric stage payloads
+                    </h3>
+                    <p className="mt-1 text-[11px] leading-5 text-indigo-900">
+                      {predictiveStageDisplay.reason}
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto rounded border border-indigo-100 bg-white">
+                    <table className="w-full min-w-[760px] border-collapse text-left text-[11px]">
+                      <thead>
+                        <tr className="border-b bg-indigo-50/70 text-indigo-950">
+                          <th className="p-2">Stage</th>
+                          <th className="p-2">Status</th>
+                          <th className="p-2">Local balance</th>
+                          <th className="p-2">Isoactivity</th>
+                          <th className="p-2">Stability / TPD</th>
+                          <th className="p-2">Outlet compositions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {predictiveStageDisplay.rows.map((row) => {
+                          const stage = row.stage;
+                          const localStability = stage?.localPostSplitStability as Record<string, any> | undefined;
+                          const tpd = stage?.postSplitTpdSearch as Record<string, any> | undefined;
+                          return (
+                            <tr
+                              key={row.stageFromFeedEnd}
+                              className="border-b align-top last:border-0"
+                              data-testid={`predictive-nt-stage-row-${row.stageFromFeedEnd}`}
+                            >
+                              <td className="p-2 font-semibold">{row.stageFromFeedEnd}</td>
+                              <td className={`p-2 ${
+                                row.status === "RECORDED"
+                                  ? "font-semibold text-emerald-700"
+                                  : "text-slate-600"
+                              }`}>
+                                {STAGE_AUDIT_STATUS_LABELS[row.status]}
+                              </td>
+                              <td className="p-2 font-mono">
+                                {formatRecordedStageNumber(stage?.maximumComponentBalanceResidualMol)}
+                              </td>
+                              <td className="p-2 font-mono">
+                                {formatRecordedStageNumber(stage?.isoactivityLogResidual)}
+                              </td>
+                              <td className="p-2 font-mono text-[10px]">
+                                R eig={formatRecordedStageNumber(localStability?.raffinate?.minimumEigenvalue)} ·{" "}
+                                E eig={formatRecordedStageNumber(localStability?.extract?.minimumEigenvalue)}<br />
+                                R TPD={formatRecordedStageNumber(tpd?.raffinate?.minimum)} ·{" "}
+                                E TPD={formatRecordedStageNumber(tpd?.extract?.minimum)}
+                              </td>
+                              <td className="p-2 font-mono text-[10px]">
+                                R mole: {formatRecordedStageVector((stage?.raffinateLeaving as Record<string, unknown> | undefined)?.moleFractions)}<br />
+                                E mole: {formatRecordedStageVector((stage?.extractLeaving as Record<string, unknown> | undefined)?.moleFractions)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {predictiveStageDisplay.observedAuditCount > predictiveStageDisplay.recordedCount && (
+                    <p className="text-[11px] leading-5 text-indigo-900">
+                      Audit counter: {predictiveStageDisplay.observedAuditCount}/{predictiveStageDisplay.maximum} stages assembled and audited.
+                      Numeric rows remain blank until the worker acknowledges the complete trial checkpoint.
+                    </p>
+                  )}
+                </div>
+              )}
               {predictivePollingPaused && predictiveJob && (
                 <div className="flex flex-col gap-2 rounded-md border border-red-200 bg-red-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-[11px] text-red-800">
@@ -2474,14 +2579,22 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                     );
                   })()}
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-slate-900">All stage trials and diagnostics</h3>
+                    <h3 className="text-sm font-semibold text-slate-900">Complete stage trials and diagnostics</h3>
+                    {(predictiveJob.result.trials ?? []).length === 0 && (
+                      <p className="rounded border border-indigo-200 bg-indigo-50 p-3 text-[11px] leading-5 text-indigo-900">
+                        No complete trial checkpoint has been acknowledged for this job yet. The live stage audit table above
+                        shows persisted counters and numeric stage data only when the server has received it.
+                      </p>
+                    )}
                     {(predictiveJob.result.trials ?? []).map((trial) => {
                       const order = predictiveJob.result?.componentOrder ?? ["SAT", "MONO", "DI", "POLY", "PA", "NMP"];
                        const isSevenComponent = String(
                          predictiveJob.result?.engineContractVersion ?? "",
                        ).startsWith("7C-");
-                      const formatVector = (values: number[] | undefined) =>
-                        order.map((family, index) => `${family}=${Number(values?.[index] ?? 0).toExponential(4)}`).join(" · ");
+                       const formatVector = (values: number[] | undefined) =>
+                         values?.length
+                           ? order.map((family, index) => `${family}=${formatRecordedStageNumber(values[index], 4)}`).join(" · ")
+                           : "Not recorded";
                        const acceptanceBlockers = trial.acceptanceBlockers ?? [];
                        const freshSolvent = trial.boundaryStreams?.freshWetSolvent
                          ?? trial.boundaryStreams?.freshNmp;
@@ -2490,13 +2603,13 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "PRE-PILOT DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {trial.maximumOverallComponentBalanceResidualMol.toExponential(3)}
+                            Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "PRE-PILOT DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                              <p>Total aromatics: <strong>{Number(trial.productMetrics.raffinateTotalAromaticsWtNmpFree).toFixed(4)} wt%</strong></p>
-                              <p>Polar aromatics: <strong>{Number(trial.productMetrics.raffinatePolarAromaticsWtNmpFree).toFixed(4)} wt%</strong></p>
-                              <p>NMP-free recovery: <strong>{Number(trial.productMetrics.nmpFreeHydrocarbonRecoveryPct).toFixed(4)}%</strong></p>
+                              <p>Total aromatics: <strong>{Number.isFinite(Number(trial.productMetrics?.raffinateTotalAromaticsWtNmpFree)) ? Number(trial.productMetrics?.raffinateTotalAromaticsWtNmpFree).toFixed(4) : "Not recorded"} wt%</strong></p>
+                              <p>Polar aromatics: <strong>{Number.isFinite(Number(trial.productMetrics?.raffinatePolarAromaticsWtNmpFree)) ? Number(trial.productMetrics?.raffinatePolarAromaticsWtNmpFree).toFixed(4) : "Not recorded"} wt%</strong></p>
+                              <p>NMP-free recovery: <strong>{Number.isFinite(Number(trial.productMetrics?.nmpFreeHydrocarbonRecoveryPct)) ? Number(trial.productMetrics?.nmpFreeHydrocarbonRecoveryPct).toFixed(4) : "Not recorded"}%</strong></p>
                               <p>
                                 All calculable targets:{" "}
                                 <strong>
@@ -2538,7 +2651,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                 {" "}· residual closure{" "}
                                 <strong>{trial.residualClosureStatus ?? "NOT RECORDED"}</strong>
                                 {" "}· residual{" "}
-                                <strong className="font-mono">{trial.maximumScaledEquationResidual.toExponential(3)}</strong>
+                                <strong className="font-mono">{formatRecordedStageNumber(trial.maximumScaledEquationResidual)}</strong>
                               </p>
                             ) : (
                               <>
@@ -2553,7 +2666,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                         <strong>{evidence?.residualClosureStatus ?? "NOT RECORDED"}</strong>
                                         {" "}· residual{" "}
                                         <strong className="font-mono">
-                                          {Number(evidence?.maximumScaledEquationResidual ?? trial.maximumScaledEquationResidual).toExponential(3)}
+                                          {formatRecordedStageNumber(evidence?.maximumScaledEquationResidual ?? trial.maximumScaledEquationResidual)}
                                         </strong>
                                       </p>
                                     );
@@ -2570,7 +2683,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                         <strong className="font-mono">
                                           {trial.multistartProductRelativeDifference == null
                                             ? "NOT RECORDED"
-                                            : trial.multistartProductRelativeDifference.toExponential(3)}
+                                            : formatRecordedStageNumber(trial.multistartProductRelativeDifference)}
                                         </strong>
                                       </>
                                     )}
@@ -2598,36 +2711,39 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                               </div>
                             </div>
                             <p>
-                              Target checks: {Object.entries(trial.targetCompliance)
+                              Target checks: {Object.entries(trial.targetCompliance ?? {})
                                 .map(([key, value]) => `${key}=${value.status ?? "UNKNOWN"}`).join(" · ")}
                             </p>
                             <p>
                               Component extraction diagnostics: {Object.entries(
                                 (trial.productMetrics.componentExtractionPct as Record<string, number> | undefined) ?? {},
-                              ).map(([family, value]) => `${family}=${value.toFixed(4)}%`).join(" · ") || "Not calculable"}
+                                ).map(([family, value]) => `${family}=${formatRecordedStageNumber(value, 4)}%`).join(" · ") || "Not calculable"}
                             </p>
                             <div className="overflow-x-auto">
                               <table className="w-full min-w-[760px] border-collapse text-left">
                                 <thead><tr className="border-b bg-slate-50">
-                                  <th className="p-2">Stage</th><th className="p-2">Local balance</th><th className="p-2">Isoactivity</th><th className="p-2">Stability / TPD</th><th className="p-2">Outlet compositions</th>
+                                  <th className="p-2">Stage</th><th className="p-2">Status</th><th className="p-2">Local balance</th><th className="p-2">Isoactivity</th><th className="p-2">Stability / TPD</th><th className="p-2">Outlet compositions</th>
                                 </tr></thead>
                                 <tbody>{(trial.stages ?? []).map((stage) => (
                                   <tr key={stage.stageFromFeedEnd} className="border-b align-top last:border-0">
                                     <td className="p-2">{stage.stageFromFeedEnd}</td>
+                                    <td className="p-2 font-semibold text-emerald-700">Recorded numeric payload</td>
                                     <td className="p-2 font-mono">
-                                      {stage.maximumComponentBalanceResidualMol.toExponential(3)} ·{" "}
-                                      {stage.maximumComponentBalanceResidualMol <= 1e-8 ? "PASS" : "FAIL"}
+                                      {formatRecordedStageNumber(stage.maximumComponentBalanceResidualMol)} ·{" "}
+                                      {typeof stage.maximumComponentBalanceResidualMol === "number" && Number.isFinite(stage.maximumComponentBalanceResidualMol)
+                                        ? stage.maximumComponentBalanceResidualMol <= 1e-8 ? "PASS" : "FAIL"
+                                        : "NOT RECORDED"}
                                     </td>
-                                    <td className="p-2 font-mono">{stage.isoactivityLogResidual.toExponential(3)}</td>
+                                    <td className="p-2 font-mono">{formatRecordedStageNumber(stage.isoactivityLogResidual)}</td>
                                     <td className="p-2 font-mono text-[10px]">
-                                      R eig={Number(stage.localPostSplitStability.raffinate?.minimumEigenvalue).toExponential(3)} ·
-                                      E eig={Number(stage.localPostSplitStability.extract?.minimumEigenvalue).toExponential(3)}<br />
-                                      R TPD={Number(stage.postSplitTpdSearch.raffinate?.minimum).toExponential(3)} ·
-                                      E TPD={Number(stage.postSplitTpdSearch.extract?.minimum).toExponential(3)}
+                                      R eig={formatRecordedStageNumber(stage.localPostSplitStability?.raffinate?.minimumEigenvalue)} ·
+                                      E eig={formatRecordedStageNumber(stage.localPostSplitStability?.extract?.minimumEigenvalue)}<br />
+                                      R TPD={formatRecordedStageNumber(stage.postSplitTpdSearch?.raffinate?.minimum)} ·
+                                      E TPD={formatRecordedStageNumber(stage.postSplitTpdSearch?.extract?.minimum)}
                                     </td>
                                     <td className="p-2 font-mono text-[10px]">
-                                      R mole: {formatVector(stage.raffinateLeaving.moleFractions)}<br />
-                                      E mole: {formatVector(stage.extractLeaving.moleFractions)}
+                                      R mole: {formatVector(stage.raffinateLeaving?.moleFractions)}<br />
+                                      E mole: {formatVector(stage.extractLeaving?.moleFractions)}
                                     </td>
                                   </tr>
                                 ))}</tbody>

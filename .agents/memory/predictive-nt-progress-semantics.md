@@ -21,6 +21,18 @@ actual stage records, not from terminal status alone.
 Keep observational fixes outside frozen scientific evidence and preserve active
 workers rather than restarting them just to activate better telemetry.
 
+A single trial can solve a ten-stage column: trial count is not theoretical
+stage count. Audit progress also does not imply that per-stage numeric payloads
+have been persisted.
+
+**Why:** Reading a one-trial counter as N_T=1 incorrectly suggested stopping a
+correctly configured ten-stage run. Reporting existing table code as live
+results also hid the distinction between audit counters and saved values.
+
+**How to apply:** Inspect frozen requested stage count and actual saved stage
+records before answering progress questions. Show pending states honestly;
+never promise live numeric rows based only on audit counters.
+
 **Why:** A reporting correction should not invalidate previously bound scientific
 snapshots or discard a long calculation already in progress.
 
