@@ -16,6 +16,7 @@ import {
   workflowTestOnlyCompletionClaimed,
 } from './job-c';
 import { validateStage1Snapshot } from './stage1';
+import { assessAcceptedJobCForPhysicalSizing } from './job-c-physical-sizing';
 
 const OWNER = `job-c:${process.pid}:${randomUUID()}`;
 const POLL_MS = Number(process.env.JOB_C_POLL_MS ?? 1_000);
@@ -359,10 +360,40 @@ export async function getJobC(id: string, userId: number, designId: number) {
 export async function getLatestJobC(userId: number, designId: number) {
   const found = await pool.query(
     `SELECT * FROM ecr_pre_pilot_job_c_jobs
-      WHERE created_by=$1 AND design_id=$2 ORDER BY created_at DESC LIMIT 1`,
+      WHERE created_by=$1 AND design_id=$2 ORDER BY created_at DESC,id DESC LIMIT 1`,
     [userId, designId],
   );
   return found.rows[0] ? publicJob(found.rows[0]) : null;
+}
+
+/**
+ * A sizing assessment may only start from a completed, full-lambda Job-C
+ * response.  In particular, a newer queued, diagnostic, blocked, or failed
+ * row must not hide the most recent eligible parent result.
+ *
+ * The detailed scientific admission remains in the physical-sizing service;
+ * this queue boundary establishes immutable queue status, ownership, and
+ * response-integrity eligibility before that service is invoked.
+ */
+export async function getLatestCompletedScientificJobC(userId: number, designId: number) {
+  const found = await pool.query(
+    `SELECT * FROM ecr_pre_pilot_job_c_jobs
+      WHERE created_by=$1 AND design_id=$2
+        AND status='completed' AND completed_at IS NOT NULL
+        AND result_snapshot IS NOT NULL
+        AND result_hash ~ '^[a-f0-9]{64}$'
+        AND result_snapshot->>'status'='CALCULATED_PRELIMINARY_JOB_C'
+        AND result_snapshot#>>'{workerResult,status}'='CALCULATED_PRELIMINARY_JOB_C'
+      ORDER BY completed_at DESC,created_at DESC,id DESC`,
+    [userId, designId],
+  );
+  const row = found.rows.find((candidate: any) =>
+    jobCScientificResultHash(candidate.result_snapshot) === candidate.result_hash
+    && candidate.result_snapshot?.workerResult?.diagnosticOnly !== true
+    && candidate.result_snapshot?.workerResult?.workflowTestOnly !== true
+    && assessAcceptedJobCForPhysicalSizing(candidate.result_snapshot).accepted);
+  if (!row) return null;
+  return publicJob(row);
 }
 
 export async function cancelJobC(id: string, userId: number, designId: number) {

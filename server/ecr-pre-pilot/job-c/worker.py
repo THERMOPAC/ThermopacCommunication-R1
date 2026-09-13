@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Conservative finite-volume countercurrent Job-C kernel."""
 from __future__ import annotations
-import hashlib, importlib.util, json, math, multiprocessing, os, signal, sys, tempfile, time
+import hashlib, importlib.util, json, math, multiprocessing, os, re, signal, sys, tempfile, time
 from pathlib import Path
 from candidate_interface import CandidateInterfaceSolver, CandidateFailure, VERSION as CANDIDATE_VERSION
 from boundary_interface_qualifier import qualify as qualify_boundary, VERSION as QUALIFIER_VERSION
@@ -1706,6 +1706,34 @@ def validate_branch_request(r):
       or r.get("axialLocalContactProfileSha256")!=digest(profile_source)):
         raise ValueError("JOB_C_AXIAL_LOCAL_CONTACT_PROFILE_AUTHORITY_INVALID")
 
+def validate_physical_sizing_trial(r):
+    """Validate the immutable, server-owned request for a post-acceptance trial.
+
+    This validation intentionally has no authority to accept an ordinary Job-C
+    result.  The TypeScript adapter admits that result and pins its hash before
+    invoking this operation; this worker validates only the distinct installed
+    geometry it is about to solve.
+    """
+    trial=r.get("physicalSizingTrial")
+    if not isinstance(trial,dict):
+        raise ValueError("JOB_C_PHYSICAL_SIZING_TRIAL_REQUIRED")
+    hash_keys=("sourceJobCResultSha256","sourceWorkerResultSha256",
+      "mechanicalBasisHash","stage3ImmutableHash")
+    if (any(not isinstance(trial.get(key),str)
+          or not re.fullmatch(r"[a-f0-9]{64}",trial[key])
+          for key in hash_keys)
+        or not isinstance(trial.get("candidateOrdinal"),int)
+        or isinstance(trial.get("candidateOrdinal"),bool)
+        or trial["candidateOrdinal"]<0
+        or not isinstance(trial.get("physicalCompartments"),int)
+        or isinstance(trial.get("physicalCompartments"),bool)
+        or trial["physicalCompartments"]<1
+        or not isinstance(trial.get("installedHeightM"),(int,float))
+        or isinstance(trial.get("installedHeightM"),bool)
+        or not math.isfinite(float(trial["installedHeightM"]))
+        or float(trial["installedHeightM"])<=0):
+        raise ValueError("JOB_C_PHYSICAL_SIZING_TRIAL_INVALID")
+
 def case(r, name, dc, dd, solvers):
     np=solvers[0].np
     m=r["compartments"]; A=math.pi*r["columnDiameterM"]**2/4
@@ -1714,6 +1742,7 @@ def case(r, name, dc, dd, solvers):
       and diagnostic_mode.get("mode")==STRICT_PARTIAL_DIAGNOSTIC_MODE)
     workflow_test_only=(isinstance(diagnostic_mode,dict)
       and diagnostic_mode.get("mode")==WORKFLOW_TEST_ONLY_MODE)
+    physical_sizing_trial=r.get("physicalSizingTrial")
     diagnostic_terminal_lambda=(
       float(diagnostic_mode["terminalLambda"])
       if partial_diagnostic or workflow_test_only else None)
@@ -2972,7 +3001,12 @@ def case(r, name, dc, dd, solvers):
     # lambda=0 gate before it can be accepted.
     resume_anchor=find_resume_coupled_anchor(
       _completed_results,2.0,expected_request_sha256=_request_sha256)
-    if partial_diagnostic or workflow_test_only:
+    if physical_sizing_trial is not None:
+        trial_height=float(physical_sizing_trial["installedHeightM"])
+        progress("physical sizing transport revalidation",
+          height_candidate_m=trial_height)
+        low=solve_height(trial_height,resume_anchor)
+    elif partial_diagnostic or workflow_test_only:
         trial_height=diagnostic_height_trial
         progress("workflow test only height trial" if workflow_test_only
           else "partial-transfer diagnostic height trial",
@@ -3061,6 +3095,54 @@ def case(r, name, dc, dd, solvers):
               "minimumFlowMolS":endpoint.get("minimumFlowMolS")},
             "gateDecision":endpoint_gates,
             "deterministicConfirmation":confirmation}}
+    if physical_sizing_trial is not None:
+        # The physical compartment count is a hardware mapping supplied by the
+        # separately admitted mechanical basis.  m remains the pinned seven
+        # numerical FV cells, so the unchanged 189-equation formulation is
+        # re-solved rather than reinterpreting numerical cells as hardware.
+        selected=low
+        numerical_cells=[]
+        for j in range(m):
+            numerical_cells.append({"numericalCell":j+1,
+              "continuousLocalComponentMolarFlowMolS":selected["state"][0][j],
+              "dispersedLocalComponentMolarFlowMolS":selected["state"][1][j],
+              "continuousInMolS":selected["fc"][j],
+              "continuousOutMolS":selected["fc"][j+1],
+              "dispersedInMolS":[-x for x in selected["fd"][j+1]],
+              "dispersedOutMolS":[-x for x in selected["fd"][j]],
+              "transferContinuousToDispersedMolS":selected["tr"][j],
+              "localInterface":selected["gates"][j],
+              "continuousResidualMolS":selected["rc"][j],
+              "dispersedResidualMolS":selected["rd"][j]})
+        out={"heightM":trial_height,"profileSolvedHeightM":selected["height"],
+          "outletDuty":outlet_duty_report(selected),
+          "profileStateSha256":digest([selected["state"][0],selected["state"][1]]),
+          "recoveryPctNmpFreeRrboHydrocarbonMassBasis":recovery(selected),
+          "numericalCells":numerical_cells,
+          "qualification":"NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT",
+          "physicalSizingTrial":{
+            **physical_sizing_trial,
+            "transportRecomputed":True,
+            "numericalCellCount":m,
+            "physicalCompartmentsAreNotNumericalCells":True},
+          "gridIndependenceStatus":"PENDING_NOT_IMPLEMENTED",
+          "globalComponentBalanceResidualMolS":selected["global"],
+          "residualDiagnostics":{"maxCellResidualMolS":selected["raw"],
+            "maxScaledCellResidual":selected["scaled"],
+            "maxGlobalComponentBalanceResidualMolS":max(abs(x) for x in selected["global"]),
+            "minimumLocalComponentFlowMolS":selected["positive"],
+            "interfaceCalls":selected["interfaceCalls"],
+            "runtimeSeconds":time.monotonic()-budget["started"],
+            "runtimeBudgets":{"qualification":qualification_runtime,
+              "nonlinearSolver":{"budgetSeconds":budget["maximumSeconds"],
+                "elapsedSeconds":time.monotonic()-budget["started"]},
+              "totalElapsedSeconds":time.monotonic()-case_started}},
+          "homotopyHistory":selected["homotopyHistory"],
+          "boundaryConditions":{"continuousInlet":"DANCKWERTS_TOTAL_COMPONENT_FACE_FLUX_EQUALS_GOVERNED_INLET_MOL_S",
+            "dispersedInlet":"DANCKWERTS_TOTAL_COMPONENT_FACE_FLUX_EQUALS_NEGATIVE_GOVERNED_INLET_MOL_S",
+            "outlets":"ZERO_DISPERSIVE_GRADIENT"}}
+        return {"name":name,"status":"CALCULATED_PRELIMINARY_SENSITIVITY",
+          "daxContinuousM2S":dc,"daxDispersedM2S":dd,"selected":out}
     h2_benchmark=qualify_h2(low)
     h2_benchmark["outletDuty"]=outlet_duty_report(low)
     progress("candidate20m",height_candidate_m=20.0)
@@ -3288,8 +3370,17 @@ for line in sys.stdin:
             raise ValueError("JOB_C_RESUME_CHECKPOINT_RESULTS_INVALID")
         _completed_results=[
           value for value in completed if isinstance(value,dict)]
-    if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
+    if (r.get("protocol")!=PROTOCOL
+      or r.get("operation") not in ("SOLVE_HEIGHT","REVALIDATE_PHYSICAL_TRIAL")
+      or r.get("componentOrder")!=list(COMPONENTS)):
+        raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     validate_branch_request(r)
+    if r.get("operation")=="REVALIDATE_PHYSICAL_TRIAL":
+        validate_physical_sizing_trial(r)
+        if r.get("diagnosticMode") is not None:
+            raise ValueError("JOB_C_PHYSICAL_SIZING_DIAGNOSTIC_MODE_PROHIBITED")
+        if r.get("resume") is not None:
+            raise ValueError("JOB_C_PHYSICAL_SIZING_RESUME_PROHIBITED")
     diagnostic_mode=r.get("diagnosticMode")
     strict_diagnostic_config={
       "mode":STRICT_PARTIAL_DIAGNOSTIC_MODE,
@@ -3340,6 +3431,12 @@ for line in sys.stdin:
             "checkpointCompletedResultCount":len(resume.get("completedResults",[]))
               if isinstance(resume,dict) else 0},
           "sensitivityCases":cases}
+    if r.get("operation")=="REVALIDATE_PHYSICAL_TRIAL":
+        body["physicalSizingRevalidation"]={
+          "status":"RECALCULATED_FULL_LAMBDA_TRANSPORT",
+          "physicalSizingTrial":r["physicalSizingTrial"],
+          "equationSystem":"UNCHANGED_COUPLED_189_EQUATIONS",
+          "normalJobCStartedOrRepeated":False}
  except JobCInterrupted:
     body={"protocol":PROTOCOL,"status":"INTERRUPTED_PRELIMINARY_JOB_C",
       "requestSha256":_request_sha256,"complete":False,

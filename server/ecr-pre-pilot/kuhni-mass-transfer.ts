@@ -90,7 +90,9 @@ export interface CellSolution {
 }
 export interface FeasibleDesign {
   ordinal: number; rpm: number; status: RangeStatus; physicalCompartments: number; activeHeightM: number; activeVolumeM3: number; shaftPowerW: number;
-  overallEfficiency: number; hetsM: number; continuousOutletMolarFlowMolS: number[]; dispersedOutletMolarFlowMolS: number[];
+  overallEfficiency: null; hetsM: null;
+  efficiencyDependency: 'ADMITTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED';
+  continuousOutletMolarFlowMolS: number[]; dispersedOutletMolarFlowMolS: number[];
   cells: CellSolution[]; maxConstitutiveResidualMolS: number; maxLocalMaterialBalanceResidualMolS: number; maxGlobalMaterialBalanceResidualMolS: number;
   maxContinuousMixingConservationResidualMolS: number; maxDispersedMixingConservationResidualMolS: number; maxFrameConstraintResidualMolS: number;
   applicabilityFlags: string[]; uncertaintyFlags: string[];
@@ -204,7 +206,7 @@ function solve(input: KuhniMassTransferInput, dep: KuhniMassTransferDependencies
   const cout=f.co[count-1], dout=f.dout[0]; if([...cout,...dout].some(x=>x < -tol || !Number.isFinite(x))) throw new NumericalFailure('FINAL_NONNEGATIVE_STATE_GATE_FAILED');
   const global=Math.max(...cout.map((x,i)=>Math.abs(input.continuousFeed.componentMolarFlowMolS[i]+input.dispersedFeed.componentMolarFlowMolS[i]-x-dout[i])));
   if(global>tol||local>tol) throw new NumericalFailure('MATERIAL_BALANCE_CLOSURE_FAILED');
-  const H=count*candidate.compartmentHeightM,V=area*H; return {ordinal:candidate.ordinal,rpm:candidate.rpm,status:candidate.status,physicalCompartments:count,activeHeightM:H,activeVolumeM3:V,shaftPowerW:candidate.powerVolumeWM3*V,overallEfficiency:nt/count,hetsM:H/nt,continuousOutletMolarFlowMolS:cout,dispersedOutletMolarFlowMolS:dout,cells,maxConstitutiveResidualMolS:constitutive,maxLocalMaterialBalanceResidualMolS:local,maxGlobalMaterialBalanceResidualMolS:global,maxContinuousMixingConservationResidualMolS:maxMC,maxDispersedMixingConservationResidualMolS:maxMD,maxFrameConstraintResidualMolS:frame,applicabilityFlags:[...flags].sort(),uncertaintyFlags:[...uncertainty].sort()};
+  const H=count*candidate.compartmentHeightM,V=area*H; return {ordinal:candidate.ordinal,rpm:candidate.rpm,status:candidate.status,physicalCompartments:count,activeHeightM:H,activeVolumeM3:V,shaftPowerW:candidate.powerVolumeWM3*V,overallEfficiency:null,hetsM:null,efficiencyDependency:'ADMITTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED',continuousOutletMolarFlowMolS:cout,dispersedOutletMolarFlowMolS:dout,cells,maxConstitutiveResidualMolS:constitutive,maxLocalMaterialBalanceResidualMolS:local,maxGlobalMaterialBalanceResidualMolS:global,maxContinuousMixingConservationResidualMolS:maxMC,maxDispersedMixingConservationResidualMolS:maxMD,maxFrameConstraintResidualMolS:frame,applicabilityFlags:[...flags].sort(),uncertaintyFlags:[...uncertainty].sort()};
 }
 function order(a:FeasibleDesign,b:FeasibleDesign){const eq=(x:number,y:number)=>Math.abs(x-y)<=1e-12*Math.max(1,Math.abs(x),Math.abs(y));return !eq(a.activeVolumeM3,b.activeVolumeM3)?a.activeVolumeM3-b.activeVolumeM3:!eq(a.shaftPowerW,b.shaftPowerW)?a.shaftPowerW-b.shaftPowerW:a.rpm-b.rpm||a.ordinal-b.ordinal;}
 export function runKuhniMassTransfer(input: KuhniMassTransferInput, dep: KuhniMassTransferDependencies): KuhniMassTransferResult {

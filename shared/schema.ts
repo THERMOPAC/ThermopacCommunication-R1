@@ -17290,6 +17290,26 @@ export const ecrPrePilotKuhniGeometryResolverRuns = pgTable('ecr_pre_pilot_kuhni
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({ designIndex: index('ecr_pre_pilot_kuhni_resolver_design_idx').on(table.designId, table.createdAt) }));
 
+export const ecrPrePilotJobCPhysicalSizingResults = pgTable('ecr_pre_pilot_job_c_physical_sizing_results', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  parentJobId: uuid('parent_job_id').notNull(),
+  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  parentResultHash: varchar('parent_result_hash', { length: 64 }).notNull(),
+  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
+  processBasis: jsonb('process_basis').notNull(),
+  inputSnapshot: jsonb('input_snapshot').notNull(),
+  resultSnapshot: jsonb('result_snapshot').notNull(),
+  resultHash: varchar('result_hash', { length: 64 }).notNull(),
+  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, (table) => ({
+  scopeIndex: index('ecr_pre_pilot_job_c_physical_sizing_scope_idx')
+    .on(table.createdBy, table.designId, table.createdAt),
+  parentIndex: index('ecr_pre_pilot_job_c_physical_sizing_parent_idx')
+    .on(table.parentJobId, table.createdAt),
+}));
+
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });

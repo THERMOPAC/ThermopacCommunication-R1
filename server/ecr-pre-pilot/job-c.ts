@@ -224,6 +224,23 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
     | typeof JOB_C_WORKFLOW_TEST_ONLY_MODE;
 }
 
+/**
+ * A physical-sizing trial is deliberately a separate worker operation.  It
+ * consumes a completed, immutable Job-C request, but it is not a Job-C queue
+ * start, resume, or retry.  The worker still solves the same 189 equations
+ * and performs the normal lambda-one exact qualification at the installed
+ * height.
+ */
+export type JobCPhysicalSizingTrial = {
+  sourceJobCResultSha256: string;
+  sourceWorkerResultSha256: string;
+  mechanicalBasisHash: string;
+  stage3ImmutableHash: string;
+  installedHeightM: number;
+  physicalCompartments: number;
+  candidateOrdinal: number;
+};
+
 export async function runJobCWorker(request: JobCWorkerRequest, options: {
   signal?: AbortSignal;
   onProgress?: (
@@ -235,6 +252,7 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
   onCheckpoint?: (checkpoint: Record<string, any>) => void | Promise<void>;
   /** Research capture only; never bypasses the response integrity check. */
   onRawResponse?: (raw: string) => void;
+  operation?: 'SOLVE_HEIGHT' | 'REVALIDATE_PHYSICAL_TRIAL';
 } = {}) {
   const workerRoot = process.env.JOB_C_RUNTIME_ROOT
     ? path.resolve(process.env.JOB_C_RUNTIME_ROOT)
@@ -419,6 +437,10 @@ export async function runJobCWorker(request: JobCWorkerRequest, options: {
         finish(new JobCError('JOB_C_WORKER_RESPONSE_INTEGRITY_INVALID'));
       }
     });
-    child.stdin.end(`${JSON.stringify({ protocol: JOB_C_PROTOCOL, operation: 'SOLVE_HEIGHT', ...request })}\n`);
+    child.stdin.end(`${JSON.stringify({
+      ...request,
+      protocol: JOB_C_PROTOCOL,
+      operation: options.operation ?? 'SOLVE_HEIGHT',
+    })}\n`);
   });
 }

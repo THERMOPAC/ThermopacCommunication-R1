@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, FlaskConical, Loader2, Play, RefreshCw, ShieldAlert, Square } from "lucide-react";
 import { useLocation } from "wouter";
 import Layout from "@/components/layout";
@@ -117,6 +117,31 @@ function records(value: unknown): RecordValue[] {
   return Array.isArray(value) ? value.map(object) : [];
 }
 
+function metricValue(value: unknown, unit: string): string {
+  if (value === undefined || value === null || value === "") return "Unavailable";
+  const number = Number(value);
+  return Number.isFinite(number) ? `${numberValue(number)} ${unit}` : stringValue(value, "Unavailable");
+}
+
+function scalarOrUnavailable(value: unknown): string {
+  return value === undefined || value === null || value === "" ? "Unavailable" : scalarValue(value);
+}
+
+function booleanVerdict(value: unknown): string {
+  return typeof value === "boolean" ? (value ? "PASS" : "BLOCKED") : stringValue(value, "Unavailable");
+}
+
+function explicitDependencyValues(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map(item => typeof item === "string" ? item : JSON.stringify(item));
+  }
+  if (value && typeof value === "object") {
+    return Object.entries(value as RecordValue).map(([key, item]) =>
+      `${key}: ${typeof item === "string" ? item : JSON.stringify(item)}`);
+  }
+  return [];
+}
+
 function numericArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -161,6 +186,257 @@ function residualValue(residual: number | null | undefined, kind: string | null 
 }
 
 const JOB_C_RESIDUAL_LIMIT = 1e-7;
+
+type PhysicalSizingPanelProps = {
+  value: RecordValue | null;
+  loading: boolean;
+  error: string | null;
+  onEvaluate?: () => void;
+  evaluating?: boolean;
+  canEvaluate?: boolean;
+};
+
+/**
+ * Physical sizing is intentionally a display-only boundary.  The browser
+ * consumes the direct server result and does not turn Job-C numerical cells
+ * into physical compartments, recalculate efficiency, or start Job C.
+ */
+export function PhysicalSizingPanel({
+  value, loading, error, onEvaluate, evaluating = false, canEvaluate = false,
+}: PhysicalSizingPanelProps) {
+  const admission = object(read(value ?? {}, "admission", "physicalSizingAdmission"));
+  const evidence = object(read(admission, "evidence", "gateEvidence"));
+  const mapping = object(read(value ?? {}, "compartmentMapping", "mapping"));
+  const finalGeometry = object(read(value ?? {}, "finalGeometry", "final"));
+  const mechanicalBasis = object(read(value ?? {}, "mechanicalBasis", "mechanicalCompartmentBasis"));
+  const reasons = flagsOf(read(admission, "reasons", "blockingReasons"));
+  const dependencyList = explicitDependencyValues(read(
+    value ?? {},
+    "requiredDependencies",
+    "explicitDependencies",
+    "dependenciesRequired",
+  ));
+  const dependencyHashes = explicitDependencyValues(read(value ?? {}, "dependencies"));
+  const transport = object(read(value ?? {}, "transport"));
+  const transportLineage = explicitDependencyValues(read(transport, "lineage"));
+  const dependencies = [...dependencyList, ...dependencyHashes, ...transportLineage];
+  const trialAuthority = object(read(value ?? {}, "physicalSizingCandidateAuthority"));
+  const trials = records(read(value ?? {}, "trialEvidence", "provenanceTrials", "trials")).length
+    ? records(read(value ?? {}, "trialEvidence", "provenanceTrials", "trials"))
+    : records(read(trialAuthority, "candidates", "trialEvidence"));
+  const requiredHeight = read(value ?? {}, "requiredHeightM", "requiredHeight")
+    ?? read(admission, "requiredHeightM", "requiredHeight");
+  const installedHeight = read(value ?? {}, "installedHeightM", "activeHeightM", "installedHeight");
+  const physicalCompartments = read(value ?? {}, "physicalCompartments", "physicalCompartmentCount");
+  const numericalCompartments = read(value ?? {}, "numericalCompartments", "numericalCompartmentCount")
+    ?? read(admission, "numericalCells");
+  const efficiencyBasis = read(mapping, "efficiencyBasis")
+    ?? read(value ?? {}, "efficiencyBasis");
+  const overallEfficiency = read(mapping, "overallEfficiency")
+    ?? read(value ?? {}, "efficiency");
+  const finalD32 = read(finalGeometry, "d32M", "d32")
+    ?? read(value ?? {}, "finalD32M", "d32M");
+  const finalOperatingHoldup = read(finalGeometry, "operatingHoldup", "operatingHoldupFraction")
+    ?? read(value ?? {}, "finalOperatingHoldup", "operatingHoldup");
+  const finalFloodHoldup = read(finalGeometry, "floodHoldup", "floodingHoldup", "floodHoldupFraction")
+    ?? read(value ?? {}, "finalFloodHoldup", "floodHoldup");
+  const finalRpm = read(finalGeometry, "rpm", "operatingRpm")
+    ?? read(value ?? {}, "finalOperatingRpm");
+  const finalDiameter = read(finalGeometry, "diameterM", "columnDiameterM")
+    ?? read(value ?? {}, "finalColumnDiameterM", "columnDiameterM");
+  const finalProvenance = read(finalGeometry, "provenance", "geometryProvenance")
+    ?? read(value ?? {}, "finalGeometryProvenance", "provenance");
+  const status = read(value ?? {}, "status", "calculationStatus");
+  const classification = read(value ?? {}, "classification", "releaseClassification");
+
+  return (
+    <section
+      data-testid="physical-sizing-panel"
+      className="overflow-hidden rounded-md border-2 border-emerald-700/50 bg-white"
+    >
+      <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-800">
+          Stage 4 · physical Kühni sizing
+        </p>
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-950">Server-owned physical sizing assessment</h2>
+          <span className="rounded border border-emerald-300 bg-white px-2 py-1 font-mono text-[10px] font-semibold">
+            Status: {stringValue(status, loading ? "LOADING" : "NOT_AVAILABLE")}
+          </span>
+        </div>
+        <p className="mt-2 text-[10px] leading-4 text-slate-700">
+          This is a separate post-Job-C sizing result. The client performs no numerical reconstruction,
+          treats Job-C numerical cells as numerical compartments only, and does not start Job C automatically.
+        </p>
+        {onEvaluate ? (
+          <button
+            type="button"
+            data-testid="evaluate-physical-sizing"
+            onClick={onEvaluate}
+            disabled={!canEvaluate || evaluating}
+            className="mt-2 rounded border border-emerald-700 bg-white px-2 py-1 text-[10px] font-semibold text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {evaluating ? "Evaluating physical sizing…" : "Evaluate physical sizing"}
+          </button>
+        ) : null}
+      </div>
+
+      {loading ? (
+        <div role="status" className="p-4 text-xs text-slate-600">Loading the latest physical sizing assessment…</div>
+      ) : !value ? (
+        <div className="p-4 text-xs text-slate-700">
+          <p className="font-semibold">No completed physical sizing assessment is available.</p>
+          {error && <p className="mt-1 font-mono text-[10px] text-amber-800">{error}</p>}
+          <p className="mt-2 text-[10px] text-slate-600">
+            No physical compartments, installed height, efficiency, or final geometry are inferred from Job-C output.
+          </p>
+        </div>
+      ) : (
+        <>
+          <section data-testid="physical-sizing-admission" className="border-b border-emerald-200 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="text-xs font-semibold text-slate-900">Admission</h3>
+                <p className="mt-1 text-[10px] text-slate-600">
+                  Accepted for physical sizing: <span className="font-mono font-semibold">{booleanVerdict(read(admission, "accepted"))}</span>
+                </p>
+              </div>
+              {classification && <span className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-900">{String(classification)}</span>}
+            </div>
+            <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ["Full λ accepted", read(evidence, "fullLambda", "fullLambdaAccepted")],
+                ["Immutable lineage", read(evidence, "immutableLineage")],
+                ["Exact qualification", read(evidence, "exactQualification")],
+                ["Reproduced and stable", read(evidence, "independentlyReproducedAndStable", "reproducedAndStable")],
+                ["Governing gates", read(evidence, "governingGates")],
+              ].map(([label, item]) => (
+                <div key={String(label)} className="rounded border border-emerald-200 bg-emerald-50/40 p-2">
+                  <dt className="text-[9px] text-slate-500">{label}</dt>
+                  <dd className="mt-1 font-mono text-[10px]">{booleanVerdict(item)}</dd>
+                </div>
+              ))}
+            </dl>
+            {reasons.length > 0 && (
+              <div className="mt-3 rounded border border-amber-300 bg-amber-50 p-2 text-[10px] text-amber-950">
+                <p className="font-semibold">Admission reasons</p>
+                <ul className="mt-1 list-disc space-y-0.5 pl-4">{reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>
+              </div>
+            )}
+          </section>
+
+          <section data-testid="physical-sizing-dependencies" className="border-b border-emerald-200 bg-slate-50/70 p-3">
+            <h3 className="text-xs font-semibold text-slate-900">Explicit physical-sizing dependencies</h3>
+            {dependencies.length > 0 ? (
+              <ul className="mt-2 grid gap-1 text-[10px] leading-4 text-slate-700 sm:grid-cols-2">
+                {dependencies.map(dependency => <li key={dependency} className="rounded border border-slate-200 bg-white px-2 py-1 font-mono">{dependency}</li>)}
+              </ul>
+            ) : (
+              <p className="mt-2 text-[10px] text-slate-600">No separate required-dependency list was returned.</p>
+            )}
+            {(Object.keys(mechanicalBasis).length > 0 || read(trialAuthority, "qualification")) && (
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <HashLine label="Mechanical basis source" value={read(mechanicalBasis, "source", "reason")} />
+                <HashLine label="Mechanical basis hash" value={read(mechanicalBasis, "hash")} />
+                <HashLine label="Mechanical basis status" value={read(mechanicalBasis, "status")} />
+                <HashLine label="Spacing rule" value={read(mechanicalBasis, "spacingRule", "qualification")} />
+              </dl>
+            )}
+          </section>
+
+          <section data-testid="physical-sizing-summary" className="border-b border-emerald-200 p-3">
+            <h3 className="text-xs font-semibold text-slate-900">Physical versus numerical sizing</h3>
+            <dl className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ["Required active height", metricValue(requiredHeight, "m")],
+                ["Installed active height", metricValue(installedHeight, "m")],
+                ["Physical compartments", scalarOrUnavailable(physicalCompartments)],
+                ["Numerical compartments", scalarOrUnavailable(numericalCompartments)],
+                ["Efficiency basis", stringValue(efficiencyBasis, "Unavailable")],
+                ["Overall efficiency", scalarOrUnavailable(overallEfficiency)],
+                ["HETS", metricValue(read(mapping, "hetsM", "heightEquivalentTheoreticalStageM"), "m")],
+              ].map(([label, item]) => (
+                <div key={String(label)} className="rounded border border-slate-200 bg-slate-50 p-2">
+                  <dt className="text-[9px] text-slate-500">{label}</dt>
+                  <dd className="mt-1 break-words font-mono text-[10px] text-slate-900">{item}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-2 text-[10px] leading-4 text-slate-600">
+              Physical compartments come only from the server&rsquo;s governed mechanical spacing basis.
+              Numerical compartments are the Job-C FV discretization and are not treated as physical stage count.
+            </p>
+          </section>
+
+          <section data-testid="physical-sizing-final-geometry" className="border-b border-emerald-200 p-3">
+            <h3 className="text-xs font-semibold text-slate-900">Final geometry and hydraulic provenance</h3>
+            <dl className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ["d32 [m]", metricValue(finalD32, "m")],
+                ["Operating holdup", scalarOrUnavailable(finalOperatingHoldup)],
+                ["Flood holdup", scalarOrUnavailable(finalFloodHoldup)],
+                ["Operating RPM", scalarOrUnavailable(finalRpm)],
+                ["Column diameter [m]", metricValue(finalDiameter, "m")],
+              ].map(([label, item]) => (
+                <div key={String(label)} className="rounded border border-emerald-200 bg-emerald-50/40 p-2">
+                  <dt className="text-[9px] text-slate-600">{label}</dt>
+                  <dd className="mt-1 font-mono text-[10px] font-semibold text-slate-900">{item}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-2 break-words text-[10px] leading-4 text-slate-700">
+              Geometry provenance: <span className="font-mono">{stringValue(finalProvenance, "Unavailable")}</span>
+            </p>
+          </section>
+
+          <section data-testid="physical-sizing-trials" className="p-3">
+            <h3 className="text-xs font-semibold text-slate-900">Server-returned provenance trials</h3>
+            {trials.length > 0 ? (
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-[10px]">
+                  <thead className="bg-emerald-950 text-white">
+                    <tr>
+                      <th className="px-2 py-2">Trial</th>
+                      <th className="px-2 py-2">Status / reason</th>
+                      <th className="px-2 py-2">RPM</th>
+                      <th className="px-2 py-2">Diameter [m]</th>
+                      <th className="px-2 py-2">Attempted physical compartments</th>
+                      <th className="px-2 py-2">Installed height [m]</th>
+                      <th className="px-2 py-2">Efficiency</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {trials.map((trial, index) => {
+                      const designTrial = object(read(trial, "design", "selectedDesign"));
+                      const hydraulicsTrial = object(read(trial, "stage3Evidence", "hydraulics", "operatingHydraulics"));
+                      const attempted = read(trial, "attemptedCompartments", "physicalCompartmentsTried");
+                      return (
+                        <tr key={`${stringValue(read(trial, "trialId", "ordinal"), index)}`} className="align-top">
+                          <td className="px-2 py-2 font-mono">{stringValue(read(trial, "trialId", "ordinal"), String(index + 1))}</td>
+                          <td className="px-2 py-2">
+                            <span className="font-semibold">{stringValue(read(trial, "status", "hydraulicStatus"))}</span>
+                            {read(trial, "reason") && <><br /><span className="text-slate-600">{String(read(trial, "reason"))}</span></>}
+                          </td>
+                          <td className="px-2 py-2 font-mono">{scalarOrUnavailable(read(trial, "rpm") ?? read(designTrial, "rpm"))}</td>
+                          <td className="px-2 py-2 font-mono">{metricValue(read(trial, "columnDiameterM", "diameterM") ?? read(hydraulicsTrial, "columnDiameterM", "diameterM"), "m")}</td>
+                          <td className="px-2 py-2 font-mono">{Array.isArray(attempted) ? attempted.join(", ") : scalarOrUnavailable(read(trial, "physicalCompartments") ?? read(designTrial, "physicalCompartments"))}</td>
+                          <td className="px-2 py-2 font-mono">{metricValue(read(trial, "activeHeightM") ?? read(designTrial, "activeHeightM"), "m")}</td>
+                          <td className="px-2 py-2 font-mono">{scalarOrUnavailable(read(trial, "overallEfficiency") ?? read(designTrial, "overallEfficiency"))}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-2 text-[10px] text-slate-600">No provenance trials were returned with this assessment.</p>
+            )}
+          </section>
+        </>
+      )}
+    </section>
+  );
+}
 
 function booleanValue(value: unknown): boolean | null {
   return typeof value === "boolean" ? value : null;
@@ -300,6 +576,14 @@ export default function EcrPrePilotDesignStage4Page() {
   const [jobCPollError, setJobCPollError] = useState<string | null>(null);
   const [jobCSubmitting, setJobCSubmitting] = useState(false);
   const [jobCStopping, setJobCStopping] = useState(false);
+  // Physical sizing is loaded from its own read-only endpoint. Keep these
+  // hooks after the existing Job-C hooks so diagnostic review state remains
+  // independent from the sizing panel.
+  const [physicalSizing, setPhysicalSizing] = useState<RecordValue | null>(null);
+  const [physicalSizingLoading, setPhysicalSizingLoading] = useState(false);
+  const [physicalSizingError, setPhysicalSizingError] = useState<string | null>(null);
+  const [physicalSizingSubmitting, setPhysicalSizingSubmitting] = useState(false);
+  const priorJobCStatus = useRef<JobCStatus | null>(null);
   const jobCRunning = jobCSubmitting || jobCJob?.status === "pending" || jobCJob?.status === "running";
   // The server owns all Job B lineage and prerequisite validation. Requiring
   // Job B React state here incorrectly disables Job C after a page reload.
@@ -334,6 +618,80 @@ export default function EcrPrePilotDesignStage4Page() {
     return job;
   }, []);
 
+  const loadPhysicalSizing = useCallback(async (designId: number) => {
+    setPhysicalSizingLoading(true);
+    setPhysicalSizingError(null);
+    try {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/job-c/physical-sizing/latest`, { credentials: "include" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setPhysicalSizing(null);
+        setPhysicalSizingError(stringValue(read(object(payload), "reason", "message", "error"), "The latest physical sizing assessment is unavailable."));
+        return;
+      }
+      const directResult = object(read(object(payload), "physicalSizing", "result", "data") ?? payload);
+      setPhysicalSizing(Object.keys(directResult).length ? directResult : null);
+      if (!Object.keys(directResult).length) {
+        setPhysicalSizingError("The physical sizing endpoint returned no direct result.");
+      }
+    } catch (cause: unknown) {
+      setPhysicalSizing(null);
+      setPhysicalSizingError(cause instanceof Error ? cause.message : "The latest physical sizing assessment could not be loaded.");
+    } finally {
+      setPhysicalSizingLoading(false);
+    }
+  }, []);
+
+  const evaluatePhysicalSizing = useCallback(async () => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId)) return;
+    setPhysicalSizingSubmitting(true);
+    // POST is only an evaluation request. Its response can become stale before
+    // it reaches the browser, so only GET's current-lineage representation may
+    // populate the physical-geometry panel.
+    setPhysicalSizing(null);
+    setPhysicalSizingError(null);
+    try {
+      const response = await fetch(
+        `/api/ecr-pre-pilot/designs/${designId}/job-c/physical-sizing/evaluate`,
+        { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" },
+      );
+      const payload = await response.json().catch(() => ({}));
+      const evaluationError = !response.ok
+        ? stringValue(read(object(payload), "reason", "message", "error"),
+          "Physical sizing could not be evaluated.")
+        : null;
+      await loadPhysicalSizing(designId);
+      if (!response.ok) {
+        setPhysicalSizingError(evaluationError);
+      }
+    } catch (cause: unknown) {
+      // A timeout can occur after the server has persisted a child result;
+      // reload current authority rather than leaving a direct POST value.
+      await loadPhysicalSizing(designId);
+      setPhysicalSizingError(cause instanceof Error ? cause.message : "Physical sizing could not be evaluated.");
+    } finally {
+      setPhysicalSizingSubmitting(false);
+    }
+  }, [design?.id, loadPhysicalSizing]);
+
+  useEffect(() => {
+    const status = jobCJob?.status ?? null;
+    const prior = priorJobCStatus.current;
+    priorJobCStatus.current = status;
+    const becameTerminal = status !== null
+      && ["completed", "blocked", "failed", "cancelled"].includes(status)
+      && prior !== status;
+    const designId = Number(design?.id);
+    if (becameTerminal && Number.isFinite(designId)) {
+      // A newly terminal Job C can supersede the parent of an existing sizing
+      // child. Clear it immediately, then render only the refreshed GET view.
+      setPhysicalSizing(null);
+      setPhysicalSizingError(null);
+      void loadPhysicalSizing(designId);
+    }
+  }, [design?.id, jobCJob?.status, loadPhysicalSizing]);
+
   const loadDesign = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -344,19 +702,24 @@ export default function EcrPrePilotDesignStage4Page() {
     setJobCDiagnostic(null);
     setJobCJob(null);
     setJobCPollError(null);
+    setPhysicalSizing(null);
+    setPhysicalSizingError(null);
     try {
       const response = await fetch("/api/ecr-pre-pilot/designs/latest-saved", { credentials: "include" });
       const payload = await response.json().catch(() => ({}));
       if (response.status === 404) throw new Error("Save Stage 1 inputs before opening Job-A coefficient testing.");
       if (!response.ok) throw new Error(stringValue(read(object(payload), "message", "error"), "The latest saved design could not be loaded."));
-      setDesign(object(payload));
+      const loadedDesign = object(payload);
+      setDesign(loadedDesign);
+      const designId = Number(loadedDesign.id);
+      if (Number.isFinite(designId)) void loadPhysicalSizing(designId);
     } catch (cause: unknown) {
       setDesign(null);
       setError(cause instanceof Error ? cause.message : "The latest saved design could not be loaded.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadPhysicalSizing]);
 
   useEffect(() => { void loadDesign(); }, [loadDesign]);
 
@@ -677,6 +1040,14 @@ export default function EcrPrePilotDesignStage4Page() {
           <section className="rounded-md border border-red-200 bg-red-50 p-5"><div className="flex gap-3 text-red-900"><ShieldAlert className="h-5 w-5 shrink-0" /><div><h2 className="text-sm font-semibold">Design prerequisite unavailable</h2><p className="mt-1 text-xs">{error}</p><Button type="button" variant="outline" onClick={() => void loadDesign()} className="mt-3 h-8 text-xs">Retry design load</Button></div></div></section>
         ) : (
           <div className="space-y-4">
+            <PhysicalSizingPanel
+              value={physicalSizing}
+              loading={physicalSizingLoading}
+              error={physicalSizingError}
+              onEvaluate={() => void evaluatePhysicalSizing()}
+              evaluating={physicalSizingSubmitting}
+              canEvaluate={Boolean(design?.id)}
+            />
             {activeJob === "B" && <div role="status" className="flex items-start gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-950"><Loader2 className="h-4 w-4 shrink-0 animate-spin" /><p>Evaluating Job-A dependencies and solving the simultaneous interface chemical-potential and two-film equations before calculating fluxes. This may take several minutes. No sizing is performed.</p></div>}
             {jobCJob && <section role="status" className="rounded-md border border-violet-200 bg-violet-50 p-3 text-violet-950">
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">

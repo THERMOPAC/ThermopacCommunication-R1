@@ -31,6 +31,7 @@ import {
   JOB_A_STAGE2_ENGINE_ID,
   JOB_A_STAGE2_ENGINE_VERSION,
   evaluateJobA,
+  type JobAEvaluationInput,
 } from "./ecr-pre-pilot/job-a";
 import {
   assertJobBStage3ParentMatchesJobA,
@@ -46,10 +47,16 @@ import {
   JOB_C_WORKFLOW_TEST_ONLY_MODE,
   currentJobCArtifactHashes,
   jobCResultHash,
+  jobCScientificResultHash,
   runJobCWorker,
   validateJobCWorkflowTestOnlyWorkerResponse,
   workflowTestOnlyCompletionClaimed,
 } from "./ecr-pre-pilot/job-c";
+import {
+  assessAcceptedJobCForPhysicalSizing,
+  sizeAcceptedJobCWithWorkerTransport,
+  summarizeJobCPhysicalSizingDependency,
+} from "./ecr-pre-pilot/job-c-physical-sizing";
 
 const COUNTER_ROW_ID = 1;
 const MAX_ALLOCATION_ATTEMPTS = 3;
@@ -1015,6 +1022,21 @@ export async function prepareEcrPrePilotJobC(
     authority: axialLocalContactProfileAuthority,
     profile: axialLocalContactProfile,
   });
+  // Preserve the exact immutable Job-A correlation input with the Job-C
+  // request.  Physical sizing may recalculate films for a different
+  // hydraulically admissible candidate, but it may only replace this
+  // candidate-dependent state; no current UI or Stage-1 values are read.
+  const {
+    d32M: _sourceD32M,
+    slipVelocityMS: _sourceSlipVelocityMS,
+    selectedTrialId: _sourceSelectedTrialId,
+    selectedTrialOrdinal: _sourceSelectedTrialOrdinal,
+    ...jobAFilmInput
+  } = jobA.input as JobAEvaluationInput;
+  const jobAFilmRecalculationBasis = {
+    ...jobAFilmInput,
+    sourceJobAResultSha256: jobA.resultSha256,
+  };
   const workerRequest = {
     componentOrder: [...JOB_C_COMPONENT_ORDER],
     temperatureK: request.T,
@@ -1035,6 +1057,7 @@ export async function prepareEcrPrePilotJobC(
     axialLocalContactProfile,
     axialLocalContactProfileAuthority,
     axialLocalContactProfileSha256,
+    jobAFilmRecalculationBasis,
     ...(diagnosticMode ? { diagnosticMode } : {}),
   };
   const responseBasis = {
@@ -1071,6 +1094,34 @@ export async function prepareEcrPrePilotJobC(
       floodHoldup: trial.operatingHydraulics.floodHoldup,
       status: 'INPUT_STATE_ONLY_NOT_FINAL_RPM_SELECTION',
     },
+    physicalSizingCandidateAuthority: {
+      status: 'DEPENDENCY_BLOCKED',
+      mechanicalCompartmentBasis: {
+        status: 'UNSUPPORTED',
+        reason: 'SUPPORTED_PHYSICAL_MECHANICAL_COMPARTMENT_SPACING_BASIS_REQUIRED',
+        qualification: 'Stage-3 system-resolved compartment ratios are hydraulic geometry inputs, not an admitted physical hardware spacing basis.',
+      },
+      candidates: envelope.map((candidate, ordinal) => ({
+        ordinal,
+        trialId: `rpm:${candidate.rpm}:diameterM:${candidate.columnDiameterM}`,
+        stage3ImmutableHash: stage3!.immutableHash,
+        rpm: candidate.rpm,
+        columnDiameterM: candidate.columnDiameterM,
+        compartmentHeightM: candidate.compartmentHeightM,
+        powerVolumeWM3: candidate.powerVolumeWM3,
+        applicability: candidate.applicability ?? [],
+        uncertainty: candidate.uncertainty ?? [],
+        hydraulicStatus: candidate.status,
+        operatingHydraulicsStatus: candidate.operatingHydraulics?.status ?? null,
+        d32M: candidate.d32M ?? null,
+        operatingHoldup: candidate.operatingHydraulics?.operatingHoldup ?? null,
+        floodHoldup: candidate.operatingHydraulics?.floodHoldup ?? null,
+        eligibleForPhysicalTransportTrial: candidate.status === 'CALCULATED_IN_RANGE'
+          && candidate.operatingHydraulics?.status === 'OPERATING_HOLDUP_CALCULATED',
+      })),
+      finalSelection: null,
+      qualification: 'CANDIDATE_EVIDENCE_ONLY_NO_PHYSICAL_HEIGHT_OR_EFFICIENCY_CLAIM',
+    },
     dependencies: {
       stage1SnapshotHash: stage1.immutableHash,
       jobAResultSha256: jobA.resultSha256,
@@ -1085,6 +1136,7 @@ export async function prepareEcrPrePilotJobC(
       boundaryBranchSourceStateSha256: boundaryBranchQualificationRequest.sourceStateSha256,
       jobCBoundaryInterfaceQualifierSha256: jobCArtifacts.boundaryQualifierHash,
       jobCBranchContinuationSha256: jobCArtifacts.branchContinuationHash,
+      workerRequestSha256: jobCResultHash(workerRequest),
     },
     model: {
       flow: 'STEADY_STATE_COUNTERCURRENT_PER_COMPONENT',
@@ -1198,9 +1250,413 @@ export async function executePreparedEcrPrePilotJobC(
     workerResult,
     ...(diagnosticDownstreamSizing ? { diagnosticDownstreamSizing } : {}),
   };
-  return { ...body, resultSha256: jobCResultHash(body) };
+  // This assessment has no worker side effect.  In particular it does not
+  // enqueue or rerun Job C: it only exposes whether this immutable result can
+  // be handed to the separately admitted physical-height transport kernel.
+  const physicalSizing = summarizeJobCPhysicalSizingDependency(body);
+  const result = { ...body, physicalSizing };
+  return { ...result, resultSha256: jobCResultHash(result) };
 }
 
 export async function evaluateEcrPrePilotJobC(userId: number, designId: number) {
   return executePreparedEcrPrePilotJobC(await prepareEcrPrePilotJobC(userId, designId));
+}
+
+type CurrentPhysicalSizingAuthority = {
+  stage1: EcrPrePilotStage1Snapshot;
+  acceptedParent: { id: string; result_hash: string } | null;
+};
+
+/**
+ * Resolve the live authorities at the point an immutable sizing child is
+ * about to be exposed.  This intentionally mirrors the selection boundary
+ * used by the sizing route rather than trusting an earlier read.
+ */
+async function getCurrentPhysicalSizingAuthority(
+  userId: number,
+  designId: number,
+): Promise<CurrentPhysicalSizingAuthority> {
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(design.rows[0].input_data);
+  const candidates = await pool.query(
+    `SELECT id,result_snapshot,result_hash
+       FROM ecr_pre_pilot_job_c_jobs
+      WHERE created_by=$1 AND design_id=$2
+        AND status='completed' AND completed_at IS NOT NULL
+        AND result_snapshot IS NOT NULL
+        AND result_hash ~ '^[a-f0-9]{64}$'
+        AND result_snapshot->>'status'='CALCULATED_PRELIMINARY_JOB_C'
+        AND result_snapshot#>>'{workerResult,status}'='CALCULATED_PRELIMINARY_JOB_C'
+      ORDER BY completed_at DESC,created_at DESC,id DESC`,
+    [userId, designId],
+  );
+  const acceptedParent = candidates.rows.find((candidate: any) =>
+    jobCScientificResultHash(candidate.result_snapshot) === candidate.result_hash
+    && candidate.result_snapshot?.workerResult?.diagnosticOnly !== true
+    && candidate.result_snapshot?.workerResult?.workflowTestOnly !== true
+    && assessAcceptedJobCForPhysicalSizing(candidate.result_snapshot).accepted) ?? null;
+  return { stage1, acceptedParent };
+}
+
+function physicalSizingStaleBlock(input: {
+  reason: string;
+  requiredDependency: string;
+  sourceStage1SnapshotHash: string | null;
+  actualStage1SnapshotHash: string;
+  parentJobId?: string;
+  parentResultHash?: string;
+  details?: Record<string, unknown>;
+}) {
+  return {
+    ...(input.parentJobId ? { parentJobId: input.parentJobId } : {}),
+    ...(input.parentResultHash ? { parentResultHash: input.parentResultHash } : {}),
+    status: 'DEPENDENCY_BLOCKED',
+    staleStatus: 'STALE',
+    classification: 'PRELIMINARY_CLASSIFICATION_PRESERVED_NOT_RELEASE_ELIGIBLE',
+    reasons: [input.reason],
+    requiredDependencies: [input.requiredDependency],
+    sourceStage1SnapshotHash: input.sourceStage1SnapshotHash,
+    actualStage1SnapshotHash: input.actualStage1SnapshotHash,
+    ...input.details,
+  };
+}
+
+/**
+ * Explicitly starts physical sizing from the persisted completed Job-C queue
+ * record.  It never queues, resumes, or repeats normal Job C.  Mechanical
+ * spacing evidence is not yet persisted by this product, so the adapter
+ * correctly returns its specific dependency block after it has verified the
+ * queue-owned Job-C result and request lineage.
+ */
+export async function evaluateCompletedJobCPhysicalSizing(
+  userId: number,
+  designId: number,
+  completedJob: Record<string, any>,
+) {
+  // Do not accept a route/UI copy of a Job C response as authority.  The
+  // supplied object is useful for selecting the parent, but the database row
+  // is reloaded in the authenticated scope before a child result is written.
+  const owned = await pool.query(
+    `SELECT id, status, input_snapshot, result_snapshot, result_hash
+       FROM ecr_pre_pilot_job_c_jobs
+      WHERE id=$1 AND design_id=$2 AND created_by=$3`,
+    [completedJob?.id, designId, userId],
+  );
+  const parent = owned.rows[0];
+  if (!parent
+    || parent.status !== 'completed'
+    || parent.result_snapshot?.status !== 'CALCULATED_PRELIMINARY_JOB_C'
+    || parent.result_snapshot?.workerResult?.status !== 'CALCULATED_PRELIMINARY_JOB_C'
+    || typeof parent.result_hash !== 'string'
+    || jobCScientificResultHash(parent.result_snapshot) !== parent.result_hash) {
+    throw new Error('SERVICE_OWNED_COMPLETED_JOB_C_QUEUE_LINEAGE_REQUIRED');
+  }
+  const completed = {
+    id: parent.id,
+    status: parent.status,
+    input: parent.input_snapshot,
+    result: parent.result_snapshot,
+    resultHash: parent.result_hash,
+  };
+  const workerRequest = completed.input?.prepared?.workerRequest;
+  if (!workerRequest || typeof workerRequest !== 'object') {
+    throw new Error('SERVICE_OWNED_COMPLETED_JOB_C_WORKER_REQUEST_REQUIRED');
+  }
+  const authority = completed.result?.physicalSizingCandidateAuthority;
+  const mechanical = authority?.mechanicalCompartmentBasis;
+  const mechanicalBasis = mechanical?.status === 'GOVERNED'
+    && typeof mechanical.source === 'string'
+    && typeof mechanical.hash === 'string'
+    && mechanical.spacingRule === 'STAGE3_FROZEN_COMPARTMENT_HEIGHT_M'
+    && Number.isFinite(mechanical.compartmentHeightM)
+    ? mechanical : null;
+  // The data model currently persists no governed mechanical drawing.  This
+  // explicit result is retained as an immutable child assessment; it is not a
+  // permission to infer hardware spacing from Stage-3 hydraulic geometry or
+  // Job-C numerical cells.
+  let processBasis: any = null;
+  let hydraulicCandidates: any[] = [];
+  const found = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!found.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(found.rows[0].input_data);
+  const acceptedStage1Hash = completed.result?.dependencies?.stage1SnapshotHash;
+  let physicalSizing: any;
+  if (stage1.immutableHash !== acceptedStage1Hash) {
+    // Never construct a process basis from a changed Stage-1 input and attach
+    // it to an older accepted Job C result.
+    physicalSizing = {
+      status: 'DEPENDENCY_BLOCKED',
+      classification: 'PRELIMINARY_CLASSIFICATION_PRESERVED_NOT_RELEASE_ELIGIBLE',
+      reasons: ['JOB_C_PHYSICAL_SIZING_DEPENDENCY_BLOCKED:STAGE1_SNAPSHOT_LINEAGE_MISMATCH'],
+      requiredDependencies: ['ACCEPTED_JOB_C_STAGE1_SNAPSHOT_MATCHING_CURRENT_IMMUTABLE_STAGE1'],
+      sourceStage1SnapshotHash: acceptedStage1Hash ?? null,
+      actualStage1SnapshotHash: stage1.immutableHash,
+    };
+  } else if (mechanicalBasis) {
+    processBasis = makeStage1HydrodynamicProcessBasis(stage1);
+    // Use the immutable Stage-3 result pinned by the accepted parent, not a
+    // later resolver run that may belong to a different Stage-1 snapshot.
+    const stage3 = (await getKuhniGeometryResolverRuns(userId, designId))
+      .find((run: any) => run.immutableHash === completed.result?.dependencies?.stage3ImmutableHash);
+    if (!stage3) {
+      throw new Error('JOB_C_PHYSICAL_SIZING_DEPENDENCY_BLOCKED:ACCEPTED_STAGE3_IMMUTABLE_RESULT_REQUIRED');
+    }
+    const envelope = (stage3?.result as any)?.hydraulicRpmEnvelope;
+    if (!Array.isArray(envelope)) {
+      throw new Error('JOB_C_PHYSICAL_SIZING_STAGE3_CANDIDATE_AUTHORITY_REQUIRED');
+    }
+    hydraulicCandidates = envelope
+      .filter((candidate: any) => candidate?.status === 'CALCULATED_IN_RANGE'
+        && candidate?.operatingHydraulics?.status === 'OPERATING_HOLDUP_CALCULATED')
+      .map((candidate: any, ordinal: number) => ({
+        candidate: {
+          ...candidate, ordinal, trialId: `stage3:${ordinal}`,
+          trialImmutableHash: stage3.immutableHash,
+          hydraulicallyFeasible: true,
+        },
+        stage3Evidence: {
+          columnDiameterM: candidate.columnDiameterM, rpm: candidate.rpm,
+          compartmentHeightM: candidate.compartmentHeightM, d32M: candidate.d32M,
+          operatingHoldup: candidate.operatingHydraulics.operatingHoldup,
+          floodHoldup: candidate.operatingHydraulics.floodHoldup,
+        },
+      }));
+  }
+  if (!physicalSizing) {
+    physicalSizing = await sizeAcceptedJobCWithWorkerTransport({
+      jobCResult: completed.result,
+      completedQueueJob: {
+        status: completed.status,
+        result: completed.result,
+        resultHash: completed.resultHash,
+        input: completed.input,
+      } as any,
+      workerRequest,
+      mechanicalBasis,
+      processBasis,
+      hydraulicCandidates,
+    });
+  }
+  // The transport solve can be long-running.  Re-read both live authorities
+  // immediately before writing its child result so a Stage-1 edit or a newer
+  // accepted Job-C parent cannot be persisted/returned as current geometry.
+  const current = await getCurrentPhysicalSizingAuthority(userId, designId);
+  if (current.stage1.immutableHash !== stage1.immutableHash) {
+    return physicalSizingStaleBlock({
+      parentJobId: parent.id,
+      parentResultHash: parent.result_hash,
+      reason: 'JOB_C_PHYSICAL_SIZING_RESULT_STALE:CURRENT_STAGE1_SNAPSHOT_CHANGED_DURING_EVALUATION',
+      requiredDependency: 'CURRENT_IMMUTABLE_STAGE1_MUST_MATCH_EVALUATED_PHYSICAL_SIZING_SNAPSHOT',
+      sourceStage1SnapshotHash: stage1.immutableHash,
+      actualStage1SnapshotHash: current.stage1.immutableHash,
+    });
+  }
+  if (!current.acceptedParent) {
+    return physicalSizingStaleBlock({
+      parentJobId: parent.id,
+      parentResultHash: parent.result_hash,
+      reason: 'JOB_C_PHYSICAL_SIZING_RESULT_STALE:CURRENT_ACCEPTED_PARENT_UNAVAILABLE_DURING_EVALUATION',
+      requiredDependency: 'CURRENT_OWNED_ACCEPTED_JOB_C_PARENT_REQUIRED',
+      sourceStage1SnapshotHash: stage1.immutableHash,
+      actualStage1SnapshotHash: current.stage1.immutableHash,
+    });
+  }
+  if (current.acceptedParent.id !== parent.id
+    || current.acceptedParent.result_hash !== parent.result_hash) {
+    return physicalSizingStaleBlock({
+      parentJobId: parent.id,
+      parentResultHash: parent.result_hash,
+      reason: 'JOB_C_PHYSICAL_SIZING_RESULT_STALE:ACCEPTED_PARENT_SUPERSEDED_DURING_EVALUATION',
+      requiredDependency: 'CURRENT_OWNED_ACCEPTED_JOB_C_PARENT_MUST_MATCH_EVALUATED_PHYSICAL_SIZING_PARENT',
+      sourceStage1SnapshotHash: stage1.immutableHash,
+      actualStage1SnapshotHash: current.stage1.immutableHash,
+      details: {
+        currentAcceptedParentJobId: current.acceptedParent.id,
+        currentAcceptedParentResultHash: current.acceptedParent.result_hash,
+      },
+    });
+  }
+  await persistCompletedJobCPhysicalSizing({
+    userId,
+    designId,
+    parentJobId: parent.id,
+    parentResultHash: parent.result_hash,
+    stage1Snapshot: stage1,
+    processBasis,
+    result: physicalSizing,
+  });
+  // Return only the same current-lineage representation served by GET, never
+  // the raw solver/persistence payload.
+  const currentRepresentation = await getLatestCompletedJobCPhysicalSizing(userId, designId);
+  if (!currentRepresentation) {
+    throw new Error('JOB_C_PHYSICAL_SIZING_PERSISTED_RESULT_NOT_FOUND');
+  }
+  return currentRepresentation;
+}
+
+type PersistedPhysicalSizingInput = {
+  userId: number;
+  designId: number;
+  parentJobId: string;
+  parentResultHash: string;
+  stage1Snapshot: EcrPrePilotStage1Snapshot;
+  processBasis: unknown;
+  result: Record<string, any>;
+};
+
+/**
+ * Append an immutable physical-sizing child result.  This follows the
+ * snapshot/result-hash storage pattern used by persisted design results:
+ * POST never mutates its Job-C parent, and GET is served from this child row.
+ */
+async function persistCompletedJobCPhysicalSizing(input: PersistedPhysicalSizingInput) {
+  // PostgreSQL jsonb NOT NULL rejects SQL NULL (unlike JSON `null`).  A
+  // missing governed mechanical basis intentionally does not create a
+  // hydrodynamic process basis for transport; retain this explicit immutable
+  // blocked-basis snapshot instead of silently storing a nullable authority.
+  const persistedProcessBasis = input.processBasis ?? {
+    status: 'DEPENDENCY_BLOCKED',
+    reason: Array.isArray(input.result?.reasons) && input.result.reasons.length
+      ? input.result.reasons[0]
+      : 'JOB_C_PHYSICAL_SIZING_DEPENDENCY_BLOCKED:SUPPORTED_MECHANICAL_SPACING_BASIS_REQUIRED',
+    qualification: 'NO_GOVERNED_MECHANICAL_BASIS_NO_TRANSPORT_PROCESS_BASIS_CONSTRUCTED',
+  };
+  const inputSnapshot = {
+    schemaVersion: 'ECR_PRE_PILOT_JOB_C_PHYSICAL_SIZING_RESULT_V1',
+    parentJobId: input.parentJobId,
+    parentResultHash: input.parentResultHash,
+    stage1SnapshotHash: input.stage1Snapshot.immutableHash,
+    stage1Snapshot: input.stage1Snapshot,
+    processBasis: persistedProcessBasis,
+  };
+  const resultHash = jobCResultHash(input.result);
+  const immutableHash = jobCResultHash({ inputSnapshot, result: input.result });
+  const saved = await pool.query<{
+    id: number;
+    created_at: string | Date;
+  }>(
+    `INSERT INTO ecr_pre_pilot_job_c_physical_sizing_results
+       (parent_job_id,design_id,created_by,parent_result_hash,stage1_snapshot_hash,
+        process_basis,input_snapshot,result_snapshot,result_hash,immutable_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     RETURNING id,created_at`,
+    [
+      input.parentJobId, input.designId, input.userId, input.parentResultHash,
+      input.stage1Snapshot.immutableHash, persistedProcessBasis, inputSnapshot,
+      input.result, resultHash, immutableHash,
+    ],
+  );
+  return {
+    id: Number(saved.rows[0].id),
+    createdAt: new Date(saved.rows[0].created_at).toISOString(),
+    parentJobId: input.parentJobId,
+    parentResultHash: input.parentResultHash,
+    stage1SnapshotHash: input.stage1Snapshot.immutableHash,
+    resultHash,
+    immutableHash,
+    ...input.result,
+  };
+}
+
+export async function getLatestCompletedJobCPhysicalSizing(userId: number, designId: number) {
+  const found = await pool.query(
+    `SELECT id,parent_job_id,parent_result_hash,stage1_snapshot_hash,input_snapshot,
+            result_snapshot,result_hash,immutable_hash,created_at
+       FROM ecr_pre_pilot_job_c_physical_sizing_results
+      WHERE created_by=$1 AND design_id=$2
+      ORDER BY created_at DESC,id DESC LIMIT 1`,
+    [userId, designId],
+  );
+  const row = found.rows[0];
+  if (!row) return null;
+  const expectedImmutableHash = jobCResultHash({
+    inputSnapshot: row.input_snapshot,
+    result: row.result_snapshot,
+  });
+  let storedStage1Hash: string | null = null;
+  try {
+    storedStage1Hash = validateStage1Snapshot(
+      row.input_snapshot?.stage1Snapshot,
+    ).immutableHash;
+  } catch {
+    // A child result must retain a valid, self-authenticating Stage-1 snapshot,
+    // not merely repeat a hash supplied in a JSON field.
+  }
+  if (typeof row.result_hash !== 'string'
+    || jobCResultHash(row.result_snapshot) !== row.result_hash
+    || row.immutable_hash !== expectedImmutableHash
+    || row.input_snapshot?.parentJobId !== row.parent_job_id
+    || row.input_snapshot?.parentResultHash !== row.parent_result_hash
+    || row.input_snapshot?.stage1SnapshotHash !== row.stage1_snapshot_hash
+    || row.input_snapshot?.stage1Snapshot?.immutableHash !== row.stage1_snapshot_hash
+    || storedStage1Hash !== row.stage1_snapshot_hash) {
+    throw new Error('JOB_C_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE');
+  }
+  // A child record is immutable historical evidence, but it is not a
+  // perpetual geometry authority.  Before serving it as the design's current
+  // assessment, bind it to the currently validated Stage-1 snapshot.  This
+  // prevents an old calculated geometry being rendered after a saved Stage-1
+  // edit, even when the child itself remains cryptographically intact.
+  const current = await getCurrentPhysicalSizingAuthority(userId, designId);
+  const stale = (reason: string, requiredDependency: string, details: Record<string, unknown> = {}) => ({
+    id: Number(row.id),
+    createdAt: new Date(row.created_at).toISOString(),
+    stage1SnapshotHash: row.stage1_snapshot_hash,
+    resultHash: row.result_hash,
+    immutableHash: row.immutable_hash,
+    ...physicalSizingStaleBlock({
+      parentJobId: row.parent_job_id,
+      parentResultHash: row.parent_result_hash,
+      reason,
+      requiredDependency,
+      sourceStage1SnapshotHash: row.stage1_snapshot_hash,
+      actualStage1SnapshotHash: current.stage1.immutableHash,
+    }),
+    ...details,
+  });
+  if (current.stage1.immutableHash !== row.stage1_snapshot_hash) {
+    return stale(
+      'JOB_C_PHYSICAL_SIZING_RESULT_STALE:CURRENT_STAGE1_SNAPSHOT_CHANGED',
+      'CURRENT_IMMUTABLE_STAGE1_MUST_MATCH_PHYSICAL_SIZING_CHILD_SNAPSHOT',
+    );
+  }
+
+  // The result parent must still be the same current, owned, accepted Job-C
+  // parent that the POST route would select.  A later accepted Job-C result
+  // supersedes this child assessment; never mix its historical geometry into
+  // the current design view.
+  if (!current.acceptedParent) {
+    return stale(
+      'JOB_C_PHYSICAL_SIZING_RESULT_STALE:CURRENT_ACCEPTED_PARENT_UNAVAILABLE',
+      'CURRENT_OWNED_ACCEPTED_JOB_C_PARENT_REQUIRED',
+    );
+  }
+  if (current.acceptedParent.id !== row.parent_job_id
+    || current.acceptedParent.result_hash !== row.parent_result_hash) {
+    return stale(
+      'JOB_C_PHYSICAL_SIZING_RESULT_STALE:ACCEPTED_PARENT_SUPERSEDED',
+      'CURRENT_OWNED_ACCEPTED_JOB_C_PARENT_MUST_MATCH_PHYSICAL_SIZING_CHILD_PARENT',
+      {
+        currentAcceptedParentJobId: current.acceptedParent.id,
+        currentAcceptedParentResultHash: current.acceptedParent.result_hash,
+      },
+    );
+  }
+  return {
+    id: Number(row.id),
+    createdAt: new Date(row.created_at).toISOString(),
+    parentJobId: row.parent_job_id,
+    parentResultHash: row.parent_result_hash,
+    stage1SnapshotHash: row.stage1_snapshot_hash,
+    resultHash: row.result_hash,
+    immutableHash: row.immutable_hash,
+    ...row.result_snapshot,
+  };
 }

@@ -65,7 +65,9 @@ vi.mock("lucide-react", () => {
   };
 });
 
-import EcrPrePilotDesignStage4Page from "@/pages/design-software/ecr-pre-pilot-design-stage-4-page";
+import EcrPrePilotDesignStage4Page, {
+  PhysicalSizingPanel,
+} from "@/pages/design-software/ecr-pre-pilot-design-stage-4-page";
 
 const design = { id: 47, projectNumber: "ECR-UI-47" };
 const componentIds = [
@@ -175,6 +177,64 @@ function jobCResponse() {
   };
 }
 
+function physicalSizingResponse() {
+  return {
+    status: "CALCULATED_PRELIMINARY_PHYSICAL_KUHNI_SIZING",
+    classification: "PRE_PILOT_PREDICTIVE_NOT_VENDOR_GUARANTEED_NOT_RELEASE_ELIGIBLE",
+    admission: {
+      accepted: true,
+      reasons: [],
+      numericalCells: 7,
+      requiredHeightM: 2.4,
+      evidence: {
+        fullLambda: true,
+        immutableLineage: true,
+        exactQualification: true,
+        independentlyReproducedAndStable: true,
+        governingGates: true,
+      },
+    },
+    requiredHeightM: 2.4,
+    installedHeightM: 3,
+    physicalCompartments: 6,
+    numericalCompartments: 7,
+    compartmentMapping: {
+      efficiencyBasis: "DEPENDENCY_BLOCKED:ADMITTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED",
+      overallEfficiency: null,
+      hetsM: null,
+    },
+    mechanicalBasis: {
+      source: "SUPPORTED_STAGE3_MECHANICAL_SPACING_BASIS",
+      hash: "mechanical-basis-hash",
+      status: "GOVERNED",
+      spacingRule: "STAGE3_FROZEN_COMPARTMENT_HEIGHT_M",
+    },
+    requiredDependencies: [
+      "SUPPORTED_PHYSICAL_MECHANICAL_COMPARTMENT_SPACING_BASIS",
+    ],
+    finalGeometry: {
+      rpm: 22,
+      diameterM: 0.8,
+      d32M: 0.0011,
+      operatingHoldup: 0.17,
+      floodHoldup: 0.32,
+      provenance: "STAGE3_V110_OPERATING_HOLDUP_RECALCULATED_FOR_INSTALLED_INTEGER_GEOMETRY",
+    },
+    trialEvidence: [
+      {
+        ordinal: 1,
+        trialId: "rpm:22:diameterM:0.8",
+        status: "FEASIBLE",
+        attemptedCompartments: [1, 2, 3, 4, 5, 6],
+        activeHeightM: 3,
+        physicalCompartments: 6,
+        overallEfficiency: null,
+        reason: null,
+      },
+    ],
+  };
+}
+
 function renderWithStates(values: StateValue[]): string {
   stateValues = values;
   stateIndex = 0;
@@ -197,6 +257,78 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     stateValues = [];
     stateIndex = 0;
     vi.clearAllMocks();
+  });
+
+  it("renders the direct physical sizing result without browser reconstruction", () => {
+    const markup = renderToStaticMarkup(React.createElement(PhysicalSizingPanel, {
+      value: physicalSizingResponse(),
+      loading: false,
+      error: null,
+    }));
+    const text = visibleText(markup);
+
+    expect(markup).toContain('data-testid="physical-sizing-panel"');
+    expect(text).toContain("Server-owned physical sizing assessment");
+    expect(text).toContain("Accepted for physical sizing: PASS");
+    expect(text).toContain("Explicit physical-sizing dependencies");
+    expect(text).toContain("Required active height 2.40e+0 m");
+    expect(text).toContain("Installed active height 3.00e+0 m");
+    expect(text).toContain("Physical compartments 6");
+    expect(text).toContain("Numerical compartments 7");
+    expect(text).toContain("ADMITTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED");
+    expect(text).toContain("d32 [m] 1.10e-3 m");
+    expect(text).toContain("Operating holdup 0.17");
+    expect(text).toContain("Flood holdup 0.32");
+    expect(text).toContain("Operating RPM 22");
+    expect(text).toContain("Column diameter [m] 8.00e-1 m");
+    expect(text).toContain("STAGE3_V110_OPERATING_HOLDUP_RECALCULATED_FOR_INSTALLED_INTEGER_GEOMETRY");
+    expect(text).toContain("rpm:22:diameterM:0.8");
+    expect(text).toContain("no numerical reconstruction");
+    expect(text).toContain("does not start Job C automatically");
+  });
+
+  it("keeps blocked physical sizing explicit and does not turn missing hydraulics into zero", () => {
+    const blocked = {
+      status: "DEPENDENCY_BLOCKED",
+      classification: "PRELIMINARY_CLASSIFICATION_PRESERVED_NOT_RELEASE_ELIGIBLE",
+      admission: {
+        accepted: false,
+        reasons: ["JOB_C_FULL_LAMBDA_ACCEPTED_RESULT_REQUIRED"],
+        numericalCells: 7,
+        requiredHeightM: null,
+        evidence: {
+          fullLambda: false,
+          immutableLineage: false,
+          exactQualification: false,
+          independentlyReproducedAndStable: false,
+          governingGates: false,
+        },
+      },
+      requiredDependencies: ["SUPPORTED_PHYSICAL_MECHANICAL_COMPARTMENT_SPACING_BASIS"],
+      physicalCompartments: null,
+      numericalCompartments: 7,
+      finalGeometry: {
+        d32M: null,
+        operatingHoldup: null,
+        floodHoldup: null,
+        rpm: null,
+        diameterM: null,
+      },
+    };
+    const text = visibleText(renderToStaticMarkup(React.createElement(PhysicalSizingPanel, {
+      value: blocked,
+      loading: false,
+      error: null,
+    })));
+
+    expect(text).toContain("Accepted for physical sizing: BLOCKED");
+    expect(text).toContain("JOB_C_FULL_LAMBDA_ACCEPTED_RESULT_REQUIRED");
+    expect(text).toContain("Required active height Unavailable");
+    expect(text).toContain("Physical compartments Unavailable");
+    expect(text).toContain("Numerical compartments 7");
+    expect(text).toContain("d32 [m] Unavailable");
+    expect(text).toContain("Flood holdup Unavailable");
+    expect(text).not.toContain("Flood holdup 0");
   });
 
   it("renders a Job-B result when no Job-A evaluation exists", () => {
@@ -547,11 +679,21 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
 
     expect(source).toContain("/job-c/diagnostic/jobs`");
     expect(source).toContain("/job-c/jobs/latest");
+    expect(source).toContain("/job-c/physical-sizing/latest");
+    expect(source).toContain("await loadPhysicalSizing(designId);");
+    expect(source).not.toContain("setPhysicalSizing(directResult)");
+    expect(source).toContain("const becameTerminal = status !== null");
+    expect(source).toContain('["completed", "blocked", "failed", "cancelled"].includes(status)');
+    expect(source).toContain('canEvaluate={Boolean(design?.id)}');
+    expect(source).not.toContain(
+      'canEvaluate={Boolean(jobCJob?.status === "completed" && jobCJob.scientificCompleted)}',
+    );
     expect(source).toContain("/job-c/jobs/${jobCJob.jobId}");
     expect(source).toContain("/job-c/jobs/${jobCJob.jobId}/cancel");
     expect(source).toContain("window.setInterval(() => void poll(), 1_500)");
     expect(source).toContain('read(payload, "result_snapshot", "result")');
     expect(source).not.toContain("/job-c/evaluate");
+    expect(source).not.toMatch(/physical-sizing\/latest`[^;]*method:\s*["']POST["']/s);
     expect(source).not.toMatch(/job-c\/jobs`,\s*\{[^}]*body:/s);
   });
 

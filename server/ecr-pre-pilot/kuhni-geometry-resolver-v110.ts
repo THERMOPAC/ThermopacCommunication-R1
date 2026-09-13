@@ -75,6 +75,19 @@ type CommonResult = {
   uncertainty: KuhniOperatingHoldupUncertainty;
 };
 
+/**
+ * d32 has always been recomputed inside the V1.1.0 operating-root closure.
+ * Expose that freshly calculated value to a same-process physical-sizing
+ * revalidation without changing V1.1.0's serialized immutable Stage-3
+ * artifact (and therefore without invalidating its historical replay hash).
+ */
+function attachRecomputedD32<T extends object>(result: T, d32M: number): T & { d32M: number } {
+  Object.defineProperty(result, 'd32M', {
+    value: d32M, enumerable: false, configurable: false, writable: false,
+  });
+  return result as T & { d32M: number };
+}
+
 export type KuhniOperatingHoldupResult = CommonResult & (
   {
     status: 'OPERATING_HOLDUP_CALCULATED';
@@ -305,26 +318,26 @@ export function resolveKuhniOperatingHoldupV110(
   };
 
   if (!(maximumResidualBelowFlood > 0)) {
-    return {
+    return attachRecomputedD32({
       ...common,
       status: 'HYDRAULICALLY_INFEASIBLE',
       operatingHoldup: null,
       residual: null,
       operatingSwarmVelocityMS: null,
       reason: 'NO_STABLE_LOW_HOLDUP_ROOT_BELOW_FLOODING_TURNING_POINT',
-    };
+    }, d32M);
   }
 
   const operatingHoldup = bisect(residualAtHoldup, ROOT_BOUND, flood.x);
   const residual = residualAtHoldup(operatingHoldup);
-  return {
+  return attachRecomputedD32({
     ...common,
     status: 'OPERATING_HOLDUP_CALCULATED',
     operatingHoldup,
     residual,
     operatingSwarmVelocityMS: swarmVelocity(operatingHoldup),
     reason: null,
-  };
+  }, d32M);
 }
 
 /**

@@ -11,6 +11,8 @@ import {
   evaluateEcrPrePilotJobA,
   evaluateEcrPrePilotJobB,
   evaluateEcrPrePilotJobC,
+  evaluateCompletedJobCPhysicalSizing,
+  getLatestCompletedJobCPhysicalSizing,
 } from '../ecr-pre-pilot-service';
 import {
   enqueuePredictiveNtJobFromSavedStage1,
@@ -31,12 +33,16 @@ import {
   cancelJobC,
   enqueueJobC,
   getJobC,
+  getLatestCompletedScientificJobC,
   getLatestJobC,
   startJobCWorker,
 } from './job-c-job-service';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
+  // Resume explicit user-enqueued work after a process restart. This polls
+  // only persisted queue entries; route registration itself never creates a
+  // new Job-C request.
   startJobCWorker();
   setupKuhniResolverPreview(app);
   app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
@@ -322,12 +328,66 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
     },
   );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/job-c/physical-sizing/evaluate',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'JOB_C_PHYSICAL_SIZING_CLIENT_INPUT_PROHIBITED' });
+      }
+      try {
+        const job = await getLatestCompletedScientificJobC(
+          Number((req.user as any).id), designId,
+        );
+        if (!job) {
+          return res.status(404).json({
+            error: 'JOB_C_ACCEPTED_COMPLETED_RESULT_NOT_FOUND',
+            reason: 'A completed, full-lambda, immutable Job C result is required; this endpoint never starts Job C.',
+          });
+        }
+        const result = await evaluateCompletedJobCPhysicalSizing(
+          Number((req.user as any).id),
+          designId,
+          job as any,
+        );
+        return res.status(result.status === 'DEPENDENCY_BLOCKED' ? 409 : 200).json(result);
+      } catch (error: any) {
+        const message = error?.message ?? 'JOB_C_PHYSICAL_SIZING_EVALUATION_FAILED';
+        return res.status(422).json({ error: message });
+      }
+    },
+  );
   app.get(
     '/api/ecr-pre-pilot/designs/:id/job-c/jobs/latest',
     ensureAuthenticated,
     async (req: Request, res: Response) => {
       const job = await getLatestJobC(Number((req.user as any).id), Number(req.params.id));
       return job ? res.json(job) : res.status(404).json({ error: 'JOB_C_JOB_NOT_FOUND' });
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/job-c/physical-sizing/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        const physicalSizing = await getLatestCompletedJobCPhysicalSizing(
+          Number((req.user as any).id), designId,
+        );
+        return physicalSizing
+          ? res.json(physicalSizing)
+          : res.status(404).json({ error: 'JOB_C_PHYSICAL_SIZING_RESULT_NOT_FOUND' });
+      } catch (error: any) {
+        return res.status(409).json({ error: error?.message ?? 'JOB_C_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE' });
+      }
     },
   );
   app.get(

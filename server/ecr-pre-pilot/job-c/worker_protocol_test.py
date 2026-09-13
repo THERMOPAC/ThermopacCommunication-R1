@@ -49,6 +49,18 @@ def protocol_namespace():
     return namespace
 
 
+def physical_trial_validator():
+    tree = ast.parse(WORKER.read_text())
+    selected = [node for node in tree.body
+                if isinstance(node, ast.FunctionDef)
+                and node.name == "validate_physical_sizing_trial"]
+    code = compile(ast.Module(body=selected, type_ignores=[]),
+                   str(WORKER), "exec")
+    namespace = {"math": math, "re": __import__("re")}
+    exec(code, namespace)
+    return namespace["validate_physical_sizing_trial"]
+
+
 class JobCWorkerProtocolTest(unittest.TestCase):
     def test_progress_has_all_extended_fields_and_null_unknowns(self):
         worker = protocol_namespace()
@@ -153,6 +165,24 @@ class JobCWorkerProtocolTest(unittest.TestCase):
         self.assertEqual(len(assignments), 1)
         self.assertIsInstance(assignments[0].value, ast.Constant)
         self.assertIsNone(assignments[0].value.value)
+
+    def test_physical_trial_requires_hash_bound_integer_geometry(self):
+        validate = physical_trial_validator()
+        valid = {
+            "physicalSizingTrial": {
+                "sourceJobCResultSha256": "a" * 64,
+                "sourceWorkerResultSha256": "b" * 64,
+                "mechanicalBasisHash": "c" * 64,
+                "stage3ImmutableHash": "d" * 64,
+                "installedHeightM": 2.4,
+                "physicalCompartments": 4,
+                "candidateOrdinal": 0,
+            },
+        }
+        validate(valid)
+        valid["physicalSizingTrial"]["physicalCompartments"] = 4.1
+        with self.assertRaisesRegex(ValueError, "JOB_C_PHYSICAL_SIZING_TRIAL_INVALID"):
+            validate(valid)
 
 
 if __name__ == "__main__":

@@ -71,7 +71,9 @@ describe('rate-based physical compartment solution', () => {
   it('calculates zero transfer without assumed efficiency and reports final closure residuals', () => {
     const d = dependencies({ massTransfer: { ...dependencies().massTransfer, evaluate: () => ({ componentTransferMolS: [0,0], componentDiffusiveFluxMolS: [0, 0], applicability: [], uncertainty: [] }) } });
     const r = runKuhniMassTransfer(input({ dutyAcceptance: { id: 'zero', version: '1', implementationHash: hash, targets: [{ phase: 'continuous', componentId: 'A', metric: 'MOLAR_FLOW_MOL_S', comparator: 'LTE', target: 1, tolerance: 0 }] } }), d).selectedDesign!;
-    expect(r.cells[0].transferMolS).toEqual([0,0]); expect(r.overallEfficiency).toBe(7 / r.physicalCompartments);
+    expect(r.cells[0].transferMolS).toEqual([0,0]);
+    expect(r.overallEfficiency).toBeNull();
+    expect(r.efficiencyDependency).toBe('ADMITTED_PHYSICAL_COMPARTMENT_EFFICIENCY_MODEL_REQUIRED');
     expect(r.maxConstitutiveResidualMolS).toBeLessThan(1e-9); expect(r.maxLocalMaterialBalanceResidualMolS).toBeLessThan(1e-12); expect(r.maxGlobalMaterialBalanceResidualMolS).toBeLessThan(1e-12);
   });
   it('conserves component material in every cell and searches integer physical heights', () => {

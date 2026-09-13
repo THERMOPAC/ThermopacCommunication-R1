@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   insertedRow: null as any,
   claimedRow: null as any,
   terminalRow: null as any,
+  completedScientificRows: [] as any[],
   queries: [] as Array<{ sql: string; values: unknown[] }>,
 }));
 
@@ -37,6 +38,10 @@ vi.mock('../server/db', () => {
         && row.input_snapshot.prepared.responseBasis.dependencies
           .boundaryBranchSourceStateSha256 === values[7];
       return { rows: matches ? [row] : [] };
+    }
+    if (sql.includes("status='completed' AND completed_at IS NOT NULL")
+      && sql.includes("result_snapshot->>'status'='CALCULATED_PRELIMINARY_JOB_C'")) {
+      return { rows: state.completedScientificRows };
     }
     if (sql.includes("status='cancelled'")) {
       return { rows: state.resumableRow ? [state.resumableRow] : [] };
@@ -114,8 +119,11 @@ vi.mock('../server/ecr-pre-pilot/job-c', async (importOriginal) => {
   };
 });
 
-import { enqueueJobC } from '../server/ecr-pre-pilot/job-c-job-service';
-import { JobCError, jobCResultHash } from '../server/ecr-pre-pilot/job-c';
+import {
+  enqueueJobC,
+  getLatestCompletedScientificJobC,
+} from '../server/ecr-pre-pilot/job-c-job-service';
+import { JobCError, jobCResultHash, jobCScientificResultHash } from '../server/ecr-pre-pilot/job-c';
 import {
   executePreparedEcrPrePilotJobC,
   prepareEcrPrePilotJobC,
@@ -169,6 +177,68 @@ const makeRow = (prepared: ReturnType<typeof makePrepared>, status = 'blocked') 
   };
 };
 
+const acceptedPhysicalSizingParentResult = () => {
+  const qualifier: any = {
+    status: 'QUALIFIED_JOB_C_BOUNDARY_BRANCH',
+    independentReproductionMaximumRelativeDifference: 1e-4,
+    acceptanceThresholds: {
+      independentStartReproductionRelativeTolerance: 1e-3,
+      minimumLocalStabilityCurvature: 0,
+      postInterfaceTpdThreshold: 0,
+    },
+    selectedGateEvidence: {
+      localStability: {
+        continuous: { minimumEigenvalue: 1, stepSizeConverged: true },
+        dispersed: { minimumEigenvalue: 1, stepSizeConverged: true },
+      },
+      routineTpd: {
+        continuous: { minimum: 0, allRefinementsAccepted: true, explicitMonoRichBasinSearch: { allRequiredSearchesAccepted: true } },
+        dispersed: { minimum: 0, allRefinementsAccepted: true, explicitMonoRichBasinSearch: { allRequiredSearchesAccepted: true } },
+      },
+    },
+  };
+  qualifier.resultHash = jobCScientificResultHash(qualifier);
+  const worker: any = {
+    status: 'CALCULATED_PRELIMINARY_JOB_C',
+    sensitivityCases: [{
+      selected: {
+        heightM: 1,
+        outletDuty: { lambda: 1, productDuty: { targetRecoveryPct: 90 } },
+        recoveryPctNmpFreeRrboHydrocarbonMassBasis: 91,
+        exactQualificationStatus: 'QUALIFIED_JOB_C_BOUNDARY_BRANCH_1_OF_1_REPLAYED',
+        residualDiagnostics: {
+          exactQualifiedCellCount: 1,
+          maximumExactCellResidualMolS: 1e-9,
+          maximumExactScaledCellResidual: 1e-9,
+          maximumExactGlobalBalanceResidualMolS: 1e-9,
+          minimumLocalComponentFlowMolS: 1e-4,
+        },
+        numericalCells: [{
+          numericalCell: 1,
+          exactBoundaryQualifier: {
+            status: 'QUALIFIED_JOB_C_BOUNDARY_BRANCH',
+            fullResponseSha256: qualifier.resultHash,
+            fullResponse: qualifier,
+          },
+        }],
+      },
+    }],
+  };
+  worker.resultSha256 = jobCScientificResultHash(worker);
+  const result: any = {
+    status: 'CALCULATED_PRELIMINARY_JOB_C',
+    workerResult: worker,
+    dependencies: Object.fromEntries([
+      'stage1SnapshotHash', 'jobAResultSha256', 'jobBResultSha256',
+      'stage3ImmutableHash', 'stage2EngineHash', 'jobBInterfaceArtifactSha256',
+      'jobBInterfaceWorkerSha256', 'jobCBoundaryInterfaceQualifierSha256',
+      'jobCBranchContinuationSha256',
+    ].map(key => [key, 'a'.repeat(64)])),
+  };
+  result.resultSha256 = jobCResultHash(result);
+  return result;
+};
+
 describe('Job C queue blocked-result reuse', () => {
   beforeEach(() => {
     state.queries.length = 0;
@@ -180,6 +250,7 @@ describe('Job C queue blocked-result reuse', () => {
     state.insertedRow = makeRow(state.prepared, 'pending');
     state.claimedRow = null;
     state.terminalRow = null;
+    state.completedScientificRows = [];
     vi.mocked(prepareEcrPrePilotJobC).mockClear();
     vi.mocked(executePreparedEcrPrePilotJobC).mockClear();
   });
@@ -394,5 +465,32 @@ describe('Job C queue blocked-result reuse', () => {
     });
     expect(state.queries.some(({ sql }) =>
       sql.includes('INSERT INTO ecr_pre_pilot_job_c_jobs'))).toBe(false);
+  });
+
+  it('selects the newest completed full-lambda parent, not a newer nonterminal status', async () => {
+    const accepted = makeRow(state.prepared, 'completed');
+    accepted.result_snapshot = acceptedPhysicalSizingParentResult();
+    accepted.result_hash = jobCScientificResultHash(accepted.result_snapshot);
+    state.completedScientificRows = [accepted];
+
+    const result = await getLatestCompletedScientificJobC(11, 22);
+
+    expect(result).toMatchObject({ id: accepted.id, status: 'completed' });
+    const selection = state.queries.find(({ sql }) =>
+      sql.includes("status='completed' AND completed_at IS NOT NULL")
+      && sql.includes("result_snapshot->>'status'='CALCULATED_PRELIMINARY_JOB_C'"));
+    expect(selection?.values).toEqual([11, 22]);
+  });
+
+  it('fails closed when the selected completed parent result hash is not immutable', async () => {
+    const accepted = makeRow(state.prepared, 'completed');
+    accepted.result_snapshot = {
+      status: 'CALCULATED_PRELIMINARY_JOB_C',
+      workerResult: { status: 'CALCULATED_PRELIMINARY_JOB_C' },
+    };
+    accepted.result_hash = 'f'.repeat(64);
+    state.completedScientificRows = [accepted];
+
+    await expect(getLatestCompletedScientificJobC(11, 22)).resolves.toBeNull();
   });
 });

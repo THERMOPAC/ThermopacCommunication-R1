@@ -39,5 +39,7 @@ describe('ECR pre-pilot Job C queue governance', () => {
     expect(queue).toContain("event: 'enqueue_reused'");
     expect(routes).toContain("res.setHeader('X-Job-C-Reused'");
     expect(routes).toContain("message.includes('DEPENDENCY_BLOCKED:')");
+    expect(routes).toContain('startJobCWorker();');
+    expect(routes).toContain('route registration itself never creates a');
   });
 });
