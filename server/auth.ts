@@ -1,6 +1,7 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Router } from "express";
+import { isDevAssetRequest } from "./utils/dev-asset-request";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -160,9 +161,14 @@ export function setupAuth(app: Express) {
   };
 
   app.set("trust proxy", 1);
-  app.use(session(sessionSettings));
-  app.use(passport.initialize());
-  app.use(passport.session());
+  const sessionMiddleware = Router();
+  sessionMiddleware.use(session(sessionSettings));
+  sessionMiddleware.use(passport.initialize());
+  sessionMiddleware.use(passport.session());
+  app.use((req, res, next) => {
+    if (isDevAssetRequest(req.method, req.path, app.get("env"))) return next();
+    return sessionMiddleware(req, res, next);
+  });
 
   passport.use(
     new LocalStrategy(async (username: string, password: string, done: Function) => {

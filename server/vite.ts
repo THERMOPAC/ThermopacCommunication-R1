@@ -44,13 +44,19 @@ export async function setupVite(app: Express, server: Server) {
       ...viteLogger,
       error: (msg, options) => {
         viteLogger.error(msg, options);
-        process.exit(1);
       },
     },
     server: serverOptions,
     appType: "custom",
   });
 
+  // In preview, always return source bytes rather than reusing a potentially
+  // stale browser response after a development-server restart.
+  app.use((req, _res, next) => {
+    delete req.headers["if-none-match"];
+    delete req.headers["if-modified-since"];
+    next();
+  });
   app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
@@ -70,7 +76,12 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
       const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      res.status(200).set({
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+        // Cache only: never clear authentication cookies or application storage.
+        "Clear-Site-Data": '"cache"',
+      }).end(page);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);

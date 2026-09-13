@@ -3,6 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <script>
+      // Syntax errors can have a stack containing only the message. Preserve
+      // the ErrorEvent location so preview diagnostics can identify the script.
+      window.addEventListener("error", function (event) {
+        if (!event.message) return;
+        var source = event.filename || "";
+        try {
+          var url = new URL(source, window.location.href);
+          source = url.origin + url.pathname;
+        } catch (_) {}
+        console.error("[app-script-error]", JSON.stringify({
+          message: event.message,
+          source: source,
+          line: event.lineno,
+          column: event.colno
+        }));
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
