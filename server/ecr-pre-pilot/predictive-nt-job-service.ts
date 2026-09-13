@@ -28,7 +28,7 @@ import { PREDICTIVE_NT_RESEARCH_CANDIDATE } from './predictive-nt-research-candi
 
 export interface PredictiveNtJobInput {
   engineContractVersion?: '6C-1.0.0' | '7C-1.1.0' | '7C-1.2.0' | '7C-1.3.0'
-    | '7C-1.4.0' | '7C-1.5.0';
+    | '7C-1.4.0' | '7C-1.5.0' | '7C-1.6.0';
   engineComponentContract: {
     componentCount: 6 | 7;
     families: readonly string[];
@@ -138,6 +138,8 @@ const PREDICTIVE_NT_7C_1_4_ENGINE_SHA256 =
   process.env.PREDICTIVE_NT_7C_1_4_ENGINE_SHA256 ?? '';
 const PREDICTIVE_NT_7C_1_5_ENGINE_SHA256 =
   process.env.PREDICTIVE_NT_7C_1_5_ENGINE_SHA256 ?? '';
+const PREDICTIVE_NT_7C_1_6_ENGINE_SHA256 =
+  process.env.PREDICTIVE_NT_7C_1_6_ENGINE_SHA256 ?? '';
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
@@ -159,7 +161,9 @@ function runtimeRoot(input?: PredictiveNtJobInput) {
   return process.env.NODE_ENV === 'production'
     ? path.resolve(
       process.cwd(),
-      input?.engineContractVersion === '7C-1.5.0'
+      input?.engineContractVersion === '7C-1.6.0'
+        ? 'dist/predictive-nt-runtime-7c-1-6'
+        : input?.engineContractVersion === '7C-1.5.0'
         ? 'dist/predictive-nt-runtime-7c-1-5'
         : input?.engineContractVersion === '7C-1.4.0'
         ? 'dist/predictive-nt-runtime-7c-1-4'
@@ -567,18 +571,21 @@ function isSevenComponentInput(input?: PredictiveNtJobInput) {
     || input?.engineContractVersion === '7C-1.2.0'
     || input?.engineContractVersion === '7C-1.3.0'
     || input?.engineContractVersion === '7C-1.4.0'
-    || input?.engineContractVersion === '7C-1.5.0';
+    || input?.engineContractVersion === '7C-1.5.0'
+    || input?.engineContractVersion === '7C-1.6.0';
 }
 
 function isNativeSevenComponentInput(input?: PredictiveNtJobInput) {
   return input?.engineContractVersion === '7C-1.3.0'
     || input?.engineContractVersion === '7C-1.4.0'
-    || input?.engineContractVersion === '7C-1.5.0';
+    || input?.engineContractVersion === '7C-1.5.0'
+    || input?.engineContractVersion === '7C-1.6.0';
 }
 
 function isReplacementSevenComponentInput(input?: PredictiveNtJobInput) {
   return input?.engineContractVersion === '7C-1.4.0'
-    || input?.engineContractVersion === '7C-1.5.0';
+    || input?.engineContractVersion === '7C-1.5.0'
+    || input?.engineContractVersion === '7C-1.6.0';
 }
 
 function multistageModelForInput(input?: PredictiveNtJobInput) {
@@ -591,7 +598,8 @@ function usesSimultaneousSevenComponentCascade(input?: PredictiveNtJobInput) {
   return input?.engineContractVersion === '7C-1.2.0'
     || input?.engineContractVersion === '7C-1.3.0'
     || input?.engineContractVersion === '7C-1.4.0'
-    || input?.engineContractVersion === '7C-1.5.0';
+    || input?.engineContractVersion === '7C-1.5.0'
+    || input?.engineContractVersion === '7C-1.6.0';
 }
 
 export function predictiveNtCheckpointProtocol(input: PredictiveNtJobInput) {
@@ -625,7 +633,9 @@ function workerScript(input?: PredictiveNtJobInput) {
   }
   return path.join(
     runtimeRoot(input),
-    input?.engineContractVersion === '7C-1.5.0'
+    input?.engineContractVersion === '7C-1.6.0'
+      ? 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-6/worker.py'
+      : input?.engineContractVersion === '7C-1.5.0'
       ? 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5-progress/worker.py'
       : input?.engineContractVersion === '7C-1.4.0'
       ? 'server/ecr-pre-pilot/predictive-nt-seven-component-v1-4/worker.py'
@@ -669,7 +679,9 @@ function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
             isSevenComponentInput(input as PredictiveNtJobInput)
               ? (
                 result.engineId !== (
-                  input?.engineContractVersion === '7C-1.5.0'
+                  input?.engineContractVersion === '7C-1.6.0'
+                    ? 'ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O_SWEEP'
+                    : input?.engineContractVersion === '7C-1.5.0'
                     ? 'ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O'
                     : input?.engineContractVersion === '7C-1.4.0'
                     ? 'ECR2_PRE_PILOT_MULTISTAGE_SEVEN_COMPONENT_NATIVE_RK_CASCADE'
@@ -701,7 +713,9 @@ function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
                       || !/^[a-f0-9]{64}$/.test(result.historicalEngineHashes?.['7C-1.1.0'] ?? '')
                       || !/^[a-f0-9]{64}$/.test(result.historicalEngineHashes?.['7C-1.2.0'] ?? '')
                        || (
-                         input?.engineContractVersion === '7C-1.5.0'
+                          ['7C-1.5.0', '7C-1.6.0'].includes(
+                            input?.engineContractVersion ?? '',
+                          )
                          && (
                            canonicalJson(result.computationalQualificationWaterWeightPercent)
                              !== canonicalJson([0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5])
@@ -710,6 +724,12 @@ function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
                            || !/^[a-f0-9]{64}$/.test(
                              result.historicalEngineHashes?.['7C-1.4.0'] ?? '',
                            )
+                            || (
+                              input?.engineContractVersion === '7C-1.6.0'
+                              && !/^[a-f0-9]{64}$/.test(
+                                result.historicalEngineHashes?.['7C-1.5.0'] ?? '',
+                              )
+                            )
                          )
                        )
                     )
@@ -774,6 +794,8 @@ function readPredictiveNtRuntimePreflight(input?: PredictiveNtJobInput) {
   }
   const configuredHash = input?.engineContractVersion === '7C-1.5.0'
     ? PREDICTIVE_NT_7C_1_5_ENGINE_SHA256
+    : input?.engineContractVersion === '7C-1.6.0'
+    ? PREDICTIVE_NT_7C_1_6_ENGINE_SHA256
     : input?.engineContractVersion === '7C-1.4.0'
     ? PREDICTIVE_NT_7C_1_4_ENGINE_SHA256
     : input?.engineContractVersion === '7C-1.3.0'
@@ -958,7 +980,8 @@ export function derivePredictiveNtInputFromStage1(
   const moleTotal = moles.reduce((sum, value) => sum + value, 0);
   return {
     ...legacy,
-    engineContractVersion: '7C-1.5.0',
+    engineContractVersion: '7C-1.6.0',
+    maximumStages: 10,
     modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
     engineComponentContract: {
       componentCount: 7,
@@ -1025,13 +1048,14 @@ export function validatePredictiveNtJobInput(
     };
     const expected = derivePredictiveNtInputFromStage1(snapshot, projectNumber, profileReader);
     if (
-      input.engineContractVersion !== '7C-1.5.0'
+      !['7C-1.5.0', '7C-1.6.0'].includes(input.engineContractVersion ?? '')
       && input.solventSpecificationAudit.nmpWaterMassPercent > 3
     ) {
       throw new Error('PREDICTIVE_NT_7C_INPUT_RECONSTRUCTION_MISMATCH');
     }
     // Residual-bearing 7C-1.1.0/1.2.0 remain exact historical inputs only.
-    // New derivation uses immutable 7C-1.5.0; earlier contracts remain replay-only.
+    // New derivation uses immutable 7C-1.6.0 sweep orchestration; earlier
+    // contracts remain replay-only and retain their original worker bindings.
     if (
       input.engineContractVersion === '7C-1.1.0'
       || input.engineContractVersion === '7C-1.2.0'
@@ -1043,13 +1067,23 @@ export function validatePredictiveNtJobInput(
         thermodynamicModel: 'COSMO_SAC_2010_PROJECT_NMP_LLE_RESIDUAL_H2O_EXTENSION',
         qualificationStatus: 'PENDING_GOVERNED_WATER_BEARING_LLE_AND_BLIND_QUALIFICATION',
       };
+      expected.maximumStages = snapshot.stage1.maximumStages;
     }
     if (input.engineContractVersion === '7C-1.4.0') {
       expected.engineContractVersion = '7C-1.4.0';
       expected.modelHash = PRE_PILOT_MULTISTAGE_MODEL_1_4.modelHash;
+      expected.maximumStages = snapshot.stage1.maximumStages;
+    }
+    if (input.engineContractVersion === '7C-1.5.0') {
+      expected.engineContractVersion = '7C-1.5.0';
+      expected.maximumStages = snapshot.stage1.maximumStages;
     }
     if (
       (_runtimeTestOwner !== undefined && process.env.NODE_ENV !== 'test')
+      || (
+        input.engineContractVersion === '7C-1.6.0'
+        && input.maximumStages !== 10
+      )
       || (ntTest !== undefined && (
         !['7C-1.4.0', '7C-1.5.0'].includes(String(input.engineContractVersion))
         || !Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10
@@ -1294,7 +1328,7 @@ export function validateSevenComponentPersistedResult(
   const value = result as any;
   if (
     !value || typeof value !== 'object'
-    || !['7C-1.1.0', '7C-1.2.0', '7C-1.3.0', '7C-1.4.0', '7C-1.5.0']
+    || !['7C-1.1.0', '7C-1.2.0', '7C-1.3.0', '7C-1.4.0', '7C-1.5.0', '7C-1.6.0']
       .includes(value.engineContractVersion)
     || (
       options.input
@@ -1303,11 +1337,11 @@ export function validateSevenComponentPersistedResult(
     || canonicalJson(value.componentOrder) !== canonicalJson(SEVEN_COMPONENT_ORDER)
     || value.releaseEligible !== false
     || (
-      !['7C-1.4.0', '7C-1.5.0'].includes(value.engineContractVersion)
+      !['7C-1.4.0', '7C-1.5.0', '7C-1.6.0'].includes(value.engineContractVersion)
       && (value.predictiveNt !== null || value.establishedTheoreticalStages !== null)
     )
   ) return 'PREDICTIVE_NT_7C_RESULT_CONTRACT_INVALID';
-  const replacement = ['7C-1.4.0', '7C-1.5.0'].includes(value.engineContractVersion);
+  const replacement = ['7C-1.4.0', '7C-1.5.0', '7C-1.6.0'].includes(value.engineContractVersion);
   if (!options.intermediate && value.status !== 'ENGINE_ERROR' && (
     value.status !== (
       replacement
@@ -1335,7 +1369,7 @@ export function validateSevenComponentPersistedResult(
   if (!Array.isArray(value.trials)) return 'PREDICTIVE_NT_7C_RESULT_TRIALS_INVALID';
   const governedTrialsAccepted = value.trials.filter(
     (trial: any) => (
-      ['7C-1.4.0', '7C-1.5.0'].includes(value.engineContractVersion)
+      ['7C-1.4.0', '7C-1.5.0', '7C-1.6.0'].includes(value.engineContractVersion)
         ? trial?.accepted === true
         : trial?.numericalAcceptancePassed === true
     ),
@@ -1574,13 +1608,30 @@ export function validateSevenComponentPersistedResult(
           || !close(trial.targetCompliance?.targetRaffinateSulfurPpm?.calculated, predicted)
         ) return 'PREDICTIVE_NT_7C_SULFUR_POST_PROCESSING_INVALID';
       }
-      if (canonicalJson(value.sulfurPrediction) !== canonicalJson(value.trials[0]?.sulfurPrediction)) {
-        return 'PREDICTIVE_NT_7C_SULFUR_RESULT_SUMMARY_INVALID';
-      }
       const accepted = value.trials.filter((trial: any) => trial?.accepted === true);
       const selected = accepted.length
         ? Math.min(...accepted.map((trial: any) => trial.stageCount))
         : null;
+      const selectedTrial = selected === null
+        ? null
+        : value.trials.find(
+          (trial: any) => trial?.accepted === true && trial.stageCount === selected,
+        );
+      if (value.engineContractVersion === '7C-1.6.0') {
+        if (
+          selectedTrial
+            ? canonicalJson(value.sulfurPrediction)
+              !== canonicalJson(selectedTrial.sulfurPrediction)
+            : (
+              value.sulfurPrediction?.status !== 'NOT_CALCULABLE'
+              || value.sulfurPrediction?.reason !== 'NO_ACCEPTED_PREDICTIVE_TRIAL'
+            )
+        ) return 'PREDICTIVE_NT_7C_SULFUR_RESULT_SUMMARY_INVALID';
+      } else if (
+        canonicalJson(value.sulfurPrediction) !== canonicalJson(value.trials[0]?.sulfurPrediction)
+      ) {
+        return 'PREDICTIVE_NT_7C_SULFUR_RESULT_SUMMARY_INVALID';
+      }
       if (
          value.predictiveNt !== selected
          || value.establishedTheoreticalStages !== selected
@@ -1600,6 +1651,12 @@ export type TrustedCompletedSevenComponentNtForStage4 = {
   readonly jobId: string;
   readonly designId: number;
   readonly engineHash: string;
+  /**
+   * 7C-1.6 keeps the frozen 7C-1.5 scientific engine as an explicit
+   * compatibility lineage for the still-pinned Stage-4 adapter. This is
+   * separate from the row's current orchestration engine hash.
+   */
+  readonly stage4AdapterScienceEngineHash: string;
   readonly theoreticalStages: number;
   readonly resultSnapshotHash: string;
   readonly selectedTrial: Readonly<Record<string, unknown>>;
@@ -1633,7 +1690,7 @@ export async function loadValidatedCompletedSevenComponentNtForStage4(
   }
   const input = row.input_snapshot as PredictiveNtJobInput;
   if (
-    input?.engineContractVersion !== '7C-1.5.0'
+    !['7C-1.5.0', '7C-1.6.0'].includes(input?.engineContractVersion ?? '')
     || row.model_hash !== PRE_PILOT_MULTISTAGE_MODEL.modelHash
     || input.modelHash !== PRE_PILOT_MULTISTAGE_MODEL.modelHash
   ) throw new Error('STAGE4_STAGE2_MODEL_IDENTITY_INVALID');
@@ -1649,6 +1706,20 @@ export async function loadValidatedCompletedSevenComponentNtForStage4(
   );
   if (validationError) throw new Error(validationError);
   const result = row.result_snapshot as Record<string, any>;
+  const adapterScienceEngineHash = input.engineContractVersion === '7C-1.6.0'
+    ? result.engine?.historicalEngineHashes?.['7C-1.5.0']
+    : row.engine_hash;
+  if (
+    typeof adapterScienceEngineHash !== 'string'
+    || !/^[a-f0-9]{64}$/.test(adapterScienceEngineHash)
+    || (
+      input.engineContractVersion === '7C-1.6.0'
+      && (
+        result.engine?.scientificModelContract !== '7C-1.5.0_UNCHANGED'
+        || result.engine?.engineContractVersion !== '7C-1.6.0'
+      )
+    )
+  ) throw new Error('STAGE4_STAGE2_ADAPTER_SCIENCE_LINEAGE_INVALID');
   const theoreticalStages = result.predictiveNt;
   if (
     !Number.isInteger(theoreticalStages) || theoreticalStages < 1
@@ -1667,6 +1738,7 @@ export async function loadValidatedCompletedSevenComponentNtForStage4(
     jobId: row.id,
     designId: Number(row.design_id),
     engineHash: row.engine_hash,
+    stage4AdapterScienceEngineHash: adapterScienceEngineHash,
     theoreticalStages,
     resultSnapshotHash: createHash('sha256')
       .update(canonicalJson(row.result_snapshot)).digest('hex'),
@@ -2901,11 +2973,7 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
       design.rows[0].input_data,
       Number(design.rows[0].project_number),
     );
-    const ntTest = derivedInput.maximumStages;
-    if (!Number.isInteger(ntTest) || ntTest < 1 || ntTest > 10) {
-      throw new Error('INVALID_STAGE1_THEORETICAL_STAGE_COUNT');
-    }
-    const input = { ...derivedInput, ntTest };
+    const input = { ...derivedInput, maximumStages: 10 };
     gate = validatePredictiveNtJobInput(input);
     const engineHash = currentPredictiveNtEngineHash(input);
     const immutableInput = { ...input, modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash };
@@ -2928,7 +2996,7 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
        RETURNING *`,
       [
         jobId, designId, userId, immutableInput, PRE_PILOT_MULTISTAGE_MODEL.modelHash,
-        engineHash, 1,
+        engineHash, 10,
       ],
     );
     await recordHistory(client, inserted.rows[0], {

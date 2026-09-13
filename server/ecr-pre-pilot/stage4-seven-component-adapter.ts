@@ -317,7 +317,7 @@ export async function generateSevenComponentReferenceDuty(
       const adapterRoot = runtimeRoot();
       const manifest = verifyManifest(adapterRoot);
       verifyBaseManifest(baseRuntimeRoot(adapterRoot, manifest), manifest.baseRuntime);
-      if (trusted.engineHash !== manifest.engineHash) {
+      if (trusted.stage4AdapterScienceEngineHash !== manifest.engineHash) {
         throw new Error('STAGE4_STAGE2_ENGINE_HASH_MISMATCH');
       }
       const response: Record<string, unknown> = {

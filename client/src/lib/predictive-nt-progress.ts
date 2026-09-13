@@ -1,6 +1,6 @@
 export type PredictiveProgressJob = {
   status: "pending" | "running" | "completed" | "failed";
-  input?: { ntTest?: number };
+  input?: { ntTest?: number; engineContractVersion?: string };
   progress: { completedStageTrials: number; maximumStages: number };
   internalProgress?: {
     completedInternalStages: number;
@@ -15,7 +15,7 @@ function validCount(value: unknown, maximum: number): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= maximum;
 }
 
-/** Counts recorded audits, not accepted stages, physical compartments, or elapsed work. */
+/** Counts persisted checkpoint work, not accepted stages, physical compartments, or elapsed work. */
 export function predictiveNtProgress(job: PredictiveProgressJob, monitoringPaused = false) {
   const nt = job.input?.ntTest;
   const exact = typeof nt === "number" && Number.isInteger(nt) && nt >= 1 && nt <= 10
@@ -44,7 +44,8 @@ export function predictiveNtProgress(job: PredictiveProgressJob, monitoringPause
   }
 
   const active = job.status === "pending" || job.status === "running";
-  const unit = exact ? "stage audits recorded" : "stage trials recorded";
+  const sweep = job.input?.engineContractVersion === "7C-1.6.0";
+  const unit = exact ? "stage audits recorded" : sweep ? "N_T trial checkpoints recorded" : "stage trials recorded";
   const count = completed === null ? "Progress count unavailable" : `${completed}/${maximum} ${unit}`;
   let label: string;
   let detail: string;
@@ -60,7 +61,9 @@ export function predictiveNtProgress(job: PredictiveProgressJob, monitoringPause
   } else if (job.status === "running") {
     label = completed === maximum
       ? `Finalizing calculation — ${count}`
-      : exact ? `Recording N_T=${nt} stage audits — ${count}` : `Evaluating configured trials — ${count}`;
+      : exact
+        ? `Recording N_T=${nt} stage audits — ${count}`
+        : sweep ? `Evaluating N_T=1…10 sweep — ${count}` : `Evaluating configured trials — ${count}`;
     detail = "These counts describe recorded work, not elapsed-time progress or scientific acceptance.";
   } else {
     label = `${job.status === "completed" ? "Calculation completed" : "Calculation stopped or failed"} — ${count}`;

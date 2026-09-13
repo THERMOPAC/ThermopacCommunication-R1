@@ -341,6 +341,46 @@ console.log(
   `Packaged Predictive N_T 7C-1.5 runtime (${sevenFifteenRecords.length} hashed files)`,
 );
 
+// 7C-1.6.0 keeps the 7C-1.5 scientific closure immutable and adds only the
+// authorized ordered N_T=1..10 orchestration worker.
+const sevenSixteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-6');
+await rm(sevenSixteenBundleRoot, { recursive: true, force: true });
+await cp(sevenFifteenBundleRoot, sevenSixteenBundleRoot, { recursive: true });
+const sevenSixteenWorkerPath =
+  'server/ecr-pre-pilot/predictive-nt-seven-component-v1-6';
+await cp(
+  path.join(root, sevenSixteenWorkerPath),
+  path.join(sevenSixteenBundleRoot, sevenSixteenWorkerPath),
+  { recursive: true },
+);
+const sevenSixteenPackagedFiles = (await bundledFiles(sevenSixteenBundleRoot)).sort();
+const sevenSixteenRecords = [];
+for (const absolute of sevenSixteenPackagedFiles) {
+  const content = await readFile(absolute);
+  const metadata = await stat(absolute);
+  sevenSixteenRecords.push({
+    path: path.relative(sevenSixteenBundleRoot, absolute).split(path.sep).join('/'),
+    bytes: metadata.size,
+    sha256: createHash('sha256').update(content).digest('hex'),
+  });
+}
+await writeFile(
+  path.join(sevenSixteenBundleRoot, 'predictive-nt-runtime-manifest.json'),
+  `${JSON.stringify({
+    schemaVersion: 'PREDICTIVE_NT_RUNTIME_MANIFEST_V1',
+    hashAlgorithm: 'sha256',
+    fileCount: sevenSixteenRecords.length,
+    aggregateSha256: createHash('sha256').update(
+      sevenSixteenRecords.map((record) =>
+        `${record.path}:${record.bytes}:${record.sha256}`).join('\n'),
+    ).digest('hex'),
+    files: sevenSixteenRecords,
+  }, null, 2)}\n`,
+);
+console.log(
+  `Packaged Predictive N_T 7C-1.6 runtime (${sevenSixteenRecords.length} hashed files)`,
+);
+
 // Stage 4 consumes a server-owned adapter artifact.  It is derived from, but
 // never added to, the immutable historical/predictive runtime closures.
 const stage4AdapterRoot = path.join(root, 'dist', 'stage4-seven-component-adapter-runtime');

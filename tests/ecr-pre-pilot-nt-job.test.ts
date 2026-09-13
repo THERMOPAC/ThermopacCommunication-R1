@@ -440,7 +440,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
       209,
     );
-    expect(seven.engineContractVersion).toBe('7C-1.5.0');
+    expect(seven.engineContractVersion).toBe('7C-1.6.0');
     expect(seven.modelHash).toBe(PRE_PILOT_MULTISTAGE_MODEL.modelHash);
     expect(seven.engineComponentContract).toMatchObject({
       componentCount: 7,
@@ -467,7 +467,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   });
 
   it.each([3.5, 4.0, 4.5, 5.0])(
-    'admits %s wt%% H2O through immutable 7C-1.5 derivation and validation',
+    'admits %s wt%% H2O through immutable 7C-1.6 derivation and validation',
     (waterWt) => {
       const stage1 = canonicalizeStage1Input({
         ...validStage1(209),
@@ -475,7 +475,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
         nmpWaterWt: String(waterWt),
       }, 209);
       const input = derivePredictiveNtInputFromStage1(makeStage1Snapshot(stage1), 209);
-      expect(input.engineContractVersion).toBe('7C-1.5.0');
+      expect(input.engineContractVersion).toBe('7C-1.6.0');
       expect(input.solventSpecificationAudit.nmpWaterMassPercent).toBe(waterWt);
       expect(input.wetSolventConstruction?.waterMassPerUnitFeedMass)
         .toBeCloseTo(1.5 * waterWt / 100, 12);
@@ -516,7 +516,7 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     expect(validatePredictiveNtCheckpointContract(
       seven,
       'ACK_V3_ENGINE_CONTRACT',
-      '7C-1.5.0',
+      '7C-1.6.0',
     )).toBe('ACK_V3_ENGINE_CONTRACT');
     expect(() => validatePredictiveNtCheckpointContract(
       seven,
@@ -727,6 +727,7 @@ print(json.dumps(events))
     const contract12Input = {
       ...seven,
       engineContractVersion: '7C-1.2.0' as const,
+      maximumStages: 2,
     };
     expect(validateSevenComponentPersistedResult(
       result,
@@ -735,6 +736,7 @@ print(json.dumps(events))
     const historicalInput = {
       ...seven,
       engineContractVersion: '7C-1.1.0' as const,
+      maximumStages: 2,
     };
     expect(validateSevenComponentPersistedResult({
       ...result,

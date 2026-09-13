@@ -33,6 +33,25 @@ results also hid the distinction between audit counters and saved values.
 records before answering progress questions. Show pending states honestly;
 never promise live numeric rows based only on audit counters.
 
+The requested user-facing behavior is an ordered N_T=1–10 sweep with each trial
+durably saved before advancing, not a single selected-N_T solve disguised with
+ten progress rows. Preserve historical exact-N_T jobs under their own contracts.
+
+**Why:** The user needs progressive numerical trial results, not only audit
+counters after one expensive coupled calculation.
+
+**How to apply:** Treat scheduling separately from frozen scientific equations
+and gates. Do not automatically launch a sweep after changing its implementation.
+
+Checkpoint completion and continuation eligibility are independent. A fully
+saved sweep can retain a continuation seed from an earlier eligible trial.
+
+**Why:** Diagnostic later trials may not supply a valid new seed. Requiring the
+seed count to equal the final checkpoint count makes valid final-ACK recovery fail.
+
+**How to apply:** Validate retained seeds at their own stage count; finalize a
+fully acknowledged prefix without solving it again.
+
 **Why:** A reporting correction should not invalidate previously bound scientific
 snapshots or discard a long calculation already in progress.
 

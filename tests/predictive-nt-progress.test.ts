@@ -119,6 +119,16 @@ describe("Predictive N_T progress reporting", () => {
     expect(predictiveNtProgress(job).label).toContain("3/10 stage trials recorded");
   });
 
+  it("reports the immutable 1..10 sweep as acknowledged trial checkpoints", () => {
+    const job = running();
+    job.input = { engineContractVersion: "7C-1.6.0" };
+    job.internalProgress = null;
+    job.progress = { completedStageTrials: 4, maximumStages: 10 };
+    expect(predictiveNtProgress(job)).toMatchObject({ completed: 4, maximum: 10, indeterminate: false });
+    expect(predictiveNtProgress(job).label).toContain("Evaluating N_T=1…10 sweep");
+    expect(markup(job)).toContain("4/10 N_T trial checkpoints recorded");
+  });
+
   it("recognizes one-stage completion without changing acceptance data", () => {
     const job = running();
     job.status = "completed";

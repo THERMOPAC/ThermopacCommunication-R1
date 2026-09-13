@@ -346,7 +346,7 @@ type PredictiveNtJob = {
   } | null;
   modelHash: string;
   engineHash: string;
-  input?: { ntTest?: number };
+  input?: { ntTest?: number; engineContractVersion?: string };
   result: PredictiveNtResult | null;
   report: {
     available: boolean;
@@ -362,11 +362,6 @@ const DEFAULT_PHASE_CONFIGURATION = "nmp-continuous-rrbo-dispersed";
 const DEFAULT_RRBO_GRADE = "SN300";
 const DEFAULT_OPERATING_TEMPERATURE_C = "50";
 const DEFAULT_OPERATING_PRESSURE = "2.0";
-const MAXIMUM_STAGE_OPTIONS = Array.from({ length: 10 }, (_, index) => {
-  const value = String(index + 1);
-  return { value, label: `${value} stages` };
-});
-
 const EMPTY_FORM: FormState = {
   projectReference: "",
   rrboGrade: DEFAULT_RRBO_GRADE,
@@ -429,6 +424,7 @@ function hydrateSavedStage1(current: FormState, inputData: unknown): FormState {
         : String(source[key]);
     }
   }
+  next.maximumStages = "10";
   return next;
 }
 
@@ -739,7 +735,9 @@ function validateForm(form: FormState): ValidationErrors {
   requiredOption("phaseConfiguration", "Phase configuration", PHASE_OPTIONS);
   requiredText("satIdentity", "SAT molecular identity");
   requiredText("monoIdentity", "MONO molecular identity");
-  requiredOption("maximumStages", "theoretical stage count to test", MAXIMUM_STAGE_OPTIONS);
+  if (form.maximumStages !== "10") {
+    errors.maximumStages = "The authorized predictive run always sweeps N_T=1 through N_T=10.";
+  }
 
   const compositionValues = COMPOSITION_FIELDS.map(({ key, label }) => ({
     key,
@@ -1362,7 +1360,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, maximumStages: "10" }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? "Stage 1 input data could not be saved.");
@@ -1414,8 +1412,8 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
       setPredictiveJob({
         id: String(payload.jobId),
         status: payload.status,
-        input: { ntTest: Number(form.maximumStages) },
-        progress: { completedStageTrials: 0, maximumStages: 1 },
+        input: { engineContractVersion: "7C-1.6.0" },
+        progress: { completedStageTrials: 0, maximumStages: 10 },
         modelHash: predictiveBasis.model.modelHash,
         engineHash: "",
         result: null,
@@ -1428,7 +1426,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
         },
         error: null,
       });
-      toast({ title: "Predictive N_T queued", description: "Stage trials will update here while the isolated solver runs." });
+      toast({ title: "Predictive N_T sweep queued", description: "Ordered N_T=1 through N_T=10 trial checkpoints will update here while the isolated solver runs." });
     } catch (error: unknown) {
       toast({
         title: "Predictive N_T could not start",
@@ -1697,18 +1695,21 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 )}
               </div>
               <div className="space-y-1">
-                <SelectField
+                <NumericField
                   id="maximum-stages"
-                  label="Theoretical stage count to test"
-                  value={form.maximumStages}
-                  onChange={(value) => setField("maximumStages", value)}
-                  placeholder="Select exact N_T"
-                  options={MAXIMUM_STAGE_OPTIONS}
+                  label="Predictive N_T sweep"
+                  value="10"
+                  onChange={() => undefined}
+                  unit="trials (N_T=1…10)"
+                  min="10"
+                  max="10"
+                  step="1"
+                  readOnly
                   required
                   error={validationErrors.maximumStages}
                 />
                 <p className="text-[11px] leading-4 text-slate-500">
-                  Authoritative Stage 1 value. The predictive engine solves exactly this theoretical-stage count; it does not search from 1 through N_T.
+                  The authorized predictive run always attempts the complete ordered sweep from N_T=1 through N_T=10. Stage 1 stores this fixed sweep authority.
                 </p>
               </div>
             </CardContent>
@@ -2201,7 +2202,11 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                 </div>
                 <div className="rounded-md border bg-white p-3">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Established theoretical stages</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">—</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">
+                    {predictiveJob?.result
+                      ? predictiveJob.result.establishedTheoreticalStages ?? "Not established"
+                      : "—"}
+                  </p>
                 </div>
               </div>
               {predictiveJob && (
@@ -2322,7 +2327,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
               {predictiveJob?.result && (
                 <>
                   <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-semibold text-blue-950">
-                    N_T Tested: {predictiveJob.input?.ntTest ?? predictiveJob.result.trials?.[0]?.stageCount ?? "—"}
+                    N_T sweep: 1…10
                   </div>
                   {predictiveJob.result.executionStatus === "BLOCKED_NO_LIQUID_SPLIT" && (
                     <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[12px] leading-5 text-amber-950">
@@ -2422,7 +2427,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                       )}
                       <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-[11px] leading-5 text-amber-950">
                         <p className="font-semibold">Governance and numerical authority</p>
-                        <p>{["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result.engineContractVersion ?? "") ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial and is never release-eligible." : String(predictiveJob.result.engineContractVersion).startsWith("7C-") ? "The historical seven-component cCOSMO production implementation includes H2O under its immutable qualification-pending contract." : "This historical six-component COSMO-SAC result remains readable under its original diagnostic contract."}</p>
+                        <p>{["7C-1.4.0", "7C-1.5.0", "7C-1.6.0"].includes(predictiveJob.result.engineContractVersion ?? "") ? "The seven-component native-plus-RK model is the PRE-PILOT MULTISTAGE PREDICTIVE MODEL. N_T is assigned only from a fully accepted simultaneous counter-current trial and is never release-eligible." : String(predictiveJob.result.engineContractVersion).startsWith("7C-") ? "The historical seven-component cCOSMO production implementation includes H2O under its immutable qualification-pending contract." : "This historical six-component COSMO-SAC result remains readable under its original diagnostic contract."}</p>
                         <p>Runtime verification: <strong>{predictiveJob.result.model?.runtimeVerification ?? "—"}</strong></p>
                         {predictiveJob.result.wetSolventConstruction && <p>Wet-solvent mass closure: <strong className="font-mono">{Number(predictiveJob.result.wetSolventConstruction.massClosureResidual ?? NaN).toExponential(3)}</strong></p>}
                         {predictiveJob.result.stage1TargetGovernance && (
@@ -2603,7 +2608,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                       return (
                         <details key={trial.stageCount} className="rounded-md border bg-white" open={trial.numericalAcceptancePassed}>
                           <summary className="cursor-pointer px-3 py-2 text-xs font-semibold text-slate-800">
-                            Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "PRE-PILOT DIAGNOSTIC"} — NOT ACCEPTED · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
+                             Trial {trial.stageCount}: {["7C-1.4.0", "7C-1.5.0", "7C-1.6.0"].includes(predictiveJob.result?.engineContractVersion ?? "") ? "PRE-PILOT MULTISTAGE PREDICTIVE MODEL" : String(predictiveJob.result?.engineContractVersion ?? "").startsWith("7C-") ? "IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING" : "PRE-PILOT DIAGNOSTIC"} — {trial.accepted ? "ACCEPTED" : "NOT ACCEPTED"} · numerical gates {trial.numericalAcceptancePassed ? "PASS" : "FAIL"} · max balance residual {formatRecordedStageNumber(trial.maximumOverallComponentBalanceResidualMol)}
                           </summary>
                           <div className="space-y-3 border-t px-3 py-3 text-[11px]">
                             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -2619,7 +2624,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                 </strong>
                               </p>
                             </div>
-                            {["7C-1.4.0", "7C-1.5.0"].includes(predictiveJob.result?.engineContractVersion ?? "") && (
+                             {["7C-1.4.0", "7C-1.5.0", "7C-1.6.0"].includes(predictiveJob.result?.engineContractVersion ?? "") && (
                               <div className="rounded border border-violet-200 bg-violet-50 p-2 text-violet-950">
                                 <p className="font-semibold">Governed sulfur post-processing</p>
                                 {trial.sulfurPrediction?.status === "CALCULABLE" ? (

@@ -21,7 +21,7 @@ export type PredictiveStageDisplay = {
 export type PredictiveStageDisplayJob = {
   id?: string;
   status: "pending" | "running" | "completed" | "failed";
-  input?: { ntTest?: unknown };
+  input?: { ntTest?: unknown; engineContractVersion?: unknown };
   progress?: { maximumStages?: unknown };
   internalProgress?: {
     completedInternalStages?: unknown;
@@ -78,9 +78,14 @@ export function predictiveNtStageDisplay(job: PredictiveStageDisplayJob): Predic
   const trials = result && Array.isArray(result.trials) ? result.trials : [];
   const exactNt = integerInRange(job.input?.ntTest, 1, 10)
     && job.progress?.maximumStages === 1;
-  const matchingTrial = trials
-    .map(asRecord)
-    .find((trial) => trial && (
+  const trialRecords = trials.map(asRecord).filter(
+    (trial): trial is Record<string, unknown> => Boolean(trial),
+  );
+  const matchingTrial = job.input?.engineContractVersion === "7C-1.6.0"
+    ? trialRecords
+      .filter((trial) => integerInRange(trial.stageCount, 1, maximum))
+      .sort((left, right) => Number(right.stageCount) - Number(left.stageCount))[0]
+    : trialRecords.find((trial) => (
       exactNt
         ? trial.stageCount === job.input?.ntTest
         : trial.stageCount === maximum
@@ -128,9 +133,13 @@ export function predictiveNtStageDisplay(job: PredictiveStageDisplayJob): Predic
       ? "The worker has reported audit progress, but the per-stage numeric payload is not persisted until the full trial checkpoint is acknowledged."
       : "The coupled solver has not acknowledged a full trial checkpoint, so no per-stage numeric payload is available yet.";
   } else if (recordedStages.size < maximum) {
-    reason = "Only the persisted stage records are shown. Remaining stage values are not available until the full trial checkpoint is acknowledged.";
+    reason = job.input?.engineContractVersion === "7C-1.6.0"
+      ? "Only the persisted stage records from the latest persisted N_T trial checkpoint are shown. Remaining stage values are not available until the full trial checkpoint is acknowledged."
+      : "Only the persisted stage records are shown. Remaining stage values are not available until the full trial checkpoint is acknowledged.";
   } else {
-    reason = "Numeric values are from the persisted trial checkpoint for this job.";
+      reason = job.input?.engineContractVersion === "7C-1.6.0"
+        ? "Numeric values are from the latest persisted N_T trial checkpoint for this job."
+        : "Numeric values are from the persisted trial checkpoint for this job.";
   }
 
   return {

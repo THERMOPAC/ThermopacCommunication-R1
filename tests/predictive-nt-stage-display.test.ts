@@ -89,6 +89,29 @@ describe("Predictive N_T live stage display projection", () => {
     expect(display.rows.slice(3).every((row) => row.status === "AWAITING_AUDIT")).toBe(true);
   });
 
+  it("projects the latest acknowledged sweep trial without waiting for N_T=10", () => {
+    const job = runningJob();
+    job.input = { engineContractVersion: "7C-1.6.0" };
+    job.progress = { maximumStages: 10 };
+    job.result = {
+      trials: [{
+        stageCount: 1,
+        stages: [stage(1)],
+      }, {
+        stageCount: 2,
+        stages: [stage(1), stage(2)],
+      }],
+    };
+
+    const display = predictiveNtStageDisplay(job);
+
+    expect(display.recordedCount).toBe(2);
+    expect(display.rows[0].status).toBe("RECORDED");
+    expect(display.rows[1].status).toBe("RECORDED");
+    expect(display.rows[2].status).toBe("AWAITING_AUDIT");
+    expect(display.reason).toContain("latest persisted N_T trial checkpoint");
+  });
+
   it("rejects a result explicitly identified as belonging to a previous run", () => {
     const job = runningJob();
     job.result = {
