@@ -11,6 +11,12 @@ The user subsequently chose theoretical-stage-based pre-pilot sizing: COSMO-SAC 
 
 **How to apply:** Inventory existing correlations and geometry evidence first. Report missing efficiency/HETS closure or compartment-pitch basis before implementing assumptions. Never equate a theoretical-stage default or seven FV cells with calculated physical compartments. Keep predictive estimates explicitly non-final.
 
+The refined physical-stage calculation consumes the selected Stage-3 diameter rather than reselecting hydraulics. The user explicitly permits compartment pitch \(h/D=0.5\) as a labelled pre-pilot geometry assumption, pending mechanical verification. Efficiency must be computed from a supported transfer/mixing model, not supplied as an assumed efficiency or HETS value.
+
+**Why:** Separating hydraulic selection from stage conversion avoids repeatedly re-solving geometry and makes the actual missing efficiency closure visible.
+
+**How to apply:** Keep the pitch assumption explicit and show all transfer/mixing intermediates. Distinguish local component/Murphree efficiencies from the overall equivalent-stage efficiency needed by \(N_\mathrm{physical}=\lceil N_T/E_o\rceil\).
+
 ## Historical nonlinear diagnostic route
 
 The user chose direct nonlinear partial-transfer sizing rather than frozen-secant extrapolation. The accepted partial anchor is a warm start, not accepted candidate geometry.

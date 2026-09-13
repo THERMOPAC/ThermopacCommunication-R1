@@ -5,6 +5,7 @@ import Layout from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import Stage4PrePilotSizingPanel from "@/components/ecr-pre-pilot/stage4-pre-pilot-sizing-panel";
 import {
   isNewerPartialTransferResult,
   partialTransferResultIdentity,
@@ -1493,8 +1494,8 @@ export default function EcrPrePilotDesignStage4Page() {
             <div className="rounded-md border border-cyan-900/30 bg-cyan-950 p-2.5 text-cyan-100"><FlaskConical className="h-5 w-5" /></div>
             <div>
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-800">ECR / pre-pilot / stage 04</p>
-              <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">Mass-transfer testing · Jobs A, B &amp; C</h1>
-              <p className="mt-1 text-xs text-slate-600">Governed calculation review {design?.projectNumber ? `· ${String(design.projectNumber)}` : "· latest saved design"}</p>
+              <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">Physical sizing evidence · Stage 4</h1>
+              <p className="mt-1 text-xs text-slate-600">Pre-pilot predictive review {design?.projectNumber ? `· ${String(design.projectNumber)}` : "· latest saved design"}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -1512,6 +1513,10 @@ export default function EcrPrePilotDesignStage4Page() {
           <section className="rounded-md border border-red-200 bg-red-50 p-5"><div className="flex gap-3 text-red-900"><ShieldAlert className="h-5 w-5 shrink-0" /><div><h2 className="text-sm font-semibold">Design prerequisite unavailable</h2><p className="mt-1 text-xs">{error}</p><Button type="button" variant="outline" onClick={() => void loadDesign()} className="mt-3 h-8 text-xs">Retry design load</Button></div></div></section>
         ) : (
           <div className="space-y-4">
+            <Stage4PrePilotSizingPanel designId={Number.isFinite(Number(design?.id)) ? Number(design?.id) : null} />
+            <details className="rounded-md border border-slate-300 bg-slate-50 p-3">
+              <summary className="cursor-pointer text-xs font-semibold text-slate-800">Legacy Job A/B/C and diagnostic sizing records (separate from simplified Stage 4)</summary>
+              <div className="mt-4 space-y-4">
             <PhysicalSizingPanel
               value={physicalSizing}
               loading={physicalSizingLoading}
@@ -1912,6 +1917,8 @@ export default function EcrPrePilotDesignStage4Page() {
               </section>}
               <details className="border-t p-3"><summary className="cursor-pointer text-xs font-semibold">Component balance/conservation diagnostics, input audit &amp; returned record</summary><pre className="mt-2 max-h-96 overflow-auto rounded bg-slate-950 p-3 text-[10px] text-cyan-50">{JSON.stringify({ balanceDiagnostics: read(jobCResult, "balanceDiagnostics", "conservationDiagnostics", "diagnostics"), inputAudit: jobCInputAudit, result: jobCResult }, null, 2)}</pre></details>
             </section>}
+              </div>
+            </details>
           </div>
         )}
       </main>

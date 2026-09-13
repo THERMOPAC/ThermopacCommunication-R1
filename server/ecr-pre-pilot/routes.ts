@@ -45,6 +45,10 @@ import {
   markInterruptedSinglePartialTransferQualifications,
   startSinglePartialTransferQualification,
 } from './partial-transfer-qualification-service';
+import {
+  evaluateStage4PrePilotSizing,
+  getLatestStage4PrePilotSizing,
+} from './stage4-pre-pilot-sizing-service';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
@@ -474,6 +478,47 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       } catch (error: any) {
         return res.status(409).json({
           error: error?.message ?? 'PARTIAL_TRANSFER_PHYSICAL_SIZING_RESULT_INTEGRITY_FAILURE',
+        });
+      }
+    },
+  );
+  // The simplified Stage-4 route is independent of all Job-C paths.  The only
+  // mutable request payload is reviewed physical evidence; NT, hydraulics,
+  // candidate selection, rounding and output geometry are server-owned.
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/evaluate',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        return res.status(201).json(await evaluateStage4PrePilotSizing(
+          Number((req.user as any).id), designId, req.body,
+        ));
+      } catch (error: any) {
+        const message = error?.message ?? 'STAGE4_PRE_PILOT_SIZING_EVALUATION_FAILED';
+        return res.status(message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422)
+          .json({ error: message });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        const result = await getLatestStage4PrePilotSizing(Number((req.user as any).id), designId);
+        return result ? res.json(result) : res.status(404)
+          .json({ error: 'STAGE4_PRE_PILOT_SIZING_RESULT_NOT_FOUND' });
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'STAGE4_PRE_PILOT_SIZING_RESULT_INTEGRITY_FAILURE',
         });
       }
     },
