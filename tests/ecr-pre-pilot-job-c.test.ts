@@ -416,7 +416,7 @@ sys.stdout.flush()
     );
     expect(JOB_C_TEMPORARY_DIAGNOSTIC_MODE).toEqual({
       mode: 'TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1',
-      terminalLambda: 6.5e-9,
+      terminalLambda: 8.0e-9,
       heightTrialM: 2,
       normalAcceptancePermitted: false,
       qualification: 'USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY',
@@ -471,7 +471,7 @@ print(json.dumps({
 `], { encoding: 'utf8' }));
     expect(JOB_C_WORKFLOW_TEST_ONLY_MODE).toEqual({
       mode: 'TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1',
-      terminalLambda: 6.5e-9,
+      terminalLambda: 8.0e-9,
       heightTrialM: 2,
       normalAcceptancePermitted: false,
       workflowTestOnly: true,
@@ -490,7 +490,7 @@ print(json.dumps({
       workerResult: {
         workflowTestOnly: true, scientificCompleted: false,
         diagnosticPartialEndpoint: {
-          lambda: 6.5e-9, heightTrialM: 2,
+          lambda: 8.0e-9, heightTrialM: 2,
           gateDecision: { rawFvGatePassed: false, accepted: false },
         },
       },
@@ -552,7 +552,7 @@ print(json.dumps({"control":control,"nan":nan,"inf":inf,
       diagnosticMode: JOB_C_WORKFLOW_TEST_ONLY_MODE,
       diagnosticPartialEndpoint: {
         status: 'WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED',
-        lambda: 6.5e-9,
+        lambda: 8.0e-9,
         heightTrialM: 2,
         stateSha256: 'a'.repeat(64),
         finiteState: true,
@@ -643,7 +643,7 @@ guard='PARTIAL_TRANSFER_ONLY_FOUR_GATES_AND_UNCACHED_REPEAT_CONFIRMED'
 replay='progress("lambda 1 monolithic replay")'
 unavailable='JOB_C_DIAGNOSTIC_PARTIAL_ENDPOINT_UNQUALIFIED'
 print(json.dumps({
-  "targets":namespace["coupled_lambda_targets"](1e-8,6.5e-9),
+  "targets":namespace["coupled_lambda_targets"](1e-8,8.0e-9),
   "guardBeforeReplay":case_source.index(guard)<case_source.index(replay),
   "guardRaisesDiagnosticReason":unavailable in case_source,
   "normalStillIncludesOne":1.0 in namespace["coupled_lambda_targets"](1e-8),
@@ -653,8 +653,8 @@ print(json.dumps({
     "originalJobBGatePassed", "strictPositivityPassed"]),
 }))
 `], { encoding: 'utf8' }));
-    expect(observed.targets[observed.targets.length - 1]).toBe(6.5e-9);
-    expect(Math.max(...observed.targets)).toBe(6.5e-9);
+    expect(observed.targets[observed.targets.length - 1]).toBe(8.0e-9);
+    expect(Math.max(...observed.targets)).toBe(8.0e-9);
     expect(observed.guardBeforeReplay).toBe(true);
     expect(observed.guardRaisesDiagnosticReason).toBe(true);
     expect(observed.normalStillIncludesOne).toBe(true);

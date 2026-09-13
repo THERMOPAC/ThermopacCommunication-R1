@@ -487,7 +487,7 @@ export default function EcrPrePilotDesignStage4Page() {
         throw new Error(message);
       }
       applyJobCJob(payload);
-      toast({ title: "Job C workflow test queued", description: "WORKFLOW TEST ONLY — the server will evaluate one real state at λ = 6.5e-9. Scientific gates remain unchanged; this cannot accept a design." });
+      toast({ title: "Job C workflow test queued", description: "WORKFLOW TEST ONLY — the server will evaluate one real state at λ = 8.000e-9. Scientific gates remain unchanged; this cannot accept a design." });
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : "Job C could not be started.";
       setError(message);
@@ -800,7 +800,7 @@ export default function EcrPrePilotDesignStage4Page() {
             {Object.keys(jobCDownstreamDiagnostic).length > 0 && <section role="status" className="rounded-md border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · {jobCJob?.workflowTestOnly ? "WORKFLOW TEST ONLY" : "temporary partial-transfer diagnostic"}</p>
               <h2 className="mt-1 text-sm font-semibold">{jobCJob?.workflowTestOnly ? "WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN" : "Provisional downstream diagnostic only"}</h2>
-              <p className="mt-1 text-xs font-semibold">WARNING: λ = 6.5e-9 is a partial-transfer endpoint. It is not λ = 1, does not satisfy the recovery criterion, and cannot be accepted as a column design. {jobCJob?.workflowTestOnly ? "Scientific residual failures remain failures; no actual downstream optimization is implied." : ""}</p>
+              <p className="mt-1 text-xs font-semibold">WARNING: λ = {numberValue(read(jobCDownstreamDiagnostic, "partialTransferLambda"))} is a partial-transfer endpoint. It is not λ = 1, does not satisfy the recovery criterion, and cannot be accepted as a column design. {jobCJob?.workflowTestOnly ? "Scientific residual failures remain failures; no actual downstream optimization is implied." : ""}</p>
               <p className="mt-1 text-[10px]">{stringValue(read(jobCDownstreamDiagnostic, "warning", "unavailableReason"))}</p>
               {jobCDownstreamUnavailableReason != null && <p className="mt-1 font-mono text-[10px] text-red-800">Scientific block reason: {stringValue(jobCDownstreamUnavailableReason)}</p>}
               {Object.keys(jobCDownstreamFields).length > 0 ? <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
