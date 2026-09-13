@@ -3005,7 +3005,7 @@ def case(r, name, dc, dd, solvers):
             "gateMetrics":endpoint.get("gateMetrics"),
             "gateDecision":endpoint.get("gateDecision"),
             "stateSha256":endpoint.get("stateSha256"),
-            "qualification":"WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN"},
+            "qualification":"WORKFLOW TEST ONLY - NOT AN ACCEPTED DESIGN"},
           "diagnosticPartialEndpoint":endpoint}
     if partial_diagnostic:
         endpoint=low["homotopyHistory"][-1] if low["homotopyHistory"] else {}

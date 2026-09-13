@@ -25,6 +25,25 @@ import {
 
 const diagnosticReplayScript = 'scripts/replay-job-c-rejection.py';
 
+it('hashes the actual workflow-only qualification identically in Python and JavaScript', () => {
+  const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, hashlib, json
+from pathlib import Path
+tree = ast.parse(Path("server/ecr-pre-pilot/job-c/worker.py").read_text())
+nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+  and n.name in {"native_json_scalar", "canonical", "hashed", "digest"}]
+ns = {"hashlib": hashlib, "json": json}
+exec(compile(ast.Module(body=nodes, type_ignores=[]), "<hash-only>", "exec"), ns)
+labels = [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant)
+  and isinstance(n.value, str) and n.value.startswith("WORKFLOW TEST ONLY")]
+assert labels
+body = {"status": "CALCULATED_WORKFLOW_TEST_ONLY_JOB_C",
+  "labels": labels, "scientificCompleted": False, "lambda": 6.5e-9}
+print(json.dumps({"body": body, "hash": ns["digest"](body)}))
+`], { encoding: 'utf8' }));
+  expect(jobCScientificResultHash(observed.body)).toBe(observed.hash);
+});
+
 it('retains the original worker failure while rejecting invalid response statuses', () => {
   const workerResult = {
     status: 'FAILURE_INVALID_REQUEST',

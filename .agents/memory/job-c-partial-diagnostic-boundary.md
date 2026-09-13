@@ -14,3 +14,9 @@ Workflow-only testing may bypass residual convergence as a display prerequisite,
 **Why:** The user separately authorized testing software completion rather than thermodynamic or sizing validity. Workflow completion and scientific acceptance must remain distinct.
 
 **How to apply:** Enforce elementwise residual finiteness, finite bounded state, strict positivity and calculation errors as hard checks. Label outputs WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN. Preserve legitimate worker blocks rather than misclassifying them as malformed completed responses.
+
+Keep new worker result labels ASCII-safe unless cross-language Unicode hash canonicalization is explicitly versioned and tested.
+
+**Why:** Python's default JSON escapes Unicode while JavaScript emits Unicode literally. An em dash in a result label caused an integrity failure after the real evaluation completed; prior numeric-only hash tests missed it.
+
+**How to apply:** Test actual emitted labels through both hash implementations. UI prose may use Unicode independently. Never bypass hash verification or rewrite historical result hashes.
