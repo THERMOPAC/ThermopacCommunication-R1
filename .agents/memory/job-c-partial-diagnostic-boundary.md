@@ -15,6 +15,12 @@ Workflow-only testing may bypass residual convergence as a display prerequisite,
 
 **How to apply:** Enforce elementwise residual finiteness, finite bounded state, strict positivity and calculation errors as hard checks. Label outputs WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN. Preserve legitimate worker blocks rather than misclassifying them as malformed completed responses.
 
+The user subsequently chose strict diagnostic convergence for the normal diagnostic Run/Restart control, not one-state workflow completion.
+
+**Why:** Queuing a strict job separately while leaving the page button on the workflow-test route caused subsequent user-started jobs to use the wrong mode.
+
+**How to apply:** Keep the button label and endpoint aligned with strict diagnostics. Preserve historical workflow-test results and their labels; do not silently reinterpret them as strict results.
+
 Keep new worker result labels ASCII-safe unless cross-language Unicode hash canonicalization is explicitly versioned and tested.
 
 **Why:** Python's default JSON escapes Unicode while JavaScript emits Unicode literally. An em dash in a result label caused an integrity failure after the real evaluation completed; prior numeric-only hash tests missed it.

@@ -506,8 +506,8 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
 
   it("allows direct Job C submission and renders only the server-returned preliminary result", () => {
     const gatedMarkup = renderWithStates([design, null, null, false, null, null, null, null, null]);
-    expect(visibleText(gatedMarkup)).toContain("Run Job C workflow test");
-    expect(gatedMarkup).not.toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Run Job C workflow test/);
+    expect(visibleText(gatedMarkup)).toContain("Run Job C strict diagnostic");
+    expect(gatedMarkup).not.toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Run Job C strict diagnostic/);
 
     const markup = renderWithStates([
       design,
@@ -668,7 +668,7 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).toContain("Candidate qualification → Height qualification → Exact qualification");
     expect(text).toContain("do not indicate Stage 4 or downstream acceptance");
     expect(text).toContain("last running state is retained and polling will continue");
-    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*Re-run Job C workflow test<\/button>/);
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*Re-run Job C strict diagnostic<\/button>/);
   });
 
   it("uses only the dedicated Job C background-job client contract", () => {
@@ -677,7 +677,9 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
       "utf8",
     );
 
-    expect(source).toContain("/job-c/diagnostic/jobs`");
+    expect(source).toContain("/job-c/diagnostic/strict/jobs`");
+    expect(source).not.toContain("/job-c/diagnostic/jobs`");
+    expect(source).toContain("Job C strict diagnostic queued");
     expect(source).toContain("/job-c/jobs/latest");
     expect(source).toContain("/job-c/physical-sizing/latest");
     expect(source).toContain("await loadPhysicalSizing(designId);");

@@ -839,7 +839,7 @@ export default function EcrPrePilotDesignStage4Page() {
     setJobCDiagnostic(null);
     setJobCPollError(null);
     try {
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-c/diagnostic/jobs`, { method: "POST", credentials: "include" });
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${id}/job-c/diagnostic/strict/jobs`, { method: "POST", credentials: "include" });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         const blockedPayload = object(payload);
@@ -850,7 +850,7 @@ export default function EcrPrePilotDesignStage4Page() {
         throw new Error(message);
       }
       applyJobCJob(payload);
-      toast({ title: "Job C workflow test queued", description: "WORKFLOW TEST ONLY — the server will evaluate one real state at λ = 8.000e-9. Scientific gates remain unchanged; this cannot accept a design." });
+      toast({ title: "Job C strict diagnostic queued", description: "Strict partial-transfer target λ = 8.000e-9. The solver attempts convergence with all scientific gates enforced. An earlier blocker may prevent reaching the target; this cannot accept a column design." });
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : "Job C could not be started.";
       setError(message);
@@ -1031,7 +1031,7 @@ export default function EcrPrePilotDesignStage4Page() {
             <Button type="button" variant="outline" onClick={() => void loadDesign()} disabled={loading || running} className="h-8 gap-1.5 text-xs"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh design</Button>
             <Button type="button" onClick={() => void runEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-cyan-950 text-xs hover:bg-cyan-900"><Play className="h-3.5 w-3.5" />{activeJob === "A" ? "Evaluating Job-A…" : evaluation ? "Re-run Job-A" : "Evaluate Job-A"}</Button>
             <Button type="button" onClick={() => void runJobBEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-indigo-950 text-xs hover:bg-indigo-900"><Play className="h-3.5 w-3.5" />{activeJob === "B" ? "Evaluating Job-B…" : jobBEvaluation ? "Re-run Job-B" : "Test Job-B flux"}</Button>
-            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C workflow test" : hasPriorJobC ? "Re-run Job C workflow test" : "Run Job C workflow test"}</Button>
+            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C strict diagnostic" : hasPriorJobC ? "Re-run Job C strict diagnostic" : "Run Job C strict diagnostic"}</Button>
             {jobCRunning && <Button type="button" variant="destructive" onClick={() => void cancelJobC()} disabled={jobCStopping} className="h-8 gap-1.5 text-xs">{jobCStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}{jobCStopping ? "Stopping" : "Stop"}</Button>}
           </div>
         </header>
