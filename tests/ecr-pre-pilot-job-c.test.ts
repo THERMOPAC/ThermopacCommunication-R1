@@ -16,9 +16,31 @@ import {
 import {
   jobCCheckpointRequestPayload,
   validateJobCCheckpoint,
+  validateJobCWorkerResponseStatus,
 } from '../server/ecr-pre-pilot/job-c-job-service';
 
 const diagnosticReplayScript = 'scripts/replay-job-c-rejection.py';
+
+it('retains the original worker failure while rejecting invalid response statuses', () => {
+  const workerResult = {
+    status: 'FAILURE_INVALID_REQUEST',
+    error: 'setting an array element with a sequence.',
+    resultSha256: 'immutable-worker-evidence',
+  };
+  try {
+    validateJobCWorkerResponseStatus({ status: workerResult.status, workerResult });
+    throw new Error('Expected invalid status to be rejected');
+  } catch (error: any) {
+    expect(error.message).toBe('JOB_C_WORKER_RESPONSE_STATUS_INVALID');
+    expect(error.details.workerStatus).toBe('FAILURE_INVALID_REQUEST');
+    expect(error.details.workerResult).toBe(workerResult);
+    expect(error.details.workerResult.error).toBe(workerResult.error);
+  }
+  for (const status of ['BLOCKED_PRELIMINARY_JOB_C', 'CALCULATED_PRELIMINARY_JOB_C']) {
+    expect(() => validateJobCWorkerResponseStatus({ status })).not.toThrow();
+  }
+});
+
 const diagnosticReplayFiles = [
   'server/ecr-pre-pilot/job-c/worker.py',
   'server/ecr-pre-pilot/job-c/candidate_interface.py',
@@ -2250,6 +2272,12 @@ priority_selection = namespace["coupled_rank_aware_recovery"](
 bounded, bounded_audit = namespace["coupled_bounded_bvls_direction"](
   np, scipy, np.asarray([[1.0]]), np.asarray([-10.0]), np.asarray([0.9]),
   np.asarray([0.1]), np.asarray([1.0]), np.asarray([1.0]))
+for sparse_type in (scipy.sparse.csr_matrix, scipy.sparse.csr_array):
+  sparse_correction, sparse_audit = namespace["coupled_bounded_bvls_direction"](
+    np, scipy, sparse_type([[1.0]]), np.asarray([-10.0]), np.asarray([0.9]),
+    np.asarray([0.1]), np.asarray([1.0]), np.asarray([1.0]))
+  assert np.array_equal(sparse_correction, bounded)
+  assert sparse_audit == bounded_audit
 limiter = namespace["coupled_correction_limiter"](
   np, np.asarray([0.9]), bounded, np.asarray([0.1]), np.asarray([1.0]))
 invalid, invalid_audit = namespace["coupled_bounded_bvls_direction"](
@@ -2296,7 +2324,7 @@ offline = []
 for state in report["states"]:
   audit = captured[state["stateSha256"]]
   correction, audit_result = namespace["coupled_bounded_bvls_direction"](
-    np, scipy, np.asarray(audit["jacobian"]), np.asarray(audit["residual"]),
+    np, scipy, scipy.sparse.csr_matrix(audit["jacobian"]), np.asarray(audit["residual"]),
     np.asarray(audit["state"]), np.asarray(audit["lowerBounds"]),
     np.asarray(audit["upperBounds"]), np.asarray(audit["variableScale"]))
   expected = next(method for method in state["methods"]

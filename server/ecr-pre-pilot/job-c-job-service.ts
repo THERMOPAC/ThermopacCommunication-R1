@@ -28,6 +28,19 @@ type EnqueueReuse = {
 
 const PARTIAL_SCHEMA = 'ECR_JOB_C_PARTIAL_V1';
 
+export function validateJobCWorkerResponseStatus(result: {
+  status: string;
+  workerResult?: Record<string, any>;
+}) {
+  if (result.status !== 'BLOCKED_PRELIMINARY_JOB_C'
+    && result.status !== 'CALCULATED_PRELIMINARY_JOB_C') {
+    throw new JobCError('JOB_C_WORKER_RESPONSE_STATUS_INVALID', {
+      workerStatus: result.status,
+      workerResult: result.workerResult,
+    });
+  }
+}
+
 export function jobCCheckpointRequestPayload(request: Record<string, any>) {
   const pristine = { ...request };
   delete pristine.protocol;
@@ -518,10 +531,8 @@ async function execute(row: any, token: string) {
         if (changed.rows[0].cancel_requested_at) controller.abort();
       },
     });
+    validateJobCWorkerResponseStatus(result);
     const blocked = result.status === 'BLOCKED_PRELIMINARY_JOB_C';
-    if (!blocked && result.status !== 'CALCULATED_PRELIMINARY_JOB_C') {
-      throw new JobCError('JOB_C_WORKER_RESPONSE_STATUS_INVALID', { workerStatus: result.status });
-    }
     const final = await guardedUpdate(row.id, token,
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,
        result_snapshot=CASE WHEN cancel_requested_at IS NULL THEN $4::jsonb ELSE NULL::jsonb END,
@@ -541,7 +552,10 @@ async function execute(row: any, token: string) {
       && error?.message === 'JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE';
     const failureEvidence = error?.details?.workerResult
       ? {
-        qualification: 'WORKER_EVIDENCE_RETAINED_AFTER_CHECKPOINT_FAILURE',
+        qualification: error?.message === 'JOB_C_WORKER_RESPONSE_STATUS_INVALID'
+          ? 'WORKER_EVIDENCE_RETAINED_AFTER_RESPONSE_FAILURE'
+          : 'WORKER_EVIDENCE_RETAINED_AFTER_CHECKPOINT_FAILURE',
+        workerError: error.details.workerResult.error ?? null,
         checkpointError: error?.message ?? 'JOB_C_CHECKPOINT_PERSISTENCE_FAILED',
         checkpointDiagnostics: error?.details?.checkpointDiagnostics ?? null,
         workerResult: error.details.workerResult,

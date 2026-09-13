@@ -1100,7 +1100,8 @@ def coupled_bounded_bvls_direction(np, scipy, matrix, residual, state, lower,
     Ruiz/SVD remains in jacobian_audit as a diagnostic only; it must not
     replace this bounded proposal or decide an admission.
     """
-    jac=np.asarray(matrix,dtype=float)
+    jac=np.asarray(matrix.toarray() if scipy.sparse.issparse(matrix)
+      else matrix,dtype=float)
     fun=np.asarray(residual,dtype=float).reshape(-1)
     values=np.asarray(state,dtype=float).reshape(-1)
     low=np.asarray(lower,dtype=float).reshape(-1)

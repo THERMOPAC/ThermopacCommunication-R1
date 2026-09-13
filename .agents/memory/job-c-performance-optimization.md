@@ -5,6 +5,12 @@ description: Governing sequence and invariants for future Job C runtime optimiza
 
 Profile before optimizing. Report wall-clock fractions for residual assembly, local-interface thermodynamics, Jacobian probes, sparse solve/factorization, and exact gate reevaluations. Optimize only the measured dominant cost.
 
+Offline array replay is not sufficient coverage for production numerical adapters: exercise the live solver's sparse matrix types as well as captured dense arrays.
+
+**Why:** Bound-aware qualification passed on dense captures while the live sparse Jacobian failed at conversion before a correction could be proposed.
+
+**How to apply:** Preserve identical correction results across dense, sparse-matrix, and sparse-array inputs; retain original worker failures as non-accepted diagnostic evidence instead of only a generic status error.
+
 **Why:** Evaluation counts alone do not identify elapsed-time bottlenecks, and speculative optimization could add complexity without improving governed runtime.
 
 **How to apply:** Prioritize analytic FV derivatives, safe parallel execution of the 53 independent finite-difference color groups, and reuse of sparse factorizations or preconditioners where the solver permits. Preserve equations, tolerances, gates, bounds, and λ targets exactly. Never alter the active run while profiling or preparing a later revision.
