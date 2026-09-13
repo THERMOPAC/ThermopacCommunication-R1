@@ -9,6 +9,8 @@ from boundary_interface_qualifier import qualify as qualify_boundary, VERSION as
 sys.dont_write_bytecode = True
 PROTOCOL = "ECR_PRE_PILOT_JOB_C_V1"
 COMPONENTS = ("SAT", "MONO", "DI", "POLY", "PA", "NMP", "H2O")
+STRICT_PARTIAL_DIAGNOSTIC_MODE="TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1"
+WORKFLOW_TEST_ONLY_MODE="TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1"
 
 def native_json_scalar(v):
     if type(v).__module__.split(".")[0]=="numpy" and hasattr(v,"item"):
@@ -370,6 +372,18 @@ def coupled_gate_decision(raw, scaled, interface, minimum):
       "strictPositivityPassed":positivity_pass,
       "accepted":bool(raw_pass and scaled_pass and interface_pass
         and positivity_pass)}
+
+def workflow_residuals_finite(np, evaluation):
+    """Check every assembled 189-equation residual before any max reduction."""
+    return {
+      "finiteFvResiduals":bool(np.all(np.isfinite(evaluation["fv"]))),
+      "finiteInterfaceResiduals":bool(np.all(np.isfinite(
+        evaluation["interface"]))),
+      # values[0] and values[6] explicitly cover local equation and film
+      # residual components in the per-cell diagnostic detail.
+      "finiteDetailResiduals":bool(all(
+        np.all(np.isfinite(values[0])) and np.all(np.isfinite(values[6]))
+        for values in evaluation["details"]))}
 
 def coupled_gate_score(metrics):
     """Rank failed candidates by the unchanged independent gate ratios."""
@@ -1697,12 +1711,15 @@ def case(r, name, dc, dd, solvers):
     m=r["compartments"]; A=math.pi*r["columnDiameterM"]**2/4
     diagnostic_mode=r.get("diagnosticMode")
     partial_diagnostic=(isinstance(diagnostic_mode,dict)
-      and diagnostic_mode.get("mode")==
-        "TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1")
+      and diagnostic_mode.get("mode")==STRICT_PARTIAL_DIAGNOSTIC_MODE)
+    workflow_test_only=(isinstance(diagnostic_mode,dict)
+      and diagnostic_mode.get("mode")==WORKFLOW_TEST_ONLY_MODE)
     diagnostic_terminal_lambda=(
-      float(diagnostic_mode["terminalLambda"]) if partial_diagnostic else None)
+      float(diagnostic_mode["terminalLambda"])
+      if partial_diagnostic or workflow_test_only else None)
     diagnostic_height_trial=(
-      float(diagnostic_mode["heightTrialM"]) if partial_diagnostic else None)
+      float(diagnostic_mode["heightTrialM"])
+      if partial_diagnostic or workflow_test_only else None)
     feedc=[float(x) for x in r["continuousFeedMolS"]]; feedd=[float(x) for x in r["dispersedFeedMolS"]]
     if m<1 or min(sum(feedc),sum(feedd))<=0 or any(len(x)!=7 for x in [feedc,feedd,r["kc"],r["kd"]]):
         raise ValueError("JOB_C_INVALID_GOVERNED_FLOW_INPUT")
@@ -1881,9 +1898,10 @@ def case(r, name, dc, dd, solvers):
     if not profile_interval_probe_lambda>0.0:
         raise JobCBlocked("JOB_C_AXIAL_PROFILE_NO_POSITIVE_CONTINUATION_INTERVAL",
           profile_audit)
-    # The governed scientific route retains its 1e-8 bootstrap.  The isolated
-    # diagnostic route merely stops before it, at the immutable partial target.
-    bootstrap_lambda=1e-8
+    # The governed scientific route retains its 1e-8 bootstrap. The workflow
+    # test seed is constructed at its immutable cap before its uncached
+    # evaluation; this is still only an initializer, never an accepted anchor.
+    bootstrap_lambda=(diagnostic_terminal_lambda if workflow_test_only else 1e-8)
     colored_sparsity_cache={}
 
     def solve_height(h, warm=None):
@@ -2184,7 +2202,10 @@ def case(r, name, dc, dd, solvers):
         # on the evolving inventory seed before the first coupled residual.
         seed_interfaces,_,seed_gate=solve_local_interfaces(
           seed_flows,seed_interface_warm)
-        if seed_gate>1e-7:
+        # For workflow-only execution this is an observed scientific residual
+        # failure, not a calculation error. Normal and strict-diagnostic paths
+        # retain the original hard pre-solve scientific gate.
+        if seed_gate>1e-7 and not workflow_test_only:
             raise JobCBlocked("JOB_C_INITIAL_INTERFACE_RECOMPUTATION_FAILED",
               {"heightM":h,"maximumCandidateGateResidual":seed_gate,
                "physicalInfeasibilityClaimed":False})
@@ -2204,7 +2225,84 @@ def case(r, name, dc, dd, solvers):
              "classification":"PINNED_ENGINE_LINEAGE_ONLY_NO_JOB_B_FLUX_CONSUMED"},
            "qualification":"GLOBAL_INLET_FULL_SCALE_FROZEN_FLUX_DIAGNOSTIC_ONLY;"
              "FLUX_SOURCE=QUALIFIED_JOB_C_BOUNDARY_BRANCH"})
-         # Establish an accepted zero-transfer anchor before introducing any
+        # WORKFLOW TEST ONLY intentionally does not start an accepted anchor,
+        # continuation bracket, optimizer, or lambda-one replay. It evaluates
+        # one actual bounded state using the same uncached 189-equation
+        # evaluator at the immutable cap. Scientific gates remain unchanged
+        # and are reported rather than relaxed or relabelled.
+        if workflow_test_only:
+            workflow_state=np.asarray(x,dtype=float)
+            flows=workflow_state[:14*m]
+            finite_state=bool(np.all(np.isfinite(workflow_state)))
+            flows_strictly_positive=bool(np.all(flows>0.0))
+            within_bounds=bool(np.all(workflow_state>=lower)
+              and np.all(workflow_state<=upper))
+            if not finite_state or not within_bounds or not flows_strictly_positive:
+                raise JobCBlocked(
+                  "JOB_C_WORKFLOW_TEST_ONLY_STATE_PREREQUISITE_FAILED",{
+                    "heightTrialM":h,"terminalLambda":diagnostic_terminal_lambda,
+                    "finiteState":finite_state,"withinOriginalBounds":within_bounds,
+                    "strictPositivityPassed":flows_strictly_positive,
+                    "scientificCompleted":False,
+                    "physicalInfeasibilityClaimed":False})
+            # Do not use raw_evaluate here: this must be an exact uncached
+            # evaluation, not an optimizer cache hit.
+            workflow_ev=exact_raw_evaluate(workflow_state,
+              diagnostic_terminal_lambda)
+            # np.max can return a finite value even when a different element is
+            # NaN. Every one of the 98 FV and 91 interface residual entries is
+            # therefore checked before deriving any gate metric. The detail
+            # arrays duplicate the local interface residual components used by
+            # the assembled interface vector and make that coverage explicit.
+            residual_finiteness=workflow_residuals_finite(np,workflow_ev)
+            if not all(residual_finiteness.values()):
+                raise JobCBlocked(
+                  "JOB_C_WORKFLOW_TEST_ONLY_NONFINITE_RESIDUAL",{
+                    "heightTrialM":h,"terminalLambda":diagnostic_terminal_lambda,
+                    **residual_finiteness,
+                    "scientificCompleted":False,
+                    "physicalInfeasibilityClaimed":False})
+            metrics=gate_metrics(workflow_ev)
+            metric_values=[metrics.get(key) for key in (
+              "rawFvResidualMolS","scaledFvResidual",
+              "maximumOriginalJobBGateResidual","minimumFlowMolS")]
+            if (not all(isinstance(value,(int,float))
+                and not isinstance(value,bool) and math.isfinite(float(value))
+                for value in metric_values)
+                or not metrics["strictPositivityPassed"]):
+                raise JobCBlocked(
+                  "JOB_C_WORKFLOW_TEST_ONLY_STATE_PREREQUISITE_FAILED",{
+                    "heightTrialM":h,"terminalLambda":diagnostic_terminal_lambda,
+                    "finiteState":finite_state,"withinOriginalBounds":within_bounds,
+                    "gateMetrics":metrics,"scientificCompleted":False,
+                    "physicalInfeasibilityClaimed":False})
+            progress("workflow test only exact capped-state evaluation",1,1,
+              height_candidate_m=h,lambda_value=diagnostic_terminal_lambda,
+              gate_metrics=metrics)
+            return {"height":h,"solution":workflow_state.tolist(),
+              "workflowTestEndpoint":{
+                "status":"WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED",
+                "lambda":diagnostic_terminal_lambda,"heightTrialM":h,
+                "stateSha256":digest(workflow_state.tolist()),
+                "finiteState":finite_state,
+                "withinOriginalBounds":within_bounds,
+                "strictPositivityPassed":True,
+                "gateMetrics":metrics,
+                "gateDecision":{key:metrics[key] for key in (
+                  "rawFvGatePassed","scaledFvGatePassed",
+                  "originalJobBGatePassed","strictPositivityPassed","accepted")},
+                "exactUncachedEvaluation":{
+                  "count":1,"status":"EVALUATED_NOT_REPEAT_CONFIRMED",
+                  "allScientificGatesPassed":bool(metrics["accepted"]),
+                  "scientificAccepted":False,
+                  "scientificCompleted":False},
+                "workflowCompletionPermitted":True,
+                "scientificCompleted":False,
+                "scientificAccepted":False,
+                "qualification":
+                  "WORKFLOW_TEST_ONLY_NOT_AN_ACCEPTED_DESIGN"},
+              "homotopyHistory":[]}
+          # Establish an accepted zero-transfer anchor before introducing any
          # homotopic transfer.  The conservative positive profile is only the
          # initializer; all 189 unchanged equations remain active at lambda=0.
          #
@@ -2874,15 +2972,41 @@ def case(r, name, dc, dd, solvers):
     # lambda=0 gate before it can be accepted.
     resume_anchor=find_resume_coupled_anchor(
       _completed_results,2.0,expected_request_sha256=_request_sha256)
-    if partial_diagnostic:
+    if partial_diagnostic or workflow_test_only:
         trial_height=diagnostic_height_trial
-        progress("partial-transfer diagnostic height trial",
+        progress("workflow test only height trial" if workflow_test_only
+          else "partial-transfer diagnostic height trial",
           height_candidate_m=trial_height)
         low=solve_height(trial_height,resume_anchor)
     else:
         trial_height=2.0
         progress("candidate 2m",height_candidate_m=2.0)
         low=solve_height(2.0,resume_anchor)
+    if workflow_test_only:
+        endpoint=low.get("workflowTestEndpoint",{})
+        if (endpoint.get("status")!="WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED"
+            or endpoint.get("lambda")!=diagnostic_terminal_lambda
+            or endpoint.get("heightTrialM")!=trial_height
+            or endpoint.get("finiteState") is not True
+            or endpoint.get("withinOriginalBounds") is not True
+            or endpoint.get("strictPositivityPassed") is not True):
+            raise JobCBlocked("JOB_C_WORKFLOW_TEST_ONLY_STATE_PREREQUISITE_FAILED",{
+              "heightTrialM":trial_height,
+              "terminalLambda":diagnostic_terminal_lambda,
+              "endpoint":endpoint,"scientificCompleted":False,
+              "physicalInfeasibilityClaimed":False})
+        return {"name":name,"status":"CALCULATED_WORKFLOW_TEST_ONLY_PARTIAL_SENSITIVITY",
+          "daxContinuousM2S":dc,"daxDispersedM2S":dd,
+          "selected":{"heightTrialM":trial_height,
+            "partialTransferLambda":diagnostic_terminal_lambda,
+            "criterionSatisfyingDiagnosticHeight":False,
+            "workflowTestOnly":True,"scientificCompleted":False,
+            "scientificAccepted":False,
+            "gateMetrics":endpoint.get("gateMetrics"),
+            "gateDecision":endpoint.get("gateDecision"),
+            "stateSha256":endpoint.get("stateSha256"),
+            "qualification":"WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN"},
+          "diagnosticPartialEndpoint":endpoint}
     if partial_diagnostic:
         endpoint=low["homotopyHistory"][-1] if low["homotopyHistory"] else {}
         required_confirmation=endpoint.get("coupledAttempts",[])
@@ -3167,11 +3291,18 @@ for line in sys.stdin:
     if r.get("protocol")!=PROTOCOL or r.get("operation")!="SOLVE_HEIGHT" or r.get("componentOrder")!=list(COMPONENTS): raise ValueError("JOB_C_PROTOCOL_OR_COMPONENT_ORDER_INVALID")
     validate_branch_request(r)
     diagnostic_mode=r.get("diagnosticMode")
-    if diagnostic_mode is not None and diagnostic_mode != {
-      "mode":"TEMPORARY_PARTIAL_TRANSFER_DIAGNOSTIC_ONLY_V1",
+    strict_diagnostic_config={
+      "mode":STRICT_PARTIAL_DIAGNOSTIC_MODE,
       "terminalLambda":6.5e-9,"heightTrialM":2,
       "normalAcceptancePermitted":False,
-      "qualification":"USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY"}:
+      "qualification":"USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY"}
+    workflow_test_config={
+      "mode":WORKFLOW_TEST_ONLY_MODE,
+      "terminalLambda":6.5e-9,"heightTrialM":2,
+      "normalAcceptancePermitted":False,"workflowTestOnly":True,
+      "qualification":"USER_AUTHORIZED_WORKFLOW_TEST_ONLY_NOT_ACCEPTED_DESIGN"}
+    if diagnostic_mode is not None and diagnostic_mode not in (
+      strict_diagnostic_config,workflow_test_config):
         raise ValueError("JOB_C_DIAGNOSTIC_MODE_INVALID")
     temporary,engine,_,_=job_b.scientific.build_engine(r["temperatureK"],0.0)
     try:
@@ -3185,11 +3316,17 @@ for line in sys.stdin:
     cases=[nominal]+[{"name":x,"status":"NOT_RUN_PENDING_NOMINAL","reason":"SENSITIVITIES_DEFERRED_UNTIL_NOMINAL_VIABLE"} for x in ("CONTINUOUS_LOW","CONTINUOUS_HIGH","DISPERSED_LOW","DISPERSED_HIGH")]
     partial_endpoint=nominal.get("diagnosticPartialEndpoint")
     body={"protocol":PROTOCOL,"status":(
-       "CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C" if diagnostic_mode is not None
+       "CALCULATED_WORKFLOW_TEST_ONLY_JOB_C" if diagnostic_mode is not None
+       and diagnostic_mode.get("mode")==WORKFLOW_TEST_ONLY_MODE
+       and nominal["status"]=="CALCULATED_WORKFLOW_TEST_ONLY_PARTIAL_SENSITIVITY"
+       else "CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C" if diagnostic_mode is not None
        and nominal["status"]=="CALCULATED_DIAGNOSTIC_PARTIAL_SENSITIVITY"
        else "CALCULATED_PRELIMINARY_JOB_C" if nominal["status"].startswith("CALCULATED")
        else "BLOCKED_PRELIMINARY_JOB_C"),"componentOrder":list(COMPONENTS),
-           **({"diagnosticOnly":True,"diagnosticMode":diagnostic_mode,
+            **({"diagnosticOnly":True,
+                "workflowTestOnly":diagnostic_mode.get("mode")==WORKFLOW_TEST_ONLY_MODE,
+                "scientificCompleted":False,
+                "diagnosticMode":diagnostic_mode,
                "diagnosticPartialEndpoint":partial_endpoint}
               if diagnostic_mode is not None else {}),
           "candidateInterfaceImplementation":{"version":CANDIDATE_VERSION,

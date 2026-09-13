@@ -42,6 +42,7 @@ type JobCJob = {
   partialResultHash: string | null;
   diagnostics?: RecordValue | null;
   diagnosticOnly: boolean;
+  workflowTestOnly: boolean;
   error: string | null;
 };
 
@@ -64,8 +65,9 @@ function stringValue(value: unknown, fallback = "—"): string {
 }
 
 function numberValue(value: unknown, digits = 3): string {
+  if (value === undefined || value === null || value === "") return "Unavailable";
   const number = Number(value);
-  return Number.isFinite(number) ? number.toExponential(Math.max(0, digits - 1)) : "—";
+  return Number.isFinite(number) ? number.toExponential(Math.max(0, digits - 1)) : "Unavailable";
 }
 
 function daxValue(value: unknown): string {
@@ -197,6 +199,9 @@ function normalizeJobCJob(value: unknown): JobCJob {
   const queuedResponseBasis = object(read(queuedPrepared, "responseBasis"));
   const diagnosticOnly = Boolean(read(result, "diagnosticOnly")
     ?? read(queuedResponseBasis, "diagnosticMode"));
+  const workflowTestOnly = Boolean(read(payload, "workflowTestOnly")
+    ?? read(result, "workflowTestOnly")
+    ?? read(object(read(queuedResponseBasis, "diagnosticMode")), "workflowTestOnly"));
   return {
     jobId: stringValue(read(payload, "jobId", "id"), ""),
     status,
@@ -237,6 +242,7 @@ function normalizeJobCJob(value: unknown): JobCJob {
       return Object.keys(diagnostics).length ? diagnostics : null;
     })(),
     diagnosticOnly,
+    workflowTestOnly,
     error: read(payload, "error", "message") == null ? null : String(read(payload, "error", "message")),
   };
 }
@@ -481,7 +487,7 @@ export default function EcrPrePilotDesignStage4Page() {
         throw new Error(message);
       }
       applyJobCJob(payload);
-      toast({ title: "Job C diagnostic queued", description: "The server-owned partial-transfer diagnostic will stop at λ = 6.5e-9; it cannot accept a design." });
+      toast({ title: "Job C workflow test queued", description: "WORKFLOW TEST ONLY — the server will evaluate one real state at λ = 6.5e-9. Scientific gates remain unchanged; this cannot accept a design." });
     } catch (cause: unknown) {
       const message = cause instanceof Error ? cause.message : "Job C could not be started.";
       setError(message);
@@ -618,6 +624,7 @@ export default function EcrPrePilotDesignStage4Page() {
   const hasPriorJobC = Boolean(jobCJob || jobCEvaluation || jobCDiagnostic);
   const jobCDownstreamDiagnostic = object(read(jobCDiagnostic ?? {}, "diagnosticDownstreamSizing"));
   const jobCDownstreamFields = object(read(jobCDownstreamDiagnostic, "fields"));
+  const jobCDownstreamUnavailableReason = read(jobCDownstreamDiagnostic, "unavailableReason");
   const jobCDiagnosticDetails = object(read(jobCDiagnostic ?? {}, "details"));
   const jobCScientificDiagnostics = object(read(jobCDiagnostic ?? {}, "scientificDiagnostics", "diagnostics"));
   const nestedJobCCauseDetails = object(
@@ -661,7 +668,7 @@ export default function EcrPrePilotDesignStage4Page() {
             <Button type="button" variant="outline" onClick={() => void loadDesign()} disabled={loading || running} className="h-8 gap-1.5 text-xs"><RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh design</Button>
             <Button type="button" onClick={() => void runEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-cyan-950 text-xs hover:bg-cyan-900"><Play className="h-3.5 w-3.5" />{activeJob === "A" ? "Evaluating Job-A…" : evaluation ? "Re-run Job-A" : "Evaluate Job-A"}</Button>
             <Button type="button" onClick={() => void runJobBEvaluation()} disabled={!design || loading || running} className="h-8 gap-1.5 bg-indigo-950 text-xs hover:bg-indigo-900"><Play className="h-3.5 w-3.5" />{activeJob === "B" ? "Evaluating Job-B…" : jobBEvaluation ? "Re-run Job-B" : "Test Job-B flux"}</Button>
-            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C diagnostic" : hasPriorJobC ? "Re-run Job C diagnostic" : "Run Job C diagnostic"}</Button>
+            <Button type="button" onClick={() => void runJobCEvaluation()} disabled={!design || !canStartJobC || loading || running} className="h-8 gap-1.5 bg-violet-950 text-xs hover:bg-violet-900">{jobCRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}{jobCJob?.status === "cancelled" ? "Restart Job C workflow test" : hasPriorJobC ? "Re-run Job C workflow test" : "Run Job C workflow test"}</Button>
             {jobCRunning && <Button type="button" variant="destructive" onClick={() => void cancelJobC()} disabled={jobCStopping} className="h-8 gap-1.5 text-xs">{jobCStopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}{jobCStopping ? "Stopping" : "Stop"}</Button>}
           </div>
         </header>
@@ -704,8 +711,8 @@ export default function EcrPrePilotDesignStage4Page() {
               </div>
               <div data-testid="job-c-governing-gates" className="mt-3 rounded border border-violet-300 bg-white p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Governing Job C gates</p>
-                  <p className="font-mono text-[10px]">Current candidate: {gateVerdict(jobCJob.progress.accepted)}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">{jobCJob.workflowTestOnly ? "Scientific Job C gates — not relaxed for workflow test" : "Governing Job C gates"}</p>
+                  <p className="font-mono text-[10px]">{jobCJob.workflowTestOnly ? "Scientific gate state (not acceptance)" : "Current candidate"}: {gateVerdict(jobCJob.progress.accepted)}</p>
                 </div>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {[
@@ -729,6 +736,7 @@ export default function EcrPrePilotDesignStage4Page() {
               {jobCJob.progress.heightCandidateM !== null && !jobCJob.scientificCompleted && <p className="mt-2 text-[10px] font-semibold text-violet-900">The height candidate is live calculation telemetry, not an accepted or final result.</p>}
               <p className="mt-2 text-[10px] font-semibold">Candidate qualification → Height qualification → Exact qualification</p>
               <p className="mt-1 text-[10px]">These labels report scientific calculation progress only; they do not indicate Stage 4 or downstream acceptance.</p>
+               {jobCJob.workflowTestOnly && <p className="mt-2 rounded border border-amber-400 bg-amber-50 p-2 text-[10px] font-semibold text-amber-950">WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN. A completed workflow record does not make failed scientific residual gates accepted and does not perform downstream optimization.</p>}
             </section>}
             {jobCJob?.status === "cancelled" && <section role="status" aria-live="polite" className="rounded-md border border-amber-300 bg-amber-50 p-4 text-amber-950">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · interrupted</p>
@@ -790,13 +798,14 @@ export default function EcrPrePilotDesignStage4Page() {
               <div className="-mx-4 -mb-4 mt-4 text-slate-900"><JobBStateAudit inputAudit={failedJobBInputAudit} /></div>
             </section>}
             {Object.keys(jobCDownstreamDiagnostic).length > 0 && <section role="status" className="rounded-md border-2 border-amber-400 bg-amber-50 p-4 text-amber-950">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · temporary partial-transfer diagnostic</p>
-              <h2 className="mt-1 text-sm font-semibold">Provisional downstream diagnostic only</h2>
-              <p className="mt-1 text-xs font-semibold">WARNING: λ = 6.5e-9 is a partial-transfer endpoint. It is not λ = 1, does not satisfy the recovery criterion, and cannot be accepted as a column design.</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em]">Job C · {jobCJob?.workflowTestOnly ? "WORKFLOW TEST ONLY" : "temporary partial-transfer diagnostic"}</p>
+              <h2 className="mt-1 text-sm font-semibold">{jobCJob?.workflowTestOnly ? "WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN" : "Provisional downstream diagnostic only"}</h2>
+              <p className="mt-1 text-xs font-semibold">WARNING: λ = 6.5e-9 is a partial-transfer endpoint. It is not λ = 1, does not satisfy the recovery criterion, and cannot be accepted as a column design. {jobCJob?.workflowTestOnly ? "Scientific residual failures remain failures; no actual downstream optimization is implied." : ""}</p>
               <p className="mt-1 text-[10px]">{stringValue(read(jobCDownstreamDiagnostic, "warning", "unavailableReason"))}</p>
+              {jobCDownstreamUnavailableReason != null && <p className="mt-1 font-mono text-[10px] text-red-800">Scientific block reason: {stringValue(jobCDownstreamUnavailableReason)}</p>}
               {Object.keys(jobCDownstreamFields).length > 0 ? <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  ["d32 [m]", "d32M"], ["Holdup", "holdup"], ["Flooding holdup", "flooding"],
+                  ["d32 [m] (frozen Stage-3 input)", "d32M"], ["Holdup (frozen Stage-3 input)", "holdup"], ["Flooding holdup (frozen Stage-3 input)", "flooding"],
                   ["RPM (frozen input; not optimized)", "rpm"], ["Diameter [m] (frozen input; not optimized)", "diameterM"],
                   ["Height trial [m]; not criterion-satisfying", "heightM"], ["Compartments (numerical FV)", "compartments"],
                 ].map(([label, key]) => {
@@ -804,7 +813,9 @@ export default function EcrPrePilotDesignStage4Page() {
                   return <div key={key} className="rounded border border-amber-300 bg-white p-2">
                     <p className="text-[9px] font-semibold text-slate-600">{label}</p>
                     <p className="mt-1 font-mono text-[10px]">{numberValue(read(field, "value"))}</p>
-                    <p className="mt-1 break-words text-[9px] text-slate-600">{stringValue(read(field, "provenance", "unavailableReason"))}</p>
+                    {read(field, "unavailableReason") != null
+                      ? <p className="mt-1 break-words text-[9px] text-amber-800">Unavailable: {stringValue(read(field, "unavailableReason"))}</p>
+                      : <p className="mt-1 break-words text-[9px] text-slate-600">{stringValue(read(field, "provenance"))}</p>}
                   </div>;
                 })}
               </div> : <p className="mt-3 text-xs font-semibold">Unavailable — endpoint failure retains worker diagnostics; no downstream values were derived.</p>}

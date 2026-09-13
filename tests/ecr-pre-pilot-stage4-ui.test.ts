@@ -374,8 +374,8 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
 
   it("allows direct Job C submission and renders only the server-returned preliminary result", () => {
     const gatedMarkup = renderWithStates([design, null, null, false, null, null, null, null, null]);
-    expect(visibleText(gatedMarkup)).toContain("Start Job C");
-    expect(gatedMarkup).not.toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Start Job C/);
+    expect(visibleText(gatedMarkup)).toContain("Run Job C workflow test");
+    expect(gatedMarkup).not.toMatch(/<button[^>]*disabled=""[^>]*>[^<]*(?:<span[^>]*><\/span>)?Run Job C workflow test/);
 
     const markup = renderWithStates([
       design,
@@ -536,7 +536,7 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(text).toContain("Candidate qualification → Height qualification → Exact qualification");
     expect(text).toContain("do not indicate Stage 4 or downstream acceptance");
     expect(text).toContain("last running state is retained and polling will continue");
-    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*Re-run Job C<\/button>/);
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*Re-run Job C workflow test<\/button>/);
   });
 
   it("uses only the dedicated Job C background-job client contract", () => {
@@ -545,7 +545,7 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
       "utf8",
     );
 
-    expect(source).toContain("/job-c/jobs`");
+    expect(source).toContain("/job-c/diagnostic/jobs`");
     expect(source).toContain("/job-c/jobs/latest");
     expect(source).toContain("/job-c/jobs/${jobCJob.jobId}");
     expect(source).toContain("/job-c/jobs/${jobCJob.jobId}/cancel");
@@ -553,6 +553,45 @@ describe("ECR pre-pilot Stage 4 server-rendered UI regressions", () => {
     expect(source).toContain('read(payload, "result_snapshot", "result")');
     expect(source).not.toContain("/job-c/evaluate");
     expect(source).not.toMatch(/job-c\/jobs`,\s*\{[^}]*body:/s);
+  });
+
+  it("renders workflow-only frozen inputs without converting unavailable flooding to zero", () => {
+    const workflowResult = {
+      diagnosticDownstreamSizing: {
+        status: "WORKFLOW_TEST_ONLY_NOT_ACCEPTED_DESIGN",
+        workflowTestOnly: true,
+        warning: "WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN.",
+        fields: {
+          d32M: { value: 0.0012, provenance: "FROZEN_STAGE3_SELECTED_TRIAL_D32_INPUT" },
+          holdup: { value: 0.16, provenance: "FROZEN_STAGE3_SELECTED_TRIAL_OPERATING_HOLDUP_INPUT" },
+          flooding: {
+            value: null,
+            provenance: "FROZEN_STAGE3_SELECTED_TRIAL_FLOOD_HOLDUP",
+            unavailableReason: "STAGE3_SELECTED_TRIAL_HAS_NO_SUPPORTED_FLOOD_HOLDUP_CALCULATION",
+          },
+          rpm: { value: 300, provenance: "FROZEN_STAGE3_SELECTED_TRIAL_INPUT_NOT_OPTIMIZED" },
+          diameterM: { value: 0.2, provenance: "FROZEN_STAGE3_SELECTED_TRIAL_INPUT_NOT_OPTIMIZED" },
+          heightM: { value: 2, provenance: "WORKFLOW_TEST_ONLY_FIXED_HEIGHT_TRIAL_NOT_RECOVERY_CRITERION_SATISFYING" },
+          compartments: { value: 7, provenance: "FIXED_JOB_C_NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT" },
+        },
+      },
+    };
+    const markup = renderWithStates([
+      design, null, null, false, null, null, null, null, workflowResult,
+      {
+        jobId: "workflow-test-47", status: "completed", workflowTestOnly: true,
+        diagnosticOnly: true, scientificCompleted: false, progress: {}, result: workflowResult,
+        error: null,
+      },
+      null, false, false,
+    ]);
+    const text = visibleText(markup);
+    expect(text).toContain("WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN");
+    expect(text).toContain("d32 [m] (frozen Stage-3 input)");
+    expect(text).toContain("Holdup (frozen Stage-3 input)");
+    expect(text).toContain("Flooding holdup (frozen Stage-3 input)");
+    expect(text).toContain("Unavailable: STAGE3_SELECTED_TRIAL_HAS_NO_SUPPORTED_FLOOD_HOLDUP_CALCULATION");
+    expect(text).not.toContain("Flooding holdup (frozen Stage-3 input) 0.00e+0");
   });
 
   it("renders server-owned Job C branch-continuation diagnostics without reconstruction", () => {

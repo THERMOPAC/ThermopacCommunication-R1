@@ -11,6 +11,9 @@ import {
   jobCScientificResultHash,
   type JobCProgress,
   JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+  JOB_C_WORKFLOW_TEST_ONLY_MODE,
+  validateJobCWorkflowTestOnlyWorkerResponse,
+  workflowTestOnlyCompletionClaimed,
 } from './job-c';
 import { validateStage1Snapshot } from './stage1';
 
@@ -35,7 +38,8 @@ export function validateJobCWorkerResponseStatus(result: {
 }) {
   if (result.status !== 'BLOCKED_PRELIMINARY_JOB_C'
     && result.status !== 'CALCULATED_PRELIMINARY_JOB_C'
-    && result.status !== 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C') {
+    && result.status !== 'CALCULATED_DIAGNOSTIC_PARTIAL_JOB_C'
+    && result.status !== 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C') {
     throw new JobCError('JOB_C_WORKER_RESPONSE_STATUS_INVALID', {
       workerStatus: result.status,
       workerResult: result.workerResult,
@@ -100,8 +104,10 @@ function publicJob(row: any, reuse?: EnqueueReuse) {
   const liveElapsed = row.status === 'running' && row.started_at
     ? Math.max(0, (Date.now() - new Date(row.started_at).getTime()) / 1_000)
     : Number.NaN;
-  const diagnosticOnly = row.input_snapshot?.prepared?.responseBasis
-    ?.diagnosticMode?.mode === JOB_C_TEMPORARY_DIAGNOSTIC_MODE.mode;
+  const diagnosticMode = row.input_snapshot?.prepared?.responseBasis?.diagnosticMode;
+  const diagnosticOnly = diagnosticMode?.mode === JOB_C_TEMPORARY_DIAGNOSTIC_MODE.mode
+    || diagnosticMode?.mode === JOB_C_WORKFLOW_TEST_ONLY_MODE.mode;
+  const workflowTestOnly = diagnosticMode?.mode === JOB_C_WORKFLOW_TEST_ONLY_MODE.mode;
   return {
     id: row.id,
     designId: Number(row.design_id),
@@ -128,6 +134,7 @@ function publicJob(row: any, reuse?: EnqueueReuse) {
     scientificCompleted: !diagnosticOnly
       && (row.status === 'completed' || row.status === 'blocked'),
     diagnosticOnly,
+    workflowTestOnly,
     error: row.error,
     attemptCount: Number(row.attempt_count),
     cancelRequestedAt: row.cancel_requested_at?.toISOString?.() ?? row.cancel_requested_at ?? null,
@@ -157,11 +164,12 @@ async function history(client: any, row: any, details: Record<string, unknown>) 
 export async function enqueueJobC(
   userId: number,
   designId: number,
-  options: { diagnosticOnly?: boolean } = {},
+  options: { diagnosticOnly?: boolean; workflowTestOnly?: boolean } = {},
 ) {
   // This is the only mutable-state read used to construct the job. The entire
   // server-derived request and its audit/lineage are persisted before returning.
-  const diagnosticMode = options.diagnosticOnly ? JOB_C_TEMPORARY_DIAGNOSTIC_MODE : null;
+  const diagnosticMode = options.workflowTestOnly ? JOB_C_WORKFLOW_TEST_ONLY_MODE
+    : options.diagnosticOnly ? JOB_C_TEMPORARY_DIAGNOSTIC_MODE : null;
   const prepared = await prepareEcrPrePilotJobC(userId, designId, diagnosticMode);
   const snapshot = {
     schemaVersion: 'ECR_PRE_PILOT_JOB_C_QUEUE_SNAPSHOT_V1',
@@ -477,8 +485,11 @@ async function execute(row: any, token: string) {
         Number(row.created_by),
         Number(row.design_id),
         snapshot?.prepared?.responseBasis?.diagnosticMode?.mode
-          === JOB_C_TEMPORARY_DIAGNOSTIC_MODE.mode
-          ? JOB_C_TEMPORARY_DIAGNOSTIC_MODE : null,
+          === JOB_C_WORKFLOW_TEST_ONLY_MODE.mode
+          ? JOB_C_WORKFLOW_TEST_ONLY_MODE
+          : snapshot?.prepared?.responseBasis?.diagnosticMode?.mode
+            === JOB_C_TEMPORARY_DIAGNOSTIC_MODE.mode
+            ? JOB_C_TEMPORARY_DIAGNOSTIC_MODE : null,
       );
     } catch (error: any) {
       throw new JobCError('JOB_C_DEPENDENCY_BLOCKED:STALE_OR_INVALID_LINEAGE', {
@@ -546,6 +557,28 @@ async function execute(row: any, token: string) {
       },
     });
     validateJobCWorkerResponseStatus(result);
+    const expectsWorkflowTestOnly = snapshot?.prepared?.responseBasis?.diagnosticMode?.mode
+      === JOB_C_WORKFLOW_TEST_ONLY_MODE.mode;
+    if (expectsWorkflowTestOnly) {
+      try {
+        if (workflowTestOnlyCompletionClaimed(result.status)) {
+          validateJobCWorkflowTestOnlyWorkerResponse(result.workerResult);
+        }
+      } catch (error: any) {
+        if (error instanceof JobCError) {
+          throw new JobCError(error.message, {
+            ...error.details,
+            workerResult: result.workerResult,
+          });
+        }
+        throw error;
+      }
+    } else if (result.status === 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C') {
+      throw new JobCError('JOB_C_WORKFLOW_TEST_ONLY_RESPONSE_INVALID', {
+        failures: ['UNEXPECTED_WORKFLOW_TEST_ONLY_RESPONSE'],
+        workerResult: result.workerResult,
+      });
+    }
     const blocked = result.status === 'BLOCKED_PRELIMINARY_JOB_C';
     const final = await guardedUpdate(row.id, token,
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,

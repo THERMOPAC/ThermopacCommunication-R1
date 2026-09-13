@@ -43,9 +43,12 @@ import {
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
   JobCError,
   JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+  JOB_C_WORKFLOW_TEST_ONLY_MODE,
   currentJobCArtifactHashes,
   jobCResultHash,
   runJobCWorker,
+  validateJobCWorkflowTestOnlyWorkerResponse,
+  workflowTestOnlyCompletionClaimed,
 } from "./ecr-pre-pilot/job-c";
 
 const COUNTER_ROW_ID = 1;
@@ -724,7 +727,8 @@ export function prepareJobCAxialLocalContactProfile(
 export async function prepareEcrPrePilotJobC(
   userId: number,
   designId: number,
-  diagnosticMode: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE | null = null,
+  diagnosticMode: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE
+    | typeof JOB_C_WORKFLOW_TEST_ONLY_MODE | null = null,
 ) {
   const jobCArtifacts = currentJobCArtifactHashes();
   const jobA = await evaluateEcrPrePilotJobA(userId, designId);
@@ -1109,8 +1113,61 @@ export async function executePreparedEcrPrePilotJobC(
   const workerResult = await runJobCWorker(prepared.workerRequest, options);
   const diagnosticMode = (prepared.responseBasis as any).diagnosticMode;
   const endpoint = workerResult?.diagnosticPartialEndpoint;
+  const workflowTestOnly = diagnosticMode?.mode === JOB_C_WORKFLOW_TEST_ONLY_MODE.mode;
+  if (workflowTestOnly) {
+    try {
+      if (workflowTestOnlyCompletionClaimed(workerResult?.status)) {
+        validateJobCWorkflowTestOnlyWorkerResponse(workerResult);
+      }
+    } catch (error: any) {
+      if (error instanceof JobCError) {
+        throw new JobCError(error.message, {
+          ...error.details,
+          workerResult,
+        });
+      }
+      throw error;
+    }
+  } else if (workerResult?.status === 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C') {
+    throw new JobCError('JOB_C_WORKFLOW_TEST_ONLY_RESPONSE_INVALID', {
+      failures: ['UNEXPECTED_WORKFLOW_TEST_ONLY_RESPONSE'],
+      workerResult,
+    });
+  }
   const diagnosticDownstreamSizing = diagnosticMode
-    ? endpoint?.status === 'QUALIFIED_PARTIAL_TRANSFER_ENDPOINT'
+    ? workflowTestOnly
+      ? endpoint?.status === 'WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED'
+        ? {
+          status: 'WORKFLOW_TEST_ONLY_NOT_ACCEPTED_DESIGN',
+          warning: 'WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN. One finite, bounded, strictly positive real state was evaluated at the capped partial-transfer lambda. Scientific residual gates are reported unchanged and may fail; no downstream optimization was performed.',
+          partialTransferLambda: endpoint.lambda,
+          criterionSatisfyingDiagnosticHeight: false,
+          scientificCompleted: false,
+          scientificAccepted: false,
+          workflowTestOnly: true,
+          fields: {
+            d32M: { value: prepared.workerRequest.d32M, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_D32_INPUT' },
+            holdup: { value: prepared.workerRequest.operatingHoldup, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_OPERATING_HOLDUP_INPUT' },
+            flooding: { value: (prepared.responseBasis as any).selectedStage3State?.floodHoldup ?? null,
+              provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_FLOOD_HOLDUP',
+              unavailableReason: (prepared.responseBasis as any).selectedStage3State?.floodHoldup == null
+                ? 'STAGE3_SELECTED_TRIAL_HAS_NO_SUPPORTED_FLOOD_HOLDUP_CALCULATION' : null },
+            rpm: { value: prepared.workerRequest.rpm, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_INPUT_NOT_OPTIMIZED' },
+            diameterM: { value: prepared.workerRequest.columnDiameterM, provenance: 'FROZEN_STAGE3_SELECTED_TRIAL_INPUT_NOT_OPTIMIZED' },
+            heightM: { value: endpoint.heightTrialM, provenance: 'WORKFLOW_TEST_ONLY_FIXED_HEIGHT_TRIAL_NOT_RECOVERY_CRITERION_SATISFYING' },
+            compartments: { value: prepared.workerRequest.compartments, provenance: 'FIXED_JOB_C_NUMERICAL_FV_DISCRETIZATION_NOT_PHYSICAL_STAGE_COUNT' },
+          },
+          scientificGateDecision: endpoint.gateDecision,
+          stateSha256: endpoint.stateSha256,
+        }
+        : {
+          status: 'UNAVAILABLE_WORKFLOW_TEST_PREREQUISITES_NOT_MET',
+          warning: 'WORKFLOW TEST ONLY did not produce a finite, bounded, strictly positive real state. No downstream values are reported.',
+          unavailableReason: workerResult?.error ?? 'WORKFLOW_TEST_ONLY_STATE_NOT_AVAILABLE',
+          scientificCompleted: false,
+          workflowTestOnly: true,
+        }
+      : endpoint?.status === 'QUALIFIED_PARTIAL_TRANSFER_ENDPOINT'
       ? {
         status: 'PROVISIONAL_DIAGNOSTIC_PARTIAL_TRANSFER',
         warning: 'Partial-transfer diagnostic only. This is a height trial, not a criterion-satisfying height or an accepted design.',

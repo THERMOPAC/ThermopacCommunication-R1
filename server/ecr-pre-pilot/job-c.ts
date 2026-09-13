@@ -6,7 +6,7 @@ import path from 'node:path';
 export const JOB_C_PROTOCOL = 'ECR_PRE_PILOT_JOB_C_V1' as const;
 export const JOB_C_COMPONENT_ORDER = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'] as const;
 /**
- * The only authorized partial-transfer route.  This is deliberately a
+ * The strict partial-transfer diagnostic route. This is deliberately a
  * server-owned constant rather than a request-body option: it is copied into
  * each queued worker request and therefore becomes part of immutable lineage.
  */
@@ -16,6 +16,19 @@ export const JOB_C_TEMPORARY_DIAGNOSTIC_MODE = Object.freeze({
   heightTrialM: 2,
   normalAcceptancePermitted: false,
   qualification: 'USER_AUTHORIZED_TEMPORARY_DIAGNOSTIC_ONLY',
+});
+/**
+ * A separate, server-owned permission for exercising the queued/display
+ * workflow with one real, bounded 189-equation state.  It does not alter the
+ * older four-gate diagnostic mode above or the ordinary lambda=1 route.
+ */
+export const JOB_C_WORKFLOW_TEST_ONLY_MODE = Object.freeze({
+  mode: 'TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1',
+  terminalLambda: 6.5e-9,
+  heightTrialM: 2,
+  normalAcceptancePermitted: false,
+  workflowTestOnly: true,
+  qualification: 'USER_AUTHORIZED_WORKFLOW_TEST_ONLY_NOT_ACCEPTED_DESIGN',
 });
 export const JOB_C_PRELIMINARY_SENSITIVITY_BASIS = Object.freeze({
   authorization: 'USER_AUTHORIZED_PROJECT_CONTROLLED_PRELIMINARY_SENSITIVITY_BASIS',
@@ -78,6 +91,82 @@ export class JobCError extends Error {
   }
 }
 
+const workflowFiniteNumber = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value);
+
+/**
+ * Fail closed if a worker merely claims a workflow-only completion. This
+ * validates reporting integrity only; it never relaxes a scientific gate.
+ */
+export function validateJobCWorkflowTestOnlyWorkerResponse(response: Record<string, any>) {
+  const endpoint = response?.diagnosticPartialEndpoint;
+  const metrics = endpoint?.gateMetrics;
+  const decision = endpoint?.gateDecision;
+  const expectedMode = JOB_C_WORKFLOW_TEST_ONLY_MODE;
+  const raw = metrics?.rawFvResidualMolS;
+  const scaled = metrics?.scaledFvResidual;
+  const interfaceResidual = metrics?.maximumOriginalJobBGateResidual;
+  const minimum = metrics?.minimumFlowMolS;
+  const finiteMetrics = [raw, scaled, interfaceResidual, minimum].every(workflowFiniteNumber);
+  const expectedDecision = finiteMetrics ? {
+    rawFvGatePassed: raw <= 1e-7,
+    scaledFvGatePassed: scaled <= 1e-7,
+    originalJobBGatePassed: interfaceResidual <= 1e-7,
+    strictPositivityPassed: minimum > 0,
+  } : null;
+  const decisionConsistent = expectedDecision != null
+    && Object.entries(expectedDecision).every(([key, value]) => decision?.[key] === value
+      && metrics?.[key] === value)
+    && decision?.accepted === Object.values(expectedDecision).every(Boolean)
+    && metrics?.accepted === decision?.accepted;
+  const failures = [
+    response?.status === 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C' ? null : 'WORKFLOW_STATUS',
+    response?.workflowTestOnly === true ? null : 'WORKFLOW_FLAG',
+    response?.diagnosticOnly === true ? null : 'DIAGNOSTIC_FLAG',
+    response?.scientificCompleted === false ? null : 'SCIENTIFIC_COMPLETED',
+    response?.diagnosticMode?.mode === expectedMode.mode ? null : 'MODE',
+    response?.diagnosticMode?.terminalLambda === expectedMode.terminalLambda ? null : 'TERMINAL_LAMBDA',
+    response?.diagnosticMode?.heightTrialM === expectedMode.heightTrialM ? null : 'HEIGHT_TRIAL',
+    response?.diagnosticMode?.workflowTestOnly === true ? null : 'MODE_WORKFLOW_FLAG',
+    endpoint?.status === 'WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED' ? null : 'ENDPOINT_STATUS',
+    endpoint?.lambda === expectedMode.terminalLambda ? null : 'ENDPOINT_LAMBDA',
+    endpoint?.heightTrialM === expectedMode.heightTrialM ? null : 'ENDPOINT_HEIGHT',
+    endpoint?.finiteState === true ? null : 'FINITE_STATE',
+    endpoint?.withinOriginalBounds === true ? null : 'ORIGINAL_BOUNDS',
+    endpoint?.strictPositivityPassed === true ? null : 'STRICT_POSITIVITY',
+    endpoint?.scientificCompleted === false ? null : 'ENDPOINT_SCIENTIFIC_COMPLETED',
+    endpoint?.scientificAccepted === false ? null : 'ENDPOINT_SCIENTIFIC_ACCEPTED',
+    endpoint?.workflowCompletionPermitted === true ? null : 'WORKFLOW_PERMISSION',
+    /^[a-f0-9]{64}$/.test(endpoint?.stateSha256 ?? '') ? null : 'STATE_HASH',
+    finiteMetrics ? null : 'FINITE_GATE_METRICS',
+    decisionConsistent ? null : 'GATE_DECISION_CONSISTENCY',
+    endpoint?.exactUncachedEvaluation?.count === 1 ? null : 'EXACT_UNCACHED_EVALUATION',
+    endpoint?.exactUncachedEvaluation?.status === 'EVALUATED_NOT_REPEAT_CONFIRMED'
+      ? null : 'EXACT_EVALUATION_STATUS',
+    endpoint?.exactUncachedEvaluation?.allScientificGatesPassed === metrics?.accepted
+      ? null : 'EVALUATION_GATE_DECISION_CONSISTENCY',
+    endpoint?.exactUncachedEvaluation?.scientificCompleted === false
+      ? null : 'EVALUATION_SCIENTIFIC_COMPLETED',
+    endpoint?.exactUncachedEvaluation?.scientificAccepted === false
+      ? null : 'EVALUATION_SCIENTIFIC_ACCEPTED',
+  ].filter(Boolean);
+  if (failures.length) {
+    throw new JobCError('JOB_C_WORKFLOW_TEST_ONLY_RESPONSE_INVALID', {
+      failures, workerResult: response,
+    });
+  }
+}
+
+/** Returns true only for a claimed workflow completion; scientific blocks pass through intact. */
+export function workflowTestOnlyCompletionClaimed(status: unknown): boolean {
+  if (status === 'BLOCKED_PRELIMINARY_JOB_C') return false;
+  if (status === 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C') return true;
+  throw new JobCError('JOB_C_WORKFLOW_TEST_ONLY_RESPONSE_INVALID', {
+    failures: ['WORKFLOW_MODE_STATUS_MISMATCH'],
+    workerStatus: status,
+  });
+}
+
 export interface JobCProgress {
   phase: string;
   completed?: number;
@@ -131,7 +220,8 @@ export interface JobCWorkerRequest extends Record<string, unknown> {
     stage2ResultSnapshotHash: string;
   };
   axialLocalContactProfileSha256: string;
-  diagnosticMode?: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE;
+  diagnosticMode?: typeof JOB_C_TEMPORARY_DIAGNOSTIC_MODE
+    | typeof JOB_C_WORKFLOW_TEST_ONLY_MODE;
 }
 
 export async function runJobCWorker(request: JobCWorkerRequest, options: {

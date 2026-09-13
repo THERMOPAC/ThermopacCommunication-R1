@@ -8,3 +8,9 @@ Partial-transfer endpoint tests may expose provisional frozen hydraulic inputs a
 **Why:** The user authorized a temporary small-lambda test to investigate numerical execution while explicitly preserving all physical equations and acceptance gates. A small-lambda closure cannot establish full-transfer performance.
 
 **How to apply:** Keep the diagnostic request immutable and separate from normal full-transfer acceptance. Clearly distinguish upstream d32/holdup/flooding and input RPM/diameter from a height trial and numerical FV compartments. A qualified partial endpoint is not a scientific-complete design. The user starts every Job C run.
+
+Workflow-only testing may bypass residual convergence as a display prerequisite, but never change or hide the original scientific gate verdicts.
+
+**Why:** The user separately authorized testing software completion rather than thermodynamic or sizing validity. Workflow completion and scientific acceptance must remain distinct.
+
+**How to apply:** Enforce elementwise residual finiteness, finite bounded state, strict positivity and calculation errors as hard checks. Label outputs WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN. Preserve legitimate worker blocks rather than misclassifying them as malformed completed responses.

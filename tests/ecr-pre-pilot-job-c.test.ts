@@ -10,9 +10,12 @@ import {
   JOB_C_COMPONENT_ORDER,
   JOB_C_PRELIMINARY_SENSITIVITY_BASIS,
   JOB_C_TEMPORARY_DIAGNOSTIC_MODE,
+  JOB_C_WORKFLOW_TEST_ONLY_MODE,
   jobCResultHash,
   jobCScientificResultHash,
   runJobCWorker,
+  validateJobCWorkflowTestOnlyWorkerResponse,
+  workflowTestOnlyCompletionClaimed,
 } from '../server/ecr-pre-pilot/job-c';
 import {
   jobCCheckpointRequestPayload,
@@ -414,6 +417,194 @@ sys.stdout.flush()
     expect(page).toContain('Provisional downstream diagnostic only');
     expect(page).toContain('partial-transfer endpoint');
     expect(page).toContain('not optimized');
+  });
+
+  it('permits only residual-gate failure in the frozen workflow-test path', () => {
+    const worker = readFileSync('server/ecr-pre-pilot/job-c/worker.py', 'utf8');
+    const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
+    const queue = readFileSync('server/ecr-pre-pilot/job-c-job-service.ts', 'utf8');
+    const route = readFileSync('server/ecr-pre-pilot/routes.ts', 'utf8');
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json
+from pathlib import Path
+source=Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree=ast.parse(source)
+case=next(node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name=="case")
+body=ast.get_source_segment(source,case)
+workflow=body[body.index("if workflow_test_only:"):body.index("lambda_targets=coupled_lambda_targets")]
+print(json.dumps({
+  "exactCap": "exact_raw_evaluate(workflow_state," in workflow,
+  "noAnchorOrBracket": "record_completed_result(" not in workflow and "active_bracket" not in workflow,
+  "hardFinite": "not finite_state" in workflow,
+  "hardBounds": "not within_bounds" in workflow,
+  "hardPositive": "not flows_strictly_positive" in workflow,
+  "residualsReported": all(token in workflow for token in [
+    "rawFvResidualMolS", "scaledFvResidual",
+    "maximumOriginalJobBGateResidual", "gateDecision"]),
+  "notScientific": all(token in workflow for token in [
+    '"scientificCompleted":False', '"scientificAccepted":False',
+    "EVALUATED_NOT_REPEAT_CONFIRMED"]),
+  "stateHashReported": '"stateSha256":digest(workflow_state.tolist())' in workflow,
+  "optimizerSkipped": "least_squares" not in workflow,
+  "strictPathRetained": "FOUR_UNCHANGED_GATES_AND_TWO_UNCACHED_REPEAT_CONFIRMATIONS" in body,
+  "normalReplayRetained": 'progress("lambda 1 monolithic replay")' in body,
+}))
+`], { encoding: 'utf8' }));
+    expect(JOB_C_WORKFLOW_TEST_ONLY_MODE).toEqual({
+      mode: 'TEMPORARY_PARTIAL_TRANSFER_WORKFLOW_TEST_ONLY_V1',
+      terminalLambda: 6.5e-9,
+      heightTrialM: 2,
+      normalAcceptancePermitted: false,
+      workflowTestOnly: true,
+      qualification: 'USER_AUTHORIZED_WORKFLOW_TEST_ONLY_NOT_ACCEPTED_DESIGN',
+    });
+    expect(observed).toEqual({
+      exactCap: true, noAnchorOrBracket: true, hardFinite: true,
+      hardBounds: true, hardPositive: true, residualsReported: true,
+      notScientific: true, stateHashReported: true, optimizerSkipped: true, strictPathRetained: true,
+      normalReplayRetained: true,
+    });
+    // Stub a residual-failing yet finite/bounded/positive response: workflow
+    // completion is a permitted transport status, never a scientific result.
+    expect(() => validateJobCWorkerResponseStatus({
+      status: 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C',
+      workerResult: {
+        workflowTestOnly: true, scientificCompleted: false,
+        diagnosticPartialEndpoint: {
+          lambda: 6.5e-9, heightTrialM: 2,
+          gateDecision: { rawFvGatePassed: false, accepted: false },
+        },
+      },
+    })).not.toThrow();
+    expect(service).toContain('WORKFLOW TEST ONLY — NOT AN ACCEPTED DESIGN');
+    expect(service).toContain('scientificCompleted: false');
+    expect(queue).toContain('workflowTestOnly');
+    expect(route).toContain('workflowTestOnly: true');
+    expect(worker).toContain('body["resultSha256"]=digest(');
+    expect(route).toContain("'/api/ecr-pre-pilot/designs/:id/job-c/diagnostic/strict/jobs'");
+    // The normal and strict modes continue to use their unchanged identities.
+    expect(worker).toContain('STRICT_PARTIAL_DIAGNOSTIC_MODE');
+    expect(worker).toContain('WORKFLOW_TEST_ONLY_MODE');
+  });
+
+  it('fails closed for non-finite residual elements and preserves calculation errors', () => {
+    const observed = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json
+import numpy as np
+from pathlib import Path
+source=Path("server/ecr-pre-pilot/job-c/worker.py").read_text()
+tree=ast.parse(source)
+fn=next(node for node in tree.body
+  if isinstance(node,ast.FunctionDef) and node.name=="workflow_residuals_finite")
+ns={}
+exec(compile(ast.Module(body=[fn],type_ignores=[]),"workflow-finiteness","exec"),ns)
+def evaluation(fv, interface, detail):
+  return {"fv":np.asarray(fv), "interface":np.asarray(interface),
+    "details":[(np.asarray(detail),None,None,None,None,None,np.asarray(detail))]}
+control=ns["workflow_residuals_finite"](np,evaluation([0.,1.],[0.,1.],[0.,1.]))
+nan=ns["workflow_residuals_finite"](np,evaluation([0.,float("nan")],[0.,1.],[0.,1.]))
+inf=ns["workflow_residuals_finite"](np,evaluation([0.,1.],[0.,float("inf")],[0.,1.]))
+detail_nan=ns["workflow_residuals_finite"](np,evaluation([0.,1.],[0.,1.],[0.,float("nan")]))
+try:
+  ns["workflow_residuals_finite"](np,{"fv":[]})
+  calculation_error=False
+except KeyError:
+  calculation_error=True
+print(json.dumps({"control":control,"nan":nan,"inf":inf,
+  "detailNan":detail_nan,"calculationErrorPropagates":calculation_error}))
+`], { encoding: 'utf8' }));
+    expect(observed.control).toEqual({
+      finiteFvResiduals: true,
+      finiteInterfaceResiduals: true,
+      finiteDetailResiduals: true,
+    });
+    for (const key of ["nan", "inf", "detailNan"]) {
+      expect(Object.values(observed[key] as Record<string, boolean>)).toContain(false);
+    }
+    expect(observed.calculationErrorPropagates).toBe(true);
+  });
+
+  it('accepts a real residual failure only when every workflow prerequisite is honest', () => {
+    const worker = {
+      status: 'CALCULATED_WORKFLOW_TEST_ONLY_JOB_C',
+      workflowTestOnly: true,
+      diagnosticOnly: true,
+      scientificCompleted: false,
+      diagnosticMode: JOB_C_WORKFLOW_TEST_ONLY_MODE,
+      diagnosticPartialEndpoint: {
+        status: 'WORKFLOW_TEST_ONLY_REAL_STATE_EVALUATED',
+        lambda: 6.5e-9,
+        heightTrialM: 2,
+        stateSha256: 'a'.repeat(64),
+        finiteState: true,
+        withinOriginalBounds: true,
+        strictPositivityPassed: true,
+        gateMetrics: {
+          rawFvResidualMolS: 2e-7,
+          scaledFvResidual: 2e-8,
+          maximumOriginalJobBGateResidual: 3e-8,
+          minimumFlowMolS: 1e-10,
+          rawFvGatePassed: false,
+          scaledFvGatePassed: true,
+          originalJobBGatePassed: true,
+          strictPositivityPassed: true,
+          accepted: false,
+        },
+        gateDecision: {
+          rawFvGatePassed: false,
+          scaledFvGatePassed: true,
+          originalJobBGatePassed: true,
+          strictPositivityPassed: true,
+          accepted: false,
+        },
+        exactUncachedEvaluation: {
+          count: 1,
+          status: 'EVALUATED_NOT_REPEAT_CONFIRMED',
+          allScientificGatesPassed: false,
+          scientificCompleted: false,
+          scientificAccepted: false,
+        },
+        workflowCompletionPermitted: true,
+        scientificCompleted: false,
+        scientificAccepted: false,
+      },
+    };
+    expect(() => validateJobCWorkflowTestOnlyWorkerResponse(worker)).not.toThrow();
+    expect(worker.diagnosticPartialEndpoint.gateDecision.accepted).toBe(false);
+    expect(worker.scientificCompleted).toBe(false);
+    for (const malformed of [
+      { ...worker, diagnosticPartialEndpoint: { ...worker.diagnosticPartialEndpoint, finiteState: false } },
+      { ...worker, diagnosticPartialEndpoint: { ...worker.diagnosticPartialEndpoint, withinOriginalBounds: false } },
+      { ...worker, diagnosticPartialEndpoint: { ...worker.diagnosticPartialEndpoint, strictPositivityPassed: false } },
+      { ...worker, scientificCompleted: true },
+      { ...worker, diagnosticPartialEndpoint: { ...worker.diagnosticPartialEndpoint, gateMetrics: {
+        ...worker.diagnosticPartialEndpoint.gateMetrics, scaledFvResidual: Number.NaN,
+      } } },
+      { ...worker, diagnosticPartialEndpoint: { ...worker.diagnosticPartialEndpoint, gateMetrics: {
+        ...worker.diagnosticPartialEndpoint.gateMetrics, maximumOriginalJobBGateResidual: Number.POSITIVE_INFINITY,
+      } } },
+      { ...worker, status: 'CALCULATED_PRELIMINARY_JOB_C' },
+    ]) {
+      expect(() => validateJobCWorkflowTestOnlyWorkerResponse(malformed)).toThrow(
+        'JOB_C_WORKFLOW_TEST_ONLY_RESPONSE_INVALID',
+      );
+    }
+  });
+
+  it('preserves a workflow scientific block and rejects only malformed completion claims', () => {
+    // A real worker block (for example a NaN residual or positivity failure)
+    // remains its original BLOCKED_PRELIMINARY_JOB_C disposition for the UI.
+    expect(workflowTestOnlyCompletionClaimed('BLOCKED_PRELIMINARY_JOB_C')).toBe(false);
+    expect(workflowTestOnlyCompletionClaimed('CALCULATED_WORKFLOW_TEST_ONLY_JOB_C')).toBe(true);
+    // A workflow request cannot relabel an ordinary calculated status as a
+    // completed workflow test; service/queue turn that malformed claim into a
+    // retained-evidence RESPONSE_INVALID failure.
+    expect(() => workflowTestOnlyCompletionClaimed('CALCULATED_PRELIMINARY_JOB_C'))
+      .toThrow('JOB_C_WORKFLOW_TEST_ONLY_RESPONSE_INVALID');
+    const service = readFileSync('server/ecr-pre-pilot-service.ts', 'utf8');
+    const queue = readFileSync('server/ecr-pre-pilot/job-c-job-service.ts', 'utf8');
+    expect(service).toContain('workflowTestOnlyCompletionClaimed(workerResult?.status)');
+    expect(queue).toContain('workflowTestOnlyCompletionClaimed(result.status)');
   });
 
   it('caps the diagnostic schedule before lambda one and returns before its replay', () => {
@@ -971,7 +1162,35 @@ print(json.dumps({"hit": hit is not None, "sameKey": key == hit_key,
     expect(worker).toContain('allHydrocarbonPrefixesAndSolventSuffixesAdmitted');
     expect(worker).toContain('qualifiedLocalContacts');
     expect(worker).toContain('profile_interval_probe_lambda=(');
-    expect(worker).toContain('bootstrap_lambda=1e-8');
+    // The scientific routes retain their 1e-8 bootstrap; only the isolated
+    // workflow-test state is seeded at its immutable capped evaluation lambda.
+    const bootstrap = JSON.parse(execFileSync('python3', ['-c', `
+import ast, json
+from pathlib import Path
+tree=ast.parse(Path("server/ecr-pre-pilot/job-c/worker.py").read_text())
+case=next(node for node in tree.body
+  if isinstance(node,ast.FunctionDef) and node.name=="case")
+assignment=next(node for node in ast.walk(case)
+  if isinstance(node,ast.Assign)
+  and any(isinstance(target,ast.Name) and target.id=="bootstrap_lambda"
+    for target in node.targets))
+value=assignment.value
+print(json.dumps({
+  "conditional":isinstance(value,ast.IfExp),
+  "workflowCondition":isinstance(value.test,ast.Name)
+    and value.test.id=="workflow_test_only",
+  "workflowUsesCappedLambda":isinstance(value.body,ast.Name)
+    and value.body.id=="diagnostic_terminal_lambda",
+  "normalUsesOriginalBootstrap":isinstance(value.orelse,ast.Constant)
+    and value.orelse.value==1e-8,
+}))
+`], { encoding: 'utf8' }));
+    expect(bootstrap).toEqual({
+      conditional: true,
+      workflowCondition: true,
+      workflowUsesCappedLambda: true,
+      normalUsesOriginalBootstrap: true,
+    });
     expect(worker).not.toContain('transfer=initial_lambda*profile_flux*av*A*dz');
     expect(worker).toContain('lambda_targets=coupled_lambda_targets(bootstrap_lambda)');
     expect(worker).toContain('lambda_targets.insert(');
