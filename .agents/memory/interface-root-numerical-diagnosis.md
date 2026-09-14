@@ -26,3 +26,9 @@ Establish frozen coarse-mesh whole-column convergence before further runtime opt
 **Why:** The user explicitly prioritized global convergence after qualified, faster local roots still failed to establish a converged column. Successful cell solves and small local residuals do not demonstrate coupled-column closure.
 
 **How to apply:** Freeze one geometry, coefficient, model and all existing gates; retain whole-iteration states and residuals. Reproduction must start from an a priori admissible alternative, never the first converged endpoint. Distinguish conservation enforced by construction from independently evaluated closure. Refinement, sensitivity, sizing acceptance and subsequent performance optimization remain separate.
+
+When replacing the outer column iteration, preserve the original update-gate meaning separately from the new algorithm's accepted step size.
+
+**Why:** A trust radius or backtracking can make a step arbitrarily small without closing the column equations. Keeping the original damped-map check at the freshly evaluated state prevents a numerical-method change from silently weakening acceptance.
+
+**How to apply:** Require actual constitutive closure and the original update check at the same qualified state. Use actual residual merit for step acceptance; never interpret a small safeguarded step or an incomplete local evaluation as convergence. Keep the new route isolated until independent-start frozen coarse qualification succeeds.

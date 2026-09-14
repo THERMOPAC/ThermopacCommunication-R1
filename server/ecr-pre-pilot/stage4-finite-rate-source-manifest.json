@@ -1,7 +1,7 @@
 {
   "schema": "STAGE4_FINITE_RATE_SOURCE_MANIFEST_V1",
   "files": {
-    "server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts": "8b32256c4dbbc7b4b37365e7540211fbb27572dfe8f7de058859f6b72a1d3802",
+    "server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts": "4f805e868617e609992bca93ddbc8b602a464a545c2f08a8da0ebee53663e055",
     "server/ecr-pre-pilot/stage4-dogbox-interface.ts": "17ea99999bd1b7dd3bac52be27747a35b0ed0eaac79d003e15316c7c8ef70504",
     "server/ecr-pre-pilot/job-b-interface-stage4-dogbox/worker.py": "bc549bd13fb2caee0f94ae4281bc69cdd9c84cfb8414fff47a295ec6a93996e5",
     "scripts/package-stage4-job-b-dogbox.mjs": "722ca6566902386071686dac218a0c258b5c7ba1336219cf0a6a045adb5f7e11",

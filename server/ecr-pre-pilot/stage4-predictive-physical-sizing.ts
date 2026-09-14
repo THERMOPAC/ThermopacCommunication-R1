@@ -382,7 +382,126 @@ export type MeshSolve = {
   postUpdateTotalMassBalanceResidualKgS?: number | null;
   maxPostUpdateContinuousAxialEquationResidualMolS?: number | null;
   postUpdatePhysicalAdmissibilityPassed?: boolean | null;
+  /**
+   * Present only on the opt-in frozen residual-controlled diagnostic.  The
+   * production Picard route deliberately does not inspect or use it.
+   */
+  residualControlled?: {
+    strategy: 'SAFEGUARDED_GOOD_BROYDEN_ACTUAL_WHOLE_COLUMN_RESIDUAL_V1';
+    acceptedCandidates: number;
+    rejectedCandidates: number;
+    finalActualScaledResidual: number | null;
+  };
 };
+
+export type Stage4ResidualControlledCandidate = {
+  iteration: number;
+  candidateId: number;
+  disposition: 'INITIAL' | 'ACCEPTED' | 'REJECTED';
+  rejectionReason: string | null;
+  strategy: 'PICARD_BOOTSTRAP' | 'DENSE_GOOD_BROYDEN';
+  actualResidualStatus: 'COMPLETE_FRESH_WHOLE_COLUMN_EVALUATION'
+    | 'NOT_COMPLETED_PHYSICAL_OR_LOCAL_GATE_FAILED';
+  actualRawResidualMolS: number[][];
+  actualScaledResidual: number[];
+  actualMaximumScaledResidual: number;
+  stepScaled: number[];
+  stepInfinityNorm: number;
+  trustRegionInfinityRadius: number;
+  physicalAdmissibility: {
+    continuousFacesNonnegative: boolean;
+    continuousTotalFaceFlowsPositive: boolean;
+    localPhaseStatesNonnegative: boolean;
+  };
+  localInterfaceQualification: {
+    status: 'QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE' | 'NOT_COMPLETED';
+    completedCells: number;
+    requiredCells: number;
+    requests: Array<{
+      cellIndex: number;
+      requestHash: string;
+      request: Record<string, unknown>;
+      response: Record<string, unknown> | null;
+      failure: string | null;
+    }>;
+  };
+  transferMolS: number[][];
+  continuousFaceComponentFlowsMolS: number[][];
+  continuousCellMoleFractions: number[][];
+  dispersedCellInComponentFlowsMolS: number[][];
+  dispersedCellOutComponentFlowsMolS: number[][];
+};
+
+export type Stage4FrozenResidualControlledDiagnosticResult = {
+  schema: 'ECR_STAGE4_FROZEN_RESIDUAL_CONTROLLED_WHOLE_COLUMN_DIAGNOSTIC_V1';
+  caseCoefficient: 0.0126;
+  physicalCompartments: 5;
+  finiteVolumeCellsPerPhysicalCompartment: 2;
+  initialization: Stage4FrozenCoarseDiagnosticResult['initialization'];
+  solver: MeshSolve;
+};
+
+const vectorInfinityNorm = (values: number[]) => Math.max(...values.map(Math.abs));
+
+/**
+ * One dense, bounded inverse-Jacobian approximation is only 70x70 for the
+ * frozen diagnostic.  It replaces expensive finite-difference columns while
+ * preserving a fresh physical residual evaluation for every acceptance
+ * decision.  Exporting these arithmetic kernels makes their safeguards
+ * independently testable without a worker.
+ */
+export function stage4SafeguardedGoodBroydenStep(input: {
+  inverseJacobian: number[][];
+  scaledResidual: number[];
+  trustRegionInfinityRadius: number;
+}) {
+  const { inverseJacobian, scaledResidual, trustRegionInfinityRadius } = input;
+  if (!Number.isFinite(trustRegionInfinityRadius) || trustRegionInfinityRadius <= 0
+    || inverseJacobian.length !== scaledResidual.length
+    || inverseJacobian.some(row => row.length !== scaledResidual.length
+      || row.some(value => !finite(value)))
+    || scaledResidual.some(value => !finite(value))) {
+    throw new Error('STAGE4_RESIDUAL_CONTROLLED_GOOD_BROYDEN_STEP_INPUT_INVALID');
+  }
+  const unconstrained = inverseJacobian.map(row =>
+    -row.reduce((sum, value, i) => sum + value * scaledResidual[i], 0));
+  const unconstrainedInfinityNorm = vectorInfinityNorm(unconstrained);
+  const factor = unconstrainedInfinityNorm > trustRegionInfinityRadius
+    ? trustRegionInfinityRadius / unconstrainedInfinityNorm : 1;
+  const step = unconstrained.map(value => value * factor);
+  return {
+    step,
+    unconstrainedInfinityNorm,
+    stepInfinityNorm: vectorInfinityNorm(step),
+    trustRegionLimited: factor < 1,
+  };
+}
+
+export function stage4GoodBroydenInverseUpdate(inverseJacobian: number[][],
+  acceptedStepScaled: number[], residualDifferenceScaled: number[]) {
+  const n = acceptedStepScaled.length;
+  if (inverseJacobian.length !== n || residualDifferenceScaled.length !== n
+    || inverseJacobian.some(row => row.length !== n)
+    || [...acceptedStepScaled, ...residualDifferenceScaled].some(value => !finite(value))) {
+    throw new Error('STAGE4_RESIDUAL_CONTROLLED_BROYDEN_UPDATE_INPUT_INVALID');
+  }
+  const left = inverseJacobian[0].map((_value, col) => inverseJacobian.reduce((sum, row, r) =>
+    sum + acceptedStepScaled[r] * row[col], 0));
+  const by = inverseJacobian.map(row => row.reduce((sum, value, i) =>
+    sum + value * residualDifferenceScaled[i], 0));
+  const denominator = left.reduce((sum, value, i) => sum + value * residualDifferenceScaled[i], 0);
+  const denominatorScale = Math.max(1, vectorInfinityNorm(left) * vectorInfinityNorm(residualDifferenceScaled));
+  // Good inverse Broyden has denominator s^T H y. A near-zero denominator
+  // would make a rank-one update numerically unbounded, so retain the prior
+  // inverse approximation rather than claiming a secant it cannot support.
+  if (left.some(value => !finite(value)) || by.some(value => !finite(value))
+    || !finite(denominator) || !finite(denominatorScale)
+    || Math.abs(denominator) <= 1e-14 * denominatorScale) {
+    return inverseJacobian.map(row => [...row]);
+  }
+  return inverseJacobian.map((row, r) => row.map((value, col) =>
+    value + (acceptedStepScaled[r] - by[r]) * left[col] / denominator));
+}
 
 export type Stage4FrozenCoarseReproductionComparison = {
   schema: 'ECR_STAGE4_FROZEN_COARSE_REPRODUCTION_COMPARATOR_V1';
@@ -565,6 +684,8 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       cellsPerPhysicalCompartment: 2;
       initialTransfer?: number[][];
       onIteration?: (iteration: Stage4FrozenCoarseIteration) => void;
+       strategy?: 'EXISTING_PICARD' | 'RESIDUAL_CONTROLLED_GOOD_BROYDEN';
+       onCandidate?: (candidate: Stage4ResidualControlledCandidate) => void;
     };
   }) {
   let interfaceCallsAttempted = 0;
@@ -863,40 +984,33 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     let interfaceFailure: MeshSolve['interfaceFailure'];
     const maxIterations = 80;
     const relativeTolerance = 2e-6;
-    for (let iteration = 0; iteration < maxIterations; iteration += 1) {
-      const iterationStartedAt = performance.now();
-      if (Date.now() > controls.deadlineMs || controls.cancelled()) {
-        return { converged: false,
-          reason: controls.cancelled() ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED' : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
-          iterations: iteration,
-          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
-          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
-          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
-          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
-          maxStefanIdentityResidualMolS: null };
-      }
+    /**
+     * The sole finite-volume/local-interface state evaluator for both the
+     * historical Picard loop and the opt-in residual-controlled loop below.
+     * Keeping reconstruction, request assembly and the original Job-B gates in
+     * this one closure prevents equation drift between diagnostic strategies.
+     */
+    const evaluateWholeColumnState = async (candidate: number[][], iteration: number) => {
       latestFrame = 0;
       latestFilmEquality = 0;
       latestStefanIdentity = 0;
       const faces = Array.from({ length: cells + 1 }, () => Array(7).fill(0));
       faces[0] = [...feed.continuous];
       for (let j = 0; j < cells; j += 1) {
-        faces[j + 1] = faces[j].map((value, i) => value - transfer[j][i]);
+        faces[j + 1] = faces[j].map((value, i) => value - candidate[j][i]);
       }
       const qFaces = faces.map(row => row.reduce((sum, value) => sum + value, 0));
-      if (faces.flat().some(value => !finite(value) || value < -1e-11)
-        || qFaces.some(value => !positive(value))) {
-        return { converged: false, reason: 'NONNEGATIVE_CONTINUOUS_FACE_GATE_FAILED', iterations: iteration,
-          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
-          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
-          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
-          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
-          maxStefanIdentityResidualMolS: null };
+      const continuousFacesNonnegative = !faces.flat().some(value => !finite(value) || value < -1e-11);
+      const continuousTotalFaceFlowsPositive = qFaces.every(positive);
+      if (!continuousFacesNonnegative || !continuousTotalFaceFlowsPositive) {
+        return { failure: 'NONNEGATIVE_CONTINUOUS_FACE_GATE_FAILED', faces, qFaces,
+          xc: [] as number[][], dIn: [] as number[][], dOut: [] as number[][],
+          proposed: [] as number[][], interfaceResultHashes: [] as Array<string | null>,
+          requests: [] as Stage4ResidualControlledCandidate['localInterfaceQualification']['requests'],
+          physicalAdmissibility: { continuousFacesNonnegative, continuousTotalFaceFlowsPositive,
+            localPhaseStatesNonnegative: false },
+          diagnostics: { frame: latestFrame, filmEquality: latestFilmEquality, stefanIdentity: latestStefanIdentity } };
       }
-      // With known face component fluxes, the continuous implicit FV equation
-      // is marched from the zero-diffusive-flux outlet. This is algebraically
-      // equivalent to a tridiagonal solve but preserves the component flux
-      // exactly even when the total continuous molar flow changes.
       const xc = Array.from({ length: cells }, () => Array(7).fill(0));
       xc[cells - 1] = faces[cells].map((value, i) => value / qFaces[cells]);
       for (let j = cells - 2; j >= 0; j -= 1) {
@@ -909,19 +1023,22 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       let dispersed = [...feed.dispersed];
       for (let j = cells - 1; j >= 0; j -= 1) {
         dIn[j] = [...dispersed];
-        dispersed = dispersed.map((value, i) => value + transfer[j][i]);
+        dispersed = dispersed.map((value, i) => value + candidate[j][i]);
         dOut[j] = [...dispersed];
       }
-      if ([...xc.flat(), ...dIn.flat(), ...dOut.flat()].some(value => !finite(value) || value < -1e-11)) {
-        return { converged: false, reason: 'NONNEGATIVE_LOCAL_PHASE_STATE_GATE_FAILED', iterations: iteration,
-          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
-          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
-          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
-          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
-          maxStefanIdentityResidualMolS: null };
+      const localPhaseStatesNonnegative = ![...xc.flat(), ...dIn.flat(), ...dOut.flat()]
+        .some(value => !finite(value) || value < -1e-11);
+      if (!localPhaseStatesNonnegative) {
+        return { failure: 'NONNEGATIVE_LOCAL_PHASE_STATE_GATE_FAILED', faces, qFaces, xc, dIn, dOut,
+          proposed: [] as number[][], interfaceResultHashes: [] as Array<string | null>,
+          requests: [] as Stage4ResidualControlledCandidate['localInterfaceQualification']['requests'],
+          physicalAdmissibility: { continuousFacesNonnegative, continuousTotalFaceFlowsPositive,
+            localPhaseStatesNonnegative },
+          diagnostics: { frame: latestFrame, filmEquality: latestFilmEquality, stefanIdentity: latestStefanIdentity } };
       }
       const proposed: number[][] = [];
       const interfaceResultHashes: Array<string | null> = [];
+      const requests: Stage4ResidualControlledCandidate['localInterfaceQualification']['requests'] = [];
       try {
         for (let j = 0; j < cells; j += 1) {
           const dInventory = dIn[j].map((value, i) => .5 * (value + dOut[j][i]));
@@ -932,39 +1049,52 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
             .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
           if (controls.cancelled() || Date.now() > controls.deadlineMs) {
             throw new Error(controls.cancelled()
-              ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
-              : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
+              ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED' : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
           }
-          const interfaceRequest = {
+          const interfaceRequest: JobBInterfaceRequest = {
             componentOrder: [...JOB_A_COMPONENT_ORDER], T: basis.temperatureK,
             x_bulk_continuous: xc[j], x_bulk_dispersed: xD, kc, kd,
             CtC: localCtC, CtD: localCtD, phase_config: basis.phaseConfiguration as any,
           };
+          const requestHash = createHash('sha256').update(JSON.stringify(interfaceRequest)).digest('hex');
           const interfaceStartedAt = performance.now();
           interfaceCallsAttempted += 1;
-          emitOperationalProgress('INTERFACE_ROOT', interfaceStartedAt, iteration + 1, j);
-          const interfaceResult = await interfaceEvaluator(interfaceRequest, remainingOperationMs());
+          emitOperationalProgress('INTERFACE_ROOT', interfaceStartedAt, iteration, j);
+          let interfaceResult: JobBInterfaceResponse;
+          try {
+            interfaceResult = await interfaceEvaluator(interfaceRequest, remainingOperationMs());
+          } catch (error) {
+            requests.push({ cellIndex: j, requestHash, request: interfaceRequest as unknown as Record<string, unknown>, response: null,
+              failure: error instanceof Error ? error.message : 'LOCAL_INTERFACE_UNKNOWN_FAILURE' });
+            throw error;
+          }
           interfaceCallsCompleted += 1;
-          emitOperationalProgress('INTERFACE_ROOT', interfaceStartedAt, iteration + 1, j);
-          if (interfaceResult.status !== 'CALCULATED_PRELIMINARY_INTERFACE'
+          emitOperationalProgress('INTERFACE_ROOT', interfaceStartedAt, iteration, j);
+          requests.push({ cellIndex: j, requestHash, request: interfaceRequest as unknown as Record<string, unknown>,
+            response: interfaceResult as unknown as Record<string, unknown>, failure: null });
+          if (!interfaceResult || typeof interfaceResult !== 'object'
+            || interfaceResult.status !== 'CALCULATED_PRELIMINARY_INTERFACE'
             || !interfaceResult.interface
+            || !Array.isArray(interfaceResult.interface.continuousComponentFluxMolM2S)
             || interfaceResult.interface.continuousComponentFluxMolM2S.length !== 7) {
-            interfaceFailure = {
-              requestHash: createHash('sha256').update(JSON.stringify(interfaceRequest)).digest('hex'),
-              request: interfaceRequest,
-              response: interfaceResult,
-              iteration: iteration + 1,
-              cellIndex: j,
-            };
-            throw new Error(`STAGE4_JOB_B_INTERFACE_UNAVAILABLE:${interfaceResult.status}`);
+            const status = interfaceResult?.status ?? 'INVALID_RESPONSE';
+            requests.at(-1)!.failure = `STAGE4_JOB_B_INTERFACE_UNAVAILABLE:${status}`;
+            interfaceFailure = { requestHash, request: interfaceRequest as unknown as Record<string, unknown>, response: interfaceResult,
+              iteration, cellIndex: j };
+            throw new Error(`STAGE4_JOB_B_INTERFACE_UNAVAILABLE:${status}`);
           }
           interfaceResultHashes.push(typeof (interfaceResult as any).resultHash === 'string'
             ? (interfaceResult as any).resultHash : null);
           const raw = interfaceResult.interface.continuousComponentFluxMolM2S
             .map(value => value * interfacialArea);
+          if (raw.some(value => !finite(value))) {
+            requests.at(-1)!.failure = 'STAGE4_JOB_B_INTERFACE_TRANSFER_INVALID';
+            throw new Error('STAGE4_JOB_B_INTERFACE_TRANSFER_INVALID');
+          }
           const equality = interfaceResult.interface.fluxEqualityResidualMolM2S;
-          if (equality.length !== 7 || equality.some(value => !finite(value))
+          if (!Array.isArray(equality) || equality.length !== 7 || equality.some(value => !finite(value))
             || !finite(interfaceResult.interface.totalMolarFluxMolM2S)) {
+            requests.at(-1)!.failure = 'STAGE4_JOB_B_INTERFACE_FILM_CLOSURE_INVALID';
             throw new Error('STAGE4_JOB_B_INTERFACE_FILM_CLOSURE_INVALID');
           }
           latestFilmEquality = Math.max(latestFilmEquality,
@@ -973,12 +1103,9 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
             raw.reduce((sum, value) => sum + value, 0)
             - interfaceResult.interface.totalMolarFluxMolM2S * interfacialArea,
           ));
-          // In the allowed molar-average generalized-Fick screening frame, the
-          // diffusive part sums to zero. Its non-zero total transfer is kept as
-          // Stefan/convective phase transfer, never discarded by forcing it to
-          // zero as the earlier diagnostic implementation did.
           const diffusive = interfaceResult.interface.continuousDiffusiveFluxMolM2S;
-          if (diffusive.length !== 7 || diffusive.some(value => !finite(value))) {
+          if (!Array.isArray(diffusive) || diffusive.length !== 7 || diffusive.some(value => !finite(value))) {
+            requests.at(-1)!.failure = 'STAGE4_JOB_B_INTERFACE_DIFFUSIVE_FRAME_INVALID';
             throw new Error('STAGE4_JOB_B_INTERFACE_DIFFUSIVE_FRAME_INVALID');
           }
           latestFrame = Math.max(latestFrame,
@@ -986,14 +1113,261 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
           proposed.push(raw);
         }
       } catch (error) {
-        return { converged: false, reason: error instanceof Error ? error.message : 'LOCAL_EQUILIBRIUM_FAILURE',
-          interfaceFailure,
+        return { failure: error instanceof Error ? error.message : 'LOCAL_EQUILIBRIUM_FAILURE',
+          faces, qFaces, xc, dIn, dOut, proposed, interfaceResultHashes, requests,
+          physicalAdmissibility: { continuousFacesNonnegative, continuousTotalFaceFlowsPositive,
+            localPhaseStatesNonnegative },
+          diagnostics: { frame: latestFrame, filmEquality: latestFilmEquality, stefanIdentity: latestStefanIdentity } };
+      }
+      return { failure: null, faces, qFaces, xc, dIn, dOut, proposed, interfaceResultHashes, requests,
+        physicalAdmissibility: { continuousFacesNonnegative, continuousTotalFaceFlowsPositive,
+          localPhaseStatesNonnegative },
+        diagnostics: { frame: latestFrame, filmEquality: latestFilmEquality, stefanIdentity: latestStefanIdentity } };
+    };
+    if (controls.diagnostic?.strategy === 'RESIDUAL_CONTROLLED_GOOD_BROYDEN') {
+      const flatten = (state: number[][]) => state.flat();
+      const scaledResidual = (state: number[][], proposed: number[][]) =>
+        flatten(state).map((value, i) => (value - flatten(proposed)[i]) / feedScale[i % 7]);
+      const residualMerit = (values: number[]) => values.reduce((sum, value) =>
+        sum + value * value, 0) / (2 * values.length);
+      const feasible = (candidate: number[][]) => {
+        const c = [...feed.continuous], d = [...feed.dispersed];
+        for (let j = 0; j < cells; j += 1) {
+          for (let i = 0; i < 7; i += 1) c[i] -= candidate[j][i];
+          if (c.some(value => value < -1e-12 || !finite(value))) return false;
+        }
+        for (let j = cells - 1; j >= 0; j -= 1) {
+          for (let i = 0; i < 7; i += 1) d[i] += candidate[j][i];
+          if (d.some(value => value < -1e-12 || !finite(value))) return false;
+        }
+        return [...c, ...d].every(value => value >= -1e-12 && finite(value));
+      };
+      const candidateRecord = (evaluated: Awaited<ReturnType<typeof evaluateWholeColumnState>>,
+        state: number[][], iteration: number, candidateId: number,
+        disposition: Stage4ResidualControlledCandidate['disposition'],
+        rejectionReason: string | null, strategy: Stage4ResidualControlledCandidate['strategy'],
+        step: number[], radius: number) => {
+        const raw = evaluated.failure ? [] : flatten(state).map((value, i) =>
+          value - flatten(evaluated.proposed)[i]);
+        const scaled = evaluated.failure ? [] : scaledResidual(state, evaluated.proposed);
+        const row: Stage4ResidualControlledCandidate = {
+          iteration, candidateId, disposition, rejectionReason, strategy,
+          actualResidualStatus: evaluated.failure
+            ? 'NOT_COMPLETED_PHYSICAL_OR_LOCAL_GATE_FAILED'
+            : 'COMPLETE_FRESH_WHOLE_COLUMN_EVALUATION',
+          actualRawResidualMolS: evaluated.failure ? state.map(() => []) : state.map((line, j) =>
+            line.map((value, i) => value - evaluated.proposed[j][i])),
+          actualScaledResidual: scaled,
+          actualMaximumScaledResidual: scaled.length ? vectorInfinityNorm(scaled) : Infinity,
+          stepScaled: step, stepInfinityNorm: step.length ? vectorInfinityNorm(step) : 0,
+          trustRegionInfinityRadius: radius,
+          physicalAdmissibility: evaluated.physicalAdmissibility,
+          localInterfaceQualification: {
+            status: evaluated.interfaceResultHashes.length === cells
+              ? 'QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE' : 'NOT_COMPLETED',
+            completedCells: evaluated.interfaceResultHashes.length, requiredCells: cells,
+            requests: evaluated.requests,
+          },
+          transferMolS: state.map(line => [...line]),
+          continuousFaceComponentFlowsMolS: evaluated.faces.map(line => [...line]),
+          continuousCellMoleFractions: evaluated.xc.map(line => [...line]),
+          dispersedCellInComponentFlowsMolS: evaluated.dIn.map(line => [...line]),
+          dispersedCellOutComponentFlowsMolS: evaluated.dOut.map(line => [...line]),
+        };
+        try {
+          // The harness checkpoints this complete object synchronously; an
+          // observer exception must never turn a rejected state into acceptance.
+          controls.diagnostic?.onCandidate?.(structuredClone(row));
+        } catch (error) {
+          console.error('STAGE4_RESIDUAL_CONTROLLED_CANDIDATE_OBSERVER_FAILED', error);
+        }
+        return row;
+      };
+      const residualFailure = (reason: string, iterations: number, state: number[][],
+        acceptedCandidates: number, rejectedCandidates: number): MeshSolve => ({
+        converged: false, reason, interfaceFailure, iterations, localFlashCalls: flashCalls,
+        continuousOutlet: [], dispersedOutlet: [], transfer: state,
+        maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+        maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+        maxDiffusiveFrameResidualMolS: latestFrame, maxFilmEqualityResidualMolS: latestFilmEquality,
+        maxStefanIdentityResidualMolS: latestStefanIdentity,
+        residualControlled: {
+          strategy: 'SAFEGUARDED_GOOD_BROYDEN_ACTUAL_WHOLE_COLUMN_RESIDUAL_V1',
+          acceptedCandidates, rejectedCandidates, finalActualScaledResidual: null,
+        },
+      });
+      const finalLocalQualification = async (evaluated: Awaited<ReturnType<typeof evaluateWholeColumnState>>,
+        iteration: number, residuals: Record<string, number>) => {
+        for (let j = 0; j < cells; j += 1) {
+          const xD = normalize(evaluated.dIn[j].map((value, i) =>
+            .5 * (value + evaluated.dOut[j][i])));
+          const localCtC = continuousPhase.densityKgM3 / (evaluated.xc[j]
+            .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
+          const localCtD = dispersedPhase.densityKgM3 / (xD
+            .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
+          const inventory = evaluated.xc[j].map((fraction, i) =>
+            (1 - hydraulics.operatingHoldup) * area * dz * localCtC * fraction
+            + hydraulics.operatingHoldup * area * dz * localCtD * xD[i]);
+          const started = performance.now();
+          emitOperationalProgress('FINAL_LOCAL_LLE_QUALIFICATION', started, iteration, j, residuals);
+          const response = await flashEvaluator({
+            temperatureK: basis.temperatureK, componentMolarInventory: inventory,
+            componentOrder: [...JOB_A_COMPONENT_ORDER],
+          }, remainingOperationMs());
+          flashCalls += 1;
+          emitOperationalProgress('FINAL_LOCAL_LLE_QUALIFICATION', started, iteration, j, residuals);
+          validateLocalFlash(response, feed.continuousIsExtract);
+        }
+      };
+      let state = transfer;
+      let acceptedCandidates = 0;
+      let rejectedCandidates = 0;
+      let candidateId = 0;
+      let trustRegionInfinityRadius = .05;
+      let inverseJacobian: number[][] = Array.from({ length: cells * 7 }, (_row, r) =>
+        Array.from({ length: cells * 7 }, (_col, col) => r === col ? .2 : 0));
+      let current = await evaluateWholeColumnState(state, 0);
+      const initial = candidateRecord(current, state, 0, candidateId++, 'INITIAL',
+        current.failure, 'PICARD_BOOTSTRAP', [], trustRegionInfinityRadius);
+      if (current.failure) return residualFailure(current.failure, 0, state, acceptedCandidates, rejectedCandidates);
+      let residual = initial.actualScaledResidual;
+      for (let iteration = 1; iteration <= maxIterations; iteration += 1) {
+        if (controls.cancelled() || Date.now() > controls.deadlineMs) {
+          return residualFailure(controls.cancelled()
+            ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED' : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
+          iteration - 1, state, acceptedCandidates, rejectedCandidates);
+        }
+        const currentMaximum = vectorInfinityNorm(residual);
+        const diagnosticGatesPass = current.diagnostics.frame <= 1e-9
+          && current.diagnostics.filmEquality <= 1e-9
+          && current.diagnostics.stefanIdentity <= 1e-9;
+        // A converged residual is still independently stability-qualified.
+        // Preserve the original acceptance update gate as an observation of
+        // the historical .20 Picard map at this same freshly evaluated state;
+        // the residual-controlled proposal itself is never substituted for it.
+        const originalPicardScaledUpdate = .20 * currentMaximum;
+        if (currentMaximum <= 1e-5 && originalPicardScaledUpdate <= relativeTolerance
+          && diagnosticGatesPass) {
+          try {
+            await finalLocalQualification(current, iteration, {
+              actualMaximumScaledResidual: currentMaximum, originalPicardScaledUpdate,
+            });
+          } catch (error) {
+            return residualFailure(error instanceof Error ? error.message : 'FINAL_LOCAL_LLE_QUALIFICATION_FAILED',
+              iteration, state, acceptedCandidates, rejectedCandidates);
+          }
+          const postUpdate = independentlyReconstructState(state);
+          const continuousOutlet = current.faces[cells];
+          const dispersedOutlet = current.dOut[0];
+          const accepted = postUpdate.componentBalance <= 1e-10 && Math.abs(postUpdate.massBalance) <= 1e-12
+            && postUpdate.maximumAxialEquationResidual <= 1e-10 && postUpdate.physicallyAdmissible;
+          return {
+            converged: accepted,
+            reason: accepted ? null : `FINAL_SCALED_RESIDUAL_GATE_FAILED:${currentMaximum}:${postUpdate.componentBalance}:${postUpdate.massBalance}`,
+            iterations: iteration, localFlashCalls: flashCalls, continuousOutlet, dispersedOutlet, transfer: state,
+            maxScaledUpdateResidual: originalPicardScaledUpdate, maxScaledConstitutiveResidual: currentMaximum,
+            maxScaledComponentBalanceResidual: postUpdate.componentBalance,
+            maxAxialResidualMolS: postUpdate.maximumAxialEquationResidual,
+            maxDiffusiveFrameResidualMolS: current.diagnostics.frame,
+            maxFilmEqualityResidualMolS: current.diagnostics.filmEquality,
+            maxStefanIdentityResidualMolS: current.diagnostics.stefanIdentity,
+            maxPostUpdateScaledComponentBalanceResidual: postUpdate.componentBalance,
+            postUpdateTotalMassBalanceResidualKgS: postUpdate.massBalance,
+            maxPostUpdateContinuousAxialEquationResidualMolS: postUpdate.maximumAxialEquationResidual,
+            postUpdatePhysicalAdmissibilityPassed: postUpdate.physicallyAdmissible,
+            residualControlled: {
+              strategy: 'SAFEGUARDED_GOOD_BROYDEN_ACTUAL_WHOLE_COLUMN_RESIDUAL_V1',
+              acceptedCandidates, rejectedCandidates, finalActualScaledResidual: currentMaximum,
+            },
+          };
+        }
+        const strategy = acceptedCandidates === 0 ? 'PICARD_BOOTSTRAP' as const
+          : 'DENSE_GOOD_BROYDEN' as const;
+        const proposal = stage4SafeguardedGoodBroydenStep({
+          inverseJacobian, scaledResidual: residual, trustRegionInfinityRadius,
+        });
+        let step = proposal.step;
+        let next = state.map((row, j) => row.map((value, i) =>
+          value + step[j * 7 + i] * feedScale[i]));
+        while (!feasible(next) && vectorInfinityNorm(step) > 1e-12) {
+          step = step.map(value => value / 2);
+          next = state.map((row, j) => row.map((value, i) =>
+            value + step[j * 7 + i] * feedScale[i]));
+        }
+        if (!feasible(next)) {
+          // Record the actual infeasible proposal too. No worker is called
+          // after the physical gate fails, but its reconstructed state is
+          // retained rather than silently replacing it with the prior state.
+          const infeasible = await evaluateWholeColumnState(next, iteration);
+          const rejected = candidateRecord(infeasible, next, iteration, candidateId++, 'REJECTED',
+            'NONNEGATIVE_LINE_SEARCH_EXHAUSTED', strategy, step, trustRegionInfinityRadius);
+          rejectedCandidates += 1;
+          trustRegionInfinityRadius /= 2;
+          if (trustRegionInfinityRadius < 1e-12) {
+            return residualFailure(rejected.rejectionReason!, iteration, state, acceptedCandidates, rejectedCandidates);
+          }
+          continue;
+        }
+        const evaluated = await evaluateWholeColumnState(next, iteration);
+        const nextResidual = evaluated.failure ? [] : scaledResidual(next, evaluated.proposed);
+        const nextGatesPass = !evaluated.failure && evaluated.diagnostics.frame <= 1e-9
+          && evaluated.diagnostics.filmEquality <= 1e-9 && evaluated.diagnostics.stefanIdentity <= 1e-9;
+        const decreasesActualResidual = nextResidual.length === residual.length
+          && residualMerit(nextResidual) < residualMerit(residual);
+        if (!nextGatesPass || !decreasesActualResidual) {
+          const rejectionReason = evaluated.failure ?? (!nextGatesPass
+            ? 'ACTUAL_CANDIDATE_DIAGNOSTIC_GATE_FAILED'
+            : 'ACTUAL_WHOLE_COLUMN_RESIDUAL_NOT_REDUCED');
+          candidateRecord(evaluated, next, iteration, candidateId++, 'REJECTED',
+            rejectionReason, strategy, step, trustRegionInfinityRadius);
+          rejectedCandidates += 1;
+          // A closed/timed-out worker or any returned protocol/integrity error
+          // cannot become healthy by changing a column iterate.  Retain its
+          // complete candidate evidence and stop; only explicit bulk-domain
+          // violations are eligible for a smaller feasible proposal.
+          const recoverableDomainFailure = evaluated.failure === 'NONNEGATIVE_CONTINUOUS_FACE_GATE_FAILED'
+            || evaluated.failure === 'NONNEGATIVE_LOCAL_PHASE_STATE_GATE_FAILED';
+          if (evaluated.failure && !recoverableDomainFailure) {
+            return residualFailure(rejectionReason, iteration, state, acceptedCandidates, rejectedCandidates);
+          }
+          trustRegionInfinityRadius /= 2;
+          continue;
+        }
+        candidateRecord(evaluated, next, iteration, candidateId++, 'ACCEPTED',
+          null, strategy, step, trustRegionInfinityRadius);
+        acceptedCandidates += 1;
+        inverseJacobian = stage4GoodBroydenInverseUpdate(inverseJacobian, step,
+          nextResidual.map((value, i) => value - residual[i]));
+        state = next;
+        current = evaluated;
+        residual = nextResidual;
+        trustRegionInfinityRadius = Math.min(.5, trustRegionInfinityRadius * 1.5);
+      }
+      return residualFailure('COUNTERCURRENT_NONLINEAR_ITERATION_LIMIT', maxIterations,
+        state, acceptedCandidates, rejectedCandidates);
+    }
+    for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+      const iterationStartedAt = performance.now();
+      if (Date.now() > controls.deadlineMs || controls.cancelled()) {
+        return { converged: false,
+          reason: controls.cancelled() ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED' : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
+          iterations: iteration,
+          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+          maxStefanIdentityResidualMolS: null };
+      }
+      const evaluated = await evaluateWholeColumnState(transfer, iteration + 1);
+      if (evaluated.failure) {
+        return { converged: false, reason: evaluated.failure, interfaceFailure,
           iterations: iteration + 1, localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
           maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
           maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
           maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
           maxStefanIdentityResidualMolS: null };
       }
+      const { faces, qFaces, xc, dIn, dOut, proposed, interfaceResultHashes } = evaluated;
       // A bounded line search maintains non-negative face and countercurrent
       // dispersed flows; it is numerical damping, not a transfer limiter.
       let relaxation = .20;
@@ -1389,6 +1763,8 @@ export type Stage4PredictivePhysicalSizingOptions = {
       initialTransfer?: number[][];
       initialTransferMethod?: Stage4FrozenCoarseDiagnosticResult['initialization']['method'];
       onIteration?: (iteration: Stage4FrozenCoarseIteration) => void;
+       strategy?: 'EXISTING_PICARD' | 'RESIDUAL_CONTROLLED_GOOD_BROYDEN';
+       onCandidate?: (candidate: Stage4ResidualControlledCandidate) => void;
     };
   };
 
@@ -1426,6 +1802,8 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
         initialTransfer: diagnostic.initialTransfer,
         initialTransferMethod: diagnostic.initialTransferMethod,
         onIteration: diagnostic.onIteration,
+         strategy: diagnostic.strategy,
+         onCandidate: diagnostic.onCandidate,
       },
     } : {}),
   };
@@ -1487,8 +1865,25 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
     primary = await solveCase(input, .0126, evaluator, interfaceEvaluator, controls);
     await options?.onProgress?.({ phase: 'PRIMARY_COMPLETE', completedCases: 1, totalCases: 2 });
     if (diagnostic) {
-      const solver = primary.diagnosticMesh;
+      const solver = (primary as Awaited<ReturnType<typeof solveCase>> & {
+        diagnosticMesh?: MeshSolve;
+      }).diagnosticMesh;
       if (!solver) throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_MESH_MISSING');
+      if (diagnostic.strategy === 'RESIDUAL_CONTROLLED_GOOD_BROYDEN') {
+        return {
+          schema: 'ECR_STAGE4_FROZEN_RESIDUAL_CONTROLLED_WHOLE_COLUMN_DIAGNOSTIC_V1' as const,
+          caseCoefficient: .0126 as const,
+          physicalCompartments: 5 as const,
+          finiteVolumeCellsPerPhysicalCompartment: 2 as const,
+          initialization: {
+            method: diagnostic.initialTransfer
+              ? diagnostic.initialTransferMethod ?? 'EXACT_PRIOR_SOLVE_MESH_TRANSFER_STATE' as const
+              : 'EXISTING_ZERO_TRANSFER_DEFAULT' as const,
+            suppliedTransferState: !!diagnostic.initialTransfer,
+          },
+          solver,
+        };
+      }
       return {
         schema: 'ECR_STAGE4_FROZEN_COARSE_MESH_DIAGNOSTIC_V1' as const,
         caseCoefficient: .0126 as const,
@@ -1579,5 +1974,37 @@ export async function runStage4FrozenCoarseDiagnostic(input: Stage4PhysicalSizin
   if (!('schema' in result) || result.schema !== 'ECR_STAGE4_FROZEN_COARSE_MESH_DIAGNOSTIC_V1') {
     throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_RESULT_MISSING');
   }
-  return result;
+  return result as Stage4FrozenCoarseDiagnosticResult;
+}
+
+/**
+ * User-authorized, offline-only whole-column nonlinear qualification. This is
+ * intentionally a separate opt-in from the frozen Picard reproduction and
+ * production count/refinement/sensitivity route. It is fixed to design-269's
+ * governed five compartments, two FV cells per compartment, and c=.0126.
+ */
+export async function runStage4FrozenResidualControlledDiagnostic(input: Stage4PhysicalSizingInput,
+  options?: Omit<Stage4PredictivePhysicalSizingOptions, 'frozenCoarseDiagnostic'> & {
+    initialTransfer?: number[][];
+    initialTransferMethod?: Stage4FrozenResidualControlledDiagnosticResult['initialization']['method'];
+    onCandidate?: (candidate: Stage4ResidualControlledCandidate) => void;
+  }): Promise<Stage4FrozenResidualControlledDiagnosticResult> {
+  if (input.calculatedNt !== 5 || input.maximumCompartments !== 5) {
+    throw new Error('STAGE4_FROZEN_RESIDUAL_CONTROLLED_DIAGNOSTIC_REQUIRES_ACCEPTED_NT_AND_FIVE_PHYSICAL_COMPARTMENTS');
+  }
+  const result = await runStage4PredictivePhysicalSizing(input, {
+    ...options,
+    frozenCoarseDiagnostic: {
+      physicalCompartments: 5,
+      initialTransfer: options?.initialTransfer,
+      initialTransferMethod: options?.initialTransferMethod,
+      strategy: 'RESIDUAL_CONTROLLED_GOOD_BROYDEN',
+      onCandidate: options?.onCandidate,
+    },
+  });
+  if (!('schema' in result)
+    || result.schema !== 'ECR_STAGE4_FROZEN_RESIDUAL_CONTROLLED_WHOLE_COLUMN_DIAGNOSTIC_V1') {
+    throw new Error('STAGE4_FROZEN_RESIDUAL_CONTROLLED_DIAGNOSTIC_RESULT_MISSING');
+  }
+  return result as Stage4FrozenResidualControlledDiagnosticResult;
 }

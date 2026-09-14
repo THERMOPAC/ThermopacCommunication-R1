@@ -12,7 +12,6 @@
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { readFileSync, renameSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
 import { pool } from '../server/db';
 import { loadStage4PrePilotSizingAuthority } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
 import {
@@ -24,8 +23,10 @@ import {
   type Stage4FrozenCoarseIteration,
   type Stage4PhysicalSizingProgress,
 } from '../server/ecr-pre-pilot/stage4-predictive-physical-sizing';
-import { verifyStage4DogboxRuntime } from '../server/ecr-pre-pilot/stage4-dogbox-interface';
-import { stage4SevenComponentAdapterArtifactHash } from '../server/ecr-pre-pilot/stage4-seven-component-adapter';
+import {
+  sameFrozenDiagnosticIdentity,
+  snapshotSourceAndWorkerIdentity,
+} from './design269-stage4-frozen-diagnostic-identity';
 
 const DESIGN_ID = 269;
 const PHYSICAL_COMPARTMENTS = 5;
@@ -52,64 +53,6 @@ type Attempt = {
   result: Stage4FrozenCoarseDiagnosticResult | null;
   error: string | null;
 };
-
-function snapshotSourceAndWorkerIdentity() {
-  const sourceManifestPath = 'server/ecr-pre-pilot/stage4-finite-rate-source-manifest.json';
-  const sourceManifestBytes = readFileSync(sourceManifestPath);
-  const sourceManifest = JSON.parse(sourceManifestBytes.toString('utf8')) as {
-    files: Record<string, string>;
-  };
-  const sourceFiles = Object.entries(sourceManifest.files).map(([file, expectedSha256]) => {
-    const actualSha256 = fileHash(file);
-    if (actualSha256 !== expectedSha256) {
-      throw new Error(`FROZEN_DIAGNOSTIC_SOURCE_MANIFEST_MISMATCH:${file}`);
-    }
-    return { file, sha256: actualSha256 };
-  });
-  const dogbox = verifyStage4DogboxRuntime();
-  const adapterRoot = path.resolve(process.env.STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT
-    ?? 'dist/stage4-seven-component-adapter-runtime');
-  const adapterManifestPath = path.join(adapterRoot, 'stage4-seven-component-adapter-manifest.json');
-  const adapterManifestBytes = readFileSync(adapterManifestPath);
-  const adapterManifest = JSON.parse(adapterManifestBytes.toString('utf8'));
-  const baseRoot = path.resolve(process.env.STAGE4_EQUILIBRIUM_BASE_RUNTIME_ROOT
-    ?? path.join(adapterRoot, adapterManifest.baseRuntime.defaultRelativePath));
-  const baseManifestPath = path.join(baseRoot, adapterManifest.baseRuntime.manifestPath);
-  const baseManifestBytes = readFileSync(baseManifestPath);
-  const legacyManifestPath = path.join(dogbox.legacyRoot, 'job-b-interface-manifest.json');
-  const legacyManifestBytes = readFileSync(legacyManifestPath);
-  return {
-    diagnosticHarness: {
-      path: 'research/design269-stage4-five-compartment-actual-profile.ts',
-      sha256: fileHash('research/design269-stage4-five-compartment-actual-profile.ts'),
-    },
-    sourceManifest: {
-      path: sourceManifestPath,
-      sha256: hash(sourceManifestBytes.toString('utf8')),
-      files: sourceFiles,
-    },
-    dogboxRuntime: {
-      root: dogbox.root,
-      legacyRoot: dogbox.legacyRoot,
-      manifestSha256: fileHash(path.join(dogbox.root, 'stage4-job-b-dogbox-manifest.json')),
-      artifactSha256: dogbox.manifest.artifactSha256,
-      files: dogbox.manifest.files,
-      legacyManifestSha256: hash(legacyManifestBytes.toString('utf8')),
-      legacyRuntimeFiles: JSON.parse(legacyManifestBytes.toString('utf8')).files,
-    },
-    equilibriumAdapterRuntime: {
-      root: adapterRoot,
-      manifestSha256: hash(adapterManifestBytes.toString('utf8')),
-      artifactSha256: stage4SevenComponentAdapterArtifactHash(),
-      files: adapterManifest.files,
-      baseRoot,
-      baseManifestSha256: hash(baseManifestBytes.toString('utf8')),
-      baseRuntimeFiles: JSON.parse(baseManifestBytes.toString('utf8')).files,
-      baseRuntime: adapterManifest.baseRuntime,
-    },
-  };
-}
-const sameSnapshot = (left: unknown, right: unknown) => hash(left) === hash(right);
 
 async function main() {
   const harnessStarted = performance.now();
@@ -235,7 +178,7 @@ async function main() {
         purpose: 'comparison only; no state selection, optimization, or feedback',
       },
     };
-    prelaunchIdentity = snapshotSourceAndWorkerIdentity();
+    prelaunchIdentity = snapshotSourceAndWorkerIdentity('research/design269-stage4-five-compartment-actual-profile.ts');
     status = 'PRELAUNCH_EVIDENCE_FROZEN_REVIEW_REQUIRED';
     writeCheckpointSync();
     logCheckpoint('PRELAUNCH_AUTHORITY_AND_IDENTITIES_FROZEN');
@@ -262,7 +205,8 @@ async function main() {
       if (hash(frozenInput) !== frozenInputSha256) {
         throw new Error('FROZEN_DIAGNOSTIC_INPUT_HASH_CHANGED_BEFORE_START');
       }
-      if (!prelaunchIdentity || !sameSnapshot(prelaunchIdentity, snapshotSourceAndWorkerIdentity())) {
+      if (!prelaunchIdentity || !sameFrozenDiagnosticIdentity(prelaunchIdentity,
+        snapshotSourceAndWorkerIdentity('research/design269-stage4-five-compartment-actual-profile.ts'))) {
         throw new Error('FROZEN_DIAGNOSTIC_SOURCE_OR_WORKER_IDENTITY_CHANGED_BEFORE_START');
       }
     };
@@ -401,8 +345,8 @@ async function main() {
         latestTelemetry: null, result: null, error: null,
       };
     }
-    postrunIdentity = snapshotSourceAndWorkerIdentity();
-    if (!sameSnapshot(prelaunchIdentity, postrunIdentity)) {
+    postrunIdentity = snapshotSourceAndWorkerIdentity('research/design269-stage4-five-compartment-actual-profile.ts');
+    if (!sameFrozenDiagnosticIdentity(prelaunchIdentity, postrunIdentity)) {
       throw new Error('FROZEN_DIAGNOSTIC_SOURCE_OR_WORKER_IDENTITY_CHANGED_DURING_RUN');
     }
     status = terminating
