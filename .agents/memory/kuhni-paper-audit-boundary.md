@@ -28,3 +28,10 @@ CER&D capacity/Vk study; its rejection cannot establish the mixing equation.
 research/sources/kuhni-mass-transfer before asserting source equivalence.
 Engineer-approved screening expressions must be labelled separately from
 source-verified published transcription when these discrepancies remain.
+
+Original mixing reference is Kumar–Hartland (1992), DOI
+10.1002/cjce.5450700112, not the Steiner (1988) cross-check. Its publisher
+abstract reports RDC mixing up to 20% above ARD, but that does NOT justify
+replacing only 0.0105 by 0.0126. The 2017 nomenclature defines V as superficial
+and N as s^-1 but does not separately define Vbar or the trailing e. Neither
+“interstitial velocity” nor “Euler's number” is established by that source.
