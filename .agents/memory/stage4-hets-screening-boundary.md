@@ -14,3 +14,9 @@ The selected HETS is an engineering assumption whose conservatism for RRBO/NMP i
 **Why:** Integer compartment rounding creates extra installed height but does not demonstrate an adequate allowance for uncertain mass transfer.
 
 **How to apply:** Distinguish required active height, rounded installed active height, and total mechanical vessel height. Distinguish HETS-implied efficiency from required theoretical stages divided by installed compartment count. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
+
+For a reduced transport diagnostic, preserve the saved counter-current section boundaries and signed component transfer; a straight path between terminal products cannot substitute for the saved intermediate profile.
+
+**Why:** The accepted theoretical cascade can reverse component transfer locally. Endpoint-only interpolation hides those reversals and can fabricate positive heights. Frozen tie-line scalar ratios may disagree with that coupled transfer without invalidating the accepted equilibrium calculation.
+
+**How to apply:** Pair extract-incoming with raffinate-leaving at one section boundary and extract-leaving with raffinate-incoming at the other. Test the signed transfer against the driving force throughout each section; never use absolute values to conceal negative-height sections or integrate through a zero-force crossing. Label frozen-ratio, no-dispersion heights as conditional diagnostics, not column sizing.
