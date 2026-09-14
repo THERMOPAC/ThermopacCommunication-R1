@@ -553,7 +553,9 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
     try {
       await page.waitForSelector('[data-testid="stage4-stop"]', { visible: true, timeout: 30_000 });
       expect(await page.$eval('[data-testid="stage4-run-progress"]', element => (element as HTMLElement).innerText))
-        .toContain("Local flash calls");
+        .toContain("Recorded local flash calls");
+      expect(await page.$eval('[data-testid="stage4-active-progress"] progress', el => el.hasAttribute("value")))
+        .toBe(false);
       await page.click('[data-testid="stage4-stop"]');
       await page.waitForFunction(() => document.querySelector('[data-testid="stage4-stop"]') == null, { timeout: 5_000 });
       expect(stage4ActionRequests).toEqual([{ path: stage4StopEndpoint, body: "{}" }]);

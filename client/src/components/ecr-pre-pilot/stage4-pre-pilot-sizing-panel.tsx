@@ -86,13 +86,14 @@ function numericalOutcome(
   result: RecordValue | null,
   physicalSizing: RecordValue,
   physicalSizingBlocked: boolean,
-): "NOT RUN" | "NUMERICAL UNRESOLVED" | "TARGET NOT MET" | "CALCULATED" {
+): "NOT RUN" | "CALCULATING" | "NUMERICAL UNRESOLVED" | "TARGET NOT MET" | "CALCULATED" {
   if (!result) return "NOT RUN";
   const status = statusText(result.status ?? physicalSizing.status);
   if (status === "UNRUN") return "NOT RUN";
+  if (status === "RUNNING") return "CALCULATING";
   if (physicalSizingBlocked || status.includes("UNRESOLVED") || status.includes("DEPENDENCY_BLOCKED")
     || status.includes("NOT_STARTED") || status.includes("BLOCKED")
-    || status === "RUNNING" || status === "NUMERICAL_FAILURE" || status === "INTERRUPTED") {
+    || status === "NUMERICAL_FAILURE" || status === "INTERRUPTED") {
     return "NUMERICAL UNRESOLVED";
   }
   if (status.includes("NO_TARGET") || status.includes("TARGET_NOT_MET")
@@ -714,8 +715,23 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               {text(stage4Status || runDetails.status || runDetails.state || runState(run))}
             </span>
           </div>
+          {stage4Running && (
+            <div className="mt-3" data-testid="stage4-active-progress">
+              <progress
+                aria-label="Stage 4 calculation in progress"
+                aria-valuetext="Calculating; percentage complete is unavailable"
+                className="block h-3 w-full accent-cyan-600"
+              />
+              <p className="mt-2 font-semibold" role="status">
+                Calculating — no result yet.
+              </p>
+              <p className="mt-1 text-slate-600">
+                The bar indicates activity, not a percentage. Trial details update at saved checkpoints.
+              </p>
+            </div>
+          )}
           <p className="mt-1">
-            {text(calculationProgress.phase ?? runDetails.message ?? runProgress.message)}
+            {stage4Running ? "Calculation active" : text(calculationProgress.phase ?? runDetails.message ?? runProgress.message)}
           </p>
           {isFiniteNumber(calculationProgress.completedCases ?? calculationProgress.completed) && (
             <p className="mt-1 font-mono">
@@ -726,7 +742,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           {[
             ["Current physical count", calculationProgress.physicalCompartments],
             ["Finite-volume cells / count", calculationProgress.finiteVolumeCellsPerPhysicalCompartment],
-            ["Local flash calls", calculationProgress.localFlashCalls],
+            ["Recorded local flash calls", calculationProgress.localFlashCalls],
             ["Callback state", calculationProgress.state],
             ["Reason", calculationProgress.reason],
             ["Maximum physical count", calculationProgress.maximumPhysicalCompartments],

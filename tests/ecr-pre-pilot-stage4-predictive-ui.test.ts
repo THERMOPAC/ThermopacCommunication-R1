@@ -257,6 +257,26 @@ function dependencyBlockedFixture() {
   return fixture;
 }
 
+it("shows indeterminate activity without a false percentage or failure label during a run", () => {
+  const fixture = {
+    ...resultFixture(),
+    status: "RUNNING",
+    calculation: { progress: { phase: "QUEUED", completedCases: 0, totalCases: 2,
+      physicalCompartments: 5, finiteVolumeCellsPerPhysicalCompartment: 2 } },
+  };
+  state.values = [fixture, null, false];
+  state.index = 0;
+  const markup = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
+  const text = visibleText(markup);
+  const bar = markup.match(/<progress\b[^>]*>/)?.[0];
+  expect(bar).toBeDefined();
+  expect(bar).not.toMatch(/\svalue=/);
+  expect(bar).toContain("Stage 4 calculation in progress");
+  expect(text).toContain("Calculating — no result yet.");
+  expect(text).not.toContain("QUEUED");
+  expect(markup).toMatch(/data-testid="stage4-numerical-outcome"[^>]*>CALCULATING</);
+});
+
 it("renders backend-owned Ec, Pec, physical sizing, outlets, and sensitivity", () => {
   state.values = [resultFixture(), null, false];
   state.index = 0;
