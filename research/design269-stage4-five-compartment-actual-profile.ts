@@ -1,71 +1,171 @@
 /**
- * Bounded, read-only, actual-worker Stage-4 profile at exactly five physical
- * compartments. Unlike the first-request capture, this starts the pinned inlet
- * local-equilibrium and dogbox workers; it injects no states or evaluators.
+ * Architect-review-only offline convergence diagnostic. It is one frozen
+ * design-269 coarse (5 physical compartments × 2 FV cells) solve using the
+ * existing Stage-4 solveMesh closure. It does not call the production sizing
+ * lifecycle, count sweep, refinement, or coefficient sensitivity route.
  *
- * It is an offline diagnostic only: authority records are read owner-scoped,
- * no lifecycle method is called, and no calculation/result row is written.
- * The persisted artifact contains the latest saved solver telemetry at normal
- * completion, an in-solver budget stop, or managed SIGTERM.
- *
- * Launch only after the telemetry changes are final, as one managed task:
- *   timeout --preserve-status 190s npx tsx research/design269-stage4-five-compartment-actual-profile.ts
+ * Do not launch automatically. After architect review, launch as a managed
+ * background task (not a detached `timeout` shell) with:
+ *   FROZEN_COARSE_DIAGNOSTIC_ARCHITECT_APPROVED=YES \
+ *     npx tsx research/design269-stage4-five-compartment-actual-profile.ts
  */
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
-import { renameSync, writeFileSync } from 'node:fs';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { pool } from '../server/db';
 import { loadStage4PrePilotSizingAuthority } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
 import {
-  runStage4PredictivePhysicalSizing,
+  compareStage4FrozenCoarseReproductionEndpoints,
+  prepareStage4FrozenCoarseIndependentDonorSeed,
+  runStage4FrozenCoarseDiagnostic,
+  stage4FrozenCoarseReproductionComparisonSpecification,
+  type Stage4FrozenCoarseDiagnosticResult,
+  type Stage4FrozenCoarseIteration,
   type Stage4PhysicalSizingProgress,
 } from '../server/ecr-pre-pilot/stage4-predictive-physical-sizing';
+import { verifyStage4DogboxRuntime } from '../server/ecr-pre-pilot/stage4-dogbox-interface';
+import { stage4SevenComponentAdapterArtifactHash } from '../server/ecr-pre-pilot/stage4-seven-component-adapter';
 
 const DESIGN_ID = 269;
 const PHYSICAL_COMPARTMENTS = 5;
-const SOLVER_CAP_MS = 180_000;
-const OUT = 'research/design269-stage4-five-compartment-actual-profile.json';
+const COARSE_CELLS_PER_PHYSICAL_COMPARTMENT = 2;
+const SOLVER_CAP_MS = 3_600_000;
+const OUT = 'research/design269-stage4-frozen-coarse-mesh-convergence-diagnostic.json';
 const hash = (value: unknown) => createHash('sha256')
   .update(JSON.stringify(value)).digest('hex');
+const fileHash = (file: string) => createHash('sha256').update(readFileSync(file)).digest('hex');
+const deepFreeze = <T>(value: T): T => {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    for (const nested of Object.values(value as Record<string, unknown>)) deepFreeze(nested);
+    Object.freeze(value);
+  }
+  return value;
+};
+
+type Attempt = {
+  status: string;
+  initialization: Record<string, unknown>;
+  trace: Stage4FrozenCoarseIteration[];
+  finalCompletedIterationState: Stage4FrozenCoarseIteration | null;
+  latestTelemetry: Stage4PhysicalSizingProgress | null;
+  result: Stage4FrozenCoarseDiagnosticResult | null;
+  error: string | null;
+};
+
+function snapshotSourceAndWorkerIdentity() {
+  const sourceManifestPath = 'server/ecr-pre-pilot/stage4-finite-rate-source-manifest.json';
+  const sourceManifestBytes = readFileSync(sourceManifestPath);
+  const sourceManifest = JSON.parse(sourceManifestBytes.toString('utf8')) as {
+    files: Record<string, string>;
+  };
+  const sourceFiles = Object.entries(sourceManifest.files).map(([file, expectedSha256]) => {
+    const actualSha256 = fileHash(file);
+    if (actualSha256 !== expectedSha256) {
+      throw new Error(`FROZEN_DIAGNOSTIC_SOURCE_MANIFEST_MISMATCH:${file}`);
+    }
+    return { file, sha256: actualSha256 };
+  });
+  const dogbox = verifyStage4DogboxRuntime();
+  const adapterRoot = path.resolve(process.env.STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT
+    ?? 'dist/stage4-seven-component-adapter-runtime');
+  const adapterManifestPath = path.join(adapterRoot, 'stage4-seven-component-adapter-manifest.json');
+  const adapterManifestBytes = readFileSync(adapterManifestPath);
+  const adapterManifest = JSON.parse(adapterManifestBytes.toString('utf8'));
+  const baseRoot = path.resolve(process.env.STAGE4_EQUILIBRIUM_BASE_RUNTIME_ROOT
+    ?? path.join(adapterRoot, adapterManifest.baseRuntime.defaultRelativePath));
+  const baseManifestPath = path.join(baseRoot, adapterManifest.baseRuntime.manifestPath);
+  const baseManifestBytes = readFileSync(baseManifestPath);
+  const legacyManifestPath = path.join(dogbox.legacyRoot, 'job-b-interface-manifest.json');
+  const legacyManifestBytes = readFileSync(legacyManifestPath);
+  return {
+    diagnosticHarness: {
+      path: 'research/design269-stage4-five-compartment-actual-profile.ts',
+      sha256: fileHash('research/design269-stage4-five-compartment-actual-profile.ts'),
+    },
+    sourceManifest: {
+      path: sourceManifestPath,
+      sha256: hash(sourceManifestBytes.toString('utf8')),
+      files: sourceFiles,
+    },
+    dogboxRuntime: {
+      root: dogbox.root,
+      legacyRoot: dogbox.legacyRoot,
+      manifestSha256: fileHash(path.join(dogbox.root, 'stage4-job-b-dogbox-manifest.json')),
+      artifactSha256: dogbox.manifest.artifactSha256,
+      files: dogbox.manifest.files,
+      legacyManifestSha256: hash(legacyManifestBytes.toString('utf8')),
+      legacyRuntimeFiles: JSON.parse(legacyManifestBytes.toString('utf8')).files,
+    },
+    equilibriumAdapterRuntime: {
+      root: adapterRoot,
+      manifestSha256: hash(adapterManifestBytes.toString('utf8')),
+      artifactSha256: stage4SevenComponentAdapterArtifactHash(),
+      files: adapterManifest.files,
+      baseRoot,
+      baseManifestSha256: hash(baseManifestBytes.toString('utf8')),
+      baseRuntimeFiles: JSON.parse(baseManifestBytes.toString('utf8')).files,
+      baseRuntime: adapterManifest.baseRuntime,
+    },
+  };
+}
+const sameSnapshot = (left: unknown, right: unknown) => hash(left) === hash(right);
 
 async function main() {
   const harnessStarted = performance.now();
-  let status = 'AUTHORITY_LOADING';
+  let status = 'AUTHORITY_LOADING_READ_ONLY_OWNER_SCOPED';
   let latestTelemetry: Stage4PhysicalSizingProgress | null = null;
-  const recentTelemetry: Stage4PhysicalSizingProgress[] = [];
+  const telemetry: Stage4PhysicalSizingProgress[] = [];
   let terminating = false;
-  let authoritySummary: Record<string, unknown> | null = null;
+  let authority: Record<string, unknown> | null = null;
+  let prelaunchIdentity: ReturnType<typeof snapshotSourceAndWorkerIdentity> | null = null;
+  let postrunIdentity: ReturnType<typeof snapshotSourceAndWorkerIdentity> | null = null;
+  const attempts: { first: Attempt | null; independentRestart: Attempt | null } = {
+    first: null, independentRestart: null,
+  };
   const abort = new AbortController();
 
   const snapshot = () => ({
-    schema: 'DESIGN269_STAGE4_FIVE_COMPARTMENT_ACTUAL_WORKER_PROFILE_V1',
+    schema: 'DESIGN269_STAGE4_FROZEN_COARSE_MESH_CONVERGENCE_DIAGNOSTIC_V1',
     scope: {
       designId: DESIGN_ID,
       physicalCompartments: PHYSICAL_COMPARTMENTS,
+      finiteVolumeCellsPerPhysicalCompartment: COARSE_CELLS_PER_PHYSICAL_COMPARTMENT,
+      khCoefficient: 0.0126,
       solverCapMs: SOLVER_CAP_MS,
-      externalCapMs: 190_000,
       databaseAccess: 'READ_ONLY_OWNER_SCOPED_AUTHORITY',
       noProductionCalculationPersistence: true,
       noStage2OrStage3Execution: true,
       actualPinnedInletLocalEquilibrium: true,
       actualPinnedDogboxInterface: true,
       injectedEvaluators: false,
+      noRefinedMesh: true,
+      noCoefficientSensitivity: true,
+      noCountSearch: true,
+      noOptimization: true,
       fullColumnSizingAcceptanceClaimed: false,
+      architectReviewRequiredBeforeLaunch: true,
     },
     status,
     timing: {
       checkpointTimestamp: new Date().toISOString(),
       elapsedMs: Math.round(performance.now() - harnessStarted),
     },
-    authority: authoritySummary,
+    authority,
+    sourceManifestRefreshGuard: {
+      source: 'server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts',
+      preDiagnosticHookSha256: '398656082d617001906e832632aebc76169cd672f1cc79a55a21d792d45ccf56',
+      postDiagnosticHookSha256: fileHash('server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts'),
+      declaredChangeScope: 'additive frozen diagnostic dispatch and observation only',
+      numericalEquationChanges: 'NONE_DECLARED; existing solveMesh, cache, gates, 80 iterations, and 2e-6 update tolerance are invoked without replacement',
+    },
+    prelaunchIdentity,
+    postrunIdentity,
     latestTelemetry,
-    recentTelemetry,
+    telemetry,
+    attempts,
   });
   const writeCheckpointSync = () => {
-    // The first managed attempt left a zero-byte artifact; its precise
-    // interruption point is not known. Async writes do have a
-    // truncate-before-completion interval, so write a complete small JSON
-    // sibling first and atomically replace the prior checkpoint.
     const temporary = `${OUT}.tmp`;
     writeFileSync(temporary, `${JSON.stringify(snapshot(), null, 2)}\n`, 'utf8');
     renameSync(temporary, OUT);
@@ -82,7 +182,7 @@ async function main() {
   };
   const onTerm = () => {
     terminating = true;
-    status = 'MANAGED_SIGTERM_CUTOFF_RETAINING_LATEST_TELEMETRY';
+    status = 'MANAGED_SIGTERM_CUTOFF_INCOMPLETE_EVIDENCE_RETAINED';
     abort.abort();
     writeCheckpointSync();
     logCheckpoint('MANAGED_SIGTERM_CHECKPOINT_SAVED');
@@ -90,7 +190,7 @@ async function main() {
   process.once('SIGTERM', onTerm);
 
   try {
-    status = 'INITIAL_SNAPSHOT_BEFORE_AUTHORITY_LOAD';
+    status = 'INITIAL_CHECKPOINT_BEFORE_READ_ONLY_AUTHORITY';
     writeCheckpointSync();
     logCheckpoint('INITIAL_CHECKPOINT_SAVED');
     const owner = await pool.query<{ created_by: number }>(
@@ -98,62 +198,223 @@ async function main() {
       [DESIGN_ID],
     );
     if (!owner.rows[0]) throw new Error('ACTUAL_PROFILE_DESIGN_NOT_FOUND');
-    const authority = await loadStage4PrePilotSizingAuthority(owner.rows[0].created_by, DESIGN_ID);
-    if (authority.solverInput.calculatedNt > PHYSICAL_COMPARTMENTS) {
+    const ownedAuthority = await loadStage4PrePilotSizingAuthority(owner.rows[0].created_by, DESIGN_ID);
+    if (ownedAuthority.solverInput.calculatedNt !== PHYSICAL_COMPARTMENTS) {
       throw new Error('ACTUAL_PROFILE_FIVE_COMPARTMENT_BOUND_BELOW_GOVERNED_NT');
     }
-    authoritySummary = {
-      lineageHash: authority.lineageHash,
-      solverInputHash: hash(authority.solverInput),
-      calculatedNt: authority.solverInput.calculatedNt,
+    const frozenInput = deepFreeze(JSON.parse(JSON.stringify({
+      ...ownedAuthority.solverInput,
       maximumCompartments: PHYSICAL_COMPARTMENTS,
+    })));
+    const frozenInputSha256 = hash(frozenInput);
+    // Construct and gate this alternate independently before the default run.
+    // It cannot observe, copy, or be updated from first-run residuals/endpoints.
+    const independentSecondStart = prepareStage4FrozenCoarseIndependentDonorSeed(frozenInput);
+    const reproductionComparisonSpecification =
+      stage4FrozenCoarseReproductionComparisonSpecification(frozenInput);
+    authority = {
+      authorityAccess: 'READ_ONLY_OWNER_SCOPED_LOAD',
+      ownerScopedDesignId: DESIGN_ID,
+      lineageHash: ownedAuthority.lineageHash,
+      solverInputSha256: hash(frozenInput),
+      solverInput: frozenInput,
+      calculatedNt: frozenInput.calculatedNt,
+      maximumCompartments: frozenInput.maximumCompartments,
+      prelaunchIndependentSecondStart: {
+        method: independentSecondStart.method,
+        donorFraction: independentSecondStart.donorFraction,
+        transferStateSha256: hash(independentSecondStart.transfer),
+        initialSeparationFromZero: independentSecondStart.initialSeparationFromZero,
+        reconstruction: independentSecondStart.reconstruction,
+        constructionDependsOnFirstRun: false,
+        existingReconstructionAdmissibilityGatePassed: true,
+      },
+      predeclaredReproductionComparison: {
+        ...reproductionComparisonSpecification,
+        dependsOnFirstEndpointForSeedConstruction: false,
+        purpose: 'comparison only; no state selection, optimization, or feedback',
+      },
     };
-    status = 'ACTUAL_SOLVER_READY';
+    prelaunchIdentity = snapshotSourceAndWorkerIdentity();
+    status = 'PRELAUNCH_EVIDENCE_FROZEN_REVIEW_REQUIRED';
     writeCheckpointSync();
-    logCheckpoint('AUTHORITY_READY_CHECKPOINT_SAVED');
+    logCheckpoint('PRELAUNCH_AUTHORITY_AND_IDENTITIES_FROZEN');
+    if (process.env.FROZEN_COARSE_DIAGNOSTIC_ARCHITECT_APPROVED !== 'YES') {
+      status = 'AWAITING_ARCHITECT_REVIEW_NO_HEAVY_SOLVE_LAUNCHED';
+      writeCheckpointSync();
+      logCheckpoint('ARCHITECT_APPROVAL_REQUIRED');
+      return;
+    }
 
-    status = 'ACTUAL_SOLVER_RUNNING';
-    writeCheckpointSync();
-    logCheckpoint('ACTUAL_SOLVER_STARTED');
-    const result = await runStage4PredictivePhysicalSizing({
-      ...authority.solverInput,
-      maximumCompartments: PHYSICAL_COMPARTMENTS,
-    }, {
-      timeoutMs: 120_000,
-      wallClockBudgetMs: SOLVER_CAP_MS,
-      abortSignal: abort.signal,
-      // This observer only stores memory and schedules an asynchronous file
-      // checkpoint. It is deliberately not awaited by the numerical solver.
-      onTelemetryProgress: (progress) => {
-        latestTelemetry = structuredClone(progress);
-        recentTelemetry.push(structuredClone(progress));
-        if (recentTelemetry.length > 32) recentTelemetry.shift();
+    const newAttempt = (initialTransfer?: number[][],
+      suppliedInitialization?: Record<string, unknown>): Attempt => ({
+        status: 'RUNNING',
+        initialization: suppliedInitialization ?? (initialTransfer
+          ? { method: 'EXACT_PRIOR_SOLVE_MESH_TRANSFER_STATE', syntheticProfile: false }
+          : { method: 'EXISTING_ZERO_TRANSFER_DEFAULT', syntheticProfile: false }),
+        trace: [],
+        finalCompletedIterationState: null,
+        latestTelemetry: null,
+        result: null,
+        error: null,
+      });
+    const assertFrozenEvidenceBeforeStart = () => {
+      if (hash(frozenInput) !== frozenInputSha256) {
+        throw new Error('FROZEN_DIAGNOSTIC_INPUT_HASH_CHANGED_BEFORE_START');
+      }
+      if (!prelaunchIdentity || !sameSnapshot(prelaunchIdentity, snapshotSourceAndWorkerIdentity())) {
+        throw new Error('FROZEN_DIAGNOSTIC_SOURCE_OR_WORKER_IDENTITY_CHANGED_BEFORE_START');
+      }
+    };
+    const runAttempt = async (attempt: Attempt, initialTransfer?: number[][]): Promise<Attempt> => {
+      assertFrozenEvidenceBeforeStart();
+      const onIteration = (iteration: Stage4FrozenCoarseIteration) => {
+        attempt.trace.push(structuredClone(iteration));
+        attempt.finalCompletedIterationState = structuredClone(iteration);
         writeCheckpointSync();
-        logCheckpoint('TELEMETRY_CHECKPOINT_SAVED');
-      },
-      // Phase/mesh events are retained too, but do no I/O in the awaited lane.
-      onNumericalProgress: (progress) => {
-        latestTelemetry = structuredClone(progress);
-        recentTelemetry.push(structuredClone(progress));
-        if (recentTelemetry.length > 32) recentTelemetry.shift();
-      },
-    });
+        logCheckpoint('COMPLETED_ITERATION_ATOMICALLY_RETAINED');
+      };
+      try {
+        attempt.result = await runStage4FrozenCoarseDiagnostic(frozenInput, {
+          timeoutMs: 120_000,
+          wallClockBudgetMs: SOLVER_CAP_MS,
+          abortSignal: abort.signal,
+          initialTransfer,
+          initialTransferMethod: attempt.initialization.method as
+            | 'EXISTING_ZERO_TRANSFER_DEFAULT'
+            | 'EXACT_PRIOR_SOLVE_MESH_TRANSFER_STATE'
+            | 'PRELAUNCH_FROZEN_FEED_GEOMETRY_UNIFORM_TWO_PERCENT_CONTINUOUS_DONOR_DRAW'
+            | undefined,
+          onIteration,
+          onTelemetryProgress: progress => {
+            latestTelemetry = structuredClone(progress);
+            attempt.latestTelemetry = structuredClone(progress);
+            telemetry.push(structuredClone(progress));
+          },
+          onNumericalProgress: progress => {
+            latestTelemetry = structuredClone(progress);
+            attempt.latestTelemetry = structuredClone(progress);
+          },
+        });
+        attempt.status = attempt.result.solver.converged
+          ? 'COMPLETED_CONVERGED_UNACCEPTED_OFFLINE_DIAGNOSTIC'
+          : 'COMPLETED_NOT_CONVERGED_UNACCEPTED_OFFLINE_DIAGNOSTIC';
+      } catch (error) {
+        attempt.error = error instanceof Error ? error.message : 'UNKNOWN_DIAGNOSTIC_ERROR';
+        attempt.status = terminating
+          ? 'MANAGED_SIGTERM_CUTOFF_INCOMPLETE_EVIDENCE_RETAINED'
+          : 'TERMINATED_WITH_EXPLICIT_ERROR_INCOMPLETE_EVIDENCE_RETAINED';
+      }
+      writeCheckpointSync();
+      return attempt;
+    };
+
+    status = 'FIRST_FROZEN_COARSE_SOLVE_RUNNING';
+    const firstAttempt = newAttempt();
+    attempts.first = firstAttempt;
+    writeCheckpointSync();
+    await runAttempt(firstAttempt);
+    const qualifiesCompletedAttempt = (attempt: Attempt) => {
+      const solver = attempt.result?.solver;
+      const finalIteration = attempt.finalCompletedIterationState;
+      return !!solver
+        && solver.converged
+        && solver.reason === null
+        && solver.interfaceFailure === undefined
+        && solver.iterations > 0
+        && solver.localFlashCalls === 10
+        && solver.transfer.length === 10 && solver.transfer.every(row => row.length === 7)
+        && solver.continuousOutlet.length === 7 && solver.dispersedOutlet.length === 7
+        && solver.maxScaledUpdateResidual !== null && solver.maxScaledUpdateResidual <= 2e-6
+        && solver.maxScaledConstitutiveResidual !== null && solver.maxScaledConstitutiveResidual <= 1e-5
+        && solver.maxScaledComponentBalanceResidual !== null && solver.maxScaledComponentBalanceResidual <= 1e-10
+        && solver.maxAxialResidualMolS !== null && solver.maxAxialResidualMolS <= 1e-10
+        && solver.maxDiffusiveFrameResidualMolS !== null && solver.maxDiffusiveFrameResidualMolS <= 1e-9
+        && solver.maxFilmEqualityResidualMolS !== null && solver.maxFilmEqualityResidualMolS <= 1e-9
+        && solver.maxStefanIdentityResidualMolS !== null && solver.maxStefanIdentityResidualMolS <= 1e-9
+        && solver.maxPostUpdateScaledComponentBalanceResidual !== null
+        && solver.maxPostUpdateScaledComponentBalanceResidual !== undefined
+        && solver.maxPostUpdateScaledComponentBalanceResidual <= 1e-10
+        && solver.postUpdateTotalMassBalanceResidualKgS !== null
+        && solver.postUpdateTotalMassBalanceResidualKgS !== undefined
+        && Math.abs(solver.postUpdateTotalMassBalanceResidualKgS) <= 1e-12
+        && solver.maxPostUpdateContinuousAxialEquationResidualMolS !== null
+        && solver.maxPostUpdateContinuousAxialEquationResidualMolS !== undefined
+        && solver.maxPostUpdateContinuousAxialEquationResidualMolS <= 1e-10
+        && solver.postUpdatePhysicalAdmissibilityPassed === true
+        && !!finalIteration
+        && finalIteration.physicalAdmissibility.continuousFacesNonnegative
+        && finalIteration.physicalAdmissibility.continuousTotalFaceFlowsPositive
+        && finalIteration.physicalAdmissibility.localPhaseStatesNonnegative
+        && finalIteration.localInterfaceQualification.status === 'QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE'
+        && finalIteration.localInterfaceQualification.completedCells === 10;
+    };
+    const firstPassQualification = qualifiesCompletedAttempt(firstAttempt);
+    firstAttempt.initialization.firstPassQualificationForIndependentSecondStart = {
+      passed: firstPassQualification,
+      checks: 'converged/reason/interface/local-LLE/count/shape/update/actual-constitutive/original-and-post-update axial+component+mass balances/admissibility',
+    };
+    if (firstPassQualification) {
+      status = 'CONDITIONAL_INDEPENDENT_PRELAUNCH_SEED_RESTART_RUNNING';
+      const secondAttempt = newAttempt(independentSecondStart.transfer, {
+        method: independentSecondStart.method,
+        source: 'prelaunch frozen feed/geometry only; no first-run endpoint or residual used',
+        sourceStateSha256: hash(independentSecondStart.transfer),
+        donorFraction: independentSecondStart.donorFraction,
+        reconstruction: independentSecondStart.reconstruction,
+        materiallyDifferentFromZeroTransfer: true,
+      });
+      attempts.independentRestart = secondAttempt;
+      writeCheckpointSync();
+      await runAttempt(secondAttempt, independentSecondStart.transfer);
+      secondAttempt.initialization.existingSolveMeshInitialTransferGatePassed = secondAttempt.result !== null;
+      const secondPassQualification = qualifiesCompletedAttempt(secondAttempt);
+      const comparison = secondPassQualification && firstAttempt.result?.solver && secondAttempt.result?.solver
+        ? compareStage4FrozenCoarseReproductionEndpoints(frozenInput,
+          firstAttempt.result.solver, secondAttempt.result.solver)
+        : null;
+      secondAttempt.initialization.reproductionAcceptanceQualification = {
+        passed: secondPassQualification,
+        sameGatesAsFirstPass: true,
+        endpointComparison: comparison,
+        reproducible: firstPassQualification && secondPassQualification && comparison?.endpointsAgree === true,
+        branch: !secondPassQualification
+          ? 'SECOND_ATTEMPT_FAILED_OR_UNQUALIFIED'
+          : comparison?.endpointsAgree
+            ? 'BOTH_QUALIFIED_ENDPOINTS_AGREE'
+            : 'BOTH_QUALIFIED_ENDPOINTS_DIFFER',
+      };
+      if (secondPassQualification && comparison?.endpointsAgree) {
+        secondAttempt.status = 'REPRODUCIBLE_TWO_QUALIFIED_INDEPENDENT_STARTS_UNACCEPTED_OFFLINE_DIAGNOSTIC';
+      } else if (secondPassQualification) {
+        secondAttempt.status = 'BOTH_QUALIFIED_ENDPOINTS_DIFFER_UNACCEPTED_OFFLINE_DIAGNOSTIC';
+      }
+    } else {
+      attempts.independentRestart = {
+        status: 'NOT_RUN_FIRST_PASS_FAILED_OR_UNQUALIFIED',
+        initialization: {
+          method: 'CONDITIONAL_SECOND_START_NOT_AUTHORIZED',
+          branch: 'SECOND_NOT_RUN',
+          firstPassQualification: false,
+        },
+        trace: [], finalCompletedIterationState: null,
+        latestTelemetry: null, result: null, error: null,
+      };
+    }
+    postrunIdentity = snapshotSourceAndWorkerIdentity();
+    if (!sameSnapshot(prelaunchIdentity, postrunIdentity)) {
+      throw new Error('FROZEN_DIAGNOSTIC_SOURCE_OR_WORKER_IDENTITY_CHANGED_DURING_RUN');
+    }
     status = terminating
-      ? 'MANAGED_SIGTERM_CUTOFF_RETAINING_LATEST_TELEMETRY'
-      : 'ACTUAL_SOLVER_RETURNED_OFFLINE_NOT_ACCEPTED';
-    Object.assign(authoritySummary, {
-      returnedStatus: result.status,
-      primaryTermination: result.primary.searchTermination,
-      sensitivityTermination: result.sensitivity.searchTermination,
-    });
+      ? 'MANAGED_SIGTERM_CUTOFF_INCOMPLETE_EVIDENCE_RETAINED'
+      : 'OFFLINE_FROZEN_COARSE_DIAGNOSTIC_COMPLETED_NOT_A_PRODUCTION_RESULT';
   } catch (error) {
     status = terminating
-      ? 'MANAGED_SIGTERM_CUTOFF_RETAINING_LATEST_TELEMETRY'
-      : 'ACTUAL_SOLVER_ERROR_RETAINING_LATEST_TELEMETRY';
-    Object.assign(authoritySummary ??= {}, {
+      ? 'MANAGED_SIGTERM_CUTOFF_INCOMPLETE_EVIDENCE_RETAINED'
+      : 'OFFLINE_DIAGNOSTIC_SETUP_ERROR_INCOMPLETE_EVIDENCE_RETAINED';
+    Object.assign(authority ??= {}, {
       error: error instanceof Error ? error.message : 'ACTUAL_PROFILE_UNKNOWN_ERROR',
     });
-    if (!terminating) throw error;
   } finally {
     process.removeListener('SIGTERM', onTerm);
     writeCheckpointSync();

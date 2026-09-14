@@ -290,7 +290,72 @@ type LocalFlash = {
   dispersedEquilibriumComposition: number[];
   resultHash: string | null;
 };
-type MeshSolve = {
+export type Stage4FrozenCoarseIteration = {
+  iteration: number;
+  scaledUpdateResidual: number;
+  /**
+   * These are evaluated against the same reconstructed current state and
+   * original finite-volume equations.  They are observations only; no
+   * diagnostic value enters the solve or its convergence decision.
+   */
+  originalCoupledColumnResidual: {
+    continuousAxialComponentBalanceMolS: number;
+    totalComponentBalanceMolS: number;
+  };
+  originalConstitutiveResidual: { scaledMaximum: number };
+  originalComponentBalanceResidual: { scaledMaximum: number };
+  totalMassBalanceResidualKgS: number;
+  physicalAdmissibility: {
+    continuousFacesNonnegative: boolean;
+    continuousTotalFaceFlowsPositive: boolean;
+    localPhaseStatesNonnegative: boolean;
+  };
+  localInterfaceQualification: {
+    status: 'QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE'
+      | 'NOT_COMPLETED';
+    completedCells: number;
+    requiredCells: number;
+    responseResultHashes: Array<string | null>;
+  };
+  /**
+   * The existing solver only performs holdup-inventory pinned-flash admission
+   * after its update gate passes. Do not label an interim state flash-admitted.
+   */
+  localFlashQualification: {
+    status: 'NOT_EVALUATED_INTERIM_EXISTING_SOLVER_FINAL_ONLY';
+  };
+  /** Complete reconstructed state for this finished original FV iteration. */
+  transferMolS: number[][];
+  continuousFaceComponentFlowsMolS: number[][];
+  continuousCellMoleFractions: number[][];
+  dispersedCellInComponentFlowsMolS: number[][];
+  dispersedCellOutComponentFlowsMolS: number[][];
+  dispersedCellMoleFractions: number[][];
+  outletPhaseFlows: {
+    continuousMolS: number[];
+    dispersedMolS: number[];
+    continuousTotalMolS: number;
+    dispersedTotalMolS: number;
+    continuousMoleFractions: number[] | null;
+    dispersedMoleFractions: number[] | null;
+  };
+};
+
+export type Stage4FrozenCoarseDiagnosticResult = {
+  schema: 'ECR_STAGE4_FROZEN_COARSE_MESH_DIAGNOSTIC_V1';
+  caseCoefficient: 0.0126;
+  physicalCompartments: number;
+  finiteVolumeCellsPerPhysicalCompartment: 2;
+  initialization: {
+    method: 'EXISTING_ZERO_TRANSFER_DEFAULT'
+      | 'EXACT_PRIOR_SOLVE_MESH_TRANSFER_STATE'
+      | 'PRELAUNCH_FROZEN_FEED_GEOMETRY_UNIFORM_TWO_PERCENT_CONTINUOUS_DONOR_DRAW';
+    suppliedTransferState: boolean;
+  };
+  solver: MeshSolve;
+};
+
+export type MeshSolve = {
   interfaceFailure?: {
     requestHash: string;
     request: Record<string, unknown>;
@@ -312,7 +377,156 @@ type MeshSolve = {
   maxDiffusiveFrameResidualMolS: number | null;
   maxFilmEqualityResidualMolS: number | null;
   maxStefanIdentityResidualMolS: number | null;
+  /** Diagnostic-only independent reconstruction from the damped next state. */
+  maxPostUpdateScaledComponentBalanceResidual?: number | null;
+  postUpdateTotalMassBalanceResidualKgS?: number | null;
+  maxPostUpdateContinuousAxialEquationResidualMolS?: number | null;
+  postUpdatePhysicalAdmissibilityPassed?: boolean | null;
 };
+
+export type Stage4FrozenCoarseReproductionComparison = {
+  schema: 'ECR_STAGE4_FROZEN_COARSE_REPRODUCTION_COMPARATOR_V1';
+  threshold: 2e-6;
+  scale: {
+    method: 'EXISTING_STAGE4_COMPONENT_SUPPLY_SCALE';
+    zeroFloorMolS: 1e-12;
+    componentSupplyScaleMolS: number[];
+    transferCellScaleMolS: 'SAME_COMPONENT_SUPPLY_SCALE_NO_NEW_NORMALIZATION';
+  };
+  endpointShapesValid: boolean;
+  perComponent: Array<{
+    component: string;
+    maximumAbsoluteTransferDifferenceMolS: number;
+    scaledMaximumTransferDifference: number;
+    continuousOutletDifferenceMolS: number;
+    scaledContinuousOutletDifference: number;
+    dispersedOutletDifferenceMolS: number;
+    scaledDispersedOutletDifference: number;
+  }>;
+  maxima: {
+    scaledTransfer: number;
+    scaledContinuousOutlet: number;
+    scaledDispersedOutlet: number;
+    overallScaledDifference: number;
+  };
+  endpointsAgree: boolean;
+};
+
+export function stage4FrozenCoarseReproductionComparisonSpecification(input: Stage4PhysicalSizingInput) {
+  const feed = feeds(input.processBasis);
+  return {
+    threshold: 2e-6 as const,
+    scale: {
+      method: 'EXISTING_STAGE4_COMPONENT_SUPPLY_SCALE' as const,
+      zeroFloorMolS: 1e-12,
+      componentSupplyScaleMolS: feed.continuous.map((value, index) =>
+        Math.max(value + feed.dispersed[index], 1e-12)),
+      transferCellScaleMolS: 'SAME_COMPONENT_SUPPLY_SCALE_NO_NEW_NORMALIZATION' as const,
+    },
+  };
+}
+
+/** Predeclared diagnostic comparison only; it does not choose or optimize a state. */
+export function compareStage4FrozenCoarseReproductionEndpoints(input: Stage4PhysicalSizingInput,
+  first: MeshSolve, second: MeshSolve): Stage4FrozenCoarseReproductionComparison {
+  const specification = stage4FrozenCoarseReproductionComparisonSpecification(input);
+  const scale = specification.scale.componentSupplyScaleMolS;
+  const shapeValid = (mesh: MeshSolve) => mesh.transfer.length === 10
+    && mesh.transfer.every(row => row.length === 7)
+    && mesh.continuousOutlet.length === 7 && mesh.dispersedOutlet.length === 7;
+  const endpointShapesValid = shapeValid(first) && shapeValid(second);
+  const perComponent = JOB_A_COMPONENT_ORDER.map((component, i) => {
+    const transferDifferences = endpointShapesValid
+      ? first.transfer.map((row, j) => Math.abs(row[i] - second.transfer[j][i])) : [Infinity];
+    const continuousDifference = endpointShapesValid
+      ? Math.abs(first.continuousOutlet[i] - second.continuousOutlet[i]) : Infinity;
+    const dispersedDifference = endpointShapesValid
+      ? Math.abs(first.dispersedOutlet[i] - second.dispersedOutlet[i]) : Infinity;
+    return {
+      component,
+      maximumAbsoluteTransferDifferenceMolS: Math.max(...transferDifferences),
+      scaledMaximumTransferDifference: Math.max(...transferDifferences) / scale[i],
+      continuousOutletDifferenceMolS: continuousDifference,
+      scaledContinuousOutletDifference: continuousDifference / scale[i],
+      dispersedOutletDifferenceMolS: dispersedDifference,
+      scaledDispersedOutletDifference: dispersedDifference / scale[i],
+    };
+  });
+  const maxima = {
+    scaledTransfer: Math.max(...perComponent.map(row => row.scaledMaximumTransferDifference)),
+    scaledContinuousOutlet: Math.max(...perComponent.map(row => row.scaledContinuousOutletDifference)),
+    scaledDispersedOutlet: Math.max(...perComponent.map(row => row.scaledDispersedOutletDifference)),
+    overallScaledDifference: Math.max(...perComponent.flatMap(row => [
+      row.scaledMaximumTransferDifference,
+      row.scaledContinuousOutletDifference,
+      row.scaledDispersedOutletDifference,
+    ])),
+  };
+  return {
+    schema: 'ECR_STAGE4_FROZEN_COARSE_REPRODUCTION_COMPARATOR_V1',
+    ...specification,
+    endpointShapesValid,
+    perComponent,
+    maxima,
+    endpointsAgree: endpointShapesValid && maxima.overallScaledDifference <= 2e-6,
+  };
+}
+
+function reconstructDiagnosticTransferState(transfer: number[][], cells: number,
+  continuousFeed: number[], dispersedFeed: number[]) {
+  if (transfer.length !== cells || transfer.some(row =>
+    row.length !== 7 || row.some(value => !finite(value)))) {
+    throw new Error('STAGE4_DIAGNOSTIC_INITIAL_TRANSFER_SHAPE_OR_FINITE_GATE_FAILED');
+  }
+  const continuous = [...continuousFeed];
+  const dispersed = [...dispersedFeed];
+  for (let j = 0; j < cells; j += 1) {
+    for (let i = 0; i < 7; i += 1) continuous[i] -= transfer[j][i];
+  }
+  for (let j = cells - 1; j >= 0; j -= 1) {
+    for (let i = 0; i < 7; i += 1) dispersed[i] += transfer[j][i];
+  }
+  if (![...continuous, ...dispersed].every(value => value >= -1e-12 && finite(value))) {
+    throw new Error('STAGE4_DIAGNOSTIC_INITIAL_TRANSFER_PHYSICAL_ADMISSIBILITY_GATE_FAILED');
+  }
+  return { transfer: transfer.map(row => [...row]), continuous, dispersed };
+}
+
+/**
+ * This is solely the existing countercurrent transfer reconstruction exposed
+ * for a frozen diagnostic preflight; it introduces no new transport physics.
+ */
+export function prepareStage4FrozenCoarseIndependentDonorSeed(input: Stage4PhysicalSizingInput) {
+  if (input.calculatedNt !== 5 || input.maximumCompartments !== 5) {
+    throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_REQUIRES_ACCEPTED_NT_AND_FIVE_PHYSICAL_COMPARTMENTS');
+  }
+  const physicalCompartments = 5;
+  const cells = physicalCompartments * 2;
+  const donorFraction = .02;
+  const feed = feeds(input.processBasis);
+  // Positive N_i is the existing solver's continuous-to-dispersed direction.
+  // The uniform 2% draw is bounded component-by-component by the actual
+  // continuous donor inventory and is deliberately prepared before either run.
+  const transfer = Array.from({ length: cells }, () =>
+    feed.continuous.map(value => donorFraction * value / cells));
+  const reconstruction = reconstructDiagnosticTransferState(transfer, cells,
+    feed.continuous, feed.dispersed);
+  return {
+    method: 'PRELAUNCH_FROZEN_FEED_GEOMETRY_UNIFORM_TWO_PERCENT_CONTINUOUS_DONOR_DRAW' as const,
+    donorFraction,
+    transfer: reconstruction.transfer,
+    reconstruction: {
+      continuousOutletComponentFlowsMolS: reconstruction.continuous,
+      dispersedOutletComponentFlowsMolS: reconstruction.dispersed,
+    },
+    initialSeparationFromZero: {
+      maximumAbsoluteTransferMolS: Math.max(...reconstruction.transfer.flat().map(Math.abs)),
+      totalContinuousDonorDrawMolS: reconstruction.transfer.flat()
+        .reduce((sum, value) => sum + value, 0),
+      fractionOfContinuousDonorInventory: donorFraction,
+    },
+  };
+}
 
 /** Component residual scale is the total supplied inventory of that component,
  * not the phase that happens to be indexed by the residual vector. */
@@ -346,6 +560,12 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     cancelled: () => boolean;
     progress?: (event: Stage4PhysicalSizingProgress) => void | Promise<void>;
     telemetry?: (event: Stage4PhysicalSizingProgress) => void | Promise<void>;
+    diagnostic?: {
+      physicalCompartments: number;
+      cellsPerPhysicalCompartment: 2;
+      initialTransfer?: number[][];
+      onIteration?: (iteration: Stage4FrozenCoarseIteration) => void;
+    };
   }) {
   let interfaceCallsAttempted = 0;
   let interfaceCallsCompleted = 0;
@@ -554,6 +774,68 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     const feedScale = feed.continuous.map((value, index) =>
       Math.max(value + feed.dispersed[index], 1e-12));
     const residualHistory: Record<string, number>[] = [];
+    // A separate reconstruction used only by the frozen diagnostic's final
+    // post-update qualification.  It independently evaluates the same
+    // boundary-flux/axial-dispersion equation rather than relying solely on
+    // the transfer-sum cancellation that makes total component balance exact.
+    const independentlyReconstructState = (candidate: number[][]) => {
+      const faces = Array.from({ length: cells + 1 }, () => Array(7).fill(0));
+      faces[0] = [...feed.continuous];
+      for (let j = 0; j < cells; j += 1) {
+        faces[j + 1] = faces[j].map((value, i) => value - candidate[j][i]);
+      }
+      const qFaces = faces.map(row => row.reduce((sum, value) => sum + value, 0));
+      const continuousAdmissible = !faces.flat().some(value => !finite(value) || value < -1e-11)
+        && qFaces.every(positive);
+      const xc = Array.from({ length: cells }, () => Array(7).fill(0));
+      if (continuousAdmissible) {
+        xc[cells - 1] = faces[cells].map((value, i) => value / qFaces[cells]);
+        for (let j = cells - 2; j >= 0; j -= 1) {
+          xc[j] = faces[j + 1].map((value, i) =>
+            (value + dispersionConductance * xc[j + 1][i])
+            / (qFaces[j + 1] + dispersionConductance));
+        }
+      }
+      const dIn = Array.from({ length: cells }, () => Array(7).fill(0));
+      const dOut = Array.from({ length: cells }, () => Array(7).fill(0));
+      let dispersed = [...feed.dispersed];
+      for (let j = cells - 1; j >= 0; j -= 1) {
+        dIn[j] = [...dispersed];
+        dispersed = dispersed.map((value, i) => value + candidate[j][i]);
+        dOut[j] = [...dispersed];
+      }
+      const localAdmissible = [...xc.flat(), ...dIn.flat(), ...dOut.flat()]
+        .every(value => finite(value) && value >= -1e-11);
+      const reconstructedFluxResiduals: number[] = [];
+      if (continuousAdmissible) {
+        for (let j = 0; j < cells - 1; j += 1) {
+          for (let i = 0; i < 7; i += 1) {
+            reconstructedFluxResiduals.push(faces[j + 1][i]
+              - (qFaces[j + 1] * xc[j][i]
+                + dispersionConductance * (xc[j][i] - xc[j + 1][i])));
+          }
+        }
+        for (let i = 0; i < 7; i += 1) {
+          reconstructedFluxResiduals.push(faces[cells][i] - qFaces[cells] * xc[cells - 1][i]);
+        }
+      }
+      const continuousOutlet = faces[cells];
+      const dispersedOutlet = dOut[0];
+      const componentBalance = scaledMaximum(continuousOutlet.map((value, i) =>
+        feed.continuous[i] + feed.dispersed[i] - value - dispersedOutlet[i]), feedScale);
+      const massBalance = continuousOutlet.reduce((sum, value, i) =>
+        sum + value * MW[i] / 1000, 0) + dispersedOutlet.reduce((sum, value, i) =>
+        sum + value * MW[i] / 1000, 0) - feed.continuous.reduce((sum, value, i) =>
+        sum + value * MW[i] / 1000, 0) - feed.dispersed.reduce((sum, value, i) =>
+        sum + value * MW[i] / 1000, 0);
+      return {
+        componentBalance,
+        massBalance,
+        maximumAxialEquationResidual: reconstructedFluxResiduals.length
+          ? Math.max(...reconstructedFluxResiduals.map(Math.abs)) : Infinity,
+        physicallyAdmissible: continuousAdmissible && localAdmissible,
+      };
+    };
     const emitOperationalProgress = (operation: string, operationStartedAt: number,
       iteration: number | null, cellIndex: number | null, residuals?: Record<string, number>) => {
       emitTelemetryProgress({
@@ -567,7 +849,13 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
           residuals, residualHistory.map(entry => ({ ...entry }))),
       });
     };
-    let transfer = Array.from({ length: cells }, () => Array(7).fill(0));
+    let transfer = controls.diagnostic?.initialTransfer
+      ? controls.diagnostic.initialTransfer.map(row => [...row])
+      : Array.from({ length: cells }, () => Array(7).fill(0));
+    if (controls.diagnostic?.initialTransfer) {
+      transfer = reconstructDiagnosticTransferState(transfer, cells,
+        feed.continuous, feed.dispersed).transfer;
+    }
     let latestFrame = 0;
     let latestFilmEquality = 0;
     let latestStefanIdentity = 0;
@@ -633,6 +921,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
           maxStefanIdentityResidualMolS: null };
       }
       const proposed: number[][] = [];
+      const interfaceResultHashes: Array<string | null> = [];
       try {
         for (let j = 0; j < cells; j += 1) {
           const dInventory = dIn[j].map((value, i) => .5 * (value + dOut[j][i]));
@@ -669,6 +958,8 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
             };
             throw new Error(`STAGE4_JOB_B_INTERFACE_UNAVAILABLE:${interfaceResult.status}`);
           }
+          interfaceResultHashes.push(typeof (interfaceResult as any).resultHash === 'string'
+            ? (interfaceResult as any).resultHash : null);
           const raw = interfaceResult.interface.continuousComponentFluxMolM2S
             .map(value => value * interfacialArea);
           const equality = interfaceResult.interface.fluxEqualityResidualMolM2S;
@@ -741,6 +1032,75 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
         maxFilmEqualityResidualMolS: latestFilmEquality,
         maxStefanIdentityResidualMolS: latestStefanIdentity,
       };
+      if (controls.diagnostic) {
+        const continuousOutlet = feed.continuous.map((value, i) =>
+          value - transfer.reduce((sum, row) => sum + row[i], 0));
+        const dispersedOutlet = feed.dispersed.map((value, i) =>
+          value + transfer.reduce((sum, row) => sum + row[i], 0));
+        const originalConstitutive = scaledMaximum(transfer.flatMap((row, j) =>
+          row.map((value, i) => value - proposed[j][i])), feedScale);
+        const originalAxial = Math.max(...transfer.flatMap((row, j) => row.map((value, i) =>
+          faces[j][i] - faces[j + 1][i] - value).map(Math.abs)));
+        const originalComponentBalance = scaledMaximum(continuousOutlet.map((value, i) =>
+          feed.continuous[i] + feed.dispersed[i] - value - dispersedOutlet[i]), feedScale);
+        const totalMassBalance = continuousOutlet.reduce((sum, value, i) =>
+          sum + value * MW[i] / 1000, 0) + dispersedOutlet.reduce((sum, value, i) =>
+          sum + value * MW[i] / 1000, 0) - feed.continuous.reduce((sum, value, i) =>
+          sum + value * MW[i] / 1000, 0) - feed.dispersed.reduce((sum, value, i) =>
+          sum + value * MW[i] / 1000, 0);
+        const continuousTotal = continuousOutlet.reduce((sum, value) => sum + value, 0);
+        const dispersedTotal = dispersedOutlet.reduce((sum, value) => sum + value, 0);
+        try {
+          controls.diagnostic.onIteration?.({
+            iteration: iteration + 1,
+            scaledUpdateResidual: update,
+            originalCoupledColumnResidual: {
+              continuousAxialComponentBalanceMolS: originalAxial,
+              totalComponentBalanceMolS: Math.max(...continuousOutlet.map((value, i) =>
+                Math.abs(feed.continuous[i] + feed.dispersed[i] - value - dispersedOutlet[i]))),
+            },
+            originalConstitutiveResidual: { scaledMaximum: originalConstitutive },
+            originalComponentBalanceResidual: { scaledMaximum: originalComponentBalance },
+            totalMassBalanceResidualKgS: totalMassBalance,
+            physicalAdmissibility: {
+              continuousFacesNonnegative: faces.flat().every(value => value >= -1e-11 && finite(value)),
+              continuousTotalFaceFlowsPositive: qFaces.every(positive),
+              localPhaseStatesNonnegative: [...xc.flat(), ...dIn.flat(), ...dOut.flat()]
+                .every(value => value >= -1e-11 && finite(value)),
+            },
+            localInterfaceQualification: {
+              status: interfaceResultHashes.length === cells
+                ? 'QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE' : 'NOT_COMPLETED',
+              completedCells: interfaceResultHashes.length,
+              requiredCells: cells,
+              responseResultHashes: interfaceResultHashes,
+            },
+            localFlashQualification: {
+              status: 'NOT_EVALUATED_INTERIM_EXISTING_SOLVER_FINAL_ONLY',
+            },
+            transferMolS: transfer.map(row => [...row]),
+            continuousFaceComponentFlowsMolS: faces.map(row => [...row]),
+            continuousCellMoleFractions: xc.map(row => [...row]),
+            dispersedCellInComponentFlowsMolS: dIn.map(row => [...row]),
+            dispersedCellOutComponentFlowsMolS: dOut.map(row => [...row]),
+            dispersedCellMoleFractions: dIn.map((row, j) =>
+              normalize(row.map((value, i) => .5 * (value + dOut[j][i])))),
+            outletPhaseFlows: {
+              continuousMolS: continuousOutlet,
+              dispersedMolS: dispersedOutlet,
+              continuousTotalMolS: continuousTotal,
+              dispersedTotalMolS: dispersedTotal,
+              continuousMoleFractions: continuousTotal > 0 ? normalize(continuousOutlet) : null,
+              dispersedMoleFractions: dispersedTotal > 0 ? normalize(dispersedOutlet) : null,
+            },
+          });
+        } catch (error) {
+          // A frozen diagnostic observer is not allowed to perturb production
+          // numerical control flow. Its own durable checkpoint failure is
+          // reported by the harness, not recast as a scientific solver result.
+          console.error('STAGE4_DIAGNOSTIC_ITERATION_OBSERVER_FAILED', error);
+        }
+      }
       residualHistory.push(iterationResiduals);
       emitOperationalProgress('COUNTERCURRENT_ITERATION_COMPLETE', iterationStartedAt,
         iteration + 1, null, iterationResiduals);
@@ -758,6 +1118,13 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
           faces[j][i] - faces[j + 1][i] - value).map(Math.abs)));
         const balance = scaledMaximum(continuousOutlet.map((value, i) =>
           feed.continuous[i] + feed.dispersed[i] - value - dispersedOutlet[i]), feedScale);
+        // The frozen diagnostic also rebuilds the phase outlets from `next`,
+        // independently of the current-state constitutive response. Component
+        // and mass closure remain redundant transfer-conservation identities;
+        // the separately reconstructed boundary-flux/dispersion residual is
+        // the non-redundant axial-equation check. This is diagnostic-only and
+        // cannot alter the production route.
+        const postUpdate = controls.diagnostic ? independentlyReconstructState(next) : null;
         // Job-B has solved local chemical-potential/interface stability during
         // every iteration. Independently admit the converged bulk state using
         // the pinned flash once per FV cell, with liquid holdup inventory
@@ -798,15 +1165,29 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
             maxFilmEqualityResidualMolS: latestFilmEquality,
             maxStefanIdentityResidualMolS: latestStefanIdentity };
         }
-        return { converged: constitutive <= 1e-5 && balance <= 1e-10,
-          reason: constitutive <= 1e-5 && balance <= 1e-10 ? null
-            : `FINAL_SCALED_RESIDUAL_GATE_FAILED:${constitutive}:${balance}`,
+        const accepted = constitutive <= 1e-5 && balance <= 1e-10
+          && (!controls.diagnostic || (!!postUpdate && postUpdate.componentBalance <= 1e-10
+            && Math.abs(postUpdate.massBalance) <= 1e-12
+            && postUpdate.maximumAxialEquationResidual <= 1e-10
+            && postUpdate.physicallyAdmissible
+            && latestFrame <= 1e-9
+            && latestFilmEquality <= 1e-9
+            && latestStefanIdentity <= 1e-9));
+        return { converged: accepted,
+          reason: accepted ? null
+            : `FINAL_SCALED_RESIDUAL_GATE_FAILED:${constitutive}:${balance}:${postUpdate?.componentBalance ?? 'NOT_DIAGNOSTIC'}:${postUpdate?.massBalance ?? 'NOT_DIAGNOSTIC'}`,
           iterations: iteration + 1, localFlashCalls: flashCalls, continuousOutlet, dispersedOutlet, transfer,
           maxScaledUpdateResidual: update, maxScaledConstitutiveResidual: constitutive,
           maxScaledComponentBalanceResidual: balance, maxAxialResidualMolS: axial,
           maxDiffusiveFrameResidualMolS: latestFrame,
           maxFilmEqualityResidualMolS: latestFilmEquality,
-          maxStefanIdentityResidualMolS: latestStefanIdentity };
+          maxStefanIdentityResidualMolS: latestStefanIdentity,
+          ...(postUpdate ? {
+            maxPostUpdateScaledComponentBalanceResidual: postUpdate.componentBalance,
+            postUpdateTotalMassBalanceResidualKgS: postUpdate.massBalance,
+            maxPostUpdateContinuousAxialEquationResidualMolS: postUpdate.maximumAxialEquationResidual,
+            postUpdatePhysicalAdmissibilityPassed: postUpdate.physicallyAdmissible,
+          } : {}) };
       }
       transfer = next;
     }
@@ -817,6 +1198,19 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
       maxStefanIdentityResidualMolS: null };
   };
+
+  if (controls.diagnostic) {
+    if (controls.diagnostic.physicalCompartments !== input.calculatedNt
+      || controls.diagnostic.cellsPerPhysicalCompartment !== 2) {
+      throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_SCOPE_INVALID');
+    }
+    const diagnosticMesh = await solveMesh(controls.diagnostic.physicalCompartments,
+      controls.diagnostic.cellsPerPhysicalCompartment);
+    return {
+      ...result,
+      diagnosticMesh,
+    };
+  }
 
   // N is physical hardware. The finite-volume resolution below is deliberately
   // independent (2 then 4 axial cells per physical compartment).
@@ -965,8 +1359,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
   return result;
 }
 
-export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSizingInput,
-  options?: {
+export type Stage4PredictivePhysicalSizingOptions = {
     flashEvaluator?: FlashEvaluator;
     interfaceEvaluator?: InterfaceEvaluator;
     timeoutMs?: number;
@@ -985,12 +1378,33 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
       completedCases: 0 | 1 | 2;
       totalCases: 2;
     }) => void | Promise<void>;
-  }) {
+    /**
+     * Internal diagnostic route used only by runStage4FrozenCoarseDiagnostic.
+     * It deliberately reuses solveCase/solveMesh, the evaluator cache, and
+     * all existing worker gates while omitting production's count sweep,
+     * refinement, and c=0.0105 sensitivity case.
+     */
+    frozenCoarseDiagnostic?: {
+      physicalCompartments: number;
+      initialTransfer?: number[][];
+      initialTransferMethod?: Stage4FrozenCoarseDiagnosticResult['initialization']['method'];
+      onIteration?: (iteration: Stage4FrozenCoarseIteration) => void;
+    };
+  };
+
+export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSizingInput,
+  options?: Stage4PredictivePhysicalSizingOptions) {
   if (!Number.isInteger(input.calculatedNt) || input.calculatedNt < 1) {
     throw new Error('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
   }
+  const diagnostic = options?.frozenCoarseDiagnostic;
   const wallClockBudgetMs = options?.wallClockBudgetMs ?? 900_000;
-  if (!Number.isFinite(wallClockBudgetMs) || wallClockBudgetMs <= 0 || wallClockBudgetMs > 1_800_000) {
+  // The production cap remains 30 minutes. The isolated, explicitly named
+  // frozen diagnostic owns its separately disclosed one-hour observation
+  // budget; it is not a production service setting.
+  const maximumWallClockBudgetMs = diagnostic ? 3_600_000 : 1_800_000;
+  if (!Number.isFinite(wallClockBudgetMs) || wallClockBudgetMs <= 0
+    || wallClockBudgetMs > maximumWallClockBudgetMs) {
     throw new Error('STAGE4_WALL_CLOCK_BUDGET_INVALID');
   }
   const startedAtMonotonicMs = performance.now();
@@ -1005,6 +1419,15 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
     // separately so per-cell observations can be advisory without changing
     // the awaited mesh/phase progress contract.
     telemetry: options?.onTelemetryProgress ?? options?.onNumericalProgress,
+    ...(diagnostic ? {
+      diagnostic: {
+        physicalCompartments: diagnostic.physicalCompartments,
+        cellsPerPhysicalCompartment: 2 as const,
+        initialTransfer: diagnostic.initialTransfer,
+        initialTransferMethod: diagnostic.initialTransferMethod,
+        onIteration: diagnostic.onIteration,
+      },
+    } : {}),
   };
   const session = options?.flashEvaluator ? null : createSevenComponentLocalEquilibriumSession({
     timeoutMs: options?.timeoutMs ?? 120_000,
@@ -1063,6 +1486,23 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
     await options?.onProgress?.({ phase: 'PRIMARY_RUNNING', completedCases: 0, totalCases: 2 });
     primary = await solveCase(input, .0126, evaluator, interfaceEvaluator, controls);
     await options?.onProgress?.({ phase: 'PRIMARY_COMPLETE', completedCases: 1, totalCases: 2 });
+    if (diagnostic) {
+      const solver = primary.diagnosticMesh;
+      if (!solver) throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_MESH_MISSING');
+      return {
+        schema: 'ECR_STAGE4_FROZEN_COARSE_MESH_DIAGNOSTIC_V1' as const,
+        caseCoefficient: .0126 as const,
+        physicalCompartments: diagnostic.physicalCompartments,
+        finiteVolumeCellsPerPhysicalCompartment: 2 as const,
+        initialization: {
+          method: diagnostic.initialTransfer
+            ? diagnostic.initialTransferMethod ?? 'EXACT_PRIOR_SOLVE_MESH_TRANSFER_STATE' as const
+            : 'EXISTING_ZERO_TRANSFER_DEFAULT' as const,
+          suppliedTransferState: !!diagnostic.initialTransfer,
+        },
+        solver,
+      };
+    }
     await options?.onProgress?.({ phase: 'SENSITIVITY_RUNNING', completedCases: 1, totalCases: 2 });
     sensitivity = await solveCase(input, .0105, evaluator, interfaceEvaluator, controls);
     await options?.onProgress?.({ phase: 'SENSITIVITY_COMPLETE', completedCases: 2, totalCases: 2 });
@@ -1110,4 +1550,34 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
       'Ec uses the authorized screening expression; Ed=0. Two and four finite-volume cells per physical compartment are independently solved; mesh and nonlinear iteration counts are never physical compartment count.',
     ],
   };
+}
+
+/**
+ * An offline-only entry point for a single exact coarse mesh. It calls the
+ * existing solveCase closure and its existing solveMesh implementation; no
+ * finite-volume equation, cache, gate, tolerance, or iteration limit is
+ * duplicated here. Production callers retain the full two-mesh/two-case route.
+ */
+export async function runStage4FrozenCoarseDiagnostic(input: Stage4PhysicalSizingInput,
+  options?: Omit<Stage4PredictivePhysicalSizingOptions, 'frozenCoarseDiagnostic'> & {
+    initialTransfer?: number[][];
+    initialTransferMethod?: Stage4FrozenCoarseDiagnosticResult['initialization']['method'];
+    onIteration?: (iteration: Stage4FrozenCoarseIteration) => void;
+  }): Promise<Stage4FrozenCoarseDiagnosticResult> {
+  if (input.calculatedNt !== 5 || input.maximumCompartments !== 5) {
+    throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_REQUIRES_ACCEPTED_NT_AND_FIVE_PHYSICAL_COMPARTMENTS');
+  }
+  const result = await runStage4PredictivePhysicalSizing(input, {
+    ...options,
+    frozenCoarseDiagnostic: {
+      physicalCompartments: 5,
+      initialTransfer: options?.initialTransfer,
+      initialTransferMethod: options?.initialTransferMethod,
+      onIteration: options?.onIteration,
+    },
+  });
+  if (!('schema' in result) || result.schema !== 'ECR_STAGE4_FROZEN_COARSE_MESH_DIAGNOSTIC_V1') {
+    throw new Error('STAGE4_FROZEN_COARSE_DIAGNOSTIC_RESULT_MISSING');
+  }
+  return result;
 }

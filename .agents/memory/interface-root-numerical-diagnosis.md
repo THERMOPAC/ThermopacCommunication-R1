@@ -20,3 +20,9 @@ Qualify runtime optimizations by separating scientific-payload equivalence from 
 **Why:** A response digest includes the worker's provenance. Changing a worker intentionally changes that digest even when every scientific output and acceptance diagnostic is identical; requiring the historical digest would reject legitimate optimizations or encourage false identity claims.
 
 **How to apply:** Preserve and validate both authentic raw responses. Match their exact request identities, then compare scientific payloads after excluding only explicitly justified changed implementation-identity fields. Never discard acceptance diagnostics, substitute an old worker hash, or interpret a local speedup as a full-column speedup.
+
+Establish frozen coarse-mesh whole-column convergence before further runtime optimization.
+
+**Why:** The user explicitly prioritized global convergence after qualified, faster local roots still failed to establish a converged column. Successful cell solves and small local residuals do not demonstrate coupled-column closure.
+
+**How to apply:** Freeze one geometry, coefficient, model and all existing gates; retain whole-iteration states and residuals. Reproduction must start from an a priori admissible alternative, never the first converged endpoint. Distinguish conservation enforced by construction from independently evaluated closure. Refinement, sensitivity, sizing acceptance and subsequent performance optimization remain separate.
