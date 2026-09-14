@@ -4,6 +4,7 @@ import Stage4InterfaceFailureDiagnostics, {
   type Stage4InterfaceFailureCase,
 } from "./stage4-interface-failure-diagnostics";
 import Stage4TrialProgress, { Stage4FailureReason } from "./stage4-trial-progress";
+import "./stage4-progress.css";
 
 type RecordValue = Record<string, unknown>;
 type Props = { designId: number | null };
@@ -720,11 +721,14 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           </div>
           {stage4Running && (
             <div className="mt-3" data-testid="stage4-active-progress">
-              <progress
+              <div
+                role="progressbar"
                 aria-label="Stage 4 calculation in progress"
                 aria-valuetext="Calculating; percentage complete is unavailable"
-                className="block h-3 w-full accent-cyan-600"
-              />
+                className="stage4-activity-track"
+              >
+                <div className="stage4-activity-segment" aria-hidden="true" />
+              </div>
               <p className="mt-2 font-semibold" role="status">
                 Calculating — no result yet.
               </p>

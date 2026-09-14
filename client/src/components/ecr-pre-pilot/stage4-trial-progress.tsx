@@ -32,7 +32,7 @@ export default function Stage4TrialProgress({ progress, minimum, maximum, notRun
                 Completed trials: {completed ?? "Not recorded"} / {total ?? "—"}
               </p>
               {completed !== null && total !== null && total > 0 && completed <= total && (
-                <progress className="mt-1 block h-3 w-full accent-cyan-600"
+                <progress className="stage4-trial-meter mt-1"
                   value={completed} max={total}
                   aria-label={`${key} physical-count trials completed`}
                   aria-valuetext={`${completed} of ${total} candidate trials completed`} />

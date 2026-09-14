@@ -268,9 +268,10 @@ it("shows indeterminate activity without a false percentage or failure label dur
   state.index = 0;
   const markup = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
   const text = visibleText(markup);
-  const bar = markup.match(/<progress\b[^>]*>/)?.[0];
+  const bar = markup.match(/<div\b[^>]*role="progressbar"[^>]*>/)?.[0];
   expect(bar).toBeDefined();
-  expect(bar).not.toMatch(/\svalue=/);
+  expect(bar).not.toContain("aria-valuenow");
+  expect(markup).toContain("stage4-activity-segment");
   expect(bar).toContain("Stage 4 calculation in progress");
   expect(text).toContain("Calculating — no result yet.");
   expect(text).not.toContain("QUEUED");

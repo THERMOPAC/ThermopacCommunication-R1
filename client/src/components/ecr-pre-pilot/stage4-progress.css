@@ -1,0 +1,44 @@
+.stage4-activity-track {
+  position: relative;
+  height: 16px;
+  overflow: hidden;
+  border: 1px solid #7dd3fc;
+  border-radius: 9999px;
+  background: #e0f2fe;
+}
+
+.stage4-activity-segment {
+  position: absolute;
+  inset-block: 0;
+  width: 35%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0284c7, #06b6d4);
+  animation: stage4-active-sweep 1.8s ease-in-out infinite;
+}
+
+@keyframes stage4-active-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
+}
+
+.stage4-trial-meter {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid #bae6fd;
+  border-radius: 9999px;
+  background: #f0f9ff;
+}
+
+.stage4-trial-meter::-webkit-progress-bar { background: #f0f9ff; }
+.stage4-trial-meter::-webkit-progress-value { background: #0284c7; border-radius: 9999px; }
+.stage4-trial-meter::-moz-progress-bar { background: #0284c7; border-radius: 9999px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stage4-activity-segment {
+    animation: none;
+    transform: translateX(90%);
+  }
+}
