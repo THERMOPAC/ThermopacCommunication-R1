@@ -1073,3 +1073,17 @@ mtime_ms = 1789216556869
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c0ee13cf-67d6-4ec8-90f7-cbc80840a87c/e888cf78-9ee7-4db7-af12-a403decdb01b"
 storage_version_token = "1789216569471025"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "DDc5rnFSB_CXauNcuFgjq"
+uri = "file://research/sources/kuhni-mass-transfer/asadollahzadeh-2017-equation-9.png"
+type = "image"
+title = "Actual published Equation 9 — source comparison"
+description = "Cropped from Asadollahzadeh et al. (2017), printed page 153. Shows the coefficient, barred velocity, bracket placement, and trailing notation that differ from the supplied screening expression."
+logical_id = "4127a6e1-cc45-4ee9-9764-1e151575a9bf"
+content_hash = "sha256:439239608ca3c7c7e2b0e0e3b56316b53e442d6e7b6e518227758ee4231b71f5"
+size = 51483
+mtime_ms = 1789361395997
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/4127a6e1-cc45-4ee9-9764-1e151575a9bf/2501e8aa-6553-4b78-8488-9505148c01da"
+storage_version_token = "1789361422307550"
+content_type = "image/png"
