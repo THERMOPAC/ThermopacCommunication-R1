@@ -963,16 +963,81 @@ print(json.dumps(events))
       .not.toBe(stage1ScientificContentHash(first));
   });
 
-  it('fails closed for an unsupported saved phase configuration', async () => {
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for Stage 1 phase test');
-    const userId = Number(user.rows[0].id);
-    const design = await allocateEcrPrePilotDesign(userId, `stage1-phase-${Date.now()}`);
-    const stage1 = validStage1(design.projectNumber);
-    stage1.phaseConfiguration = 'rrbo-continuous-nmp-dispersed';
-    const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
-    expect(() => derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber))
-      .toThrow('UNSUPPORTED_PHASE_CONFIGURATION');
+  it('derives and validates identical 7C thermodynamic inputs for both saved phase orientations', () => {
+    const nmpContinuousSnapshot = makeStage1Snapshot(canonicalizeStage1Input(
+      validStage1(209),
+      209,
+    ));
+    const rrboContinuousSnapshot = makeStage1Snapshot(canonicalizeStage1Input({
+      ...validStage1(209),
+      phaseConfiguration: 'rrbo-continuous-nmp-dispersed',
+    }, 209));
+
+    expect(nmpContinuousSnapshot.immutableHash).not.toBe(rrboContinuousSnapshot.immutableHash);
+    expect(nmpContinuousSnapshot.stage1.phaseConfiguration)
+      .toBe('nmp-continuous-rrbo-dispersed');
+    expect(rrboContinuousSnapshot.stage1.phaseConfiguration)
+      .toBe('rrbo-continuous-nmp-dispersed');
+
+    const nmpContinuous = derivePredictiveNtInputFromStage1(nmpContinuousSnapshot, 209);
+    const rrboContinuous = derivePredictiveNtInputFromStage1(rrboContinuousSnapshot, 209);
+
+    expect(() => validatePredictiveNtJobInput(nmpContinuous)).not.toThrow();
+    expect(() => validatePredictiveNtJobInput(rrboContinuous)).not.toThrow();
+    expect(nmpContinuous).toMatchObject({
+      engineContractVersion: '7C-1.6.0',
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+      temperatureK: 323.15,
+      engineComponentContract: {
+        componentCount: 7,
+        families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+        thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_ADDITIVE_RK_H2O',
+      },
+    });
+    expect({
+      modelHash: rrboContinuous.modelHash,
+      temperatureK: rrboContinuous.temperatureK,
+      solventMolarRatio: rrboContinuous.solventMolarRatio,
+      feedMoleFractions: rrboContinuous.feedMoleFractions,
+      sourceFeedCompositionMassFraction: rrboContinuous.sourceFeedCompositionMassFraction,
+      sourceProductTargetsMassFraction: rrboContinuous.sourceProductTargetsMassFraction,
+      sourceSolventOilMassRatio: rrboContinuous.sourceSolventOilMassRatio,
+      solventSpecificationAudit: rrboContinuous.solventSpecificationAudit,
+      wetSolventConstruction: rrboContinuous.wetSolventConstruction,
+      targetRaffinateMonoHydrocarbonMoleFraction:
+        rrboContinuous.targetRaffinateMonoHydrocarbonMoleFraction,
+      minimumRaffinateSaturatesHydrocarbonMoleFraction:
+        rrboContinuous.minimumRaffinateSaturatesHydrocarbonMoleFraction,
+      engineComponentContract: rrboContinuous.engineComponentContract,
+    }).toEqual({
+      modelHash: nmpContinuous.modelHash,
+      temperatureK: nmpContinuous.temperatureK,
+      solventMolarRatio: nmpContinuous.solventMolarRatio,
+      feedMoleFractions: nmpContinuous.feedMoleFractions,
+      sourceFeedCompositionMassFraction: nmpContinuous.sourceFeedCompositionMassFraction,
+      sourceProductTargetsMassFraction: nmpContinuous.sourceProductTargetsMassFraction,
+      sourceSolventOilMassRatio: nmpContinuous.sourceSolventOilMassRatio,
+      solventSpecificationAudit: nmpContinuous.solventSpecificationAudit,
+      wetSolventConstruction: nmpContinuous.wetSolventConstruction,
+      targetRaffinateMonoHydrocarbonMoleFraction:
+        nmpContinuous.targetRaffinateMonoHydrocarbonMoleFraction,
+      minimumRaffinateSaturatesHydrocarbonMoleFraction:
+        nmpContinuous.minimumRaffinateSaturatesHydrocarbonMoleFraction,
+      engineComponentContract: nmpContinuous.engineComponentContract,
+    });
+    expect(nmpContinuous.stage1Authority?.snapshotHash)
+      .toBe(nmpContinuousSnapshot.immutableHash);
+    expect(rrboContinuous.stage1Authority?.snapshotHash)
+      .toBe(rrboContinuousSnapshot.immutableHash);
+    expect(nmpContinuous.stage1Authority?.source.stage1.phaseConfiguration)
+      .toBe('nmp-continuous-rrbo-dispersed');
+    expect(rrboContinuous.stage1Authority?.source.stage1.phaseConfiguration)
+      .toBe('rrbo-continuous-nmp-dispersed');
+
+    expect(() => canonicalizeStage1Input({
+      ...validStage1(209),
+      phaseConfiguration: 'unsupported-phase-configuration',
+    }, 209)).toThrow('INVALID_STAGE1_phaseConfiguration');
   });
 
   it('disables the raw scientific enqueue outside the test runtime', async () => {

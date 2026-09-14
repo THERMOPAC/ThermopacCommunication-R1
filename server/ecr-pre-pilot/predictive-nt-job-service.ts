@@ -828,6 +828,10 @@ const SAT_IDENTITIES = new Set<string>(
 const MONO_IDENTITIES = new Set<string>(
   PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity),
 );
+const PREDICTIVE_NT_SUPPORTED_PHASE_CONFIGURATIONS = new Set([
+  'nmp-continuous-rrbo-dispersed',
+  'rrbo-continuous-nmp-dispersed',
+]);
 
 export function derivePredictiveNtSixComponentInputFromStage1(
   rawSnapshot: unknown,
@@ -848,7 +852,7 @@ export function derivePredictiveNtSixComponentInputFromStage1(
   if (canonicalJson(snapshot.stage1) !== canonicalJson(stage1)) {
     throw new Error('STAGE1_AUTHORITY_MISMATCH');
   }
-  if (stage1.phaseConfiguration !== 'nmp-continuous-rrbo-dispersed') {
+  if (!PREDICTIVE_NT_SUPPORTED_PHASE_CONFIGURATIONS.has(stage1.phaseConfiguration)) {
     throw new Error('UNSUPPORTED_PHASE_CONFIGURATION');
   }
   const sat = PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates
