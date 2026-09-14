@@ -21,8 +21,8 @@
   },
   "status": "FIRST_FROZEN_COARSE_SOLVE_RUNNING",
   "timing": {
-    "checkpointTimestamp": "2026-09-14T09:49:12.911Z",
-    "elapsedMs": 17054
+    "checkpointTimestamp": "2026-09-14T09:57:49.157Z",
+    "elapsedMs": 533301
   },
   "authority": {
     "authorityAccess": "READ_ONLY_OWNER_SCOPED_LOAD",
@@ -11994,8 +11994,650 @@
     }
   },
   "postrunIdentity": null,
-  "latestTelemetry": null,
-  "telemetry": [],
+  "latestTelemetry": {
+    "caseCoefficient": 0.0126,
+    "physicalCompartments": 5,
+    "finiteVolumeCellsPerPhysicalCompartment": 2,
+    "state": "STARTED",
+    "localFlashCalls": 0,
+    "reason": null,
+    "telemetry": {
+      "operation": "INTERFACE_ROOT",
+      "iteration": 1,
+      "cellIndex": 9,
+      "totalCells": 10,
+      "elapsedMs": 516226.326834,
+      "operationElapsedMs": 46004.54355499998,
+      "interfaceCallsAttempted": 10,
+      "interfaceCallsCompleted": 10,
+      "residualHistory": [],
+      "checkpointTimestamp": "2026-09-14T09:57:49.155Z"
+    },
+    "completedPhysicalTrials": 0,
+    "resolvedPhysicalTrials": 0,
+    "unresolvedPhysicalTrials": 0,
+    "lastCompletedPhysicalCount": null,
+    "minimumPhysicalCount": 5,
+    "maximumPhysicalCount": 5,
+    "totalPhysicalTrials": 1,
+    "partialPhysicalCountOutcomes": []
+  },
+  "telemetry": [
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": null,
+      "finiteVolumeCellsPerPhysicalCompartment": null,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INLET_LOCAL_EQUILIBRIUM_BINDING",
+        "iteration": null,
+        "cellIndex": null,
+        "totalCells": null,
+        "elapsedMs": 3798.071984000002,
+        "operationElapsedMs": 0.07438600000023143,
+        "interfaceCallsAttempted": 0,
+        "interfaceCallsCompleted": 0,
+        "checkpointTimestamp": "2026-09-14T09:49:16.727Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": null,
+      "finiteVolumeCellsPerPhysicalCompartment": null,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INLET_LOCAL_EQUILIBRIUM_BINDING",
+        "iteration": null,
+        "cellIndex": null,
+        "totalCells": null,
+        "elapsedMs": 97716.567017,
+        "operationElapsedMs": 93918.54760800001,
+        "interfaceCallsAttempted": 0,
+        "interfaceCallsCompleted": 0,
+        "checkpointTimestamp": "2026-09-14T09:50:50.645Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 0,
+        "totalCells": 10,
+        "elapsedMs": 97724.727011,
+        "operationElapsedMs": 0.04994599999918137,
+        "interfaceCallsAttempted": 1,
+        "interfaceCallsCompleted": 0,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:50:50.654Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 0,
+        "totalCells": 10,
+        "elapsedMs": 139859.37957000002,
+        "operationElapsedMs": 42134.704625,
+        "interfaceCallsAttempted": 1,
+        "interfaceCallsCompleted": 1,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:51:32.788Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 1,
+        "totalCells": 10,
+        "elapsedMs": 139859.62353900002,
+        "operationElapsedMs": 0.006475000001955777,
+        "interfaceCallsAttempted": 2,
+        "interfaceCallsCompleted": 1,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:51:32.788Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 1,
+        "totalCells": 10,
+        "elapsedMs": 181970.963733,
+        "operationElapsedMs": 42111.39515299999,
+        "interfaceCallsAttempted": 2,
+        "interfaceCallsCompleted": 2,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:52:14.900Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 2,
+        "totalCells": 10,
+        "elapsedMs": 181971.786315,
+        "operationElapsedMs": 0.008425000007264316,
+        "interfaceCallsAttempted": 3,
+        "interfaceCallsCompleted": 2,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:52:14.901Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 2,
+        "totalCells": 10,
+        "elapsedMs": 222959.00389300002,
+        "operationElapsedMs": 40987.227985000005,
+        "interfaceCallsAttempted": 3,
+        "interfaceCallsCompleted": 3,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:52:55.888Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 3,
+        "totalCells": 10,
+        "elapsedMs": 222959.203511,
+        "operationElapsedMs": 0.006621000007726252,
+        "interfaceCallsAttempted": 4,
+        "interfaceCallsCompleted": 3,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:52:55.888Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 3,
+        "totalCells": 10,
+        "elapsedMs": 263739.604058,
+        "operationElapsedMs": 40780.409985000006,
+        "interfaceCallsAttempted": 4,
+        "interfaceCallsCompleted": 4,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:53:36.668Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 4,
+        "totalCells": 10,
+        "elapsedMs": 263739.762382,
+        "operationElapsedMs": 0.009510000003501773,
+        "interfaceCallsAttempted": 5,
+        "interfaceCallsCompleted": 4,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:53:36.669Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 4,
+        "totalCells": 10,
+        "elapsedMs": 305557.44392600004,
+        "operationElapsedMs": 41817.692339,
+        "interfaceCallsAttempted": 5,
+        "interfaceCallsCompleted": 5,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:54:18.486Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 5,
+        "totalCells": 10,
+        "elapsedMs": 305557.669597,
+        "operationElapsedMs": 0.008042000001296401,
+        "interfaceCallsAttempted": 6,
+        "interfaceCallsCompleted": 5,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:54:18.486Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 5,
+        "totalCells": 10,
+        "elapsedMs": 347452.39007900003,
+        "operationElapsedMs": 41894.80418699997,
+        "interfaceCallsAttempted": 6,
+        "interfaceCallsCompleted": 6,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:55:00.381Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 6,
+        "totalCells": 10,
+        "elapsedMs": 347452.704166,
+        "operationElapsedMs": 0.0018900000141002238,
+        "interfaceCallsAttempted": 7,
+        "interfaceCallsCompleted": 6,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:55:00.381Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 6,
+        "totalCells": 10,
+        "elapsedMs": 388275.159,
+        "operationElapsedMs": 40822.457822000026,
+        "interfaceCallsAttempted": 7,
+        "interfaceCallsCompleted": 7,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:55:41.204Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 7,
+        "totalCells": 10,
+        "elapsedMs": 388275.355439,
+        "operationElapsedMs": 0.0016739999991841614,
+        "interfaceCallsAttempted": 8,
+        "interfaceCallsCompleted": 7,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:55:41.204Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 7,
+        "totalCells": 10,
+        "elapsedMs": 429807.71480300004,
+        "operationElapsedMs": 41532.362333,
+        "interfaceCallsAttempted": 8,
+        "interfaceCallsCompleted": 8,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:56:22.736Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 8,
+        "totalCells": 10,
+        "elapsedMs": 429807.867991,
+        "operationElapsedMs": 0.0012519999872893095,
+        "interfaceCallsAttempted": 9,
+        "interfaceCallsCompleted": 8,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:56:22.737Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 8,
+        "totalCells": 10,
+        "elapsedMs": 470221.587573,
+        "operationElapsedMs": 40413.72235300002,
+        "interfaceCallsAttempted": 9,
+        "interfaceCallsCompleted": 9,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:57:03.150Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 9,
+        "totalCells": 10,
+        "elapsedMs": 470221.786786,
+        "operationElapsedMs": 0.002406999992672354,
+        "interfaceCallsAttempted": 10,
+        "interfaceCallsCompleted": 9,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:57:03.151Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 1,
+        "cellIndex": 9,
+        "totalCells": 10,
+        "elapsedMs": 516226.326834,
+        "operationElapsedMs": 46004.54355499998,
+        "interfaceCallsAttempted": 10,
+        "interfaceCallsCompleted": 10,
+        "residualHistory": [],
+        "checkpointTimestamp": "2026-09-14T09:57:49.155Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    }
+  ],
   "attempts": {
     "first": {
       "status": "RUNNING",
@@ -12003,9 +12645,1318 @@
         "method": "EXISTING_ZERO_TRANSFER_DEFAULT",
         "syntheticProfile": false
       },
-      "trace": [],
-      "finalCompletedIterationState": null,
-      "latestTelemetry": null,
+      "trace": [
+        {
+          "iteration": 1,
+          "scaledUpdateResidual": 0.01036183721992545,
+          "originalCoupledColumnResidual": {
+            "continuousAxialComponentBalanceMolS": 0,
+            "totalComponentBalanceMolS": 0
+          },
+          "originalConstitutiveResidual": {
+            "scaledMaximum": 0.051809186099627244
+          },
+          "originalComponentBalanceResidual": {
+            "scaledMaximum": 0
+          },
+          "totalMassBalanceResidualKgS": -1.1102230246251565e-16,
+          "physicalAdmissibility": {
+            "continuousFacesNonnegative": true,
+            "continuousTotalFaceFlowsPositive": true,
+            "localPhaseStatesNonnegative": true
+          },
+          "localInterfaceQualification": {
+            "status": "QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE",
+            "completedCells": 10,
+            "requiredCells": 10,
+            "responseResultHashes": [
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+              "62ec69604cad6a2641d1b658e0595677364bae4a88ba6fd1083041b40096266e"
+            ]
+          },
+          "localFlashQualification": {
+            "status": "NOT_EVALUATED_INTERIM_EXISTING_SOLVER_FINAL_ONLY"
+          },
+          "transferMolS": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "continuousFaceComponentFlowsMolS": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ]
+          ],
+          "continuousCellMoleFractions": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548102,
+              0.026907295545189853
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548101,
+              0.026907295545189853
+            ]
+          ],
+          "dispersedCellInComponentFlowsMolS": [
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ]
+          ],
+          "dispersedCellOutComponentFlowsMolS": [
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ]
+          ],
+          "dispersedCellMoleFractions": [
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ],
+            [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ]
+          ],
+          "outletPhaseFlows": {
+            "continuousMolS": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            "dispersedMolS": [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ],
+            "continuousTotalMolS": 7.357858939083053,
+            "dispersedTotalMolS": 5.708639967765472,
+            "continuousMoleFractions": [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0.9730927044548101,
+              0.026907295545189853
+            ],
+            "dispersedMoleFractions": [
+              0.831407891171669,
+              0.09703368504249356,
+              0.04686707538501485,
+              0.0164755066368913,
+              0.008215841763931277,
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "finalCompletedIterationState": {
+        "iteration": 1,
+        "scaledUpdateResidual": 0.01036183721992545,
+        "originalCoupledColumnResidual": {
+          "continuousAxialComponentBalanceMolS": 0,
+          "totalComponentBalanceMolS": 0
+        },
+        "originalConstitutiveResidual": {
+          "scaledMaximum": 0.051809186099627244
+        },
+        "originalComponentBalanceResidual": {
+          "scaledMaximum": 0
+        },
+        "totalMassBalanceResidualKgS": -1.1102230246251565e-16,
+        "physicalAdmissibility": {
+          "continuousFacesNonnegative": true,
+          "continuousTotalFaceFlowsPositive": true,
+          "localPhaseStatesNonnegative": true
+        },
+        "localInterfaceQualification": {
+          "status": "QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE",
+          "completedCells": 10,
+          "requiredCells": 10,
+          "responseResultHashes": [
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+            "62ec69604cad6a2641d1b658e0595677364bae4a88ba6fd1083041b40096266e"
+          ]
+        },
+        "localFlashQualification": {
+          "status": "NOT_EVALUATED_INTERIM_EXISTING_SOLVER_FINAL_ONLY"
+        },
+        "transferMolS": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ]
+        ],
+        "continuousFaceComponentFlowsMolS": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ]
+        ],
+        "continuousCellMoleFractions": [
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189853
+          ]
+        ],
+        "dispersedCellInComponentFlowsMolS": [
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ]
+        ],
+        "dispersedCellOutComponentFlowsMolS": [
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ]
+        ],
+        "dispersedCellMoleFractions": [
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ]
+        ],
+        "outletPhaseFlows": {
+          "continuousMolS": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            7.159878854029328,
+            0.19798008505372477
+          ],
+          "dispersedMolS": [
+            4.746208317058196,
+            0.5539303726531454,
+            0.2675472597151731,
+            0.09405273567654297,
+            0.04690128266241487,
+            0,
+            0
+          ],
+          "continuousTotalMolS": 7.357858939083053,
+          "dispersedTotalMolS": 5.708639967765472,
+          "continuousMoleFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189853
+          ],
+          "dispersedMoleFractions": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ]
+        }
+      },
+      "latestTelemetry": {
+        "caseCoefficient": 0.0126,
+        "physicalCompartments": 5,
+        "finiteVolumeCellsPerPhysicalCompartment": 2,
+        "state": "STARTED",
+        "localFlashCalls": 0,
+        "reason": null,
+        "telemetry": {
+          "operation": "INTERFACE_ROOT",
+          "iteration": 1,
+          "cellIndex": 9,
+          "totalCells": 10,
+          "elapsedMs": 516226.326834,
+          "operationElapsedMs": 46004.54355499998,
+          "interfaceCallsAttempted": 10,
+          "interfaceCallsCompleted": 10,
+          "residualHistory": [],
+          "checkpointTimestamp": "2026-09-14T09:57:49.155Z"
+        },
+        "completedPhysicalTrials": 0,
+        "resolvedPhysicalTrials": 0,
+        "unresolvedPhysicalTrials": 0,
+        "lastCompletedPhysicalCount": null,
+        "minimumPhysicalCount": 5,
+        "maximumPhysicalCount": 5,
+        "totalPhysicalTrials": 1,
+        "partialPhysicalCountOutcomes": []
+      },
       "result": null,
       "error": null
     },
