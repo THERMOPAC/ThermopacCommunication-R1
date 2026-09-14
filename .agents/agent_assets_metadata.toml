@@ -1101,3 +1101,17 @@ mtime_ms = 1789369216519
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/1650085f-763b-44d0-8a8f-2e5fe60d1ae7/8b0a91a4-b1c8-4e77-a82b-e0049b5af09a"
 storage_version_token = "1789369228703134"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "RBDzmBdcXVv5Ei-zXEVgM"
+uri = "file://research/stage4-measured-solver-improvement.md"
+type = "text"
+title = "Stage 4 solver improvement — measured results"
+description = "Local timing improvement, exact scientific-equivalence checks, and the bounded actual-column probe outcome. No accepted sizing result is claimed."
+logical_id = "5c111911-35e6-4095-ae15-85f51744eebb"
+content_hash = "sha256:37deab2c91f361633725901654671e828cc65f6f69070155bcad1ae6375bcaff"
+size = 8404
+mtime_ms = 1789377207341
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/5c111911-35e6-4095-ae15-85f51744eebb/2887e022-4b2c-491a-82c0-636de9926803"
+storage_version_token = "1789377299080032"
+content_type = "text/markdown"

@@ -3,7 +3,7 @@ import { AlertTriangle, Loader2, Play, RefreshCw } from "lucide-react";
 import Stage4InterfaceFailureDiagnostics, {
   type Stage4InterfaceFailureCase,
 } from "./stage4-interface-failure-diagnostics";
-import Stage4TrialProgress, { Stage4FailureReason } from "./stage4-trial-progress";
+import Stage4TrialProgress, { Stage4FailureReason, Stage4SolverTelemetry } from "./stage4-trial-progress";
 import "./stage4-progress.css";
 
 type RecordValue = Record<string, unknown>;
@@ -740,6 +740,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <p className="mt-1">
             {stage4Running ? "Calculation active" : text(calculationProgress.phase ?? runDetails.message ?? runProgress.message)}
           </p>
+          <Stage4SolverTelemetry telemetry={calculationProgress.telemetry} />
           <Stage4TrialProgress
             progress={calculationProgress.physicalTrialProgress}
             minimum={calculationProgress.minimumPhysicalCount ?? nt.value}

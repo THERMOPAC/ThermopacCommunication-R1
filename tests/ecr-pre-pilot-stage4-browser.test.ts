@@ -546,6 +546,17 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
         finiteVolumeCellsPerPhysicalCompartment: 2,
         state: "STARTED",
         localFlashCalls: 12,
+        telemetry: {
+          operation: "INTERFACE_ROOT",
+          iteration: 2,
+          cellIndex: 3,
+          totalCells: 6,
+          interfaceCallsAttempted: 10,
+          interfaceCallsCompleted: 9,
+          elapsedMs: 95000,
+          operationElapsedMs: 0,
+          checkpointTimestamp: "2026-09-14T07:00:00.000Z",
+        },
       },
     };
     stage4Response = { status: 200, body: running };
@@ -560,6 +571,10 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
         .toBe("stage4-active-sweep");
       expect(await page.$eval('.stage4-activity-track', el => el.getBoundingClientRect().height))
         .toBeGreaterThanOrEqual(14);
+      expect(await page.$eval('[data-testid="stage4-solver-telemetry"]', el => el.textContent))
+        .toContain("Cell: 4 / 6");
+      expect(await page.$eval('[data-testid="stage4-solver-telemetry"]', el => el.textContent))
+        .toContain("Interface solves completed: 9");
       await page.click('[data-testid="stage4-stop"]');
       await page.waitForFunction(() => document.querySelector('[data-testid="stage4-stop"]') == null, { timeout: 5_000 });
       expect(stage4ActionRequests).toEqual([{ path: stage4StopEndpoint, body: "{}" }]);

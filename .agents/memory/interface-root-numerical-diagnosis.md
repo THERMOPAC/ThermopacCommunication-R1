@@ -14,3 +14,9 @@ Replay actual assembler-produced requests, not only hand-reconstructed mathemati
 **Why:** Uniform zero-transfer states are analytically mesh-independent, but finite-volume assembly produced distinct coarse/refined floating-point requests. An approximate reconstruction cannot establish bitwise production qualification.
 
 **How to apply:** Capture full request/response pairs with immutable hashes and compare measured differences. Preserve baseline executed evidence; record corrected interpretations separately. An accepted local root permits a bounded column trial, not an accepted column size.
+
+Qualify runtime optimizations by separating scientific-payload equivalence from implementation identity.
+
+**Why:** A response digest includes the worker's provenance. Changing a worker intentionally changes that digest even when every scientific output and acceptance diagnostic is identical; requiring the historical digest would reject legitimate optimizations or encourage false identity claims.
+
+**How to apply:** Preserve and validate both authentic raw responses. Match their exact request identities, then compare scientific payloads after excluding only explicitly justified changed implementation-identity fields. Never discard acceptance diagnostics, substitute an old worker hash, or interpret a local speedup as a full-column speedup.

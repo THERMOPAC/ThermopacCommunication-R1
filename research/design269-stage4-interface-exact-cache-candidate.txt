@@ -1,0 +1,108 @@
+         3942199 function calls (3855275 primitive calls) in 45.138 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1978 to 100 due to restriction <100>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    20585    0.047    0.000   40.597    0.002 worker.py:78(cached_wet_lngamma)
+    11065    0.049    0.000   40.436    0.004 model.py:68(wet_lngamma)
+    11065   38.578    0.003   38.601    0.003 model.py:46(wet_lngamma)
+     2666    0.004    0.000    7.305    0.003 _differentiable_functions.py:292(_update_fun)
+5280/1154    0.023    0.000    4.128    0.004 engine.py:41(objective)
+       49    0.003    0.000    3.360    0.069 __init__.py:1(<module>)
+      695    0.002    0.000    2.615    0.004 engine.py:147(<lambda>)
+    11065    0.169    0.000    1.735    0.000 model.py:40(correction)
+    11065    1.009    0.000    1.564    0.000 model.py:22(features)
+    498/5    0.004    0.000    1.239    0.248 <frozen importlib._bootstrap>:1349(_find_and_load)
+    496/5    0.003    0.000    1.239    0.248 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)
+    476/5    0.002    0.000    1.238    0.248 <frozen importlib._bootstrap>:911(_load_unlocked)
+        1    0.862    0.862    0.862    0.862 run.py:1(<module>)
+      397    0.004    0.000    0.851    0.002 <frozen importlib._bootstrap_external>:1066(get_code)
+  528/157    0.001    0.000    0.781    0.005 <frozen importlib._bootstrap>:1390(_handle_fromlist)
+   490/81    0.001    0.000    0.779    0.010 {built-in method builtins.__import__}
+      365    0.001    0.000    0.722    0.002 <frozen importlib._bootstrap_external>:1058(source_to_code)
+      388    0.707    0.002    0.707    0.002 {built-in method builtins.compile}
+        1    0.001    0.001    0.592    0.592 _optimize.py:1(<module>)
+20565/253    0.038    0.000    0.493    0.002 engine.py:69(lngamma)
+13885/13177    0.005    0.000    0.393    0.000 {built-in method builtins.hasattr}
+  1577/12    0.016    0.000    0.392    0.033 <frozen importlib._bootstrap>:480(_call_with_frames_removed)
+    13826    0.076    0.000    0.391    0.000 worker.py:210(softmax)
+        2    0.000    0.000    0.358    0.179 _basic.py:1(<module>)
+        1    0.000    0.000    0.349    0.349 _decomp.py:1(<module>)
+    21762    0.257    0.000    0.345    0.000 _index_tricks_impl.py:346(__getitem__)
+        1    0.000    0.000    0.344    0.344 _util.py:1(<module>)
+        1    0.000    0.000    0.339    0.339 _array_api.py:1(<module>)
+       11    0.000    0.000    0.318    0.029 __init__.py:326(__getattr__)
+    396/2    0.404    0.001    0.306    0.153 <frozen importlib._bootstrap_external>:993(exec_module)
+    426/2    0.005    0.000    0.302    0.151 {built-in method builtins.exec}
+      490    0.006    0.000    0.270    0.001 _slsqp_py.py:489(_eval_con_normals)
+      980    0.003    0.000    0.250    0.000 _slsqp_py.py:299(cjac)
+    48065    0.119    0.000    0.244    0.000 engine.py:38(normalize)
+  1173975    0.227    0.000    0.227    0.000 {method 'append' of 'list' objects}
+   137714    0.221    0.000    0.221    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+   532943    0.207    0.000    0.207    0.000 {built-in method numpy.zeros}
+    50076    0.079    0.000    0.181    0.000 fromnumeric.py:69(_wrapreduction)
+   175487    0.181    0.000    0.181    0.000 {built-in method numpy.asarray}
+    34000    0.047    0.000    0.179    0.000 fromnumeric.py:2349(sum)
+    71210    0.035    0.000    0.161    0.000 {method 'sum' of 'numpy.ndarray' objects}
+  478/470    0.001    0.000    0.156    0.000 <frozen importlib._bootstrap>:806(module_from_spec)
+        1    0.000    0.000    0.156    0.156 _sketches.py:1(<module>)
+    76/74    0.000    0.000    0.143    0.002 <frozen importlib._bootstrap_external>:1291(create_module)
+    76/74    0.127    0.002    0.143    0.002 {built-in method _imp.create_dynamic}
+        1    0.000    0.000    0.137    0.137 f2py2e.py:1(<module>)
+    71210    0.024    0.000    0.126    0.000 _methods.py:51(_sum)
+        2    0.000    0.000    0.121    0.061 __config__.py:1(<module>)
+ 19868/57    0.048    0.000    0.113    0.002 engine.py:74(mu)
+      794    0.002    0.000    0.113    0.000 <frozen importlib._bootstrap_external>:1187(get_data)
+    20202    0.040    0.000    0.108    0.000 numerictypes.py:381(isdtype)
+        1    0.000    0.000    0.092    0.092 _shgo.py:1(<module>)
+      620    0.017    0.000    0.087    0.000 dogbox.py:106(dogleg_step)
+     2049    0.055    0.000    0.078    0.000 _numdiff.py:12(_adjust_scheme_to_bounds)
+        1    0.000    0.000    0.077    0.077 _laplacian.py:1(<module>)
+        1    0.000    0.000    0.071    0.071 crackfortran.py:1(<module>)
+        3    0.000    0.000    0.070    0.023 __init__.py:132(__getattr__)
+        3    0.000    0.000    0.070    0.023 __init__.py:73(import_module)
+        3    0.000    0.000    0.070    0.023 <frozen importlib._bootstrap>:1375(_gcd_import)
+    14876    0.016    0.000    0.068    0.000 fromnumeric.py:3080(max)
+      472    0.063    0.000    0.063    0.000 {method 'read' of '_io.BufferedReader' objects}
+        1    0.000    0.000    0.061    0.061 _index_tricks_impl.py:1(<module>)
+      492    0.004    0.000    0.061    0.000 <frozen importlib._bootstrap>:1240(_find_spec)
+   280208    0.059    0.000    0.059    0.000 {built-in method builtins.isinstance}
+    13810    0.028    0.000    0.057    0.000 worker.py:73(exact_key)
+      488    0.001    0.000    0.054    0.000 <frozen importlib._bootstrap_external>:1524(find_spec)
+      488    0.002    0.000    0.053    0.000 <frozen importlib._bootstrap_external>:1495(_get_spec)
+  6556/14    0.119    0.000    0.052    0.004 worker.py:221(evaluate)
+     1848    0.018    0.000    0.051    0.000 _slsqp_py.py:470(_eval_constraint)
+    20202    0.035    0.000    0.051    0.000 numerictypes.py:368(_preprocess_dtype)
+    23598    0.024    0.000    0.050    0.000 shape_base.py:22(atleast_1d)
+      221    0.001    0.000    0.050    0.000 __init__.py:280(_compile)
+     1197    0.011    0.000    0.049    0.000 <frozen importlib._bootstrap_external>:1597(find_spec)
+       88    0.000    0.000    0.048    0.001 __init__.py:226(compile)
+    11065    0.025    0.000    0.048    0.000 run_qualification.py:166(normalize)
+     5780    0.009    0.000    0.046    0.000 engine.py:63(<lambda>)
+       98    0.001    0.000    0.046    0.000 _compiler.py:745(compile)
+      794    0.045    0.000    0.045    0.000 {built-in method _io.open_code}
+    76/67    0.000    0.000    0.045    0.001 <frozen importlib._bootstrap_external>:1299(exec_module)
+    76/67    0.012    0.000    0.045    0.001 {built-in method _imp.exec_dynamic}
+        1    0.000    0.000    0.044    0.044 _minimize.py:1(<module>)
+     4028    0.009    0.000    0.043    0.000 _array_api.py:183(atleast_nd)
+      478    0.031    0.000    0.041    0.000 _linalg.py:2443(lstsq)
+        1    0.000    0.000    0.040    0.040 _geometric_slerp.py:1(<module>)
+     1178    0.022    0.000    0.039    0.000 common.py:372(step_size_to_bound)
+        1    0.000    0.000    0.036    0.036 defmatrix.py:1(<module>)
+     4028    0.018    0.000    0.033    0.000 _aliases.py:274(_asarray)
+        1    0.000    0.000    0.033    0.033 distance.py:1(<module>)
+        1    0.000    0.000    0.033    0.033 _root.py:1(<module>)
+    79231    0.032    0.000    0.032    0.000 {built-in method numpy.array}
+     3318    0.010    0.000    0.031    0.000 _optimize.py:307(_check_clip_x)
+        1    0.000    0.000    0.030    0.030 npyio.py:1(<module>)
+   3758/4    0.024    0.000    0.030    0.007 _differentiable_functions.py:15(wrapped)
+        1    0.000    0.000    0.029    0.029 _linprog.py:1(<module>)
+        1    0.000    0.000    0.028    0.028 multiarray.py:1(<module>)
+        1    0.000    0.000    0.028    0.028 _testutils.py:1(<module>)
+    22153    0.011    0.000    0.028    0.000 _aliases.py:236(astype)
+        2    0.000    0.000    0.027    0.014 overrides.py:1(<module>)
+       98    0.002    0.000    0.026    0.000 _parser.py:969(parse)
+        2    0.000    0.000    0.026    0.013 _linalg.py:1(<module>)
+
+

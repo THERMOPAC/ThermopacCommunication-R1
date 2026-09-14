@@ -7,7 +7,9 @@ const state = vi.hoisted(() => ({
   runs: [] as Array<{ resolve: (value: any) => void }>,
   previous: null as any,
   failProgressWriteAt: null as number | null,
+  delayProgressWritesMs: 0,
   progressWriteCount: 0,
+  progressSnapshots: [] as Array<Record<string, unknown>>,
   run: vi.fn(),
   query: vi.fn(),
 }));
@@ -106,7 +108,9 @@ function reset() {
   state.runs.length = 0;
   state.previous = null;
   state.failProgressWriteAt = null;
+  state.delayProgressWritesMs = 0;
   state.progressWriteCount = 0;
+  state.progressSnapshots.length = 0;
   state.run.mockReset();
   state.run.mockImplementation(() => new Promise(resolve => state.runs.push({ resolve })));
   state.query.mockReset();
@@ -143,7 +147,13 @@ function reset() {
       if (state.failProgressWriteAt === state.progressWriteCount) {
         throw new Error('STAGE4_PROGRESS_DATABASE_WRITE_FAILED');
       }
+      if (state.delayProgressWritesMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, state.delayProgressWritesMs));
+      }
       if (row.attempt_token === params[3] && row.status === 'RUNNING') row.progress_snapshot = params[4];
+      if (row.attempt_token === params[3] && row.status === 'RUNNING') {
+        state.progressSnapshots.push(params[4] as Record<string, unknown>);
+      }
     } else if (sql.includes("SET status=$5,result_snapshot")) {
       if (row.attempt_token === params[3] && row.status === 'RUNNING') {
         Object.assign(row, { status: params[4], result_snapshot: params[5], progress_snapshot: params[6] });
@@ -242,6 +252,50 @@ describe('Stage-4 persisted finite-rate lifecycle', () => {
     expect(state.query.mock.calls.some(([sql]) =>
       String(sql).includes('SET status=$5,error_code=$6'))).toBe(true);
     progressError.mockRestore();
+  });
+
+  it('coalesces delayed per-cell telemetry without holding the solver callback', async () => {
+    reset();
+    state.delayProgressWritesMs = 40;
+    let telemetryCallbackStartedAt = 0;
+    let telemetryCallbackReturnedAt = 0;
+    state.run.mockImplementationOnce(async (_input: unknown, options: any) => {
+      await options.onProgress({ phase: 'PRIMARY_RUNNING', completedCases: 0, totalCases: 2 });
+      telemetryCallbackStartedAt = Date.now();
+      const checkpoint = (cellIndex: number) => options.onTelemetryProgress({
+        caseCoefficient: .0126, physicalCompartments: 2,
+        finiteVolumeCellsPerPhysicalCompartment: 2, state: 'STARTED',
+        localFlashCalls: 0, reason: null, completedPhysicalTrials: 0,
+        resolvedPhysicalTrials: 0, unresolvedPhysicalTrials: 0,
+        lastCompletedPhysicalCount: null, minimumPhysicalCount: 2,
+        maximumPhysicalCount: 80, totalPhysicalTrials: 79,
+        partialPhysicalCountOutcomes: [],
+        telemetry: {
+          operation: 'INTERFACE_ROOT', iteration: 3, cellIndex, totalCells: 4,
+          elapsedMs: cellIndex + 1, operationElapsedMs: cellIndex + 1,
+          interfaceCallsAttempted: cellIndex + 1, interfaceCallsCompleted: cellIndex,
+          checkpointTimestamp: `2026-01-01T00:00:0${cellIndex}.000Z`,
+        },
+      });
+      checkpoint(0);
+      checkpoint(1);
+      checkpoint(2);
+      telemetryCallbackReturnedAt = Date.now();
+      return targetFailure;
+    });
+    const started = await calculateStage4PrePilotSizing(17, 269);
+    await new Promise(resolve => setTimeout(resolve, 60));
+    expect(telemetryCallbackReturnedAt).toBeGreaterThan(0);
+    expect(telemetryCallbackReturnedAt - telemetryCallbackStartedAt).toBeLessThan(20);
+    await new Promise(resolve => setTimeout(resolve, 140));
+    const row = state.rows.get(key(17, 269, started.calculation.lineageHash));
+    expect(state.progressWriteCount).toBe(2);
+    expect(state.progressSnapshots.at(-1)?.telemetry).toMatchObject({
+      operation: 'INTERFACE_ROOT', iteration: 3, cellIndex: 2, totalCells: 4,
+    });
+    expect(row.progress_snapshot.telemetry).toMatchObject({
+      operation: 'INTERFACE_ROOT', iteration: 3, cellIndex: 2,
+    });
   });
 
   it('does not deliver a cached result when targets change the lineage', async () => {
@@ -383,6 +437,11 @@ describe('Stage-4 persisted finite-rate lifecycle', () => {
         lastCompletedPhysicalCount: null, minimumPhysicalCount: 5,
         maximumPhysicalCount: 80, totalPhysicalTrials: 76,
         partialPhysicalCountOutcomes: [],
+        telemetry: {
+          operation: 'INTERFACE_ROOT', iteration: 1, cellIndex: 0, totalCells: 10,
+          elapsedMs: 123, operationElapsedMs: 120, interfaceCallsAttempted: 1,
+          interfaceCallsCompleted: 0, checkpointTimestamp: '2026-01-01T00:00:00.000Z',
+        },
       });
       await options.onNumericalProgress({
         caseCoefficient: .0126, physicalCompartments: 5,
@@ -418,7 +477,14 @@ describe('Stage-4 persisted finite-rate lifecycle', () => {
           completedPhysicalTrials: 1, resolvedPhysicalTrials: 1,
           lastCompletedPhysicalCount: 5,
           partialPhysicalCountOutcomes: [primaryOutcome],
-          coarse: { completedPhysicalTrials: 0 },
+          coarse: {
+            completedPhysicalTrials: 0,
+            telemetry: {
+              operation: 'INTERFACE_ROOT', iteration: 1, cellIndex: 0, totalCells: 10,
+              elapsedMs: 123, operationElapsedMs: 120, interfaceCallsAttempted: 1,
+              interfaceCallsCompleted: 0, checkpointTimestamp: '2026-01-01T00:00:00.000Z',
+            },
+          },
           refined: { completedPhysicalTrials: 1 },
         },
         sensitivity: { completedPhysicalTrials: 0, state: 'STARTED' },

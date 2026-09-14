@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   calculateKumarHartlandScreeningDispersion,
   calculateTwoFilmContinuousFlux,
@@ -31,7 +31,56 @@ describe('Stage-4 predictive physical sizing', () => {
       wallClockBudgetMs: 30,
       flashEvaluator: () => new Promise(() => undefined),
       interfaceEvaluator: () => new Promise(() => undefined),
+      onNumericalProgress: async event => {
+        if (event.telemetry) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      },
     })).rejects.toThrow('GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
+  });
+
+  it('keeps telemetry durations monotonic when the wall clock rolls backwards', async () => {
+    const input = {
+      calculatedNt: 5,
+      processBasis: {
+        temperatureK: 298.15, phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+        rrboFeed: { flowM3S: 1e-5, densityKgM3: 850, dynamicViscosityPaS: .003 },
+        wetSolventPhase: { flowM3S: 1e-5, densityKgM3: 997, dynamicViscosityPaS: .001083 },
+        composition: {
+          rrboFeedWt: { saturates: 70, monoAromatics: 10, diAromatics: 8, polyAromatics: 5, polarAromatics: 4, nmp: 3 },
+          wetSolventWt: { nmp: 99, water: 1 },
+        },
+      },
+      hydraulics: {
+        diameterM: .9742129194448474, rotorDiameterM: .4871064597224237, rpm: 30,
+        continuousSuperficialVelocityMS: .0009598419119466572,
+        dispersedSuperficialVelocityMS: .0014905956171508057,
+      },
+    } as any;
+    const clock = Date.now;
+    let rollback = 0;
+    const wallClock = vi.spyOn(Date, 'now').mockImplementation(() => clock() + rollback);
+    const abort = new AbortController();
+    const telemetry: any[] = [];
+    try {
+      await expect(runStage4PredictivePhysicalSizing(input, {
+        wallClockBudgetMs: 1_000,
+        abortSignal: abort.signal,
+        flashEvaluator: async () => {
+          rollback = -60_000;
+          setTimeout(() => abort.abort(), 0);
+          return new Promise(() => undefined);
+        },
+        interfaceEvaluator: () => new Promise(() => undefined),
+        onNumericalProgress: event => {
+          if (event.telemetry) telemetry.push(event.telemetry);
+        },
+      })).rejects.toThrow('STAGE4_FINITE_RATE_SOLVER_CANCELLED');
+      expect(telemetry[0].elapsedMs).toBeGreaterThanOrEqual(0);
+      expect(telemetry[0].operationElapsedMs).toBeGreaterThanOrEqual(0);
+    } finally {
+      wallClock.mockRestore();
+    }
   });
 
   it('replays the authorized K&H screening Ec values for design 269', () => {
@@ -134,6 +183,35 @@ describe('Stage-4 predictive physical sizing', () => {
     expect(result.primary.selected.continuousPhaseTotalMolarFlowChangeMolS)
       .not.toBeCloseTo(0, 14);
     expect(result.screeningNotice).toContain('REQUIRES PILOT VALIDATION');
+    const inletTelemetry = progress.find(event =>
+      event.caseCoefficient === .0126
+      && event.telemetry?.operation === 'INLET_LOCAL_EQUILIBRIUM_BINDING');
+    expect(inletTelemetry).toMatchObject({
+      physicalCompartments: null,
+      finiteVolumeCellsPerPhysicalCompartment: null,
+      telemetry: {
+        iteration: null, cellIndex: null, totalCells: null,
+        interfaceCallsAttempted: 0, interfaceCallsCompleted: 0,
+      },
+    });
+    expect(inletTelemetry.telemetry.checkpointTimestamp).toEqual(expect.any(String));
+    const interfaceTelemetry = progress.find(event =>
+      event.caseCoefficient === .0126
+      && event.telemetry?.operation === 'INTERFACE_ROOT'
+      && event.telemetry.interfaceCallsCompleted > 0);
+    expect(interfaceTelemetry).toMatchObject({
+      physicalCompartments: 2,
+      finiteVolumeCellsPerPhysicalCompartment: 2,
+      telemetry: {
+        iteration: 1, cellIndex: 0, totalCells: 4,
+        interfaceCallsAttempted: 1, interfaceCallsCompleted: 1,
+      },
+    });
+    const iterationTelemetry = progress.find(event =>
+      event.caseCoefficient === .0126
+      && event.telemetry?.operation === 'COUNTERCURRENT_ITERATION_COMPLETE');
+    expect(iterationTelemetry.telemetry.residuals.maxScaledUpdateResidual).toBeTypeOf('number');
+    expect(iterationTelemetry.telemetry.residualHistory).toHaveLength(1);
     const primaryStarts = progress.filter(event =>
       event.caseCoefficient === .0126 && event.state === 'STARTED');
     expect(primaryStarts[0]).toMatchObject({

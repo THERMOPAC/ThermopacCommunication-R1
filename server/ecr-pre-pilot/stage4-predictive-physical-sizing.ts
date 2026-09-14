@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import sourceManifest from './stage4-finite-rate-source-manifest.json';
 import {
   evaluateJobA,
@@ -102,13 +103,33 @@ export type Stage4PhysicalCountOutcome = {
   reason: string | null;
 };
 
+/**
+ * Operational timing is deliberately progress-only diagnostic data. It is not
+ * included in a scientific result or used by any numerical decision.
+ */
+export type Stage4PhysicalSizingTelemetry = {
+  operation: string;
+  iteration: number | null;
+  cellIndex: number | null;
+  totalCells: number | null;
+  elapsedMs: number;
+  operationElapsedMs: number;
+  interfaceCallsAttempted: number;
+  interfaceCallsCompleted: number;
+  residuals?: Record<string, number>;
+  residualHistory?: Record<string, number>[];
+  /** Timestamp of this saved observation; never a synthetic live clock. */
+  checkpointTimestamp: string;
+};
+
 export type Stage4PhysicalSizingProgress = {
   caseCoefficient: 0.0126 | 0.0105;
-  physicalCompartments: number;
-  finiteVolumeCellsPerPhysicalCompartment: 2 | 4;
+  physicalCompartments: number | null;
+  finiteVolumeCellsPerPhysicalCompartment: 2 | 4 | null;
   state: 'STARTED' | 'CONVERGED' | 'NUMERICAL_FAILURE';
   localFlashCalls: number;
   reason: string | null;
+  telemetry?: Stage4PhysicalSizingTelemetry;
   /**
    * A physical trial is complete only after both mesh attempts have returned
    * and its physical-count outcome has been recorded.  In particular, a
@@ -321,12 +342,68 @@ function validateLocalFlash(flash: Flash, continuousIsExtract: boolean): LocalFl
 async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
   flashEvaluator: FlashEvaluator, interfaceEvaluator: InterfaceEvaluator,
   controls: {
-    deadlineMs: number; operationTimeoutMs: number; cancelled: () => boolean;
+    startedAtMonotonicMs: number; deadlineMs: number; operationTimeoutMs: number;
+    cancelled: () => boolean;
     progress?: (event: Stage4PhysicalSizingProgress) => void | Promise<void>;
+    telemetry?: (event: Stage4PhysicalSizingProgress) => void | Promise<void>;
   }) {
+  let interfaceCallsAttempted = 0;
+  let interfaceCallsCompleted = 0;
   const remainingOperationMs = () => Math.max(1, Math.min(
     controls.operationTimeoutMs, controls.deadlineMs - Date.now(),
   ));
+  const operationTelemetry = (operation: string, operationStartedAt: number, iteration: number | null,
+    cellIndex: number | null, totalCells: number | null, residuals?: Record<string, number>,
+    residualHistory?: Record<string, number>[]): Stage4PhysicalSizingTelemetry => ({
+    operation,
+    iteration,
+    cellIndex,
+    totalCells,
+    // Date.now() is a wall clock and may move backwards when NTP or a system
+    // clock adjustment is applied.  Telemetry must remain an operational
+    // observation, not a source of negative or discontinuous durations.
+    elapsedMs: performance.now() - controls.startedAtMonotonicMs,
+    operationElapsedMs: performance.now() - operationStartedAt,
+    interfaceCallsAttempted,
+    interfaceCallsCompleted,
+    ...(residuals ? { residuals } : {}),
+    ...(residualHistory ? { residualHistory } : {}),
+    checkpointTimestamp: new Date().toISOString(),
+  });
+  const reportTelemetry = (event: Stage4PhysicalSizingProgress) => {
+    try {
+      const pending = controls.telemetry?.(event);
+      if (pending && typeof (pending as PromiseLike<void>).then === 'function') {
+        void Promise.resolve(pending).catch(error => {
+          console.error('STAGE4_TELEMETRY_CALLBACK_FAILED', error);
+        });
+      }
+    } catch (error) {
+      // A diagnostic observer is advisory.  Never let an observer failure
+      // change a numerical result or create an unhandled rejection.
+      console.error('STAGE4_TELEMETRY_CALLBACK_FAILED', error);
+    }
+  };
+  const emitInletTelemetry = (telemetry: Stage4PhysicalSizingTelemetry) => {
+    const maximumPhysicalCount = input.maximumCompartments ?? 80;
+    reportTelemetry({
+      caseCoefficient: c,
+      physicalCompartments: null,
+      finiteVolumeCellsPerPhysicalCompartment: null,
+      state: 'STARTED',
+      localFlashCalls: 0,
+      reason: null,
+      telemetry,
+      completedPhysicalTrials: 0,
+      resolvedPhysicalTrials: 0,
+      unresolvedPhysicalTrials: 0,
+      lastCompletedPhysicalCount: null,
+      minimumPhysicalCount: input.calculatedNt,
+      maximumPhysicalCount,
+      totalPhysicalTrials: maximumPhysicalCount - input.calculatedNt + 1,
+      partialPhysicalCountOutcomes: [],
+    });
+  };
   if (controls.cancelled() || Date.now() > controls.deadlineMs) {
     throw new Error(controls.cancelled()
       ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
@@ -348,10 +425,16 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
   const total = feed.continuous.map((value, i) => value + feed.dispersed[i]);
   // This first flash is only adapter/provenance binding and the base-film
   // composition. It is never retained as an equilibrium partition closure.
-  const inletFlash = validateLocalFlash(await flashEvaluator({
+  const inletStartedAt = performance.now();
+  emitInletTelemetry(operationTelemetry('INLET_LOCAL_EQUILIBRIUM_BINDING', inletStartedAt,
+    null, null, null));
+  const inletFlashResponse = await flashEvaluator({
     temperatureK: basis.temperatureK, componentMolarInventory: total,
     componentOrder: [...JOB_A_COMPONENT_ORDER],
-  }, remainingOperationMs()), feed.continuousIsExtract);
+  }, remainingOperationMs());
+  emitInletTelemetry(operationTelemetry('INLET_LOCAL_EQUILIBRIUM_BINDING', inletStartedAt,
+    null, null, null));
+  const inletFlash = validateLocalFlash(inletFlashResponse, feed.continuousIsExtract);
   const localComposition = normalize(feed.continuous);
   const jobA = evaluateJobA({
     stage1SnapshotHash: input.stage1SnapshotHash, theoreticalStages: input.calculatedNt,
@@ -423,6 +506,45 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     },
     searchTermination: null as string | null,
   };
+  const totalPhysicalTrials = max - input.calculatedNt + 1;
+  const emitProgress = async (event: Omit<Stage4PhysicalSizingProgress,
+    'completedPhysicalTrials' | 'resolvedPhysicalTrials' | 'unresolvedPhysicalTrials'
+    | 'lastCompletedPhysicalCount' | 'minimumPhysicalCount' | 'maximumPhysicalCount'
+    | 'totalPhysicalTrials' | 'partialPhysicalCountOutcomes'>) => {
+    const outcomes = result.physicalCountOutcomes.map(outcome => ({ ...outcome }));
+    await controls.progress?.({
+      ...event,
+      completedPhysicalTrials: outcomes.length,
+      resolvedPhysicalTrials: outcomes.filter(outcome =>
+        outcome.status === 'TARGET_PASS' || outcome.status === 'TARGET_FAIL').length,
+      unresolvedPhysicalTrials: outcomes.filter(outcome =>
+        outcome.status === 'NUMERICAL_UNRESOLVED').length,
+      lastCompletedPhysicalCount: outcomes.at(-1)?.physicalCompartments ?? null,
+      minimumPhysicalCount: input.calculatedNt,
+      maximumPhysicalCount: max,
+      totalPhysicalTrials,
+      partialPhysicalCountOutcomes: outcomes,
+    });
+  };
+  const emitTelemetryProgress = (event: Omit<Stage4PhysicalSizingProgress,
+    'completedPhysicalTrials' | 'resolvedPhysicalTrials' | 'unresolvedPhysicalTrials'
+    | 'lastCompletedPhysicalCount' | 'minimumPhysicalCount' | 'maximumPhysicalCount'
+    | 'totalPhysicalTrials' | 'partialPhysicalCountOutcomes'>) => {
+    const outcomes = result.physicalCountOutcomes.map(outcome => ({ ...outcome }));
+    reportTelemetry({
+      ...event,
+      completedPhysicalTrials: outcomes.length,
+      resolvedPhysicalTrials: outcomes.filter(outcome =>
+        outcome.status === 'TARGET_PASS' || outcome.status === 'TARGET_FAIL').length,
+      unresolvedPhysicalTrials: outcomes.filter(outcome =>
+        outcome.status === 'NUMERICAL_UNRESOLVED').length,
+      lastCompletedPhysicalCount: outcomes.at(-1)?.physicalCompartments ?? null,
+      minimumPhysicalCount: input.calculatedNt,
+      maximumPhysicalCount: max,
+      totalPhysicalTrials,
+      partialPhysicalCountOutcomes: outcomes,
+    });
+  };
   const solveMesh = async (physicalCompartments: number, cellsPerPhysicalCompartment: number):
     Promise<MeshSolve> => {
     const cells = physicalCompartments * cellsPerPhysicalCompartment;
@@ -431,6 +553,20 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     const dispersionConductance = dispersion.valueM2S * area * cTot / dz;
     const feedScale = feed.continuous.map((value, index) =>
       Math.max(value + feed.dispersed[index], 1e-12));
+    const residualHistory: Record<string, number>[] = [];
+    const emitOperationalProgress = (operation: string, operationStartedAt: number,
+      iteration: number | null, cellIndex: number | null, residuals?: Record<string, number>) => {
+      emitTelemetryProgress({
+        caseCoefficient: c,
+        physicalCompartments,
+        finiteVolumeCellsPerPhysicalCompartment: cellsPerPhysicalCompartment as 2 | 4,
+        state: 'STARTED',
+        localFlashCalls: flashCalls,
+        reason: null,
+        telemetry: operationTelemetry(operation, operationStartedAt, iteration, cellIndex, cells,
+          residuals, residualHistory.map(entry => ({ ...entry }))),
+      });
+    };
     let transfer = Array.from({ length: cells }, () => Array(7).fill(0));
     let latestFrame = 0;
     let latestFilmEquality = 0;
@@ -440,6 +576,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     const maxIterations = 80;
     const relativeTolerance = 2e-6;
     for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+      const iterationStartedAt = performance.now();
       if (Date.now() > controls.deadlineMs || controls.cancelled()) {
         return { converged: false,
           reason: controls.cancelled() ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED' : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
@@ -514,7 +651,12 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
             x_bulk_continuous: xc[j], x_bulk_dispersed: xD, kc, kd,
             CtC: localCtC, CtD: localCtD, phase_config: basis.phaseConfiguration as any,
           };
+          const interfaceStartedAt = performance.now();
+          interfaceCallsAttempted += 1;
+          emitOperationalProgress('INTERFACE_ROOT', interfaceStartedAt, iteration + 1, j);
           const interfaceResult = await interfaceEvaluator(interfaceRequest, remainingOperationMs());
+          interfaceCallsCompleted += 1;
+          emitOperationalProgress('INTERFACE_ROOT', interfaceStartedAt, iteration + 1, j);
           if (interfaceResult.status !== 'CALCULATED_PRELIMINARY_INTERFACE'
             || !interfaceResult.interface
             || interfaceResult.interface.continuousComponentFluxMolM2S.length !== 7) {
@@ -593,6 +735,15 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       }
       const update = scaledMaximum(next.flatMap((row, j) => row.map((value, i) =>
         value - transfer[j][i])), feedScale);
+      const iterationResiduals = {
+        maxScaledUpdateResidual: update,
+        maxDiffusiveFrameResidualMolS: latestFrame,
+        maxFilmEqualityResidualMolS: latestFilmEquality,
+        maxStefanIdentityResidualMolS: latestStefanIdentity,
+      };
+      residualHistory.push(iterationResiduals);
+      emitOperationalProgress('COUNTERCURRENT_ITERATION_COMPLETE', iterationStartedAt,
+        iteration + 1, null, iterationResiduals);
       if (update <= relativeTolerance) {
         // `proposed` was evaluated from the *current* reconstructed faces and
         // local interface roots. Qualify that same state; returning `next`
@@ -626,11 +777,17 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
                 ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
                 : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
             }
-            validateLocalFlash(await flashEvaluator({
+            const localQualificationStartedAt = performance.now();
+            emitOperationalProgress('FINAL_LOCAL_LLE_QUALIFICATION', localQualificationStartedAt,
+              iteration + 1, j, iterationResiduals);
+            const localQualificationResponse = await flashEvaluator({
               temperatureK: basis.temperatureK, componentMolarInventory: inventory,
               componentOrder: [...JOB_A_COMPONENT_ORDER],
-            }, remainingOperationMs()), feed.continuousIsExtract);
+            }, remainingOperationMs());
             flashCalls += 1;
+            emitOperationalProgress('FINAL_LOCAL_LLE_QUALIFICATION', localQualificationStartedAt,
+              iteration + 1, j, iterationResiduals);
+            validateLocalFlash(localQualificationResponse, feed.continuousIsExtract);
           }
         } catch (error) {
           return { converged: false, reason: error instanceof Error ? error.message : 'FINAL_LOCAL_LLE_QUALIFICATION_FAILED',
@@ -664,26 +821,6 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
   // N is physical hardware. The finite-volume resolution below is deliberately
   // independent (2 then 4 axial cells per physical compartment).
   let lowerCountUnresolved = false;
-  const totalPhysicalTrials = max - input.calculatedNt + 1;
-  const emitProgress = async (event: Omit<Stage4PhysicalSizingProgress,
-    'completedPhysicalTrials' | 'resolvedPhysicalTrials' | 'unresolvedPhysicalTrials'
-    | 'lastCompletedPhysicalCount' | 'minimumPhysicalCount' | 'maximumPhysicalCount'
-    | 'totalPhysicalTrials' | 'partialPhysicalCountOutcomes'>) => {
-    const outcomes = result.physicalCountOutcomes.map(outcome => ({ ...outcome }));
-    await controls.progress?.({
-      ...event,
-      completedPhysicalTrials: outcomes.length,
-      resolvedPhysicalTrials: outcomes.filter(outcome =>
-        outcome.status === 'TARGET_PASS' || outcome.status === 'TARGET_FAIL').length,
-      unresolvedPhysicalTrials: outcomes.filter(outcome =>
-        outcome.status === 'NUMERICAL_UNRESOLVED').length,
-      lastCompletedPhysicalCount: outcomes.at(-1)?.physicalCompartments ?? null,
-      minimumPhysicalCount: input.calculatedNt,
-      maximumPhysicalCount: max,
-      totalPhysicalTrials,
-      partialPhysicalCountOutcomes: outcomes,
-    });
-  };
   for (let count = input.calculatedNt; count <= max; count += 1) {
     result.attemptedPhysicalCompartments.push(count);
     await emitProgress({ caseCoefficient: c, physicalCompartments: count,
@@ -838,6 +975,11 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
     wallClockBudgetMs?: number;
     abortSignal?: AbortSignal;
     onNumericalProgress?: (progress: Stage4PhysicalSizingProgress) => void | Promise<void>;
+    /**
+     * Optional advisory-only telemetry observer.  It is deliberately separate
+     * from mesh/phase progress so a diagnostic sink cannot hold a cell solve.
+     */
+    onTelemetryProgress?: (progress: Stage4PhysicalSizingProgress) => void | Promise<void>;
     onProgress?: (progress: {
       phase: 'PRIMARY_RUNNING' | 'PRIMARY_COMPLETE' | 'SENSITIVITY_RUNNING' | 'SENSITIVITY_COMPLETE';
       completedCases: 0 | 1 | 2;
@@ -851,11 +993,18 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
   if (!Number.isFinite(wallClockBudgetMs) || wallClockBudgetMs <= 0 || wallClockBudgetMs > 1_800_000) {
     throw new Error('STAGE4_WALL_CLOCK_BUDGET_INVALID');
   }
+  const startedAtMonotonicMs = performance.now();
+  const startedAtWallClockMs = Date.now();
   const controls = {
-    deadlineMs: Date.now() + wallClockBudgetMs,
+    startedAtMonotonicMs,
+    deadlineMs: startedAtWallClockMs + wallClockBudgetMs,
     operationTimeoutMs: options?.timeoutMs ?? 120_000,
     cancelled: () => options?.abortSignal?.aborted === true,
     progress: options?.onNumericalProgress,
+    // Legacy callers receive the full numerical stream.  Telemetry is routed
+    // separately so per-cell observations can be advisory without changing
+    // the awaited mesh/phase progress contract.
+    telemetry: options?.onTelemetryProgress ?? options?.onNumericalProgress,
   };
   const session = options?.flashEvaluator ? null : createSevenComponentLocalEquilibriumSession({
     timeoutMs: options?.timeoutMs ?? 120_000,

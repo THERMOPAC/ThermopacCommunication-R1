@@ -43,6 +43,71 @@ def load_legacy():
 legacy = load_legacy()
 _build_engine = legacy.scientific.build_engine
 _original_least_squares = None
+_exact_wet_lngamma_cache_runs = []
+_MAX_EXACT_WET_LNGAMMA_CACHE_ENTRIES = 4096
+
+
+def _install_exact_wet_lngamma_cache(engine):
+    """Reuse only byte-identical thermodynamic calls inside one LS invocation.
+
+    The cache is deliberately scoped to an individual numerical least-squares
+    call. Final residual evaluation, rank/reproduction, endpoint stability and
+    TPD admission calls execute after that scope has closed and therefore
+    always call the pinned model afresh. Keys retain the complete IEEE input
+    bytes, dtype, shape and hexadecimal temperature; no tolerance or rounded
+    composition is accepted. Cached arrays are copied both on storage and
+    return so a caller cannot mutate a later thermodynamic result.
+    """
+    original_wet_lngamma = engine.model.wet_lngamma
+    original_least_squares = engine.scipy.optimize.least_squares
+    cache = {}
+    active = False
+    diagnostics = {
+        "calls": 0,
+        "hits": 0,
+        "misses": 0,
+        "evictions": 0,
+        "maximumEntries": _MAX_EXACT_WET_LNGAMMA_CACHE_ENTRIES,
+    }
+
+    def exact_key(np_module, temperature_k, composition):
+        array = np_module.ascontiguousarray(np_module.asarray(composition))
+        return (float(temperature_k).hex(), array.dtype.str, array.shape,
+                array.tobytes())
+
+    def cached_wet_lngamma(np_module, temperature_k, composition):
+        if not active:
+            return original_wet_lngamma(np_module, temperature_k, composition)
+        diagnostics["calls"] += 1
+        key = exact_key(np_module, temperature_k, composition)
+        cached = cache.get(key)
+        if cached is not None:
+            diagnostics["hits"] += 1
+            return cached.copy()
+        diagnostics["misses"] += 1
+        result = original_wet_lngamma(np_module, temperature_k, composition)
+        # Clear, rather than retaining an approximate/LRU subset, at the
+        # explicit fixed bound. This makes all served entries exact and keeps
+        # memory bounded without a replacement policy affecting numerics.
+        if len(cache) >= _MAX_EXACT_WET_LNGAMMA_CACHE_ENTRIES:
+            cache.clear()
+            diagnostics["evictions"] += 1
+        cache[key] = result.copy()
+        return result
+
+    def scoped_least_squares(*solve_args, **solve_kwargs):
+        nonlocal active
+        cache.clear()
+        active = True
+        try:
+            return original_least_squares(*solve_args, **solve_kwargs)
+        finally:
+            active = False
+            cache.clear()
+
+    engine.model.wet_lngamma = cached_wet_lngamma
+    engine.scipy.optimize.least_squares = scoped_least_squares
+    return diagnostics
 
 
 def patched_build_engine(*args, **kwargs):
@@ -62,6 +127,13 @@ def patched_build_engine(*args, **kwargs):
         return _original_least_squares(*solve_args, **solve_kwargs)
 
     engine.scipy.optimize.least_squares = dogbox_least_squares
+    diagnostics = _install_exact_wet_lngamma_cache(engine)
+    # This diagnostic stays process-local and is intentionally excluded from
+    # protocol responses/result hashes. It is for the isolated timing harness,
+    # never a scientific result or gate input.
+    _exact_wet_lngamma_cache_runs.append(diagnostics)
+    if len(_exact_wet_lngamma_cache_runs) > 64:
+        del _exact_wet_lngamma_cache_runs[:-64]
     return temporary, engine, integrity, runtime
 
 

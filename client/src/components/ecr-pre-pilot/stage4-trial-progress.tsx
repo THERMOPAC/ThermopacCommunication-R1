@@ -4,6 +4,53 @@ const record = (value: unknown): RecordValue =>
 const integer = (value: unknown): number | null =>
   typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null;
 
+export function Stage4SolverTelemetry({ telemetry }: { telemetry: unknown }) {
+  const data = record(telemetry);
+  if (typeof data.operation !== "string" || !data.operation) return null;
+  const duration = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) && value >= 0
+      ? `${(value / 1000).toFixed(1)} s` : "Not recorded";
+  const cell = integer(data.cellIndex);
+  const iteration = integer(data.iteration);
+  const residuals = Object.entries(record(data.residuals))
+    .filter((entry): entry is [string, number] =>
+      typeof entry[1] === "number" && Number.isFinite(entry[1]));
+  const stamp = typeof data.checkpointTimestamp === "string" || typeof data.checkpointTimestamp === "number"
+    ? new Date(data.checkpointTimestamp) : null;
+  return (
+    <section className="mt-3 rounded border border-sky-300 bg-white p-3"
+      data-testid="stage4-solver-telemetry">
+      <h4 className="font-semibold">Solver work — last saved update</h4>
+      <p className="mt-1 font-semibold capitalize">{data.operation.replaceAll("_", " ").toLowerCase()}</p>
+      <div className="mt-2 grid gap-1 sm:grid-cols-2">
+        {iteration !== null && iteration > 0 && <p>Iteration: {iteration}</p>}
+        {cell !== null && <p>Cell: {cell + 1} / {integer(data.totalCells) ?? "—"}</p>}
+        <p>Interface solves completed: {integer(data.interfaceCallsCompleted) ?? "Not recorded"}</p>
+        <p>Interface solves attempted: {integer(data.interfaceCallsAttempted) ?? "Not recorded"}</p>
+        <p>Elapsed at last update: {duration(data.elapsedMs)}</p>
+        <p>Operation elapsed at last update: {duration(data.operationElapsedMs)}</p>
+      </div>
+      {stamp && Number.isFinite(stamp.getTime()) && (
+        <p className="mt-2 text-slate-600">Updated: <time dateTime={stamp.toISOString()}>{stamp.toISOString()}</time></p>
+      )}
+      {residuals.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer">Recorded residuals — not an acceptance verdict</summary>
+          <dl className="mt-1 grid grid-cols-2 gap-1 font-mono">
+            {residuals.map(([name, value]) => <div key={name}>
+              <dt>{name}</dt><dd>{value.toExponential(3)}</dd>
+            </div>)}
+          </dl>
+        </details>
+      )}
+      <p className="mt-2 text-slate-600">
+        Updates show measured work inside a trial, not percentage complete or proof of convergence.
+        Timing values remain at the last saved update.
+      </p>
+    </section>
+  );
+}
+
 export default function Stage4TrialProgress({ progress, minimum, maximum, notRun }: {
   progress: unknown;
   minimum: unknown;

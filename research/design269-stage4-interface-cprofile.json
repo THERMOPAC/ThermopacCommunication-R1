@@ -1,0 +1,82 @@
+{
+  "schema": "DESIGN269_STAGE4_FIRST_INTERFACE_CPROFILE_V1",
+  "scope": {
+    "capMs": 180000,
+    "databaseAccess": "NONE_REPLAY_OF_OWNER_SCOPED_CAPTURE",
+    "noProductionCalculationPersistence": true,
+    "noFullColumnExecution": true,
+    "workerRequestsPlanned": 1
+  },
+  "exactRequest": {
+    "componentOrder": [
+      "SAT",
+      "MONO",
+      "DI",
+      "POLY",
+      "PA",
+      "NMP",
+      "H2O"
+    ],
+    "T": 333.15,
+    "x_bulk_continuous": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0.9730927044548102,
+      0.026907295545189853
+    ],
+    "x_bulk_dispersed": [
+      0.831407891171669,
+      0.09703368504249356,
+      0.04686707538501485,
+      0.0164755066368913,
+      0.008215841763931277,
+      0,
+      0
+    ],
+    "kc": [
+      2.084860236698595e-05,
+      2.5459744357085994e-05,
+      2.4871160500530255e-05,
+      2.194164643140475e-05,
+      1.6309525055256572e-05,
+      2.629806255143195e-05,
+      3.2789791656593186e-05
+    ],
+    "kd": [
+      1.3074357939320277e-06,
+      1.6179319845886038e-06,
+      1.5780698542047561e-06,
+      1.380657498324959e-06,
+      1.0060726045372094e-06,
+      1.6748193672026443e-06,
+      2.1196019578990626e-06
+    ],
+    "CtC": 10283.811255512806,
+    "CtD": 5137.775970988926,
+    "phase_config": "nmp-continuous-rrbo-dispersed"
+  },
+  "requestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+  "baselineResponseResultHash": "19cc0063b4c6c1e75f54bb23370a101119402c901950118cfafbab7cab31d600",
+  "status": "PROFILE_COMPLETED_EXACT_QUALIFICATION",
+  "timing": {
+    "checkpointTimestamp": 1789375608.8293612,
+    "elapsedMs": 78932,
+    "operation": "SOLVE_INTERFACE_CPROFILE",
+    "operationElapsedMs": 76495
+  },
+  "qualification": {
+    "requestHashMatchesCapturedBaseline": true,
+    "responseStatus": "CALCULATED_PRELIMINARY_INTERFACE",
+    "responseResultHash": "19cc0063b4c6c1e75f54bb23370a101119402c901950118cfafbab7cab31d600",
+    "responseResultHashMatchesUnprofiledBaseline": true,
+    "pstatsSha256": "b18c6d44f4b626c6a534df0d298c4af0c089363154ce6f41aa485abefd251e40",
+    "reportSha256": "92bb312ef73e7b8bc8e4c958f6026a8f6b94b4a3f15bb432af4713b2914335f3"
+  },
+  "artifacts": {
+    "pstats": "research/design269-stage4-interface-cprofile.pstats",
+    "cumulativeReport": "research/design269-stage4-interface-cprofile.txt"
+  }
+}

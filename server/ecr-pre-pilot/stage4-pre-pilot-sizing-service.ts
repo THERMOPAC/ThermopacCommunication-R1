@@ -642,21 +642,87 @@ function startLocalFiniteRateRun(
       sensitivity: initialCaseProgress(.0105),
     },
   };
-  let progressWrite = Promise.resolve();
+  /**
+   * Progress is split into two lanes. Mesh/phase transitions are awaited so
+   * their persisted ordering remains part of the lifecycle contract.
+   * Per-cell telemetry is advisory: retain only its latest snapshot while a
+   * database write is in flight, and never charge the solver for that write.
+   */
+  let progressWrite: Promise<unknown> = Promise.resolve();
+  let advisorySnapshot: Record<string, unknown> | null = null;
+  let telemetrySequence = 0;
+  let supersededTelemetrySequence = 0;
+  let advisoryDrain: Promise<void> | null = null;
+  const writeSnapshot = (snapshot: Record<string, unknown>) => {
+    const write = progressWrite.then(() => update(
+      `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+          SET progress_snapshot=$5
+        WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+          AND attempt_token=$4 AND status='RUNNING'`,
+      [userId, designId, authority.lineageHash, attemptToken, snapshot],
+    ));
+    // Keep the ordered lane usable after an advisory failure.  The returned
+    // promise still rejects for awaited mesh/phase writes.
+    progressWrite = write.catch(() => undefined);
+    return write;
+  };
   const enqueueProgress = (next: Record<string, unknown>) => {
     persistedProgress = next;
-    const snapshot = next;
-    const write = progressWrite
-      .catch(() => undefined)
-      .then(() => update(
-        `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
-            SET progress_snapshot=$5
-          WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
-            AND attempt_token=$4 AND status='RUNNING'`,
-        [userId, designId, authority.lineageHash, attemptToken, snapshot],
-      ));
-    progressWrite = write;
-    return write;
+    supersededTelemetrySequence = telemetrySequence;
+    advisorySnapshot = null;
+    return writeSnapshot(next).catch(error => {
+      console.error('STAGE4_PROGRESS_PERSISTENCE_FAILED', error);
+      throw error;
+    });
+  };
+  const startAdvisoryDrain = () => {
+    if (advisoryDrain || !advisorySnapshot) return;
+    advisoryDrain = (async () => {
+      // Let synchronous bursts of cell checkpoints collapse to one snapshot
+      // before opening a database write.
+      await Promise.resolve();
+      while (advisorySnapshot) {
+        const snapshot = advisorySnapshot;
+        const sequence = telemetrySequence;
+        advisorySnapshot = null;
+        // A later awaited mesh/phase snapshot already contains the latest
+        // in-memory diagnostic fields. Do not let a captured older telemetry
+        // object overwrite it after the ordered write completes.
+        if (sequence <= supersededTelemetrySequence) continue;
+        try {
+          await writeSnapshot(snapshot);
+        } catch (error) {
+          console.error('STAGE4_TELEMETRY_PERSISTENCE_FAILED', error);
+        }
+        await Promise.resolve();
+      }
+    })()
+      .catch(error => {
+        console.error('STAGE4_TELEMETRY_PERSISTENCE_FAILED', error);
+      })
+      .finally(() => {
+        advisoryDrain = null;
+        if (advisorySnapshot) startAdvisoryDrain();
+      });
+    // Advisory work must never become an unhandled rejection and is not
+    // returned to the solver's awaited callback.
+    void advisoryDrain;
+  };
+  const enqueueTelemetry = (next: Record<string, unknown>) => {
+    persistedProgress = next;
+    telemetrySequence += 1;
+    advisorySnapshot = next;
+    startAdvisoryDrain();
+  };
+  const flushProgress = async () => {
+    // A telemetry callback may have queued a replacement while the previous
+    // snapshot was being written.  Drain until both the coalescing slot and
+    // ordered write lane are empty.
+    while (advisoryDrain || advisorySnapshot) {
+      if (advisoryDrain) await advisoryDrain;
+      else startAdvisoryDrain();
+    }
+    await progressWrite;
   };
   const phaseProgress = (progress: {
     phase: 'PRIMARY_RUNNING' | 'PRIMARY_COMPLETE' | 'SENSITIVITY_RUNNING' | 'SENSITIVITY_COMPLETE';
@@ -676,23 +742,29 @@ function startLocalFiniteRateRun(
       ? map[key] as Record<string, unknown>
       : {};
     const mesh = progress.finiteVolumeCellsPerPhysicalCompartment === 2
-      ? 'coarse' : 'refined';
+      ? 'coarse'
+      : progress.finiteVolumeCellsPerPhysicalCompartment === 4 ? 'refined' : null;
     const caseProgress: Record<string, unknown> = {
       ...previousCase,
       ...progress,
       phase: persistedProgress.phase,
       completedCases: persistedProgress.completedCases,
       totalCases: persistedProgress.totalCases,
-      [mesh]: progress,
+      ...(mesh ? { [mesh]: progress } : {}),
     };
     const physicalTrialProgress = { ...map, [key]: caseProgress };
     // Keep the case map as the durable source of truth, while retaining the
     // latest event's fields at the snapshot root for existing consumers.
-    return enqueueProgress({
+    const next = {
       ...persistedProgress,
       ...progress,
       physicalTrialProgress,
-    });
+    };
+    if (progress.telemetry) {
+      enqueueTelemetry(next);
+      return;
+    }
+    return enqueueProgress(next);
   };
   const task = (async () => {
     try {
@@ -709,10 +781,12 @@ function startLocalFiniteRateRun(
         abortSignal: abort.signal,
         onProgress: phaseProgress,
         onNumericalProgress: numericalProgress,
+        onTelemetryProgress: numericalProgress,
       });
-      // The final status update must follow the last count event.  Otherwise
-      // a late mesh write can overwrite the terminal phase or counters.
-      await progressWrite;
+      // The final status update must follow the last count event and the
+      // latest coalesced telemetry snapshot.  Otherwise a late mesh write can
+      // overwrite the terminal phase or counters.
+      await flushProgress();
       assertJsonFinite(result);
       const unknownCounts = [result.primary, result.sensitivity].some(caseResult =>
         caseResult.searchTermination.includes('UNKNOWN_NUMERICAL')
@@ -725,14 +799,17 @@ function startLocalFiniteRateRun(
         : unknownCounts ? 'NUMERICAL_FAILURE' : 'TARGET_FAILURE';
       await update(
         `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
-            SET status=$5,result_snapshot=$6,progress_snapshot=progress_snapshot || $7::jsonb,
+            SET status=$5,result_snapshot=$6,progress_snapshot=$7,
                 error_code=NULL,completed_at=now()
           WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
             AND attempt_token=$4 AND status='RUNNING'`,
         [userId, designId, authority.lineageHash, attemptToken, status, result,
-          status === 'NUMERICAL_FAILURE'
-            ? { phase: 'FAILED' }
-            : { phase: 'COMPLETE', completedCases: 2, totalCases: 2 }],
+          {
+            ...persistedProgress,
+            ...(status === 'NUMERICAL_FAILURE'
+              ? { phase: 'FAILED' }
+              : { phase: 'COMPLETE', completedCases: 2, totalCases: 2 }),
+          }],
       );
     } catch (error) {
       const errorCode = error instanceof Error ? error.message : 'STAGE4_FINITE_RATE_SOLVER_FAILED';
@@ -741,23 +818,30 @@ function startLocalFiniteRateRun(
       // A timeout/abort can happen while a child request is unresolved. Keep
       // the most recent completed-count/outcome snapshot rather than replacing
       // it with a fresh zero-progress failure record.
-      try {
-        await progressWrite;
+    try {
+      await flushProgress();
       } catch (progressError) {
         // A progress write must never prevent the terminal failure status
         // from being attempted.  Keep the error visible in server diagnostics
         // while retaining the last successfully persisted snapshot.
         console.error('STAGE4_PROGRESS_PERSISTENCE_FAILED', progressError);
       }
-      await update(
-        `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
-            SET status=$5,error_code=$6,
-                progress_snapshot=progress_snapshot || '{"phase":"FAILED"}'::jsonb,
-                completed_at=now()
-          WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
-            AND attempt_token=$4 AND status='RUNNING'`,
-        [userId, designId, authority.lineageHash, attemptToken, status, errorCode],
-      );
+      try {
+        await update(
+          `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+              SET status=$5,error_code=$6,
+                  progress_snapshot=$7,
+                  completed_at=now()
+            WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+              AND attempt_token=$4 AND status='RUNNING'`,
+          [userId, designId, authority.lineageHash, attemptToken, status, errorCode,
+            { ...persistedProgress, phase: 'FAILED' }],
+        );
+      } catch (terminalError) {
+        // The detached local task must settle even if the terminal write is
+        // unavailable; otherwise it would surface as an unhandled rejection.
+        console.error('STAGE4_TERMINAL_STATUS_PERSISTENCE_FAILED', terminalError);
+      }
     } finally {
       if (localInflight.get(authority.lineageHash)?.attemptToken === attemptToken) {
         localInflight.delete(authority.lineageHash);

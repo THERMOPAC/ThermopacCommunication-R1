@@ -1,0 +1,91 @@
+{
+  "schema": "DESIGN269_STAGE4_EXACT_CACHE_FULL_PAYLOAD_QUALIFICATION_V1",
+  "scope": {
+    "capMs": 180000,
+    "databaseAccess": "NONE_REPLAY_OF_OWNER_SCOPED_CAPTURE",
+    "noProductionCalculationPersistence": true,
+    "noFullColumnExecution": true,
+    "requestsPlanned": 2,
+    "implementationIdentityExcludedPaths": [
+      "resultHash",
+      "workerSha256",
+      "jobBInterfaceArtifactSha256",
+      "numericalStrategy.wrapperWorkerSha256"
+    ],
+    "payloadComparison": "EXACT_CANONICAL_JSON_AFTER_DECLARED_IDENTITY_REMOVAL"
+  },
+  "status": "QUALIFICATION_COMPLETED_EXACT_SCIENTIFIC_PAYLOAD",
+  "timing": {
+    "checkpointTimestamp": 1789376511.4310832,
+    "elapsedMs": 120467
+  },
+  "cases": [
+    {
+      "mesh": "coarse",
+      "actualEngineRequestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "baselineResponseResultHash": "19cc0063b4c6c1e75f54bb23370a101119402c901950118cfafbab7cab31d600",
+      "candidateResponseResultHash": "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+      "resultHashExpectedToDifferForNewWrapperIdentity": true,
+      "baselineRawResponseDigest": "19cc0063b4c6c1e75f54bb23370a101119402c901950118cfafbab7cab31d600",
+      "baselineRawResponseDigestValid": true,
+      "candidateRawResponseDigest": "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
+      "candidateRawResponseDigestValid": true,
+      "baselineImplementationIdentity": {
+        "workerSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265",
+        "jobBInterfaceArtifactSha256": "b95b9a7b42bf286e4ebc54a9dcc4a9150be29285b3e988f9fcbbcc245c17bc4b",
+        "stage4AdapterArtifactSha256": "5dcb38f4a73e712d2a503840c263385b89a87dbd69fb3fab73e5eafa6fa56012"
+      },
+      "candidateImplementationIdentity": {
+        "workerSha256": "bc549bd13fb2caee0f94ae4281bc69cdd9c84cfb8414fff47a295ec6a93996e5",
+        "jobBInterfaceArtifactSha256": "ab4d9ffa71953743171d821b823907683c77dec5a48e900bba3a31898514978b",
+        "stage4AdapterArtifactSha256": "5dcb38f4a73e712d2a503840c263385b89a87dbd69fb3fab73e5eafa6fa56012"
+      },
+      "baselineScientificPayloadSha256": "abdbe77d7510ff9a93b99663425dfbd7abcf890472f26f41aa07e56080d1765a",
+      "candidateScientificPayloadSha256": "fefcecf34e35fcd448bb5b4df9c84edf63b18191aec03acbd55efe7369eac579",
+      "scientificPayloadNumericallyMatches": true,
+      "baselineScientificPayloadProtocolDigest": "f89295d4b8dafe8280cf62c01a3527d2a456698240912508c0b2273d5356c926",
+      "candidateScientificPayloadProtocolDigest": "f89295d4b8dafe8280cf62c01a3527d2a456698240912508c0b2273d5356c926",
+      "scientificPayloadProtocolDigestMatches": true,
+      "responseStatus": "CALCULATED_PRELIMINARY_INTERFACE",
+      "allOriginalWorkerSelectionGatesPassed": true,
+      "operationElapsedMs": 43512
+    },
+    {
+      "mesh": "refined",
+      "actualEngineRequestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+      "baselineResponseResultHash": "4f22c0da44282d5d376efe02f13fea95e358f072aaaadd584504daecfe5bc806",
+      "candidateResponseResultHash": "4c131407227921cb02ace39bee4017a390b0e664084f4938a72d7c9348c6236a",
+      "resultHashExpectedToDifferForNewWrapperIdentity": true,
+      "baselineRawResponseDigest": "4f22c0da44282d5d376efe02f13fea95e358f072aaaadd584504daecfe5bc806",
+      "baselineRawResponseDigestValid": true,
+      "candidateRawResponseDigest": "4c131407227921cb02ace39bee4017a390b0e664084f4938a72d7c9348c6236a",
+      "candidateRawResponseDigestValid": true,
+      "baselineImplementationIdentity": {
+        "workerSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265",
+        "jobBInterfaceArtifactSha256": "b95b9a7b42bf286e4ebc54a9dcc4a9150be29285b3e988f9fcbbcc245c17bc4b",
+        "stage4AdapterArtifactSha256": "5dcb38f4a73e712d2a503840c263385b89a87dbd69fb3fab73e5eafa6fa56012"
+      },
+      "candidateImplementationIdentity": {
+        "workerSha256": "bc549bd13fb2caee0f94ae4281bc69cdd9c84cfb8414fff47a295ec6a93996e5",
+        "jobBInterfaceArtifactSha256": "ab4d9ffa71953743171d821b823907683c77dec5a48e900bba3a31898514978b",
+        "stage4AdapterArtifactSha256": "5dcb38f4a73e712d2a503840c263385b89a87dbd69fb3fab73e5eafa6fa56012"
+      },
+      "baselineScientificPayloadSha256": "1b81339cdbdc1ec656dba33e621cf86b313e18ad4555022440f349cd138e8573",
+      "candidateScientificPayloadSha256": "1ca71bb934c27c7fbd8a308542d5043daf39cf62dc87815a340b6d620cd3c539",
+      "scientificPayloadNumericallyMatches": true,
+      "baselineScientificPayloadProtocolDigest": "1e35af8d1fef8ad8a5f87cf4f85e0ecdc6cefaa696700ebf22e32313b365e8c6",
+      "candidateScientificPayloadProtocolDigest": "1e35af8d1fef8ad8a5f87cf4f85e0ecdc6cefaa696700ebf22e32313b365e8c6",
+      "scientificPayloadProtocolDigestMatches": true,
+      "responseStatus": "CALCULATED_PRELIMINARY_INTERFACE",
+      "allOriginalWorkerSelectionGatesPassed": true,
+      "operationElapsedMs": 74857
+    }
+  ],
+  "cache": {
+    "calls": 51542,
+    "hits": 33339,
+    "misses": 18203,
+    "evictions": 3,
+    "hitRatio": 0.6468317100616973
+  }
+}

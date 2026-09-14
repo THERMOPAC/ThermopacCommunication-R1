@@ -1,0 +1,87 @@
+{
+  "schema": "DESIGN269_STAGE4_FIRST_INTERFACE_PROFILE_V1",
+  "scope": {
+    "designId": 269,
+    "capMs": 180000,
+    "databaseAccess": "READ_ONLY_OWNER_SCOPED_AUTHORITY",
+    "noProductionCalculationPersistence": true,
+    "noStage2OrStage3Execution": true,
+    "noFullColumnExecution": true,
+    "workerRequestsPlanned": 1
+  },
+  "requestAssembly": {
+    "enginePath": "runStage4PredictivePhysicalSizing injected capture-only evaluators",
+    "capturedRequestCount": 4,
+    "firstRequestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+    "capturedRequestHashes": [
+      "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+      "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d"
+    ],
+    "exactFirstRequest": {
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "T": 333.15,
+      "x_bulk_continuous": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.9730927044548102,
+        0.026907295545189853
+      ],
+      "x_bulk_dispersed": [
+        0.831407891171669,
+        0.09703368504249356,
+        0.04686707538501485,
+        0.0164755066368913,
+        0.008215841763931277,
+        0,
+        0
+      ],
+      "kc": [
+        0.00002084860236698595,
+        0.000025459744357085994,
+        0.000024871160500530255,
+        0.00002194164643140475,
+        0.000016309525055256572,
+        0.00002629806255143195,
+        0.000032789791656593186
+      ],
+      "kd": [
+        0.0000013074357939320277,
+        0.0000016179319845886038,
+        0.0000015780698542047561,
+        0.000001380657498324959,
+        0.0000010060726045372094,
+        0.0000016748193672026443,
+        0.0000021196019578990626
+      ],
+      "CtC": 10283.811255512806,
+      "CtD": 5137.775970988926,
+      "phase_config": "nmp-continuous-rrbo-dispersed"
+    }
+  },
+  "timing": {
+    "startedAt": "2026-09-14T08:42:36.679Z",
+    "checkpointTimestamp": "2026-09-14T08:44:16.568Z",
+    "elapsedMs": 99890,
+    "operation": "SOLVE_INTERFACE",
+    "operationElapsedMs": 82414
+  },
+  "status": "WORKER_COMPLETED",
+  "worker": {
+    "requestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+    "responseStatus": "CALCULATED_PRELIMINARY_INTERFACE",
+    "responseResultHash": "19cc0063b4c6c1e75f54bb23370a101119402c901950118cfafbab7cab31d600"
+  }
+}
