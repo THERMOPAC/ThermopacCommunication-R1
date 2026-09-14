@@ -7,20 +7,20 @@ Never derive physical compartments by dividing theoretical stages by an
 assumed efficiency. A rate-based compartment solve determines the integer
 physical count, and local/overall efficiencies are reported only afterward.
 
-Use a valid calculated Stage-2 theoretical stage count whenever available.
-Only when it is unavailable, use exactly \(N_T=7\) with
-`PRE_PILOT_DESIGN_DEFAULT` provenance and generate the corresponding ideal
-seven-stage duty with the pinned Stage-2 thermodynamic engine.
+The unified live Stage 4 requires a valid accepted Stage-2 theoretical stage
+count. Do not apply the historical default of seven to this path.
+
+**Why:** The user explicitly rejected default N_T and separate legacy workflows.
 
 Physical-height calculation requires all of the following:
 
 - a matching local interfacial-equilibrium contract; theoretical-stage
-  authority may be calculated Stage 2 or the explicit fallback above;
+  authority must be accepted Stage 2 for the unified live calculation;
 - operating-point hydrodynamics, including operating holdup and contact-time
   information, distinct from flood-point capacity quantities;
 - a documented multicomponent diffusion/reference-frame contract and
   conserved component mapping;
-- governed ECR hardware compartment pitch and bounded height limits;
+- explicit preliminary physical pitch (the user permits 0.5D) and bounded height limits;
 - independently identified axial mixing/backflow.
 
 Solver qualification must re-evaluate every closure on the final state. Require

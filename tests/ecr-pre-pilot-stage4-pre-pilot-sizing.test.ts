@@ -50,7 +50,7 @@ describe('Stage 4 live pre-pilot physical-sizing projection', () => {
     expect(result.overallEfficiency).toMatchObject({
       value: null,
       status: 'DEPENDENCY_BLOCKED',
-      dependency: 'MASS_TRANSFER_AND_AXIAL_MIXING_OVERALL_EFFICIENCY_CLOSURE_REQUIRED',
+      dependency: 'STAGE4_GEOMETRY_INPUT_REQUIRED',
     });
     expect(result.mainOutputs.physicalCompartments).toBeNull();
     expect(result.mainOutputs.activeHeightM).toBeNull();
@@ -63,6 +63,20 @@ describe('Stage 4 live pre-pilot physical-sizing projection', () => {
     expect(result.physicalGeometry.pitchM).toBe(0.6);
     expect(result.physicalGeometry.pitchAssumption).toContain('0.5');
     expect(result.mainOutputs.overallEfficiency).toBeNull();
+  });
+
+  it('does not let an extension bypass source and geometry blockers', () => {
+    let called = false;
+    const result = deriveStage4PrePilotSizing({
+      ...input(),
+      overallEfficiencyClosure: {
+        implementationId: 'unqualified', version: 'test', implementationHash: 'test',
+        calculate: () => { called = true; return 0.9; },
+      },
+    });
+    expect(called).toBe(false);
+    expect(result.mainOutputs.physicalCompartments).toBeNull();
+    expect(result.mixingAudit.blockers[0].code).toBe('STAGE4_GEOMETRY_INPUT_REQUIRED');
   });
 
   it('rejects an invalid Stage-2 NT rather than applying the historical default of seven', () => {

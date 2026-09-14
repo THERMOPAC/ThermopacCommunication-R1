@@ -1,6 +1,7 @@
 import { pool } from '../db';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
 import { validateStage1Snapshot } from './stage1';
+import { buildStage4MixingAudit } from './stage4-mixing-audit';
 
 const FINITE = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
@@ -136,7 +137,17 @@ export function deriveStage4PrePilotSizing(input: {
     stage3ImmutableHash: input.stage3.immutableHash,
     ...hydraulics,
   };
-  const overallEfficiency = closureResult(context, input.overallEfficiencyClosure);
+  const mixingAudit = buildStage4MixingAudit({
+    selected,
+    operating,
+    processBasis: input.stage3.result.processBasis,
+  });
+  // A supplied extension cannot bypass missing correlation/geometry evidence.
+  const overallEfficiency = closureResult(context,
+    mixingAudit.blockers.length ? null : input.overallEfficiencyClosure);
+  if (overallEfficiency.value === null) {
+    overallEfficiency.dependency = mixingAudit.blockers[0].code;
+  }
   const pitchM = 0.5 * hydraulics.diameterM;
   const physicalCompartments = overallEfficiency.value === null
     ? null
@@ -161,6 +172,7 @@ export function deriveStage4PrePilotSizing(input: {
       stage2ResultHash: input.stage2ResultHash,
     },
     selectedStage3Hydraulics: hydraulics,
+    mixingAudit,
     overallEfficiency,
     physicalGeometry: {
       pitchM,
@@ -168,7 +180,8 @@ export function deriveStage4PrePilotSizing(input: {
         'PRE_PILOT_GEOMETRY_ASSUMPTION: physical compartment pitch = 0.5 × persisted Stage-3 column diameter',
       equations: [
         'pitch = 0.5 × D',
-        'physicalCompartments = ceil(valid calculated Stage-2 NT / calculated overall efficiency)',
+        'physicalCompartments = required integer count from conserved physical transfer-model search (not yet calculated)',
+        'overallEfficiency = valid calculated Stage-2 NT / solved physical compartment count',
         'activeHeight = physicalCompartments × pitch',
       ],
       units: {
@@ -185,7 +198,7 @@ export function deriveStage4PrePilotSizing(input: {
     assumptions: [
       'Stage 4 carries the persisted Stage-3 selected hydraulic point forward and does not recalculate or reselect hydraulic candidates.',
       'No manual or assumed overall efficiency, HETS, FV-cell count, Job A/B/C launch, lambda=1 continuation, or full transfer-acceptance calculation is used in this path.',
-      'A physical-stage count and active height remain null until an admitted mass-transfer/axial-mixing overall-efficiency closure is available.',
+      'Physical count must be determined by a conserved transfer-model search; efficiency is reported afterward. Source/geometry blockers are listed explicitly in the mixing audit.',
     ],
   };
 }

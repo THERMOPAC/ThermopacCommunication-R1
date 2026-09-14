@@ -31,14 +31,12 @@ seven components in both phases, dimensional closure, deterministic
 hashes/provenance, and affirmative proof that no legacy five-component
 calculation path was invoked.
 
-Theoretical-stage authority and thermodynamic-engine authority are independent:
-use valid calculated Stage-2 \(N_T\), otherwise \(N_T=7\); in both branches,
-Stage-4 equilibrium/reference duty must run through verified 7C-1.5.0.
+Theoretical-stage authority and thermodynamic-engine authority are independent.
+The unified live Stage 4 requires accepted Stage-2 N_T and matching persisted
+Stage-3 lineage; the legacy default-seven route must not be reused there.
 
-**Why:** The governed fallback \(N_T=7\) must remain usable even when Stage 2
-cannot assign an accepted \(N_T\); it does not relax Stage-4 thermodynamic
-engine provenance.
+**Why:** The user explicitly rejected default N_T and separate Job A/B/C
+workflows for the unified sizing calculation.
 
-**How to apply:** Validate calculated-\(N_T\) lineage only when that branch is
-used. Job A may preflight the 7C-1.5.0 adapter; actual Stage-4 reference duty
-uses that adapter with calculated \(N_T\) or the default seven-stage branch.
+**How to apply:** Reuse qualified local physics without launching legacy jobs;
+retain the pinned thermodynamic-engine provenance and accepted Stage-2 duty.
