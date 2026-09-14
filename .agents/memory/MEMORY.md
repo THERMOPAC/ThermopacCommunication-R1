@@ -133,3 +133,4 @@
 - [Job C physical sizing](job-c-physical-sizing-boundary.md) — candidate hydraulics require new film coefficients and height search; numerical cells and stage ratios do not establish hardware efficiency.
 - [Job C strict continuation anchor](ecr-job-c-strict-continuation-anchor.md) — a 2 m/λ=8e-9 partial diagnostic is a verified read-only 189-state seed only; it cannot establish physical sizing or engineering acceptance.
 - [ECR partial-transfer physical sizing](ecr-partial-transfer-physical-sizing.md) — nonlinear partial sizing stays separate from full-transfer acceptance; unknown searches and unsupported efficiency stay explicit.
+- [Stage 4 HETS screening](stage4-hets-screening-boundary.md) — approved assumption-based active-height sizing is separate from stopped finite-rate qualification; HETS conservatism remains unproven.

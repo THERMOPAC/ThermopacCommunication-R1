@@ -30,6 +30,7 @@ const STAGE4_RUN_STATES = new Set(["queued", "pending", "running", "in_progress"
 const STAGE4_RETRY_STATES = new Set(["NUMERICAL_FAILURE", "INTERRUPTED"]);
 const STAGE4_TERMINAL_STATES = new Set([
   "CALCULATED",
+  "CALCULATED_HETS_PRE_PILOT_SCREENING",
   "TARGET_FAILURE",
   "NUMERICAL_FAILURE",
   "INTERRUPTED",
@@ -164,6 +165,13 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   }, []);
 
   const applyPayload = useCallback((next: RecordValue) => {
+    // A current lineage with no persisted HETS result is intentionally a
+    // pre-calculation state, not an incomplete finite-rate screen.
+    if (responseStatus(next) === "UNRUN") {
+      setRun(null);
+      setResult(null);
+      return;
+    }
     const nextRun = record(next.run ?? next.state ?? next.job);
     setRun(Object.keys(nextRun).length ? nextRun : next);
     if (next.result && typeof next.result === "object") setResult(record(next.result));
@@ -485,6 +493,11 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const stage4Retryable = STAGE4_RETRY_STATES.has(stage4Status);
   const stage4Terminal = STAGE4_TERMINAL_STATES.has(stage4Status);
   const stage4Action = stage4Retryable ? retry : calculate;
+  const hetsSizing = record(displayResult?.hetsSizing);
+  const isHetsResult = displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V1"
+    && Object.keys(hetsSizing).length > 0;
+  const fixed = (value: unknown, digits: number) =>
+    isFiniteNumber(value) ? value.toFixed(digits) : "—";
 
   const cases = [
     {
@@ -624,12 +637,12 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               {SCREENING_NOTICE}
             </p>
             <h2 className="mt-1 text-sm font-semibold text-slate-950">
-              Stage 4 predictive physical sizing
+              Stage 4 HETS-Based Pre-Pilot Sizing
             </h2>
             <p className="mt-1 text-[10px] leading-4 text-slate-700">
-              Server-owned Ec → Pec → conserved physical-compartment screening.
-              The persisted Stage-3 hydraulic point and accepted Stage-2 Nₜ are
-              carried forward; no hydraulic candidate is reselected in this panel.
+              Deterministic HETS screening from the accepted Stage-2 Nₜ and
+              persisted Stage-3 hydraulic screening diameter. No hydraulic
+              candidate is reselected and no finite-rate solver is started.
             </p>
           </div>
           <button
@@ -647,7 +660,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               ? "Stage 4 running…"
               : stage4Retryable
                 ? "Retry Stage 4"
-                : stage4Status === "CALCULATED"
+                : stage4Status === "CALCULATED" || stage4Status === "CALCULATED_HETS_PRE_PILOT_SCREENING"
                   ? "Stage 4 calculated"
                   : stage4Status === "TARGET_FAILURE"
                     ? "Target not met"
@@ -676,9 +689,8 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
       )}
       {!loading && !error && !result && !run && designId && (
         <p className="p-3 text-[10px] text-slate-600">
-          No Stage 4 calculation has been run for this lineage. Calculate Stage 4
-          to request the server-owned screening result; no numerical performance
-          is inferred in the browser.
+          No Stage 4 HETS screening has been run for this lineage. Calculate
+          Stage 4 to persist the server-owned deterministic screening result.
         </p>
       )}
       {error && (
@@ -706,6 +718,67 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
         </div>
       )}
 
+      {isHetsResult ? (
+        <div className="space-y-3 p-3" data-testid="stage4-hets-result">
+          <div className="rounded border-2 border-amber-400 bg-amber-50 p-3 text-[10px] font-semibold text-amber-950">
+            PRE-PILOT PREDICTIVE / SCREENING DESIGN
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-slate-950">Stage 4 HETS-Based Pre-Pilot Sizing</h3>
+            <span className="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-950">
+              PRE-PILOT SCREENING
+            </span>
+          </div>
+          <section className="rounded border border-cyan-200 p-3">
+            <h4 className="text-xs font-semibold">Sizing result card</h4>
+            <table className="mt-2 w-full max-w-2xl text-left text-[11px]">
+              <thead><tr className="border-b"><th className="p-2">Parameter</th><th className="p-2">Result</th></tr></thead>
+              <tbody>
+                {[
+                  ["Stage 2 theoretical stages", fixed(hetsSizing.stage2TheoreticalStages, 0)],
+                  ["Stage 3 hydraulic column diameter", `${fixed(hetsSizing.stage3HydraulicColumnDiameterM, 3)} m`],
+                  ["Compartment height rule", text(hetsSizing.compartmentHeightRule)],
+                  ["Physical compartment height", `${fixed(hetsSizing.physicalCompartmentHeightM, 3)} m`],
+                  ["Screening HETS", `${fixed(hetsSizing.screeningHetsMPerTheoreticalStage, 3)} m/theoretical stage`],
+                  ["Calculated screening efficiency", isFiniteNumber(hetsSizing.calculatedScreeningCompartmentEfficiency)
+                    ? `${(hetsSizing.calculatedScreeningCompartmentEfficiency * 100).toFixed(1)}%` : "—"],
+                  ["Required active height", `${fixed(hetsSizing.requiredActiveHeightM, 2)} m`],
+                  ["Required physical compartments", fixed(hetsSizing.requiredPhysicalCompartments, 0)],
+                  ["Installed active height", `${fixed(hetsSizing.installedActiveHeightM, 2)} m`],
+                  ["Design status", text(hetsSizing.designStatus)],
+                ].map(([label, value]) => (
+                  <tr key={label} className="border-b border-slate-100">
+                    <th className="p-2 font-medium">{label}</th><td className="p-2 font-mono">{value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+          <section className="rounded border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-950">
+            <h4 className="text-xs font-semibold">Assumption governance</h4>
+            <p className="mt-1">
+              HETS = 1.0 m/theoretical stage is an engineering screening assumption.
+              Its conservatism for RRBO/NMP is not established. Column diameter, compartment pitch,
+              screening efficiency, and active height require pilot and final vendor/mechanical confirmation.
+            </p>
+            <p className="mt-1">
+              The calculated screening efficiency is hc/HETS only; it is not independently predicted
+              or experimentally validated. Installed active height is not total vessel height. No outlet,
+              recovery, target-compliance, or final-design claim is made.
+            </p>
+          </section>
+          <section className="rounded border border-slate-200 p-3 text-[10px]">
+            <h4 className="text-xs font-semibold">Current accepted upstream lineage</h4>
+            <p className="mt-1">
+              Accepted Stage-2 Nₜ: {number(nt.value)} · Stage-3 hydraulic screening diameter:
+              {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter was recalculated.
+            </p>
+            <p className="mt-1 font-mono">
+              Hrequired = Nt × HETS · Nphysical = ceil(Nt × HETS / hc) · Hinstalled = Nphysical × hc
+            </p>
+          </section>
+        </div>
+      ) : <>
       <Stage4FailureReason code={calculation.errorCode ?? result?.errorCode} />
       <Stage4FailureReason code={record(result?.previousCalculation).errorCode} historical />
       {!loading && (stage4Running || (!result && run) || hasCalculationProgress || stage4Status === "UNRUN") && (
@@ -1139,6 +1212,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           </>}
         </div>
       )}
+      </>}
     </section>
   );
 }

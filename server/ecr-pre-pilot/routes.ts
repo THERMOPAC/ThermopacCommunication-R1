@@ -484,8 +484,9 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
     },
   );
-  // The latest read is intentionally read-only. A finite-rate calculation can
-  // only be started by the explicit empty-body POST below.
+  // The latest read is intentionally read-only. The explicit empty-body POST
+  // persists a synchronous deterministic HETS screening calculation; it never
+  // starts a finite-rate or background scientific job.
   app.get(
     '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/latest',
     ensureAuthenticated,
@@ -516,7 +517,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         return res.status(400).json({ error: 'STAGE4_PRE_PILOT_SIZING_CLIENT_SCIENTIFIC_INPUT_PROHIBITED' });
       }
       try {
-        return res.status(202).json(await calculateStage4PrePilotSizing(
+        return res.status(200).json(await calculateStage4PrePilotSizing(
           Number((req.user as any).id), designId,
         ));
       } catch (error: any) {
@@ -539,7 +540,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         return res.status(400).json({ error: 'STAGE4_PRE_PILOT_SIZING_CLIENT_SCIENTIFIC_INPUT_PROHIBITED' });
       }
       try {
-        return res.status(202).json(await retryStage4PrePilotSizing(
+        return res.status(200).json(await retryStage4PrePilotSizing(
           Number((req.user as any).id), designId,
         ));
       } catch (error: any) {

@@ -25,6 +25,7 @@ import {
 } from './six-component-cosmo-sac-basis';
 import { generatePredictiveNtReport } from './predictive-nt-report';
 import { PREDICTIVE_NT_RESEARCH_CANDIDATE } from './predictive-nt-research-candidate';
+import stage4EngineManifest from './predictive-nt-stage4-engine-manifest.json';
 
 export interface PredictiveNtJobInput {
   engineContractVersion?: '6C-1.0.0' | '7C-1.1.0' | '7C-1.2.0' | '7C-1.3.0'
@@ -1661,6 +1662,88 @@ export type TrustedCompletedSevenComponentNtForStage4 = {
   readonly resultSnapshotHash: string;
   readonly selectedTrial: Readonly<Record<string, unknown>>;
 };
+
+/**
+ * Side-effect-free validation for consumers of an already accepted Stage-2
+ * record. Unlike the live resolver below, this deliberately never starts the
+ * Python preflight. It validates the immutable persisted scientific contract,
+ * including the accepted trial, rather than treating an Nt-shaped JSON value
+ * as authority.
+ */
+export function validatePersistedAcceptedSevenComponentNtForStage4(
+  row: {
+    id: string; design_id: number; created_by: number; input_snapshot: unknown;
+    model_hash: string; engine_hash: string; status: string; result_snapshot: unknown;
+  },
+): TrustedCompletedSevenComponentNtForStage4 {
+  const input = row.input_snapshot as PredictiveNtJobInput;
+  if (
+    !row || row.status !== 'completed' || !row.result_snapshot
+    || !['7C-1.5.0', '7C-1.6.0'].includes(input?.engineContractVersion ?? '')
+    || row.model_hash !== PRE_PILOT_MULTISTAGE_MODEL.modelHash
+    || input?.modelHash !== PRE_PILOT_MULTISTAGE_MODEL.modelHash
+    || typeof row.engine_hash !== 'string' || !/^[a-f0-9]{64}$/.test(row.engine_hash)
+  ) throw new Error('STAGE4_STAGE2_PERSISTED_IDENTITY_INVALID');
+  const engine = (row.result_snapshot as Record<string, any>).engine;
+  const trustedEngine = stage4EngineManifest.contracts[
+    input.engineContractVersion as '7C-1.5.0' | '7C-1.6.0'
+  ];
+  // A saved arbitrary 64-hex value is not engine authority. Tie the row
+  // digest to immutable, persisted worker evidence and its known supported
+  // engine identity. This is deliberately a pure record check, not a runtime
+  // preflight; live worker drift is handled when Stage 2 itself is executed.
+  if (
+    !trustedEngine
+    || row.engine_hash !== trustedEngine.engineHash
+    || engine?.engineHash !== trustedEngine.engineHash
+    || engine?.verifiedScientificInputAggregateSha256 !== row.engine_hash
+    || engine?.engineId !== trustedEngine.engineId
+    || engine?.engineContractVersion !== input.engineContractVersion
+    || engine?.modelIdentity !== 'NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER'
+    || engine?.cascadeParentContract !== '7C-1.2.0'
+    || !/^[a-f0-9]{64}$/.test(engine?.historicalEngineHashes?.['7C-1.1.0'] ?? '')
+    || !/^[a-f0-9]{64}$/.test(engine?.historicalEngineHashes?.['7C-1.2.0'] ?? '')
+    || !/^[a-f0-9]{64}$/.test(engine?.historicalEngineHashes?.['7C-1.4.0'] ?? '')
+    || (input.engineContractVersion === '7C-1.6.0'
+      && !/^[a-f0-9]{64}$/.test(engine?.historicalEngineHashes?.['7C-1.5.0'] ?? ''))
+  ) {
+    throw new Error('STAGE4_STAGE2_ENGINE_IDENTITY_INVALID');
+  }
+  const validationError = validateSevenComponentPersistedResult(row.result_snapshot, { input });
+  if (validationError) throw new Error(validationError);
+  const result = row.result_snapshot as Record<string, any>;
+  const adapterScienceEngineHash = input.engineContractVersion === '7C-1.6.0'
+    ? result.engine?.historicalEngineHashes?.['7C-1.5.0'] : row.engine_hash;
+  if (
+    typeof adapterScienceEngineHash !== 'string'
+    || !/^[a-f0-9]{64}$/.test(adapterScienceEngineHash)
+    || adapterScienceEngineHash !== trustedEngine.stage4AdapterScienceEngineHash
+    || (input.engineContractVersion === '7C-1.6.0' && (
+      result.engine?.scientificModelContract !== '7C-1.5.0_UNCHANGED'
+      || result.engine?.engineContractVersion !== '7C-1.6.0'
+    ))
+  ) throw new Error('STAGE4_STAGE2_ADAPTER_SCIENCE_LINEAGE_INVALID');
+  const theoreticalStages = result.predictiveNt;
+  const matching = (result.trials as any[]).filter(
+    trial => trial?.stageCount === theoreticalStages && trial?.accepted === true,
+  );
+  if (
+    !Number.isInteger(theoreticalStages) || theoreticalStages < 1
+    || result.establishedTheoreticalStages !== theoreticalStages
+    || matching.length !== 1 || !Array.isArray(matching[0].stages)
+    || matching[0].stages.length !== theoreticalStages || !matching[0].boundaryStreams
+    || matching[0].numericalAcceptancePassed !== true
+    || matching[0].allCalculableTargetsPass !== true
+    || matching[0].physicalLleClassification !== 'PHYSICAL_LLE'
+    || result.calibrationRequired !== false
+  ) throw new Error('STAGE4_STAGE2_SELECTED_TRIAL_INCONSISTENT');
+  return Object.freeze({
+    jobId: row.id, designId: Number(row.design_id), engineHash: row.engine_hash,
+    stage4AdapterScienceEngineHash: adapterScienceEngineHash, theoreticalStages,
+    resultSnapshotHash: createHash('sha256').update(canonicalJson(result)).digest('hex'),
+    selectedTrial: Object.freeze(matching[0] as Record<string, unknown>),
+  });
+}
 
 /**
  * Server-owned Stage-2 resolver. Nothing supplied by an adapter caller is
