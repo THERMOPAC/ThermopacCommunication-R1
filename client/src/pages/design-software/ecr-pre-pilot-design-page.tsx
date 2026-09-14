@@ -465,7 +465,7 @@ const TARGET_TOTAL_AROMATICS_OPTIONS = Array.from(
 const TARGET_POLAR_AROMATICS_OPTIONS = ["0.10", "0.25", "0.50", "1.00", "2.00"];
 const MINIMUM_RECOVERY_OPTIONS = Array.from({ length: 11 }, (_, index) => String(80 + index));
 const MAXIMUM_NMP_RAFFINATE_OPTIONS = Array.from(
-  { length: 29 },
+  { length: 39 },
   (_, index) => (1 + index * 0.5).toFixed(2),
 );
 

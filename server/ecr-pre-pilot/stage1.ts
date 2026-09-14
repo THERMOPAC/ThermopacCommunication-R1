@@ -220,7 +220,7 @@ const SATURATES_TARGETS = new Set([90, 92.5, 95, 97.5]);
 const AROMATICS_TARGETS = new Set(Array.from({ length: 17 }, (_, index) => 2 + index * 0.5));
 const POLAR_TARGETS = new Set([0.1, 0.25, 0.5, 1, 2]);
 const RECOVERY_TARGETS = new Set(Array.from({ length: 11 }, (_, index) => 80 + index));
-const NMP_TARGETS = new Set(Array.from({ length: 29 }, (_, index) => 1 + index * 0.5));
+const NMP_TARGETS = new Set(Array.from({ length: 39 }, (_, index) => 1 + index * 0.5));
 const SAT_IDENTITIES = new Set(PREDICTIVE_NT_MOLECULAR_REGISTRY.saturates.map(({ identity }) => identity));
 const MONO_IDENTITIES = new Set(PREDICTIVE_NT_MOLECULAR_REGISTRY.monoAromatics.map(({ identity }) => identity));
 const MAXIMUM_STAGE_OPTIONS = new Set(Array.from({ length: 10 }, (_, index) => index + 1));
