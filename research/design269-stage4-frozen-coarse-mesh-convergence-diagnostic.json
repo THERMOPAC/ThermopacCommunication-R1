@@ -21,8 +21,8 @@
   },
   "status": "FIRST_FROZEN_COARSE_SOLVE_RUNNING",
   "timing": {
-    "checkpointTimestamp": "2026-09-14T09:57:49.157Z",
-    "elapsedMs": 533301
+    "checkpointTimestamp": "2026-09-14T10:01:34.556Z",
+    "elapsedMs": 758699
   },
   "authority": {
     "authorityAccess": "READ_ONLY_OWNER_SCOPED_LOAD",
@@ -12003,15 +12003,22 @@
     "reason": null,
     "telemetry": {
       "operation": "INTERFACE_ROOT",
-      "iteration": 1,
+      "iteration": 2,
       "cellIndex": 9,
       "totalCells": 10,
-      "elapsedMs": 516226.326834,
-      "operationElapsedMs": 46004.54355499998,
-      "interfaceCallsAttempted": 10,
-      "interfaceCallsCompleted": 10,
-      "residualHistory": [],
-      "checkpointTimestamp": "2026-09-14T09:57:49.155Z"
+      "elapsedMs": 741626.3417649999,
+      "operationElapsedMs": 22850.06572700001,
+      "interfaceCallsAttempted": 20,
+      "interfaceCallsCompleted": 20,
+      "residualHistory": [
+        {
+          "maxScaledUpdateResidual": 0.01036183721992545,
+          "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+          "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+          "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+        }
+      ],
+      "checkpointTimestamp": "2026-09-14T10:01:34.555Z"
     },
     "completedPhysicalTrials": 0,
     "resolvedPhysicalTrials": 0,
@@ -12627,6 +12634,747 @@
         "interfaceCallsCompleted": 10,
         "residualHistory": [],
         "checkpointTimestamp": "2026-09-14T09:57:49.155Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "COUNTERCURRENT_ITERATION_COMPLETE",
+        "iteration": 1,
+        "cellIndex": null,
+        "totalCells": 10,
+        "elapsedMs": 516372.07210399996,
+        "operationElapsedMs": 418647.85494499997,
+        "interfaceCallsAttempted": 10,
+        "interfaceCallsCompleted": 10,
+        "residuals": {
+          "maxScaledUpdateResidual": 0.01036183721992545,
+          "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+          "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+          "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+        },
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:57:49.301Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 0,
+        "totalCells": 10,
+        "elapsedMs": 516372.58959300007,
+        "operationElapsedMs": 0.004641999956220388,
+        "interfaceCallsAttempted": 11,
+        "interfaceCallsCompleted": 10,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:57:49.301Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 0,
+        "totalCells": 10,
+        "elapsedMs": 543739.73659,
+        "operationElapsedMs": 27367.15231799998,
+        "interfaceCallsAttempted": 11,
+        "interfaceCallsCompleted": 11,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:58:16.668Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 1,
+        "totalCells": 10,
+        "elapsedMs": 543739.9635549999,
+        "operationElapsedMs": 0.0022800000151619315,
+        "interfaceCallsAttempted": 12,
+        "interfaceCallsCompleted": 11,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:58:16.669Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 1,
+        "totalCells": 10,
+        "elapsedMs": 565131.0265009999,
+        "operationElapsedMs": 21391.066454000073,
+        "interfaceCallsAttempted": 12,
+        "interfaceCallsCompleted": 12,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:58:38.060Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 2,
+        "totalCells": 10,
+        "elapsedMs": 565131.233603,
+        "operationElapsedMs": 0.0019619999220594764,
+        "interfaceCallsAttempted": 13,
+        "interfaceCallsCompleted": 12,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:58:38.060Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 2,
+        "totalCells": 10,
+        "elapsedMs": 586389.9645809999,
+        "operationElapsedMs": 21258.733875999926,
+        "interfaceCallsAttempted": 13,
+        "interfaceCallsCompleted": 13,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:58:59.319Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 3,
+        "totalCells": 10,
+        "elapsedMs": 586390.125931,
+        "operationElapsedMs": 0.001820000004954636,
+        "interfaceCallsAttempted": 14,
+        "interfaceCallsCompleted": 13,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:58:59.319Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 3,
+        "totalCells": 10,
+        "elapsedMs": 607462.514246,
+        "operationElapsedMs": 21072.391092999955,
+        "interfaceCallsAttempted": 14,
+        "interfaceCallsCompleted": 14,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:59:20.391Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 4,
+        "totalCells": 10,
+        "elapsedMs": 607462.741036,
+        "operationElapsedMs": 0.004767999984323978,
+        "interfaceCallsAttempted": 15,
+        "interfaceCallsCompleted": 14,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:59:20.391Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 4,
+        "totalCells": 10,
+        "elapsedMs": 629508.59369,
+        "operationElapsedMs": 22045.85886399995,
+        "interfaceCallsAttempted": 15,
+        "interfaceCallsCompleted": 15,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:59:42.437Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 5,
+        "totalCells": 10,
+        "elapsedMs": 629508.8179459999,
+        "operationElapsedMs": 0.002070999937132001,
+        "interfaceCallsAttempted": 16,
+        "interfaceCallsCompleted": 15,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T09:59:42.437Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 5,
+        "totalCells": 10,
+        "elapsedMs": 651728.09465,
+        "operationElapsedMs": 22219.279448999907,
+        "interfaceCallsAttempted": 16,
+        "interfaceCallsCompleted": 16,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:00:04.657Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 6,
+        "totalCells": 10,
+        "elapsedMs": 651728.395774,
+        "operationElapsedMs": 0.0018890000646933913,
+        "interfaceCallsAttempted": 17,
+        "interfaceCallsCompleted": 16,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:00:04.657Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 6,
+        "totalCells": 10,
+        "elapsedMs": 671658.40603,
+        "operationElapsedMs": 19930.01329100004,
+        "interfaceCallsAttempted": 17,
+        "interfaceCallsCompleted": 17,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:00:24.587Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 7,
+        "totalCells": 10,
+        "elapsedMs": 671658.6051459999,
+        "operationElapsedMs": 0.0019039999460801482,
+        "interfaceCallsAttempted": 18,
+        "interfaceCallsCompleted": 17,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:00:24.587Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 7,
+        "totalCells": 10,
+        "elapsedMs": 696549.038918,
+        "operationElapsedMs": 24890.436861000024,
+        "interfaceCallsAttempted": 18,
+        "interfaceCallsCompleted": 18,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:00:49.478Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 8,
+        "totalCells": 10,
+        "elapsedMs": 696549.214805,
+        "operationElapsedMs": 0.0017209999496117234,
+        "interfaceCallsAttempted": 19,
+        "interfaceCallsCompleted": 18,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:00:49.478Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 8,
+        "totalCells": 10,
+        "elapsedMs": 718776.119477,
+        "operationElapsedMs": 22226.907137000002,
+        "interfaceCallsAttempted": 19,
+        "interfaceCallsCompleted": 19,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:01:11.705Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 9,
+        "totalCells": 10,
+        "elapsedMs": 718776.27827,
+        "operationElapsedMs": 0.0015249999705702066,
+        "interfaceCallsAttempted": 20,
+        "interfaceCallsCompleted": 19,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:01:11.705Z"
+      },
+      "completedPhysicalTrials": 0,
+      "resolvedPhysicalTrials": 0,
+      "unresolvedPhysicalTrials": 0,
+      "lastCompletedPhysicalCount": null,
+      "minimumPhysicalCount": 5,
+      "maximumPhysicalCount": 5,
+      "totalPhysicalTrials": 1,
+      "partialPhysicalCountOutcomes": []
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "physicalCompartments": 5,
+      "finiteVolumeCellsPerPhysicalCompartment": 2,
+      "state": "STARTED",
+      "localFlashCalls": 0,
+      "reason": null,
+      "telemetry": {
+        "operation": "INTERFACE_ROOT",
+        "iteration": 2,
+        "cellIndex": 9,
+        "totalCells": 10,
+        "elapsedMs": 741626.3417649999,
+        "operationElapsedMs": 22850.06572700001,
+        "interfaceCallsAttempted": 20,
+        "interfaceCallsCompleted": 20,
+        "residualHistory": [
+          {
+            "maxScaledUpdateResidual": 0.01036183721992545,
+            "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+            "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+            "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+          }
+        ],
+        "checkpointTimestamp": "2026-09-14T10:01:34.555Z"
       },
       "completedPhysicalTrials": 0,
       "resolvedPhysicalTrials": 0,
@@ -13286,20 +14034,661 @@
               0
             ]
           }
+        },
+        {
+          "iteration": 2,
+          "scaledUpdateResidual": 0.021778424478973282,
+          "originalCoupledColumnResidual": {
+            "continuousAxialComponentBalanceMolS": 6.632606790180073e-17,
+            "totalComponentBalanceMolS": 9.280770596475918e-17
+          },
+          "originalConstitutiveResidual": {
+            "scaledMaximum": 0.10889212239486641
+          },
+          "originalComponentBalanceResidual": {
+            "scaledMaximum": 3.942949938513912e-17
+          },
+          "totalMassBalanceResidualKgS": -1.1102230246251565e-16,
+          "physicalAdmissibility": {
+            "continuousFacesNonnegative": true,
+            "continuousTotalFaceFlowsPositive": true,
+            "localPhaseStatesNonnegative": true
+          },
+          "localInterfaceQualification": {
+            "status": "QUALIFIED_BY_EXISTING_JOB_B_RESPONSE_GATE",
+            "completedCells": 10,
+            "requiredCells": 10,
+            "responseResultHashes": [
+              "29d02956a669d86938819fcb7ca2444f3e0db7ecabcd71de5cffadf9f7243297",
+              "9b8540a42fe6fd53ec1755203fca9c14b9e70ceda8550619e62c9bfb2ca9be5e",
+              "e22f18ec1958b691018cd65f062726b328ab82bffa03717f495476f0fb1e1373",
+              "3d774ad89def7db1fb75793771f9256c353a348056cc120f0df01421e30ab599",
+              "d482a2fa210e70346387705bf1988261cc33d2149e98a79770d6583e277c4efe",
+              "07c7884a8ab2b7d958e4aaf1453c96741719a324f13d973b38e6c218ce629dfe",
+              "8539bd5644034672a8f334ca4f045174546dc678649c2af0da6508bff6eb81e7",
+              "77047c5d7f3237b0e01cc148f6d99a421e3823ecfeb7671242a0a27d92185ff0",
+              "ad29079af61a7167c0cf489ad0f26ff3e5415ea8da20da985db71f8173de1fe2",
+              "03e02aa50753b033ee9910f4b9be52e0df13848735670481bd9edc2432bc7261"
+            ]
+          },
+          "localFlashQualification": {
+            "status": "NOT_EVALUATED_INTERIM_EXISTING_SOLVER_FINAL_ONLY"
+          },
+          "transferMolS": [
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.049179437993213344,
+              -0.005584104808787053,
+              -0.0026335728784320275,
+              -0.0008138363986329282,
+              -0.00029681191946340094,
+              0.00007827291816385092,
+              0.0006986763013647861
+            ],
+            [
+              -0.04917943799321239,
+              -0.005584104808787048,
+              -0.0026335728784320275,
+              -0.0008138363986329273,
+              -0.0002968119194634013,
+              0.00007827291816393494,
+              0.0006986763013648405
+            ]
+          ],
+          "continuousFaceComponentFlowsMolS": [
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              7.159878854029328,
+              0.19798008505372477
+            ],
+            [
+              0.049179437993213344,
+              0.005584104808787053,
+              0.0026335728784320275,
+              0.0008138363986329282,
+              0.00029681191946340094,
+              7.159800581111164,
+              0.19728140875236
+            ],
+            [
+              0.09835887598642669,
+              0.011168209617574107,
+              0.005267145756864055,
+              0.0016276727972658563,
+              0.0005936238389268019,
+              7.159722308193,
+              0.19658273245099522
+            ],
+            [
+              0.14753831397964004,
+              0.01675231442636116,
+              0.007900718635296082,
+              0.0024415091958987847,
+              0.0008904357583902028,
+              7.1596440352748365,
+              0.19588405614963045
+            ],
+            [
+              0.19671775197285338,
+              0.022336419235148213,
+              0.01053429151372811,
+              0.0032553455945317127,
+              0.0011872476778536038,
+              7.159565762356673,
+              0.19518537984826567
+            ],
+            [
+              0.24589718996606671,
+              0.027920524043935267,
+              0.013167864392160137,
+              0.004069181993164641,
+              0.0014840595973170047,
+              7.159487489438509,
+              0.1944867035469009
+            ],
+            [
+              0.2950766279592801,
+              0.03350462885272232,
+              0.015801437270592165,
+              0.004883018391797569,
+              0.0017808715167804056,
+              7.159409216520345,
+              0.19378802724553612
+            ],
+            [
+              0.3442560659524934,
+              0.03908873366150937,
+              0.01843501014902419,
+              0.0056968547904304966,
+              0.0020776834362438066,
+              7.159330943602181,
+              0.19308935094417135
+            ],
+            [
+              0.39343550394570675,
+              0.04467283847029642,
+              0.02106858302745622,
+              0.0065106911890634245,
+              0.0023744953557072075,
+              7.159252670684017,
+              0.19239067464280657
+            ],
+            [
+              0.4426149419389201,
+              0.05025694327908347,
+              0.02370215590588825,
+              0.0073245275876963525,
+              0.0026713072751706085,
+              7.159174397765853,
+              0.1916919983414418
+            ],
+            [
+              0.4917943799321325,
+              0.05584104808787052,
+              0.026335728784320278,
+              0.00813836398632928,
+              0.00296811919463401,
+              7.159096124847689,
+              0.19099332204007696
+            ]
+          ],
+          "continuousCellMoleFractions": [
+            [
+              0.035666600296410056,
+              0.004049782639967416,
+              0.0019099565802167882,
+              0.0005902218228015567,
+              0.00021525809416879209,
+              0.9322941528791809,
+              0.02527402768725445
+            ],
+            [
+              0.04014710190015764,
+              0.0045585235197374875,
+              0.0021498887141917474,
+              0.0006643665352678966,
+              0.00024229919783798584,
+              0.9271689664513737,
+              0.025068853681433502
+            ],
+            [
+              0.04434384075557357,
+              0.005035044410988534,
+              0.002374625272364911,
+              0.0007338154548868218,
+              0.0002676277124772653,
+              0.9223683724721553,
+              0.02487667392155352
+            ],
+            [
+              0.0482231114449584,
+              0.005475518214576322,
+              0.0025823613200413814,
+              0.0007980108140856581,
+              0.0002910402162881733,
+              0.9179309261223101,
+              0.024699031867739914
+            ],
+            [
+              0.05174486310999834,
+              0.005875397335009077,
+              0.002770952122378365,
+              0.0008562898389974747,
+              0.00031229499093033536,
+              0.9139024410480782,
+              0.024537761554608357
+            ],
+            [
+              0.054861527791415246,
+              0.0062292806436649965,
+              0.0029378504016405083,
+              0.0009078653604668499,
+              0.0003311049502174423,
+              0.9103373296079074,
+              0.024395041244687676
+            ],
+            [
+              0.05751662280985885,
+              0.006530754785405361,
+              0.003080031494299558,
+              0.000951802685820925,
+              0.0003471292050877544,
+              0.9073002015904363,
+              0.0242734574290913
+            ],
+            [
+              0.05964308224490742,
+              0.006772204725491785,
+              0.0031939040012607532,
+              0.0009869919876730074,
+              0.0003599629936045107,
+              0.9048677728135606,
+              0.024176081233502008
+            ],
+            [
+              0.061161263355480854,
+              0.006944587387557439,
+              0.0032752030311094843,
+              0.0010121153135571328,
+              0.00036912564913515274,
+              0.9031311455537118,
+              0.024106559709448205
+            ],
+            [
+              0.06197656262912164,
+              0.007037160966685498,
+              0.0033188625388729134,
+              0.0010256071355816024,
+              0.0003740462125295502,
+              0.9021985355155031,
+              0.024069225001705687
+            ]
+          ],
+          "dispersedCellInComponentFlowsMolS": [
+            [
+              4.303593375119274,
+              0.5036734293740622,
+              0.24384510380928492,
+              0.0867282080888466,
+              0.04422997538724425,
+              0.0007044562634747424,
+              0.006288086712283129
+            ],
+            [
+              4.352772813112487,
+              0.5092575341828492,
+              0.24647867668771695,
+              0.08754204448747953,
+              0.04452678730670765,
+              0.0006261833453108914,
+              0.005589410410918343
+            ],
+            [
+              4.401952251105701,
+              0.5148416389916363,
+              0.24911224956614897,
+              0.08835588088611246,
+              0.04482359922617105,
+              0.0005479104271470405,
+              0.004890734109553557
+            ],
+            [
+              4.451131689098915,
+              0.5204257438004233,
+              0.251745822444581,
+              0.08916971728474539,
+              0.045120411145634455,
+              0.0004696375089831896,
+              0.004192057808188771
+            ],
+            [
+              4.500311127092129,
+              0.5260098486092103,
+              0.254379395323013,
+              0.08998355368337832,
+              0.04541722306509786,
+              0.00039136459081933866,
+              0.003493381506823985
+            ],
+            [
+              4.5494905650853426,
+              0.5315939534179973,
+              0.25701296820144504,
+              0.09079739008201125,
+              0.04571403498456126,
+              0.0003130916726554877,
+              0.002794705205459199
+            ],
+            [
+              4.598670003078556,
+              0.5371780582267843,
+              0.25964654107987706,
+              0.09161122648064418,
+              0.04601084690402466,
+              0.00023481875449163678,
+              0.002096028904094413
+            ],
+            [
+              4.64784944107177,
+              0.5427621630355713,
+              0.2622801139583091,
+              0.09242506287927711,
+              0.046307658823488064,
+              0.00015654583632778585,
+              0.0013973526027296266
+            ],
+            [
+              4.697028879064984,
+              0.5483462678443584,
+              0.2649136868367411,
+              0.09323889927791004,
+              0.046604470742951466,
+              0.00007827291816393494,
+              0.0006986763013648405
+            ],
+            [
+              4.746208317058196,
+              0.5539303726531454,
+              0.2675472597151731,
+              0.09405273567654297,
+              0.04690128266241487,
+              0,
+              0
+            ]
+          ],
+          "dispersedCellOutComponentFlowsMolS": [
+            [
+              4.25441393712606,
+              0.49808932456527516,
+              0.2412115309308529,
+              0.08591437169021367,
+              0.043933163467780846,
+              0.0007827291816385933,
+              0.006986763013647915
+            ],
+            [
+              4.303593375119274,
+              0.5036734293740622,
+              0.24384510380928492,
+              0.0867282080888466,
+              0.04422997538724425,
+              0.0007044562634747424,
+              0.006288086712283129
+            ],
+            [
+              4.352772813112487,
+              0.5092575341828492,
+              0.24647867668771695,
+              0.08754204448747953,
+              0.04452678730670765,
+              0.0006261833453108914,
+              0.005589410410918343
+            ],
+            [
+              4.401952251105701,
+              0.5148416389916363,
+              0.24911224956614897,
+              0.08835588088611246,
+              0.04482359922617105,
+              0.0005479104271470405,
+              0.004890734109553557
+            ],
+            [
+              4.451131689098915,
+              0.5204257438004233,
+              0.251745822444581,
+              0.08916971728474539,
+              0.045120411145634455,
+              0.0004696375089831896,
+              0.004192057808188771
+            ],
+            [
+              4.500311127092129,
+              0.5260098486092103,
+              0.254379395323013,
+              0.08998355368337832,
+              0.04541722306509786,
+              0.00039136459081933866,
+              0.003493381506823985
+            ],
+            [
+              4.5494905650853426,
+              0.5315939534179973,
+              0.25701296820144504,
+              0.09079739008201125,
+              0.04571403498456126,
+              0.0003130916726554877,
+              0.002794705205459199
+            ],
+            [
+              4.598670003078556,
+              0.5371780582267843,
+              0.25964654107987706,
+              0.09161122648064418,
+              0.04601084690402466,
+              0.00023481875449163678,
+              0.002096028904094413
+            ],
+            [
+              4.64784944107177,
+              0.5427621630355713,
+              0.2622801139583091,
+              0.09242506287927711,
+              0.046307658823488064,
+              0.00015654583632778585,
+              0.0013973526027296266
+            ],
+            [
+              4.697028879064984,
+              0.5483462678443584,
+              0.2649136868367411,
+              0.09323889927791004,
+              0.046604470742951466,
+              0.00007827291816393494,
+              0.0006986763013648405
+            ]
+          ],
+          "dispersedCellMoleFractions": [
+            [
+              0.8292325792182406,
+              0.09706632419269787,
+              0.04699981544967321,
+              0.016728292754346855,
+              0.008542613292713736,
+              0.00014410160887132992,
+              0.001286273483456541
+            ],
+            [
+              0.8294830935110967,
+              0.09706256538761246,
+              0.04698452877624727,
+              0.01669918128122758,
+              0.008504981477042662,
+              0.00012750651197547883,
+              0.00113814305479778
+            ],
+            [
+              0.8297281251165267,
+              0.09705888884670907,
+              0.04696957666278288,
+              0.016670706933861957,
+              0.008468173261016383,
+              0.00011127461084004991,
+              0.00099325456826301
+            ],
+            [
+              0.8299678520751562,
+              0.0970552918986031,
+              0.046954948245034,
+              0.016642849022712278,
+              0.008432161899685731,
+              0.00009539411132184478,
+              0.0008515027474866524
+            ],
+            [
+              0.8302024448014198,
+              0.09705177198633615,
+              0.04694063312411377,
+              0.01661558774445655,
+              0.008396921793694723,
+              0.00007985372446800418,
+              0.0007127868255110536
+            ],
+            [
+              0.8304320664875576,
+              0.09704832666131404,
+              0.04692662134184187,
+              0.016588904135040945,
+              0.008362428428592488,
+              0.00006464263975344038,
+              0.000577010305899626
+            ],
+            [
+              0.8306568734822035,
+              0.09704495357762657,
+              0.04691290335764289,
+              0.016562780025685578,
+              0.008328658317962758,
+              0.00004975050000173707,
+              0.000444080738876881
+            ],
+            [
+              0.8308770156454032,
+              0.09704165048672064,
+              0.046899470026882654,
+              0.016537198001628867,
+              0.008295588950093575,
+              0.00003516737786725186,
+              0.0003139095114039984
+            ],
+            [
+              0.8310926366817583,
+              0.09703841523240148,
+              0.04688631258053919,
+              0.01651214136341379,
+              0.008263198737932775,
+              0.0000208837537662015,
+              0.00018641165018824495
+            ],
+            [
+              0.8313038744532567,
+              0.0970352457461391,
+              0.046873422606113775,
+              0.016487594090535098,
+              0.008231466972095517,
+              0.000006890495153627509,
+              0.00006150563670599202
+            ]
+          ],
+          "outletPhaseFlows": {
+            "continuousMolS": [
+              0.4917943799321325,
+              0.05584104808787052,
+              0.026335728784320278,
+              0.00813836398632928,
+              0.00296811919463401,
+              7.159096124847689,
+              0.19099332204007685
+            ],
+            "dispersedMolS": [
+              4.254413937126063,
+              0.4980893245652749,
+              0.24121153093085285,
+              0.0859143716902137,
+              0.04393316346778086,
+              0.0007827291816385933,
+              0.006986763013647915
+            ],
+            "continuousTotalMolS": 7.935167086873053,
+            "dispersedTotalMolS": 5.131331819975472,
+            "continuousMoleFractions": [
+              0.06197656262912164,
+              0.007037160966685498,
+              0.0033188625388729134,
+              0.0010256071355816024,
+              0.0003740462125295502,
+              0.9021985355155031,
+              0.024069225001705673
+            ],
+            "dispersedMoleFractions": [
+              0.8291052082354713,
+              0.09706823531198881,
+              0.04700758777513746,
+              0.01674309413313762,
+              0.008561746737319915,
+              0.00015253918653078546,
+              0.0013615886204142052
+            ]
+          }
         }
       ],
       "finalCompletedIterationState": {
-        "iteration": 1,
-        "scaledUpdateResidual": 0.01036183721992545,
+        "iteration": 2,
+        "scaledUpdateResidual": 0.021778424478973282,
         "originalCoupledColumnResidual": {
-          "continuousAxialComponentBalanceMolS": 0,
-          "totalComponentBalanceMolS": 0
+          "continuousAxialComponentBalanceMolS": 6.632606790180073e-17,
+          "totalComponentBalanceMolS": 9.280770596475918e-17
         },
         "originalConstitutiveResidual": {
-          "scaledMaximum": 0.051809186099627244
+          "scaledMaximum": 0.10889212239486641
         },
         "originalComponentBalanceResidual": {
-          "scaledMaximum": 0
+          "scaledMaximum": 3.942949938513912e-17
         },
         "totalMassBalanceResidualKgS": -1.1102230246251565e-16,
         "physicalAdmissibility": {
@@ -13312,16 +14701,16 @@
           "completedCells": 10,
           "requiredCells": 10,
           "responseResultHashes": [
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "8dcb80f94dc5eaa65168450e37d019e450232404837ae287b5db7e95fbb65ea5",
-            "62ec69604cad6a2641d1b658e0595677364bae4a88ba6fd1083041b40096266e"
+            "29d02956a669d86938819fcb7ca2444f3e0db7ecabcd71de5cffadf9f7243297",
+            "9b8540a42fe6fd53ec1755203fca9c14b9e70ceda8550619e62c9bfb2ca9be5e",
+            "e22f18ec1958b691018cd65f062726b328ab82bffa03717f495476f0fb1e1373",
+            "3d774ad89def7db1fb75793771f9256c353a348056cc120f0df01421e30ab599",
+            "d482a2fa210e70346387705bf1988261cc33d2149e98a79770d6583e277c4efe",
+            "07c7884a8ab2b7d958e4aaf1453c96741719a324f13d973b38e6c218ce629dfe",
+            "8539bd5644034672a8f334ca4f045174546dc678649c2af0da6508bff6eb81e7",
+            "77047c5d7f3237b0e01cc148f6d99a421e3823ecfeb7671242a0a27d92185ff0",
+            "ad29079af61a7167c0cf489ad0f26ff3e5415ea8da20da985db71f8173de1fe2",
+            "03e02aa50753b033ee9910f4b9be52e0df13848735670481bd9edc2432bc7261"
           ]
         },
         "localFlashQualification": {
@@ -13329,94 +14718,94 @@
         },
         "transferMolS": [
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.049179437993213344,
+            -0.005584104808787053,
+            -0.0026335728784320275,
+            -0.0008138363986329282,
+            -0.00029681191946340094,
+            0.00007827291816385092,
+            0.0006986763013647861
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0
+            -0.04917943799321239,
+            -0.005584104808787048,
+            -0.0026335728784320275,
+            -0.0008138363986329273,
+            -0.0002968119194634013,
+            0.00007827291816393494,
+            0.0006986763013648405
           ]
         ],
         "continuousFaceComponentFlowsMolS": [
@@ -13430,269 +14819,269 @@
             0.19798008505372477
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.049179437993213344,
+            0.005584104808787053,
+            0.0026335728784320275,
+            0.0008138363986329282,
+            0.00029681191946340094,
+            7.159800581111164,
+            0.19728140875236
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.09835887598642669,
+            0.011168209617574107,
+            0.005267145756864055,
+            0.0016276727972658563,
+            0.0005936238389268019,
+            7.159722308193,
+            0.19658273245099522
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.14753831397964004,
+            0.01675231442636116,
+            0.007900718635296082,
+            0.0024415091958987847,
+            0.0008904357583902028,
+            7.1596440352748365,
+            0.19588405614963045
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.19671775197285338,
+            0.022336419235148213,
+            0.01053429151372811,
+            0.0032553455945317127,
+            0.0011872476778536038,
+            7.159565762356673,
+            0.19518537984826567
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.24589718996606671,
+            0.027920524043935267,
+            0.013167864392160137,
+            0.004069181993164641,
+            0.0014840595973170047,
+            7.159487489438509,
+            0.1944867035469009
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.2950766279592801,
+            0.03350462885272232,
+            0.015801437270592165,
+            0.004883018391797569,
+            0.0017808715167804056,
+            7.159409216520345,
+            0.19378802724553612
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.3442560659524934,
+            0.03908873366150937,
+            0.01843501014902419,
+            0.0056968547904304966,
+            0.0020776834362438066,
+            7.159330943602181,
+            0.19308935094417135
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.39343550394570675,
+            0.04467283847029642,
+            0.02106858302745622,
+            0.0065106911890634245,
+            0.0023744953557072075,
+            7.159252670684017,
+            0.19239067464280657
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.4426149419389201,
+            0.05025694327908347,
+            0.02370215590588825,
+            0.0073245275876963525,
+            0.0026713072751706085,
+            7.159174397765853,
+            0.1916919983414418
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.4917943799321325,
+            0.05584104808787052,
+            0.026335728784320278,
+            0.00813836398632928,
+            0.00296811919463401,
+            7.159096124847689,
+            0.19099332204007696
           ]
         ],
         "continuousCellMoleFractions": [
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.035666600296410056,
+            0.004049782639967416,
+            0.0019099565802167882,
+            0.0005902218228015567,
+            0.00021525809416879209,
+            0.9322941528791809,
+            0.02527402768725445
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.04014710190015764,
+            0.0045585235197374875,
+            0.0021498887141917474,
+            0.0006643665352678966,
+            0.00024229919783798584,
+            0.9271689664513737,
+            0.025068853681433502
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.04434384075557357,
+            0.005035044410988534,
+            0.002374625272364911,
+            0.0007338154548868218,
+            0.0002676277124772653,
+            0.9223683724721553,
+            0.02487667392155352
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.0482231114449584,
+            0.005475518214576322,
+            0.0025823613200413814,
+            0.0007980108140856581,
+            0.0002910402162881733,
+            0.9179309261223101,
+            0.024699031867739914
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.05174486310999834,
+            0.005875397335009077,
+            0.002770952122378365,
+            0.0008562898389974747,
+            0.00031229499093033536,
+            0.9139024410480782,
+            0.024537761554608357
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.054861527791415246,
+            0.0062292806436649965,
+            0.0029378504016405083,
+            0.0009078653604668499,
+            0.0003311049502174423,
+            0.9103373296079074,
+            0.024395041244687676
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.05751662280985885,
+            0.006530754785405361,
+            0.003080031494299558,
+            0.000951802685820925,
+            0.0003471292050877544,
+            0.9073002015904363,
+            0.0242734574290913
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.05964308224490742,
+            0.006772204725491785,
+            0.0031939040012607532,
+            0.0009869919876730074,
+            0.0003599629936045107,
+            0.9048677728135606,
+            0.024176081233502008
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548102,
-            0.026907295545189853
+            0.061161263355480854,
+            0.006944587387557439,
+            0.0032752030311094843,
+            0.0010121153135571328,
+            0.00036912564913515274,
+            0.9031311455537118,
+            0.024106559709448205
           ],
           [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548101,
-            0.026907295545189853
+            0.06197656262912164,
+            0.007037160966685498,
+            0.0033188625388729134,
+            0.0010256071355816024,
+            0.0003740462125295502,
+            0.9021985355155031,
+            0.024069225001705687
           ]
         ],
         "dispersedCellInComponentFlowsMolS": [
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.303593375119274,
+            0.5036734293740622,
+            0.24384510380928492,
+            0.0867282080888466,
+            0.04422997538724425,
+            0.0007044562634747424,
+            0.006288086712283129
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.352772813112487,
+            0.5092575341828492,
+            0.24647867668771695,
+            0.08754204448747953,
+            0.04452678730670765,
+            0.0006261833453108914,
+            0.005589410410918343
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.401952251105701,
+            0.5148416389916363,
+            0.24911224956614897,
+            0.08835588088611246,
+            0.04482359922617105,
+            0.0005479104271470405,
+            0.004890734109553557
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.451131689098915,
+            0.5204257438004233,
+            0.251745822444581,
+            0.08916971728474539,
+            0.045120411145634455,
+            0.0004696375089831896,
+            0.004192057808188771
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.500311127092129,
+            0.5260098486092103,
+            0.254379395323013,
+            0.08998355368337832,
+            0.04541722306509786,
+            0.00039136459081933866,
+            0.003493381506823985
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.5494905650853426,
+            0.5315939534179973,
+            0.25701296820144504,
+            0.09079739008201125,
+            0.04571403498456126,
+            0.0003130916726554877,
+            0.002794705205459199
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.598670003078556,
+            0.5371780582267843,
+            0.25964654107987706,
+            0.09161122648064418,
+            0.04601084690402466,
+            0.00023481875449163678,
+            0.002096028904094413
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.64784944107177,
+            0.5427621630355713,
+            0.2622801139583091,
+            0.09242506287927711,
+            0.046307658823488064,
+            0.00015654583632778585,
+            0.0013973526027296266
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.697028879064984,
+            0.5483462678443584,
+            0.2649136868367411,
+            0.09323889927791004,
+            0.046604470742951466,
+            0.00007827291816393494,
+            0.0006986763013648405
           ],
           [
             4.746208317058196,
@@ -13706,226 +15095,226 @@
         ],
         "dispersedCellOutComponentFlowsMolS": [
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.25441393712606,
+            0.49808932456527516,
+            0.2412115309308529,
+            0.08591437169021367,
+            0.043933163467780846,
+            0.0007827291816385933,
+            0.006986763013647915
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.303593375119274,
+            0.5036734293740622,
+            0.24384510380928492,
+            0.0867282080888466,
+            0.04422997538724425,
+            0.0007044562634747424,
+            0.006288086712283129
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.352772813112487,
+            0.5092575341828492,
+            0.24647867668771695,
+            0.08754204448747953,
+            0.04452678730670765,
+            0.0006261833453108914,
+            0.005589410410918343
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.401952251105701,
+            0.5148416389916363,
+            0.24911224956614897,
+            0.08835588088611246,
+            0.04482359922617105,
+            0.0005479104271470405,
+            0.004890734109553557
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.451131689098915,
+            0.5204257438004233,
+            0.251745822444581,
+            0.08916971728474539,
+            0.045120411145634455,
+            0.0004696375089831896,
+            0.004192057808188771
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.500311127092129,
+            0.5260098486092103,
+            0.254379395323013,
+            0.08998355368337832,
+            0.04541722306509786,
+            0.00039136459081933866,
+            0.003493381506823985
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.5494905650853426,
+            0.5315939534179973,
+            0.25701296820144504,
+            0.09079739008201125,
+            0.04571403498456126,
+            0.0003130916726554877,
+            0.002794705205459199
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.598670003078556,
+            0.5371780582267843,
+            0.25964654107987706,
+            0.09161122648064418,
+            0.04601084690402466,
+            0.00023481875449163678,
+            0.002096028904094413
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.64784944107177,
+            0.5427621630355713,
+            0.2622801139583091,
+            0.09242506287927711,
+            0.046307658823488064,
+            0.00015654583632778585,
+            0.0013973526027296266
           ],
           [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.697028879064984,
+            0.5483462678443584,
+            0.2649136868367411,
+            0.09323889927791004,
+            0.046604470742951466,
+            0.00007827291816393494,
+            0.0006986763013648405
           ]
         ],
         "dispersedCellMoleFractions": [
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8292325792182406,
+            0.09706632419269787,
+            0.04699981544967321,
+            0.016728292754346855,
+            0.008542613292713736,
+            0.00014410160887132992,
+            0.001286273483456541
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8294830935110967,
+            0.09706256538761246,
+            0.04698452877624727,
+            0.01669918128122758,
+            0.008504981477042662,
+            0.00012750651197547883,
+            0.00113814305479778
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8297281251165267,
+            0.09705888884670907,
+            0.04696957666278288,
+            0.016670706933861957,
+            0.008468173261016383,
+            0.00011127461084004991,
+            0.00099325456826301
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8299678520751562,
+            0.0970552918986031,
+            0.046954948245034,
+            0.016642849022712278,
+            0.008432161899685731,
+            0.00009539411132184478,
+            0.0008515027474866524
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8302024448014198,
+            0.09705177198633615,
+            0.04694063312411377,
+            0.01661558774445655,
+            0.008396921793694723,
+            0.00007985372446800418,
+            0.0007127868255110536
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8304320664875576,
+            0.09704832666131404,
+            0.04692662134184187,
+            0.016588904135040945,
+            0.008362428428592488,
+            0.00006464263975344038,
+            0.000577010305899626
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8306568734822035,
+            0.09704495357762657,
+            0.04691290335764289,
+            0.016562780025685578,
+            0.008328658317962758,
+            0.00004975050000173707,
+            0.000444080738876881
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8308770156454032,
+            0.09704165048672064,
+            0.046899470026882654,
+            0.016537198001628867,
+            0.008295588950093575,
+            0.00003516737786725186,
+            0.0003139095114039984
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8310926366817583,
+            0.09703841523240148,
+            0.04688631258053919,
+            0.01651214136341379,
+            0.008263198737932775,
+            0.0000208837537662015,
+            0.00018641165018824495
           ],
           [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8313038744532567,
+            0.0970352457461391,
+            0.046873422606113775,
+            0.016487594090535098,
+            0.008231466972095517,
+            0.000006890495153627509,
+            0.00006150563670599202
           ]
         ],
         "outletPhaseFlows": {
           "continuousMolS": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            7.159878854029328,
-            0.19798008505372477
+            0.4917943799321325,
+            0.05584104808787052,
+            0.026335728784320278,
+            0.00813836398632928,
+            0.00296811919463401,
+            7.159096124847689,
+            0.19099332204007685
           ],
           "dispersedMolS": [
-            4.746208317058196,
-            0.5539303726531454,
-            0.2675472597151731,
-            0.09405273567654297,
-            0.04690128266241487,
-            0,
-            0
+            4.254413937126063,
+            0.4980893245652749,
+            0.24121153093085285,
+            0.0859143716902137,
+            0.04393316346778086,
+            0.0007827291816385933,
+            0.006986763013647915
           ],
-          "continuousTotalMolS": 7.357858939083053,
-          "dispersedTotalMolS": 5.708639967765472,
+          "continuousTotalMolS": 7.935167086873053,
+          "dispersedTotalMolS": 5.131331819975472,
           "continuousMoleFractions": [
-            0,
-            0,
-            0,
-            0,
-            0,
-            0.9730927044548101,
-            0.026907295545189853
+            0.06197656262912164,
+            0.007037160966685498,
+            0.0033188625388729134,
+            0.0010256071355816024,
+            0.0003740462125295502,
+            0.9021985355155031,
+            0.024069225001705673
           ],
           "dispersedMoleFractions": [
-            0.831407891171669,
-            0.09703368504249356,
-            0.04686707538501485,
-            0.0164755066368913,
-            0.008215841763931277,
-            0,
-            0
+            0.8291052082354713,
+            0.09706823531198881,
+            0.04700758777513746,
+            0.01674309413313762,
+            0.008561746737319915,
+            0.00015253918653078546,
+            0.0013615886204142052
           ]
         }
       },
@@ -13938,15 +15327,22 @@
         "reason": null,
         "telemetry": {
           "operation": "INTERFACE_ROOT",
-          "iteration": 1,
+          "iteration": 2,
           "cellIndex": 9,
           "totalCells": 10,
-          "elapsedMs": 516226.326834,
-          "operationElapsedMs": 46004.54355499998,
-          "interfaceCallsAttempted": 10,
-          "interfaceCallsCompleted": 10,
-          "residualHistory": [],
-          "checkpointTimestamp": "2026-09-14T09:57:49.155Z"
+          "elapsedMs": 741626.3417649999,
+          "operationElapsedMs": 22850.06572700001,
+          "interfaceCallsAttempted": 20,
+          "interfaceCallsCompleted": 20,
+          "residualHistory": [
+            {
+              "maxScaledUpdateResidual": 0.01036183721992545,
+              "maxDiffusiveFrameResidualMolS": 9.376741994433319e-17,
+              "maxFilmEqualityResidualMolS": 9.001672314655987e-17,
+              "maxStefanIdentityResidualMolS": 5.551115123125783e-17
+            }
+          ],
+          "checkpointTimestamp": "2026-09-14T10:01:34.555Z"
         },
         "completedPhysicalTrials": 0,
         "resolvedPhysicalTrials": 0,
