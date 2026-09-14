@@ -96,6 +96,12 @@ export type Stage4PhysicalSizingInput = {
   stage1Targets: Record<string, unknown>;
   maximumCompartments?: number;
 };
+export type Stage4PhysicalCountOutcome = {
+  physicalCompartments: number;
+  status: 'TARGET_PASS' | 'TARGET_FAIL' | 'NUMERICAL_UNRESOLVED';
+  reason: string | null;
+};
+
 export type Stage4PhysicalSizingProgress = {
   caseCoefficient: 0.0126 | 0.0105;
   physicalCompartments: number;
@@ -103,6 +109,19 @@ export type Stage4PhysicalSizingProgress = {
   state: 'STARTED' | 'CONVERGED' | 'NUMERICAL_FAILURE';
   localFlashCalls: number;
   reason: string | null;
+  /**
+   * A physical trial is complete only after both mesh attempts have returned
+   * and its physical-count outcome has been recorded.  In particular, a
+   * currently running count is not included in completedPhysicalTrials.
+   */
+  completedPhysicalTrials: number;
+  resolvedPhysicalTrials: number;
+  unresolvedPhysicalTrials: number;
+  lastCompletedPhysicalCount: number | null;
+  minimumPhysicalCount: number;
+  maximumPhysicalCount: number;
+  totalPhysicalTrials: number;
+  partialPhysicalCountOutcomes: Stage4PhysicalCountOutcome[];
 };
 
 export function calculateKumarHartlandScreeningDispersion(input: {
@@ -303,7 +322,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
   flashEvaluator: FlashEvaluator, interfaceEvaluator: InterfaceEvaluator,
   controls: {
     deadlineMs: number; operationTimeoutMs: number; cancelled: () => boolean;
-    progress?: (event: Stage4PhysicalSizingProgress) => void;
+    progress?: (event: Stage4PhysicalSizingProgress) => void | Promise<void>;
   }) {
   const remainingOperationMs = () => Math.max(1, Math.min(
     controls.operationTimeoutMs, controls.deadlineMs - Date.now(),
@@ -395,11 +414,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     selected: null as any, attemptedPhysicalCompartments: [] as number[],
     maximumPhysicalCompartmentsSearched: max,
     nonconvergedPhysicalCounts: [] as number[],
-    physicalCountOutcomes: [] as Array<{
-      physicalCompartments: number;
-      status: 'TARGET_PASS' | 'TARGET_FAIL' | 'NUMERICAL_UNRESOLVED';
-      reason: string | null;
-    }>,
+    physicalCountOutcomes: [] as Stage4PhysicalCountOutcome[],
     lastConservedPhysicalTrial: null as any,
     meshRefinement: {
       coarseFiniteVolumeCellsPerPhysicalCompartment: 2,
@@ -649,19 +664,39 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
   // N is physical hardware. The finite-volume resolution below is deliberately
   // independent (2 then 4 axial cells per physical compartment).
   let lowerCountUnresolved = false;
+  const totalPhysicalTrials = max - input.calculatedNt + 1;
+  const emitProgress = async (event: Omit<Stage4PhysicalSizingProgress,
+    'completedPhysicalTrials' | 'resolvedPhysicalTrials' | 'unresolvedPhysicalTrials'
+    | 'lastCompletedPhysicalCount' | 'minimumPhysicalCount' | 'maximumPhysicalCount'
+    | 'totalPhysicalTrials' | 'partialPhysicalCountOutcomes'>) => {
+    const outcomes = result.physicalCountOutcomes.map(outcome => ({ ...outcome }));
+    await controls.progress?.({
+      ...event,
+      completedPhysicalTrials: outcomes.length,
+      resolvedPhysicalTrials: outcomes.filter(outcome =>
+        outcome.status === 'TARGET_PASS' || outcome.status === 'TARGET_FAIL').length,
+      unresolvedPhysicalTrials: outcomes.filter(outcome =>
+        outcome.status === 'NUMERICAL_UNRESOLVED').length,
+      lastCompletedPhysicalCount: outcomes.at(-1)?.physicalCompartments ?? null,
+      minimumPhysicalCount: input.calculatedNt,
+      maximumPhysicalCount: max,
+      totalPhysicalTrials,
+      partialPhysicalCountOutcomes: outcomes,
+    });
+  };
   for (let count = input.calculatedNt; count <= max; count += 1) {
     result.attemptedPhysicalCompartments.push(count);
-    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+    await emitProgress({ caseCoefficient: c, physicalCompartments: count,
       finiteVolumeCellsPerPhysicalCompartment: 2, state: 'STARTED', localFlashCalls: 0, reason: null });
     const coarse = await solveMesh(count, 2);
-    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+    await emitProgress({ caseCoefficient: c, physicalCompartments: count,
       finiteVolumeCellsPerPhysicalCompartment: 2,
       state: coarse.converged ? 'CONVERGED' : 'NUMERICAL_FAILURE',
       localFlashCalls: coarse.localFlashCalls, reason: coarse.reason });
-    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+    await emitProgress({ caseCoefficient: c, physicalCompartments: count,
       finiteVolumeCellsPerPhysicalCompartment: 4, state: 'STARTED', localFlashCalls: 0, reason: null });
     const refined = await solveMesh(count, 4);
-    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+    await emitProgress({ caseCoefficient: c, physicalCompartments: count,
       finiteVolumeCellsPerPhysicalCompartment: 4,
       state: refined.converged ? 'CONVERGED' : 'NUMERICAL_FAILURE',
       localFlashCalls: refined.localFlashCalls, reason: refined.reason });
@@ -677,6 +712,10 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
         refined: { reason: refined.reason, iterations: refined.iterations, localFlashCalls: refined.localFlashCalls,
           interfaceFailure: refined.interfaceFailure ?? null },
       };
+      await emitProgress({ caseCoefficient: c, physicalCompartments: count,
+        finiteVolumeCellsPerPhysicalCompartment: 4,
+        state: 'NUMERICAL_FAILURE', localFlashCalls: refined.localFlashCalls,
+        reason: result.physicalCountOutcomes.at(-1)?.reason ?? refined.reason });
       // No higher count can establish a minimum while this count is unknown.
       // Preserve the evidence and leave time for the other coefficient case.
       break;
@@ -693,6 +732,10 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       result.physicalCountOutcomes.push({ physicalCompartments: count,
         status: 'NUMERICAL_UNRESOLVED', reason: 'FINAL_OIL_OUTLET_NONNEGATIVE_GATE_FAILED' });
       lowerCountUnresolved = true;
+      await emitProgress({ caseCoefficient: c, physicalCompartments: count,
+        finiteVolumeCellsPerPhysicalCompartment: 4,
+        state: 'NUMERICAL_FAILURE', localFlashCalls: refined.localFlashCalls,
+        reason: result.physicalCountOutcomes.at(-1)?.reason ?? null });
       break;
     }
     const duty = evaluateStage4ProductTargets(oilOutlet,
@@ -710,6 +753,10 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       lowerCountUnresolved = true;
       result.lastConservedPhysicalTrial = { physicalCompartments: count, status: 'FV_REFINEMENT_NOT_CONVERGED',
         relativeOutletDifference: meshDifference, targetStatusChanged, coarse, refined };
+      await emitProgress({ caseCoefficient: c, physicalCompartments: count,
+        finiteVolumeCellsPerPhysicalCompartment: 4,
+        state: 'NUMERICAL_FAILURE', localFlashCalls: refined.localFlashCalls,
+        reason: result.physicalCountOutcomes.at(-1)?.reason ?? null });
       break;
     }
     const mixResidual = refined.maxAxialResidualMolS ?? 1;
@@ -722,6 +769,10 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       result.physicalCountOutcomes.push({ physicalCompartments: count,
         status: 'NUMERICAL_UNRESOLVED', reason: 'FINAL_CONSERVATION_OR_FRAME_RESIDUAL_GATE_FAILED' });
       lowerCountUnresolved = true;
+      await emitProgress({ caseCoefficient: c, physicalCompartments: count,
+        finiteVolumeCellsPerPhysicalCompartment: 4,
+        state: 'NUMERICAL_FAILURE', localFlashCalls: refined.localFlashCalls,
+        reason: result.physicalCountOutcomes.at(-1)?.reason ?? null });
       break;
     }
     result.lastConservedPhysicalTrial = {
@@ -736,6 +787,10 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     result.physicalCountOutcomes.push({ physicalCompartments: count,
       status: duty.allEvaluatedTargetsPassed ? 'TARGET_PASS' : 'TARGET_FAIL',
       reason: duty.allEvaluatedTargetsPassed ? null : 'GOVERNED_PRODUCT_TARGETS_NOT_MET' });
+    await emitProgress({ caseCoefficient: c, physicalCompartments: count,
+      finiteVolumeCellsPerPhysicalCompartment: 4, state: 'CONVERGED',
+      localFlashCalls: refined.localFlashCalls,
+      reason: result.physicalCountOutcomes.at(-1)?.reason ?? null });
     if (duty.allEvaluatedTargetsPassed && !result.selected && !lowerCountUnresolved) {
       result.selected = {
         physicalCompartments: count, activeHeightM: count * pitch,
@@ -782,7 +837,7 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
      * failure rather than allowing child timeouts to become unbounded work. */
     wallClockBudgetMs?: number;
     abortSignal?: AbortSignal;
-    onNumericalProgress?: (progress: Stage4PhysicalSizingProgress) => void;
+    onNumericalProgress?: (progress: Stage4PhysicalSizingProgress) => void | Promise<void>;
     onProgress?: (progress: {
       phase: 'PRIMARY_RUNNING' | 'PRIMARY_COMPLETE' | 'SENSITIVITY_RUNNING' | 'SENSITIVITY_COMPLETE';
       completedCases: 0 | 1 | 2;

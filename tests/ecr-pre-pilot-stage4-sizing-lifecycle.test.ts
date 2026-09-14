@@ -5,6 +5,9 @@ const state = vi.hoisted(() => ({
   rows: new Map<string, any>(),
   target: 90,
   runs: [] as Array<{ resolve: (value: any) => void }>,
+  previous: null as any,
+  failProgressWriteAt: null as number | null,
+  progressWriteCount: 0,
   run: vi.fn(),
   query: vi.fn(),
 }));
@@ -101,6 +104,9 @@ function reset() {
   state.rows.clear();
   state.target = 90;
   state.runs.length = 0;
+  state.previous = null;
+  state.failProgressWriteAt = null;
+  state.progressWriteCount = 0;
   state.run.mockReset();
   state.run.mockImplementation(() => new Promise(resolve => state.runs.push({ resolve })));
   state.query.mockReset();
@@ -110,6 +116,9 @@ function reset() {
       return { rows: [{ id: 'stage2', engine_hash: 'a'.repeat(64), result_snapshot: stage2Snapshot() }] };
     }
     if (sql.includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) return { rows: [stage3Row()] };
+    if (sql.includes('lineage_hash<>')) {
+      return { rows: state.previous ? [state.previous] : [] };
+    }
     const lineage = params[2];
     const rowKey = key(params[0], params[1], lineage);
     if (sql.includes('SELECT') && sql.includes('stage4_physical')) {
@@ -130,10 +139,20 @@ function reset() {
     const row = state.rows.get(rowKey);
     if (!row) return { rows: [] };
     if (sql.includes("SET progress_snapshot")) {
+      state.progressWriteCount += 1;
+      if (state.failProgressWriteAt === state.progressWriteCount) {
+        throw new Error('STAGE4_PROGRESS_DATABASE_WRITE_FAILED');
+      }
       if (row.attempt_token === params[3] && row.status === 'RUNNING') row.progress_snapshot = params[4];
     } else if (sql.includes("SET status=$5,result_snapshot")) {
       if (row.attempt_token === params[3] && row.status === 'RUNNING') {
         Object.assign(row, { status: params[4], result_snapshot: params[5], progress_snapshot: params[6] });
+      }
+    } else if (sql.includes("SET status=$5,error_code=$6")) {
+      if (row.attempt_token === params[3] && row.status === 'RUNNING') {
+        Object.assign(row, { status: params[4], error_code: params[5] });
+        const current = row.progress_snapshot ?? {};
+        row.progress_snapshot = { ...current, phase: 'FAILED' };
       }
     } else if (sql.includes("SET status='RUNNING'")) {
       Object.assign(row, { status: 'RUNNING', attempt_token: params[3], result_snapshot: null,
@@ -170,6 +189,61 @@ describe('Stage-4 persisted finite-rate lifecycle', () => {
     state.runs[0].resolve(targetFailure);
   });
 
+  it('initializes both coefficient trial maps before the first physical event', async () => {
+    reset();
+    state.run.mockImplementationOnce(async (_input: unknown, options: any) => {
+      await options.onProgress({ phase: 'PRIMARY_RUNNING', completedCases: 0, totalCases: 2 });
+      throw new Error('STAGE4_FINITE_RATE_SOLVER_RUN_TIMEOUT');
+    });
+    const started = await calculateStage4PrePilotSizing(8, 269);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const row = state.rows.get(key(8, 269, started.calculation.lineageHash));
+    expect(row.progress_snapshot.physicalTrialProgress).toEqual({
+      primary: {
+        caseCoefficient: .0126, completedPhysicalTrials: 0, resolvedPhysicalTrials: 0,
+        unresolvedPhysicalTrials: 0, lastCompletedPhysicalCount: null,
+        minimumPhysicalCount: 2, maximumPhysicalCount: 80, totalPhysicalTrials: 79,
+        partialPhysicalCountOutcomes: [],
+      },
+      sensitivity: {
+        caseCoefficient: .0105, completedPhysicalTrials: 0, resolvedPhysicalTrials: 0,
+        unresolvedPhysicalTrials: 0, lastCompletedPhysicalCount: null,
+        minimumPhysicalCount: 2, maximumPhysicalCount: 80, totalPhysicalTrials: 79,
+        partialPhysicalCountOutcomes: [],
+      },
+    });
+  });
+
+  it('still attempts terminal failure persistence when the latest progress write fails', async () => {
+    reset();
+    state.failProgressWriteAt = 2;
+    const progressError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    state.run.mockImplementationOnce(async (_input: unknown, options: any) => {
+      await options.onProgress({ phase: 'PRIMARY_RUNNING', completedCases: 0, totalCases: 2 });
+      await options.onNumericalProgress({
+        caseCoefficient: .0126, physicalCompartments: 2,
+        finiteVolumeCellsPerPhysicalCompartment: 2, state: 'STARTED',
+        localFlashCalls: 0, reason: null, completedPhysicalTrials: 0,
+        resolvedPhysicalTrials: 0, unresolvedPhysicalTrials: 0,
+        lastCompletedPhysicalCount: null, minimumPhysicalCount: 2,
+        maximumPhysicalCount: 80, totalPhysicalTrials: 79,
+        partialPhysicalCountOutcomes: [],
+      });
+    });
+    const started = await calculateStage4PrePilotSizing(8, 269);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const row = state.rows.get(key(8, 269, started.calculation.lineageHash));
+    expect(row.status).toBe('NUMERICAL_FAILURE');
+    expect(row.error_code).toBe('STAGE4_PROGRESS_DATABASE_WRITE_FAILED');
+    expect(progressError).toHaveBeenCalledWith(
+      'STAGE4_PROGRESS_PERSISTENCE_FAILED',
+      expect.any(Error),
+    );
+    expect(state.query.mock.calls.some(([sql]) =>
+      String(sql).includes('SET status=$5,error_code=$6'))).toBe(true);
+    progressError.mockRestore();
+  });
+
   it('does not deliver a cached result when targets change the lineage', async () => {
     reset();
     const first = await calculateStage4PrePilotSizing(9, 269);
@@ -193,6 +267,36 @@ describe('Stage-4 persisted finite-rate lifecycle', () => {
     const result = await getLiveStage4PrePilotSizing(10, 269);
     expect(result.status).toBe('INTERRUPTED');
     expect(state.run).not.toHaveBeenCalled();
+  });
+
+  it('exposes only the prior terminal explanation when a refreshed lineage is unrun', async () => {
+    reset();
+    state.previous = {
+      status: 'NUMERICAL_FAILURE',
+      error_code: 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
+      progress_snapshot: {
+        phase: 'FAILED', completedCases: 1, totalCases: 2,
+        physicalTrialProgress: { primary: { completedPhysicalTrials: 1 } },
+      },
+      completed_at: 'previous-completed-at',
+      result_snapshot: { selected: 'must-not-be-exposed' },
+      attempt_token: 'must-not-be-exposed',
+    };
+    const result = await getLiveStage4PrePilotSizing(15, 269);
+    expect(result.status).toBe('UNRUN');
+    expect(result.previousCalculation).toEqual({
+      status: 'NUMERICAL_FAILURE',
+      errorCode: 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
+      completedAt: 'previous-completed-at',
+      progress: state.previous.progress_snapshot,
+      historical: true,
+    });
+    expect(result.previousCalculation).not.toHaveProperty('resultSnapshot');
+    expect(result.previousCalculation).not.toHaveProperty('attemptToken');
+    expect(state.run).not.toHaveBeenCalled();
+    const historicalCall = state.query.mock.calls.find(([sql]) =>
+      String(sql).includes('lineage_hash<>'));
+    expect(historicalCall?.[1]).toEqual([15, 269, result.calculation.lineageHash]);
   });
 
   it('preserves finite numerical diagnostics without promoting their selected outputs', async () => {
@@ -262,6 +366,64 @@ describe('Stage-4 persisted finite-rate lifecycle', () => {
     expect(result.status).toBe('TARGET_FAILURE');
     expect(result.mainOutputs.physicalCompartments).toBeNull();
     expect(result.physicalSizing.primary.selected.physicalCompartments).toBe(4);
+  });
+
+  it('retains per-case completed outcomes when a timeout starts sensitivity', async () => {
+    reset();
+    const primaryOutcome = {
+      physicalCompartments: 5, status: 'TARGET_FAIL', reason: 'GOVERNED_PRODUCT_TARGETS_NOT_MET',
+    };
+    state.run.mockImplementationOnce(async (_input: unknown, options: any) => {
+      await options.onProgress({ phase: 'PRIMARY_RUNNING', completedCases: 0, totalCases: 2 });
+      await options.onNumericalProgress({
+        caseCoefficient: .0126, physicalCompartments: 5,
+        finiteVolumeCellsPerPhysicalCompartment: 2, state: 'STARTED',
+        localFlashCalls: 0, reason: null, completedPhysicalTrials: 0,
+        resolvedPhysicalTrials: 0, unresolvedPhysicalTrials: 0,
+        lastCompletedPhysicalCount: null, minimumPhysicalCount: 5,
+        maximumPhysicalCount: 80, totalPhysicalTrials: 76,
+        partialPhysicalCountOutcomes: [],
+      });
+      await options.onNumericalProgress({
+        caseCoefficient: .0126, physicalCompartments: 5,
+        finiteVolumeCellsPerPhysicalCompartment: 4, state: 'CONVERGED',
+        localFlashCalls: 1, reason: primaryOutcome.reason, completedPhysicalTrials: 1,
+        resolvedPhysicalTrials: 1, unresolvedPhysicalTrials: 0,
+        lastCompletedPhysicalCount: 5, minimumPhysicalCount: 5,
+        maximumPhysicalCount: 80, totalPhysicalTrials: 76,
+        partialPhysicalCountOutcomes: [primaryOutcome],
+      });
+      await options.onProgress({ phase: 'PRIMARY_COMPLETE', completedCases: 1, totalCases: 2 });
+      await options.onProgress({ phase: 'SENSITIVITY_RUNNING', completedCases: 1, totalCases: 2 });
+      await options.onNumericalProgress({
+        caseCoefficient: .0105, physicalCompartments: 5,
+        finiteVolumeCellsPerPhysicalCompartment: 2, state: 'STARTED',
+        localFlashCalls: 0, reason: null, completedPhysicalTrials: 0,
+        resolvedPhysicalTrials: 0, unresolvedPhysicalTrials: 0,
+        lastCompletedPhysicalCount: null, minimumPhysicalCount: 5,
+        maximumPhysicalCount: 80, totalPhysicalTrials: 76,
+        partialPhysicalCountOutcomes: [],
+      });
+      throw new Error('STAGE4_FINITE_RATE_SOLVER_RUN_TIMEOUT');
+    });
+    const started = await calculateStage4PrePilotSizing(16, 269);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const row = state.rows.get(key(16, 269, started.calculation.lineageHash));
+    expect(row.status).toBe('INTERRUPTED');
+    expect(row.progress_snapshot).toMatchObject({
+      phase: 'FAILED', completedCases: 1, totalCases: 2,
+      completedPhysicalTrials: 0, maximumPhysicalCount: 80,
+      physicalTrialProgress: {
+        primary: {
+          completedPhysicalTrials: 1, resolvedPhysicalTrials: 1,
+          lastCompletedPhysicalCount: 5,
+          partialPhysicalCountOutcomes: [primaryOutcome],
+          coarse: { completedPhysicalTrials: 0 },
+          refined: { completedPhysicalTrials: 1 },
+        },
+        sensitivity: { completedPhysicalTrials: 0, state: 'STARTED' },
+      },
+    });
   });
 
   it('requires explicit retry and prevents an old stopped attempt overwriting it', async () => {

@@ -114,7 +114,11 @@ describe('Stage-4 predictive physical sizing', () => {
         } as any);
       },
     };
-    const result = await runStage4PredictivePhysicalSizing(input, evaluators);
+    const progress: any[] = [];
+    const result = await runStage4PredictivePhysicalSizing(input, {
+      ...evaluators,
+      onNumericalProgress: event => { progress.push(event); },
+    });
     // One inlet binding flash plus the evolving local cell states. A single
     // frozen inlet flash is not an accepted physical-column closure.
     expect(flashes).toBeGreaterThan(1);
@@ -130,6 +134,26 @@ describe('Stage-4 predictive physical sizing', () => {
     expect(result.primary.selected.continuousPhaseTotalMolarFlowChangeMolS)
       .not.toBeCloseTo(0, 14);
     expect(result.screeningNotice).toContain('REQUIRES PILOT VALIDATION');
+    const primaryStarts = progress.filter(event =>
+      event.caseCoefficient === .0126 && event.state === 'STARTED');
+    expect(primaryStarts[0]).toMatchObject({
+      completedPhysicalTrials: 0,
+      resolvedPhysicalTrials: 0,
+      unresolvedPhysicalTrials: 0,
+      lastCompletedPhysicalCount: null,
+      minimumPhysicalCount: 2,
+      maximumPhysicalCount: 2,
+      totalPhysicalTrials: 1,
+      partialPhysicalCountOutcomes: [],
+    });
+    const primaryCompletion = progress.find(event =>
+      event.caseCoefficient === .0126 && event.completedPhysicalTrials === 1);
+    expect(primaryCompletion).toMatchObject({
+      resolvedPhysicalTrials: 1,
+      unresolvedPhysicalTrials: 0,
+      lastCompletedPhysicalCount: result.primary.physicalCountOutcomes[0].physicalCompartments,
+      partialPhysicalCountOutcomes: [result.primary.physicalCountOutcomes[0]],
+    });
     const blockedResponse = {
       status: 'BLOCKED_NO_ACCEPTED_PHYSICAL_INTERFACE_ROOT',
       interface: null,
@@ -137,8 +161,10 @@ describe('Stage-4 predictive physical sizing', () => {
       endpointAssessments: [{ numericalAccepted: false }],
       acceptanceThresholds: { scaledFluxEquality: 1e-8 },
     };
+    const blockedProgress: any[] = [];
     const blocked = await runStage4PredictivePhysicalSizing(input, {
       ...evaluators, interfaceEvaluator: async () => blockedResponse as any,
+      onNumericalProgress: event => { blockedProgress.push(event); },
     });
     expect(blocked.status).toBe('NUMERICAL_FAILURE_UNRESOLVED_PHYSICAL_COUNTS_REMAIN');
     for (const coefficientCase of [blocked.primary, blocked.sensitivity]) {
@@ -152,6 +178,15 @@ describe('Stage-4 predictive physical sizing', () => {
         expect(evidence.cellIndex).toBe(0);
       }
     }
+    const blockedCompletion = blockedProgress.find(event =>
+      event.completedPhysicalTrials === 1);
+    expect(blockedCompletion).toMatchObject({
+      resolvedPhysicalTrials: 0,
+      unresolvedPhysicalTrials: 1,
+      partialPhysicalCountOutcomes: [{
+        status: 'NUMERICAL_UNRESOLVED',
+      }],
+    });
   });
 
   it('uses a consistent two-film partition orientation and rejects nonphysical phase inputs', () => {

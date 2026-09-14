@@ -3,6 +3,7 @@ import { AlertTriangle, Loader2, Play, RefreshCw } from "lucide-react";
 import Stage4InterfaceFailureDiagnostics, {
   type Stage4InterfaceFailureCase,
 } from "./stage4-interface-failure-diagnostics";
+import Stage4TrialProgress, { Stage4FailureReason } from "./stage4-trial-progress";
 
 type RecordValue = Record<string, unknown>;
 type Props = { designId: number | null };
@@ -704,7 +705,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
         </div>
       )}
 
-      {!loading && (stage4Running || (!result && run) || hasCalculationProgress) && (
+      <Stage4FailureReason code={calculation.errorCode ?? result?.errorCode} />
+      <Stage4FailureReason code={record(result?.previousCalculation).errorCode} historical />
+      {!loading && (stage4Running || (!result && run) || hasCalculationProgress || stage4Status === "UNRUN") && (
         <section
           data-testid="stage4-run-progress"
           className="m-3 rounded border border-cyan-200 bg-cyan-50/50 p-3 text-[10px]"
@@ -733,6 +736,12 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <p className="mt-1">
             {stage4Running ? "Calculation active" : text(calculationProgress.phase ?? runDetails.message ?? runProgress.message)}
           </p>
+          <Stage4TrialProgress
+            progress={calculationProgress.physicalTrialProgress}
+            minimum={calculationProgress.minimumPhysicalCount ?? nt.value}
+            maximum={calculationProgress.maximumPhysicalCount ?? calculationProgress.maximumPhysicalCompartments}
+            notRun={stage4Status === "UNRUN"}
+          />
           {isFiniteNumber(calculationProgress.completedCases ?? calculationProgress.completed) && (
             <p className="mt-1 font-mono">
               Cases: {number(calculationProgress.completedCases ?? calculationProgress.completed)} /{" "}

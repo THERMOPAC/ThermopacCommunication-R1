@@ -1,0 +1,45 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+import TrialProgress, { Stage4FailureReason } from "../client/src/components/ecr-pre-pilot/stage4-trial-progress";
+
+describe("Stage 4 counted progress and failure reasons", () => {
+  it("counts completed trials, not the current count number or the upper search bound", () => {
+    const html = renderToStaticMarkup(React.createElement(TrialProgress, {
+      minimum: 5, maximum: 80, notRun: false,
+      progress: {
+        primary: { completedPhysicalTrials: 1, resolvedPhysicalTrials: 0,
+          unresolvedPhysicalTrials: 1, lastCompletedPhysicalCount: 5 },
+        sensitivity: { completedPhysicalTrials: 0, resolvedPhysicalTrials: 0,
+          unresolvedPhysicalTrials: 0 },
+      },
+    }));
+    expect(html).toContain("Completed trials: 1 / 76");
+    expect(html).toContain("Completed trials: 0 / 76");
+    expect(html).toContain('value="1" max="76"');
+    expect(html).toContain("Maximum physical count: 80");
+    expect(html).toContain("Last completed physical count: 5");
+    expect(html).toContain("Resolved: 0");
+    expect(html).toContain("Numerically unresolved: 1");
+  });
+  it("does not invent counters for historical runs that did not record them", () => {
+    const html = renderToStaticMarkup(React.createElement(TrialProgress, {
+      minimum: 5, maximum: 80, notRun: false, progress: {},
+    }));
+    expect(html).toContain("Completed trials: Not recorded / 76");
+    expect(html).not.toContain("<progress");
+  });
+  it("shows zero for a genuinely unrun version and distinguishes historical timeout", () => {
+    const html = renderToStaticMarkup(React.createElement(TrialProgress, {
+      minimum: 5, maximum: 80, notRun: true, progress: {},
+    }));
+    expect(html).toContain("Completed trials: 0 / 76");
+    const failure = renderToStaticMarkup(React.createElement(Stage4FailureReason, {
+      code: "GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED", historical: true,
+    }));
+    expect(failure).toContain("Time limit reached");
+    expect(failure).toContain("not a physical-infeasibility verdict");
+    expect(failure).toContain("older calculation version");
+    expect(failure).toContain("No automatic retry");
+  });
+});

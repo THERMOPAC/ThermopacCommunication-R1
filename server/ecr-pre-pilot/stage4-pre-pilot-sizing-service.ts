@@ -8,6 +8,7 @@ import {
   STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH,
   STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
   type Stage4PhysicalSizingInput,
+  type Stage4PhysicalSizingProgress,
 } from './stage4-predictive-physical-sizing';
 import {
   loadValidatedCompletedSevenComponentNtForStage4,
@@ -233,6 +234,13 @@ type StoredStage4Calculation = {
   completed_at: string | null;
 };
 
+type PreviousStage4Calculation = {
+  status: StoredStage4Calculation['status'];
+  error_code: string | null;
+  progress_snapshot: Record<string, unknown> | null;
+  completed_at: string | null;
+};
+
 const localInflight = new Map<string, {
   task: Promise<void>;
   abort: AbortController;
@@ -454,6 +462,7 @@ function idlePhysicalSizing(status: 'UNRUN' | 'RUNNING' | 'INTERRUPTED' | 'NUMER
 function stage4Response(
   authority: Stage4PrePilotSizingAuthority,
   calculation: StoredStage4Calculation | null,
+  previousCalculation?: PreviousStage4Calculation | null,
 ) {
   const state = calculation?.status ?? 'UNRUN';
   // A numerical solver can return valuable counted trial/mesh diagnostics
@@ -556,6 +565,15 @@ function stage4Response(
       completedAt: calculation?.completed_at ?? null,
       errorCode: calculation?.error_code ?? null,
     },
+    ...(previousCalculation ? {
+      previousCalculation: {
+        status: previousCalculation.status,
+        errorCode: previousCalculation.error_code,
+        completedAt: previousCalculation.completed_at,
+        progress: previousCalculation.progress_snapshot,
+        historical: true as const,
+      },
+    } : {}),
     assumptions: physicalSizing.assumptions ?? authority.projection.assumptions,
   };
 }
@@ -570,9 +588,112 @@ function startLocalFiniteRateRun(
   userId: number,
   designId: number,
   attemptToken: string,
+  initialProgress: Record<string, unknown> | null = null,
 ) {
   const update = (sql: string, params: unknown[]) => pool.query(sql, params);
   const abort = new AbortController();
+  /**
+   * Numerical progress callbacks are emitted from the solver while the
+   * phase callbacks are awaited by the solver.  Keep one ordered write chain
+   * anyway: a slow database write must never let an older mesh event replace a
+   * newer count outcome (or let the initial QUEUED phase replace
+   * PRIMARY_RUNNING).  The in-memory snapshot is updated before enqueueing
+   * each write, so every queued write has the complete state accumulated up to
+   * that event.
+   */
+  const minimumPhysicalCount = authority.solverInput.calculatedNt;
+  const maximumPhysicalCount = authority.solverInput.maximumCompartments ?? 80;
+  const totalPhysicalTrials = maximumPhysicalCount - minimumPhysicalCount + 1;
+  const savedPhysicalTrialProgress = initialProgress?.physicalTrialProgress
+    && typeof initialProgress.physicalTrialProgress === 'object'
+    && !Array.isArray(initialProgress.physicalTrialProgress)
+    ? initialProgress.physicalTrialProgress as Record<string, unknown>
+    : {};
+  const initialCaseProgress = (
+    caseCoefficient: Stage4PhysicalSizingProgress['caseCoefficient'],
+  ) => {
+    const key = caseCoefficient === .0126 ? 'primary' : 'sensitivity';
+    const saved = savedPhysicalTrialProgress[key]
+      && typeof savedPhysicalTrialProgress[key] === 'object'
+      && !Array.isArray(savedPhysicalTrialProgress[key])
+      ? savedPhysicalTrialProgress[key] as Record<string, unknown>
+      : {};
+    return {
+      caseCoefficient,
+      completedPhysicalTrials: 0,
+      resolvedPhysicalTrials: 0,
+      unresolvedPhysicalTrials: 0,
+      lastCompletedPhysicalCount: null,
+      minimumPhysicalCount,
+      maximumPhysicalCount,
+      totalPhysicalTrials,
+      partialPhysicalCountOutcomes: [],
+      ...saved,
+    };
+  };
+  let persistedProgress: Record<string, unknown> = {
+    ...(initialProgress ?? {}),
+    phase: initialProgress?.phase ?? 'QUEUED',
+    completedCases: initialProgress?.completedCases ?? 0,
+    totalCases: initialProgress?.totalCases ?? 2,
+    maximumPhysicalCompartments: authority.solverInput.maximumCompartments,
+    physicalTrialProgress: {
+      primary: initialCaseProgress(.0126),
+      sensitivity: initialCaseProgress(.0105),
+    },
+  };
+  let progressWrite = Promise.resolve();
+  const enqueueProgress = (next: Record<string, unknown>) => {
+    persistedProgress = next;
+    const snapshot = next;
+    const write = progressWrite
+      .catch(() => undefined)
+      .then(() => update(
+        `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+            SET progress_snapshot=$5
+          WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+            AND attempt_token=$4 AND status='RUNNING'`,
+        [userId, designId, authority.lineageHash, attemptToken, snapshot],
+      ));
+    progressWrite = write;
+    return write;
+  };
+  const phaseProgress = (progress: {
+    phase: 'PRIMARY_RUNNING' | 'PRIMARY_COMPLETE' | 'SENSITIVITY_RUNNING' | 'SENSITIVITY_COMPLETE';
+    completedCases: 0 | 1 | 2;
+    totalCases: 2;
+  }) => enqueueProgress({
+    ...persistedProgress,
+    ...progress,
+  });
+  const numericalProgress = (progress: Stage4PhysicalSizingProgress) => {
+    const key = progress.caseCoefficient === .0126 ? 'primary' : 'sensitivity';
+    const map = persistedProgress.physicalTrialProgress
+      && typeof persistedProgress.physicalTrialProgress === 'object'
+      ? persistedProgress.physicalTrialProgress as Record<string, unknown>
+      : {};
+    const previousCase = map[key] && typeof map[key] === 'object'
+      ? map[key] as Record<string, unknown>
+      : {};
+    const mesh = progress.finiteVolumeCellsPerPhysicalCompartment === 2
+      ? 'coarse' : 'refined';
+    const caseProgress: Record<string, unknown> = {
+      ...previousCase,
+      ...progress,
+      phase: persistedProgress.phase,
+      completedCases: persistedProgress.completedCases,
+      totalCases: persistedProgress.totalCases,
+      [mesh]: progress,
+    };
+    const physicalTrialProgress = { ...map, [key]: caseProgress };
+    // Keep the case map as the durable source of truth, while retaining the
+    // latest event's fields at the snapshot root for existing consumers.
+    return enqueueProgress({
+      ...persistedProgress,
+      ...progress,
+      physicalTrialProgress,
+    });
+  };
   const task = (async () => {
     try {
       const result = await runStage4PredictivePhysicalSizing(authority.solverInput, {
@@ -586,27 +707,12 @@ function startLocalFiniteRateRun(
         // counted numerical failures and cleanly close both worker sessions.
         wallClockBudgetMs: 9 * 60_000,
         abortSignal: abort.signal,
-        onProgress: async progress => {
-          await update(
-            `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
-                SET progress_snapshot=$5
-              WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
-                AND attempt_token=$4 AND status='RUNNING'`,
-            [userId, designId, authority.lineageHash, attemptToken, progress],
-          );
-        },
-        onNumericalProgress: progress => {
-          // Count/mesh events are advisory progress only; the immutable final
-          // snapshot remains the solver's returned finite-rate evidence.
-          void update(
-            `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
-                SET progress_snapshot=$5
-              WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
-                AND attempt_token=$4 AND status='RUNNING'`,
-            [userId, designId, authority.lineageHash, attemptToken, progress],
-          );
-        },
+        onProgress: phaseProgress,
+        onNumericalProgress: numericalProgress,
       });
+      // The final status update must follow the last count event.  Otherwise
+      // a late mesh write can overwrite the terminal phase or counters.
+      await progressWrite;
       assertJsonFinite(result);
       const unknownCounts = [result.primary, result.sensitivity].some(caseResult =>
         caseResult.searchTermination.includes('UNKNOWN_NUMERICAL')
@@ -632,6 +738,17 @@ function startLocalFiniteRateRun(
       const errorCode = error instanceof Error ? error.message : 'STAGE4_FINITE_RATE_SOLVER_FAILED';
       const status = abort.signal.aborted || errorCode === 'STAGE4_FINITE_RATE_SOLVER_RUN_TIMEOUT'
         ? 'INTERRUPTED' : 'NUMERICAL_FAILURE';
+      // A timeout/abort can happen while a child request is unresolved. Keep
+      // the most recent completed-count/outcome snapshot rather than replacing
+      // it with a fresh zero-progress failure record.
+      try {
+        await progressWrite;
+      } catch (progressError) {
+        // A progress write must never prevent the terminal failure status
+        // from being attempted.  Keep the error visible in server diagnostics
+        // while retaining the last successfully persisted snapshot.
+        console.error('STAGE4_PROGRESS_PERSISTENCE_FAILED', progressError);
+      }
       await update(
         `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
             SET status=$5,error_code=$6,
@@ -664,11 +781,28 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
     [userId, designId, authority.lineageHash],
   );
   const calculation = stored.rows[0] ?? null;
+  let previousCalculation: PreviousStage4Calculation | null = null;
+  if (!calculation) {
+    // A refreshed implementation/source manifest intentionally creates a new
+    // lineage.  Keep the prior terminal explanation discoverable without
+    // presenting its scientific result as current and without exposing
+    // attempt tokens.  This is deliberately read-only and owner-scoped.
+    const historical = await pool.query<PreviousStage4Calculation>(
+      `SELECT status,error_code,progress_snapshot,completed_at::text
+         FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+        WHERE created_by=$1 AND design_id=$2 AND lineage_hash<>$3
+          AND status IN ('INTERRUPTED','CALCULATED','TARGET_FAILURE','NUMERICAL_FAILURE')
+        ORDER BY completed_at DESC NULLS LAST,id DESC
+        LIMIT 1`,
+      [userId, designId, authority.lineageHash],
+    );
+    previousCalculation = historical.rows[0] ?? null;
+  }
   if (calculation && expired(calculation) && !localInflight.has(authority.lineageHash)) {
     calculation.status = 'INTERRUPTED';
     calculation.error_code = 'STAGE4_FINITE_RATE_SOLVER_RUN_LEASE_EXPIRED_EXPLICIT_RETRY_REQUIRED';
   }
-  return stage4Response(authority, calculation);
+  return stage4Response(authority, calculation, previousCalculation);
 }
 
 /**
@@ -703,7 +837,8 @@ export async function calculateStage4PrePilotSizing(userId: number, designId: nu
   }
   if (calculation?.status === 'RUNNING' && !localInflight.has(authority.lineageHash)
     && !expired(calculation)) {
-    startLocalFiniteRateRun(authority, userId, designId, calculation.attempt_token);
+    startLocalFiniteRateRun(authority, userId, designId, calculation.attempt_token,
+      calculation.progress_snapshot);
   }
   return stage4Response(authority, calculation);
 }
@@ -738,7 +873,9 @@ export async function retryStage4PrePilotSizing(userId: number, designId: number
     const previous = localInflight.get(authority.lineageHash);
     previous?.abort.abort();
     localInflight.delete(authority.lineageHash);
-    startLocalFiniteRateRun(authority, userId, designId, attemptToken);
+    startLocalFiniteRateRun(authority, userId, designId, attemptToken, {
+      phase: 'QUEUED', completedCases: 0, totalCases: 2,
+    });
   }
   return stage4Response(authority, calculation);
 }
