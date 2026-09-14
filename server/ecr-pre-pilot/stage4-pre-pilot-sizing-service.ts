@@ -1,7 +1,14 @@
 import { pool } from '../db';
+import { randomUUID } from 'node:crypto';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
-import { validateStage1Snapshot } from './stage1';
+import { makeStage1HydrodynamicProcessBasis, validateStage1Snapshot } from './stage1';
 import { buildStage4MixingAudit } from './stage4-mixing-audit';
+import {
+  runStage4PredictivePhysicalSizing,
+  STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH,
+  STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
+  type Stage4PhysicalSizingInput,
+} from './stage4-predictive-physical-sizing';
 import {
   loadValidatedCompletedSevenComponentNtForStage4,
 } from './predictive-nt-job-service';
@@ -206,7 +213,66 @@ export function deriveStage4PrePilotSizing(input: {
   };
 }
 
-export async function getLiveStage4PrePilotSizing(userId: number, designId: number) {
+const STAGE4_SCREENING_NOTICE =
+  'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN';
+
+export type Stage4PrePilotSizingAuthority = {
+  projection: ReturnType<typeof deriveStage4PrePilotSizing>;
+  solverInput: Stage4PhysicalSizingInput;
+  lineageHash: string;
+};
+
+type StoredStage4Calculation = {
+  status: 'RUNNING' | 'INTERRUPTED' | 'CALCULATED' | 'TARGET_FAILURE' | 'NUMERICAL_FAILURE';
+  result_snapshot: any;
+  progress_snapshot: Record<string, unknown> | null;
+  error_code: string | null;
+  attempt_token: string;
+  started_at: string;
+  deadline_at: string;
+  completed_at: string | null;
+};
+
+const localInflight = new Map<string, {
+  task: Promise<void>;
+  abort: AbortController;
+  attemptToken: string;
+}>();
+function assertJsonFinite(value: unknown): void {
+  if (typeof value === 'number' && !Number.isFinite(value)) {
+    fail('STAGE4_FINITE_RATE_SOLVER_NONFINITE_RESULT');
+  }
+  if (Array.isArray(value)) value.forEach(assertJsonFinite);
+  else if (value && typeof value === 'object') Object.values(value).forEach(assertJsonFinite);
+}
+
+function stage1Targets(stage1: ReturnType<typeof validateStage1Snapshot>) {
+  const source = stage1.stage1;
+  return {
+    minimumRecoveryPct: source.minimumRecoveryPct,
+    minimumRaffinateSaturatesWt: source.minimumRaffinateSaturatesWt,
+    targetRaffinateTotalAromaticsWt: source.targetRaffinateTotalAromaticsWt,
+    targetRaffinatePolarAromaticsWt: source.targetRaffinatePolarAromaticsWt,
+    maximumNmpRaffinateWt: source.maximumNmpRaffinateWt,
+    feedSulfurPpm: source.feedSulfurPpm,
+    targetRaffinateSulfurPpm: source.targetRaffinateSulfurPpm,
+    sulfurAllocationSatPct: source.sulfurAllocationSatPct,
+    sulfurAllocationMonoPct: source.sulfurAllocationMonoPct,
+    sulfurAllocationDiPct: source.sulfurAllocationDiPct,
+    sulfurAllocationPolyPct: source.sulfurAllocationPolyPct,
+    sulfurAllocationPaPct: source.sulfurAllocationPaPct,
+  };
+}
+
+/**
+ * The one authority/input builder for Stage 4.  It reads (and never mutates)
+ * the governed Stage-1/2/3 records, so the worker and GET use identical
+ * owner-scoped lineage.
+ */
+export async function loadStage4PrePilotSizingAuthority(
+  userId: number,
+  designId: number,
+): Promise<Stage4PrePilotSizingAuthority> {
   const design = await pool.query<{ input_data: unknown }>(
     'SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2',
     [designId, userId],
@@ -299,35 +365,79 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
     || !/^[a-f0-9]{64}$/.test(String(stage3.result?.engine?.implementationHash ?? ''))) {
     fail('STAGE4_PINNED_TRANSFER_AND_MIXING_LINEAGE_INPUT_REQUIRED');
   }
-  // Do not promote the currently available film/flash ingredients into a
-  // physical-column result.  A single inlet flash and a forced zero-sum
-  // transfer vector are not the required local 7C/non-equimolar closure.
-  // In particular, a bounded integer search with unresolved numerical counts
-  // must never be represented as a physical "no solution".
-  const physicalSizing = {
-    status: 'DEPENDENCY_BLOCKED' as const,
-    classification: 'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN',
-    screeningNotice: 'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN',
-    implementation: null,
-    primary: {
-      selected: null,
-      searchTermination: 'NOT_STARTED_REQUIRED_PHYSICAL_CLOSURE_MISSING',
-      attemptedPhysicalCompartments: [],
-      nonconvergedPhysicalCounts: [],
-      lastConservedPhysicalTrial: null,
+  const persistedBasis = stage3.result.processBasis;
+  const expectedStage1Basis = makeStage1HydrodynamicProcessBasis(stage1);
+  if (!persistedBasis || typeof persistedBasis !== 'object'
+    || (persistedBasis as any).stage1SnapshotHash !== expectedStage1Basis.stage1SnapshotHash) {
+    fail('STAGE4_PERSISTED_STAGE3_PROCESS_BASIS_REQUIRED');
+  }
+  const envelope = Array.isArray(stage3.result.hydraulicRpmEnvelope)
+    ? stage3.result.hydraulicRpmEnvelope : [];
+  const selectedTrialOrdinal = envelope.findIndex((candidate: any) =>
+    candidate?.rpm === selected?.rpm
+    && candidate?.columnDiameterM === selected?.columnDiameterM);
+  if (selectedTrialOrdinal < 0) fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
+  const targets = stage1Targets(stage1);
+  const solverInput: Stage4PhysicalSizingInput = {
+    calculatedNt: nt,
+    stage1SnapshotHash: stage1.immutableHash,
+    stage2JobId: stage2.id,
+    stage2ResultHash,
+    stage2EngineHash: stage2.engine_hash,
+    stage3RunId: stage3.id,
+    stage3ImmutableHash: stage3.immutableHash,
+    stage3ImplementationHash: stage3.result.engine.implementationHash,
+    selectedTrialId: `rpm:${selected.rpm}:diameterM:${selected.columnDiameterM}`,
+    selectedTrialOrdinal,
+    processBasis: persistedBasis as Stage4PhysicalSizingInput['processBasis'],
+    hydraulics: {
+      diameterM: selected.columnDiameterM, rotorDiameterM: selected.rotorDiameterM,
+      rpm: selected.rpm, d32M: selected.d32M, operatingHoldup: operating.operatingHoldup,
+      continuousSuperficialVelocityMS: operating.continuousSuperficialVelocityMS,
+      dispersedSuperficialVelocityMS: operating.dispersedSuperficialVelocityMS,
     },
-    sensitivity: {
-      selected: null,
-      searchTermination: 'NOT_STARTED_REQUIRED_PHYSICAL_CLOSURE_MISSING',
-      attemptedPhysicalCompartments: [],
-      nonconvergedPhysicalCounts: [],
-      lastConservedPhysicalTrial: null,
+    stage1Targets: targets,
+    maximumCompartments: 80,
+  };
+  const lineageHash = kuhniRunHash({
+    owner: { userId, designId },
+    stage1SnapshotHash: solverInput.stage1SnapshotHash,
+    stage2: { jobId: solverInput.stage2JobId, resultHash: solverInput.stage2ResultHash,
+      engineHash: solverInput.stage2EngineHash, theoreticalStages: solverInput.calculatedNt },
+    stage3: { runId: String(solverInput.stage3RunId), immutableHash: solverInput.stage3ImmutableHash,
+      implementationHash: solverInput.stage3ImplementationHash, selectedTrialId: solverInput.selectedTrialId,
+      selectedTrialOrdinal: solverInput.selectedTrialOrdinal },
+    processBasis: solverInput.processBasis,
+    targets,
+    implementation: { version: STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
+      implementationHash: STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH },
+  });
+  return { projection, solverInput, lineageHash };
+}
+
+function idlePhysicalSizing(status: 'UNRUN' | 'RUNNING' | 'INTERRUPTED' | 'NUMERICAL_FAILURE', errorCode?: string | null) {
+  const termination = status === 'UNRUN' ? 'NOT_RUN_EXPLICIT_CALCULATION_REQUIRED'
+    : status === 'RUNNING' ? 'FINITE_RATE_SOLVER_RUNNING'
+      : status === 'INTERRUPTED' ? 'FINITE_RATE_SOLVER_INTERRUPTED_EXPLICIT_RETRY_REQUIRED'
+      : 'FINITE_RATE_SOLVER_NUMERICAL_FAILURE';
+  const caseResult = {
+    selected: null,
+    searchTermination: termination,
+    attemptedPhysicalCompartments: [],
+    nonconvergedPhysicalCounts: [],
+    lastConservedPhysicalTrial: null,
+  };
+  return {
+    status,
+    classification: STAGE4_SCREENING_NOTICE,
+    screeningNotice: STAGE4_SCREENING_NOTICE,
+    implementation: {
+      version: STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
+      implementationHash: STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH,
     },
-    blockers: [
-      'STAGE4_DYNAMIC_LOCAL_7C_EQUILIBRIUM_CLOSURE_REQUIRED',
-      'STAGE4_NON_EQUIMOLAR_MULTICOMPONENT_TWO_FILM_INTERFACE_CLOSURE_REQUIRED',
-      'STAGE4_INDEPENDENT_AXIAL_MESH_REFINEMENT_EVIDENCE_REQUIRED',
-    ],
+    primary: caseResult,
+    sensitivity: { ...caseResult },
+    blockers: [],
     materiality: {
       threshold: 'same integer physical compartments and <=5% relative active-height and overall-efficiency difference',
       comparable: false,
@@ -337,19 +447,53 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
       classification: 'NOT_COMPARABLE_PHYSICAL_SOLVES_NOT_AVAILABLE',
       note: 'Ec proximity alone is not a robustness criterion.',
     },
-    assumptions: [
-      'K&H Ec and Ed=0 are screening inputs only; they do not close the missing local multicomponent physical-column model.',
-      'No physical-compartment count, active height, or overall efficiency is reported until the three explicit closure blockers are resolved.',
-    ],
+    ...(errorCode ? { errorCode } : {}),
   };
-  const primary = physicalSizing.primary.selected;
+}
+
+function stage4Response(
+  authority: Stage4PrePilotSizingAuthority,
+  calculation: StoredStage4Calculation | null,
+) {
+  const state = calculation?.status ?? 'UNRUN';
+  // A numerical solver can return valuable counted trial/mesh diagnostics
+  // before it establishes that no unknown counts remain. Preserve that
+  // validated evidence, but never turn any selected values into outputs
+  // unless the terminal calculation itself is CALCULATED.
+  const physicalSizing = calculation?.result_snapshot
+    && (calculation.status === 'CALCULATED'
+      || calculation.status === 'TARGET_FAILURE'
+      || calculation.status === 'NUMERICAL_FAILURE')
+    ? calculation.result_snapshot
+    : idlePhysicalSizing(state === 'RUNNING' ? 'RUNNING'
+      : state === 'INTERRUPTED' ? 'INTERRUPTED'
+      : state === 'NUMERICAL_FAILURE' ? 'NUMERICAL_FAILURE' : 'UNRUN',
+    calculation?.error_code);
+  const primary = calculation?.status === 'CALCULATED'
+    ? physicalSizing?.primary?.selected ?? null : null;
+  const storedProgress = calculation?.progress_snapshot ?? {};
+  const terminalProgress = state === 'NUMERICAL_FAILURE' || state === 'INTERRUPTED'
+    ? {
+      ...storedProgress,
+      phase: 'FAILED',
+      completedCases: storedProgress.completedCases ?? 0,
+      totalCases: storedProgress.totalCases ?? 2,
+    }
+    : state === 'CALCULATED' || state === 'TARGET_FAILURE'
+      ? {
+        ...storedProgress,
+        phase: 'COMPLETE',
+        completedCases: storedProgress.completedCases ?? 2,
+        totalCases: storedProgress.totalCases ?? 2,
+      }
+      : null;
   return {
-    ...projection,
-    status: physicalSizing.status,
-    classification: physicalSizing.classification,
-    screeningNotice: physicalSizing.screeningNotice,
+    ...authority.projection,
+    status: state,
+    classification: STAGE4_SCREENING_NOTICE,
+    screeningNotice: STAGE4_SCREENING_NOTICE,
     mainOutputs: {
-      diameterM: selected.columnDiameterM,
+      diameterM: authority.solverInput.hydraulics.diameterM,
       overallEfficiency: primary?.overallEfficiency ?? null,
       physicalCompartments: primary?.physicalCompartments ?? null,
       activeHeightM: primary?.activeHeightM ?? null,
@@ -358,28 +502,33 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
       value: primary?.overallEfficiency ?? null,
       status: primary
         ? 'CALCULATED_FROM_CONSERVED_TRANSFER_AND_AXIAL_DISPERSION_SCREENING'
-        : 'NOT_EXECUTED_REQUIRED_CLOSURE_MISSING',
-      dependency: primary ? null : physicalSizing.primary.searchTermination,
+        : state === 'TARGET_FAILURE' ? 'NO_TARGET_COMPLIANT_PHYSICAL_SOLUTION'
+        : state === 'RUNNING' ? 'FINITE_RATE_SCREENING_RUNNING'
+          : state === 'NUMERICAL_FAILURE' ? 'FINITE_RATE_SCREENING_NUMERICAL_FAILURE'
+            : state === 'INTERRUPTED' ? 'FINITE_RATE_SCREENING_INTERRUPTED_EXPLICIT_RETRY_REQUIRED'
+            : 'NOT_RUN_EXPLICIT_CALCULATION_REQUIRED',
+      dependency: primary ? null : physicalSizing.primary?.searchTermination,
       closure: {
-        implementationId: null,
-        version: null,
-        implementationHash: null,
+        implementationId: 'STAGE4_DIAGONAL_FINITE_RATE_SCREENING',
+        version: STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
+        implementationHash: STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH,
       },
     },
     mixingAudit: {
-      ...projection.mixingAudit,
+      ...authority.projection.mixingAudit,
       transferSolution: {
-        status: primary ? 'CALCULATED_CONSERVED_AXIAL_DISPERSION_SCREENING'
-          : 'NOT_EXECUTED_REQUIRED_CLOSURE_MISSING',
+        status: primary ? 'CALCULATED_CONSERVED_AXIAL_DISPERSION_SCREENING' : state,
         detail: primary
           ? 'A rate-based seven-component, two-film, conserved counter-current physical-compartment search was run from the persisted Stage-3 point. No Stage-2 outlet was relabelled as a physical-column outlet.'
-          : 'No physical-compartment search was executed. Dynamic local 7C equilibrium, non-equimolar two-film interface closure, and independent mesh-refinement evidence are required before a physical-column prediction may be reported.',
-        physicalSizingStatus: physicalSizing.status,
+          : state === 'RUNNING'
+            ? 'The bounded finite-rate physical-compartment search is running from the persisted Stage-3 point.'
+            : 'No finite-rate physical-compartment search has been delivered for the current immutable lineage.',
+        physicalSizingStatus: state,
       },
     },
     physicalSizing,
     physicalGeometry: {
-      ...projection.physicalGeometry,
+      ...authority.projection.physicalGeometry,
       equations: [
         'pitch = 0.5 × D',
         'physicalCompartments = first target-compliant integer count from conserved physical transfer-model search',
@@ -387,12 +536,244 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
         'activeHeight = physicalCompartments × pitch',
       ],
     },
-    assumptions: physicalSizing.assumptions,
+    calculation: {
+      status: state,
+      progress: state === 'RUNNING'
+        ? { ...storedProgress, phase: storedProgress.phase ?? 'QUEUED',
+          completedCases: storedProgress.completedCases ?? 0,
+          totalCases: storedProgress.totalCases ?? 2,
+          maximumPhysicalCompartments: authority.solverInput.maximumCompartments }
+        : state === 'INTERRUPTED'
+          ? { ...terminalProgress, phase: 'FAILED',
+            maximumPhysicalCompartments: authority.solverInput.maximumCompartments }
+        : state === 'UNRUN'
+          ? { phase: 'NOT_RUN_EXPLICIT_CALCULATION_REQUIRED', completedCases: 0, totalCases: 2,
+            maximumPhysicalCompartments: authority.solverInput.maximumCompartments }
+          : { ...terminalProgress,
+            maximumPhysicalCompartments: authority.solverInput.maximumCompartments },
+      lineageHash: authority.lineageHash,
+      startedAt: calculation?.started_at ?? null,
+      completedAt: calculation?.completed_at ?? null,
+      errorCode: calculation?.error_code ?? null,
+    },
+    assumptions: physicalSizing.assumptions ?? authority.projection.assumptions,
   };
 }
 
+function expired(calculation: StoredStage4Calculation) {
+  return calculation.status === 'RUNNING'
+    && new Date(calculation.deadline_at).getTime() <= Date.now();
+}
+
+function startLocalFiniteRateRun(
+  authority: Stage4PrePilotSizingAuthority,
+  userId: number,
+  designId: number,
+  attemptToken: string,
+) {
+  const update = (sql: string, params: unknown[]) => pool.query(sql, params);
+  const abort = new AbortController();
+  const task = (async () => {
+    try {
+      const result = await runStage4PredictivePhysicalSizing(authority.solverInput, {
+        // A direct verified inlet flash takes ~79 s on the pinned runtime;
+        // 30 s was an invalid operational cap, not a solver convergence gate.
+        // Each request is still capped and additionally receives only the
+        // remaining whole-solve budget.
+        timeoutMs: 120_000,
+        // This is a whole-solve cap, not a per-child timeout. It remains
+        // inside the persisted ten-minute lease so the solver can return
+        // counted numerical failures and cleanly close both worker sessions.
+        wallClockBudgetMs: 9 * 60_000,
+        abortSignal: abort.signal,
+        onProgress: async progress => {
+          await update(
+            `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+                SET progress_snapshot=$5
+              WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+                AND attempt_token=$4 AND status='RUNNING'`,
+            [userId, designId, authority.lineageHash, attemptToken, progress],
+          );
+        },
+        onNumericalProgress: progress => {
+          // Count/mesh events are advisory progress only; the immutable final
+          // snapshot remains the solver's returned finite-rate evidence.
+          void update(
+            `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+                SET progress_snapshot=$5
+              WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+                AND attempt_token=$4 AND status='RUNNING'`,
+            [userId, designId, authority.lineageHash, attemptToken, progress],
+          );
+        },
+      });
+      assertJsonFinite(result);
+      const unknownCounts = [result.primary, result.sensitivity].some(caseResult =>
+        caseResult.searchTermination.includes('UNKNOWN_NUMERICAL')
+        || caseResult.nonconvergedPhysicalCounts.length > 0);
+      // Global CALCULATED means both disclosed K&H cases produced a valid
+      // target-compliant finite-rate result. A valid primary alone remains
+      // useful diagnostic evidence but cannot be delivered as a complete
+      // sizing result while sensitivity is unresolved or fails.
+      const status = result.primary.selected && result.sensitivity.selected ? 'CALCULATED'
+        : unknownCounts ? 'NUMERICAL_FAILURE' : 'TARGET_FAILURE';
+      await update(
+        `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+            SET status=$5,result_snapshot=$6,progress_snapshot=progress_snapshot || $7::jsonb,
+                error_code=NULL,completed_at=now()
+          WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+            AND attempt_token=$4 AND status='RUNNING'`,
+        [userId, designId, authority.lineageHash, attemptToken, status, result,
+          status === 'NUMERICAL_FAILURE'
+            ? { phase: 'FAILED' }
+            : { phase: 'COMPLETE', completedCases: 2, totalCases: 2 }],
+      );
+    } catch (error) {
+      const errorCode = error instanceof Error ? error.message : 'STAGE4_FINITE_RATE_SOLVER_FAILED';
+      const status = abort.signal.aborted || errorCode === 'STAGE4_FINITE_RATE_SOLVER_RUN_TIMEOUT'
+        ? 'INTERRUPTED' : 'NUMERICAL_FAILURE';
+      await update(
+        `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+            SET status=$5,error_code=$6,
+                progress_snapshot=progress_snapshot || '{"phase":"FAILED"}'::jsonb,
+                completed_at=now()
+          WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+            AND attempt_token=$4 AND status='RUNNING'`,
+        [userId, designId, authority.lineageHash, attemptToken, status, errorCode],
+      );
+    } finally {
+      if (localInflight.get(authority.lineageHash)?.attemptToken === attemptToken) {
+        localInflight.delete(authority.lineageHash);
+      }
+    }
+  })();
+  localInflight.set(authority.lineageHash, { task, abort, attemptToken });
+}
+
 /**
- * The physical solve remains blocked rather than caching or replaying an
- * unjustified frozen-equilibrium approximation.  This endpoint stays read
- * only; it never writes Stage 2 or Stage 3.
+ * Read-only latest result. GET rebuilds authority to reject stale ownership,
+ * targets, or implementation lineage, but never starts a numerical solve.
  */
+export async function getLiveStage4PrePilotSizing(userId: number, designId: number) {
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  const stored = await pool.query<StoredStage4Calculation>(
+    `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+            deadline_at::text,completed_at::text
+       FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+      WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3`,
+    [userId, designId, authority.lineageHash],
+  );
+  const calculation = stored.rows[0] ?? null;
+  if (calculation && expired(calculation) && !localInflight.has(authority.lineageHash)) {
+    calculation.status = 'INTERRUPTED';
+    calculation.error_code = 'STAGE4_FINITE_RATE_SOLVER_RUN_LEASE_EXPIRED_EXPLICIT_RETRY_REQUIRED';
+  }
+  return stage4Response(authority, calculation);
+}
+
+/**
+ * Explicitly starts the bounded finite-rate screening calculation. Scientific
+ * values are intentionally absent from this API; the builder above owns them.
+ */
+export async function calculateStage4PrePilotSizing(userId: number, designId: number) {
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  const lookup = () => pool.query<StoredStage4Calculation>(
+    `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+            deadline_at::text,completed_at::text
+       FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+      WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3`,
+    [userId, designId, authority.lineageHash],
+  );
+  let calculation = (await lookup()).rows[0] ?? null;
+  if (!calculation) {
+    const attemptToken = randomUUID();
+    await pool.query(
+      `INSERT INTO ecr_pre_pilot_stage4_physical_sizing_calculations
+        (design_id,created_by,lineage_hash,stage1_snapshot_hash,stage2_job_id,stage2_result_hash,
+         stage3_run_id,stage3_immutable_hash,targets_hash,implementation_hash,status,attempt_token,deadline_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'RUNNING',$11,now() + interval '10 minutes')
+       ON CONFLICT (created_by,design_id,lineage_hash) DO NOTHING`,
+      [designId, userId, authority.lineageHash, authority.solverInput.stage1SnapshotHash,
+        authority.solverInput.stage2JobId, authority.solverInput.stage2ResultHash,
+        String(authority.solverInput.stage3RunId), authority.solverInput.stage3ImmutableHash,
+        kuhniRunHash(authority.solverInput.stage1Targets), STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH,
+        attemptToken],
+    );
+    calculation = (await lookup()).rows[0] ?? null;
+  }
+  if (calculation?.status === 'RUNNING' && !localInflight.has(authority.lineageHash)
+    && !expired(calculation)) {
+    startLocalFiniteRateRun(authority, userId, designId, calculation.attempt_token);
+  }
+  return stage4Response(authority, calculation);
+}
+
+/**
+ * A failed/expired calculation is never silently rerun. This separate,
+ * empty-payload action makes retry an explicit user decision and atomically
+ * replaces the expired attempt lease before launching a new local worker.
+ */
+export async function retryStage4PrePilotSizing(userId: number, designId: number) {
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  const attemptToken = randomUUID();
+  const restarted = await pool.query<StoredStage4Calculation>(
+    `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+        SET status='RUNNING',result_snapshot=NULL,error_code=NULL,
+            progress_snapshot='{"phase":"QUEUED","completedCases":0,"totalCases":2}'::jsonb,
+            attempt_token=$4,started_at=now(),deadline_at=now() + interval '10 minutes',completed_at=NULL
+      WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+        AND (status IN ('INTERRUPTED','NUMERICAL_FAILURE') OR (status='RUNNING' AND deadline_at <= now()))
+      RETURNING status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+                deadline_at::text,completed_at::text`,
+    [userId, designId, authority.lineageHash, attemptToken],
+  );
+  const calculation = restarted.rows[0] ?? (await pool.query<StoredStage4Calculation>(
+    `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+            deadline_at::text,completed_at::text
+       FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+      WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3`,
+    [userId, designId, authority.lineageHash],
+  )).rows[0] ?? null;
+  if (restarted.rows[0]) {
+    const previous = localInflight.get(authority.lineageHash);
+    previous?.abort.abort();
+    localInflight.delete(authority.lineageHash);
+    startLocalFiniteRateRun(authority, userId, designId, attemptToken);
+  }
+  return stage4Response(authority, calculation);
+}
+
+/** Explicitly interrupts only the current owner's current-lineage attempt. */
+export async function stopStage4PrePilotSizing(userId: number, designId: number) {
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  const observed = await pool.query<StoredStage4Calculation>(
+    `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+            deadline_at::text,completed_at::text
+       FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+      WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3`,
+    [userId, designId, authority.lineageHash],
+  );
+  const calculation = observed.rows[0] ?? null;
+  if (!calculation || calculation.status !== 'RUNNING') {
+    return stage4Response(authority, calculation);
+  }
+  const active = localInflight.get(authority.lineageHash);
+  if (active?.attemptToken === calculation.attempt_token) active.abort.abort();
+  await pool.query(
+    `UPDATE ecr_pre_pilot_stage4_physical_sizing_calculations
+        SET status='INTERRUPTED',
+            error_code='STAGE4_FINITE_RATE_SOLVER_CANCELLED_EXPLICIT_RETRY_REQUIRED',
+            completed_at=now()
+       WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3
+         AND attempt_token=$4 AND status='RUNNING'`,
+    [userId, designId, authority.lineageHash, calculation.attempt_token],
+  );
+  const stored = await pool.query<StoredStage4Calculation>(
+    `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+            deadline_at::text,completed_at::text
+       FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+      WHERE created_by=$1 AND design_id=$2 AND lineage_hash=$3`,
+    [userId, designId, authority.lineageHash],
+  );
+  return stage4Response(authority, stored.rows[0] ?? null);
+}

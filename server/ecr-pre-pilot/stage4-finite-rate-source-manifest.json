@@ -1,0 +1,11 @@
+{
+  "schema": "STAGE4_FINITE_RATE_SOURCE_MANIFEST_V1",
+  "files": {
+    "server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts": "2b1d1e15a10041b89b85e5a8425bb2885a337e427265d9ae6c05a1c8762992eb",
+    "server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts": "4a7a69ed4e24faa7c303dd05ffdd4725efb8c7f349cc2842d1648dd71a3d1d34",
+    "server/ecr-pre-pilot/stage4-mixing-audit.ts": "e4eebab6d80151f78cfd7bdeaf744469a5640ec116b509c4ac9a4304f521e623",
+    "server/ecr-pre-pilot/job-a.ts": "3578f7461d0002e920ecf45fb64aed30cab3c70646c69756bae0b52e51581569",
+    "server/ecr-pre-pilot/job-b-interface.ts": "d658dc79a1d7ae2dd859a9f9cac91c4b4bf2eb056e846179c0d7d51c1339b292",
+    "server/ecr-pre-pilot/stage4-seven-component-adapter.ts": "4f1d035f03e8b5dd814bdd3aeeff4a9ae44f1fb2583ed4e074646ac20add9000"
+  }
+}

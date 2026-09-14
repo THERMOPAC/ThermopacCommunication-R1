@@ -1,8 +1,9 @@
 # Stage 4 pre-pilot mixing audit
 
-This is an engineering screening calculation, not a completed physical-sizing
-or final-design result. No Stage-2/Stage-3 result or Job C data is changed and
-no scientific job is launched. **Every output is PRE-PILOT PREDICTIVE /
+This records the engineering screening basis, not a final-design result.
+The integrated finite-rate solver now runs only on an explicit Stage-4
+calculation action; reading the page does not launch a calculation.
+No Stage-2/Stage-3 result or legacy Job C data is changed. **Every output is PRE-PILOT PREDICTIVE /
 SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN.**
 
 ## Source and notation boundary
@@ -98,3 +99,36 @@ Physical compartment count, active height, overall efficiency, and predicted
 physical-column outlets require a conserved axial-dispersion
 physical-compartment search and are not claimed here. Existing Stage-2
 outlets must not be relabeled as solved Stage-4 physical-column predictions.
+
+## Integrated finite-rate screening model
+
+The implemented column model uses counter-current component balances and
+local seven-component chemical-potential/interface equations. The
+continuous-phase dispersion is represented by shared finite-volume face
+fluxes; dispersed-phase dispersion remains zero. The diagonal two-film
+approximation enforces zero-sum molar-average diffusive flux separately from
+the nonzero Stefan contribution to total interphase transfer.
+
+Frozen hydraulic properties and feed-composition film coefficients are
+screening approximations. They are not experimentally calibrated RRBO/NMP
+mass-transfer performance.
+
+For each physical count starting at accepted Stage-2 \(N_t\), the physical
+height is \(N_{\rm physical}(0.5D)\). Two and four numerical cells per
+physical compartment are independently solved. Admission requires component
+and constitutive closure, nonnegative states, interface qualification, and
+at most 1% supplied-component-scaled outlet difference with unchanged target
+pass/fail decisions. Numerical cells are not hardware compartments.
+
+A target-compliant count is selected only after all lower counts have
+resolved as target failures. An unresolved count terminates that coefficient
+case without a minimum-count claim, preserving time for the other coefficient.
+Efficiency is calculated afterward as \(N_t/N_{\rm physical}\).
+
+The 0.0126 and 0.0105 cases are both required for completed sizing delivery.
+Sizing robustness requires the same integer compartment count and no more
+than 5% relative difference in height and overall efficiency; it is not
+inferred from the change in \(E_c\). A timeout, missing accepted interface
+root, or numerical nonconvergence is an unresolved calculation, not evidence
+that the process is infeasible. Failed and interrupted runs retain their
+diagnostics and require an explicit retry.

@@ -37,6 +37,7 @@ function screeningCase(c: number, values: {
       equation: "Ec/(Vc hc)=screening",
     },
     continuousPecletPerPhysicalCompartment: values.pec,
+    activeHeightPeclet: values.pec * 1.6,
     dispersedPecletPerPhysicalCompartment: {
       value: null,
       status: "INFINITE_ZERO_DISPERSION_LIMIT_ED_ZERO",
@@ -111,6 +112,16 @@ function resultFixture() {
         outlet: [1, 2, 3, 4, 5, 6, 7],
         termination: "FIRST_TARGET_COMPLIANT_CONSERVED_PHYSICAL_COUNT",
       }),
+      meshVerification: {
+        status: "VERIFIED",
+        levels: 3,
+        refinement: "INDEPENDENT_AXIAL_MESH_REFINEMENT_PASS",
+        activeHeightPeclet: 0.848,
+      },
+      perCountProgress: [
+        { count: 3, status: "TARGET_NOT_MET", activeHeightM: 1.2, activeHeightPeclet: 0.636, message: "Recovery below target" },
+        { count: 4, status: "CALCULATED", activeHeightM: 1.6, activeHeightPeclet: 0.848, message: "All targets passed" },
+      ],
       sensitivity: screeningCase(0.0105, {
         ec: 0.0013,
         pec: 0.61,
@@ -262,6 +273,12 @@ it("renders backend-owned Ec, Pec, physical sizing, outlets, and sensitivity", (
   expect(text).toContain("0.61");
   expect(text).toContain("Physical count");
   expect(text).toContain("Active H [m]");
+  expect(text).toContain("Pe_c / active height");
+  expect(text).toContain("Numerical verification and count progress");
+  expect(text).toContain("INDEPENDENT_AXIAL_MESH_REFINEMENT_PASS");
+  expect(text).toContain("TARGET_NOT_MET");
+  expect(text).toContain("All targets passed");
+  expect(text).toContain("CALCULATED");
   expect(text).toContain("ηoverall");
   expect(text).toContain("Persisted diameter 0.8 m");
   expect(text).toContain("Rotor diameter DR 0.4 m");

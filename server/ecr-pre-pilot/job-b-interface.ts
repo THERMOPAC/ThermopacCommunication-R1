@@ -308,6 +308,103 @@ export function solveSevenComponentTwoFilmInterface(
   );
 }
 
+/** Serialized persistent worker for the many local interface closures in one
+ * Stage-4 column solve. The exact same manifest/reply guards used by invoke()
+ * are applied; persistence changes process amortization only. */
+export interface JobBInterfaceSession {
+  solve(request: JobBInterfaceRequest, timeoutMs?: number): Promise<JobBInterfaceResponse>;
+  close(): void;
+}
+export function createSevenComponentTwoFilmInterfaceSession(
+  options?: { timeoutMs?: number },
+): JobBInterfaceSession {
+  const root = runtimeRoot();
+  const manifest = verifyManifest(root);
+  const adapterRoot = stage4AdapterRoot(root, manifest);
+  const worker = checkedFile(root, 'server/ecr-pre-pilot/job-b-interface/worker.py');
+  const python = process.env.JOB_B_INTERFACE_PYTHON
+    ?? process.env.STAGE4_EQUILIBRIUM_ADAPTER_PYTHON ?? 'python3.12';
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of [
+    'PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'NIX_LD', 'NIX_LD_LIBRARY_PATH',
+    'LOCALE_ARCHIVE', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TMPDIR',
+  ]) if (process.env[key] !== undefined) env[key] = process.env[key];
+  Object.assign(env, {
+    PYTHONDONTWRITEBYTECODE: '1', PYTHONUNBUFFERED: '1',
+    JOB_B_INTERFACE_PROTOCOL,
+    JOB_B_INTERFACE_RUNTIME_ROOT: root,
+    STAGE4_EQUILIBRIUM_ADAPTER_PROTOCOL: 'ECR_STAGE4_SEVEN_COMPONENT_ADAPTER_V1',
+    STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT: adapterRoot,
+    STAGE4_EQUILIBRIUM_BASE_RUNTIME_ROOT: process.env.STAGE4_EQUILIBRIUM_BASE_RUNTIME_ROOT
+      ?? path.resolve(adapterRoot, '../predictive-nt-runtime-7c-1-5'),
+  });
+  const child = spawn(python, [worker], { cwd: root, env, stdio: ['pipe', 'pipe', 'pipe'] });
+  const timeoutMs = options?.timeoutMs ?? 120_000;
+  let closed = false, stdout = '';
+  type Pending = {
+    resolve: (value: JobBInterfaceResponse) => void; reject: (error: Error) => void;
+    timer: NodeJS.Timeout;
+  };
+  const pending: Pending[] = [];
+  const failAll = (error: Error) => {
+    while (pending.length) {
+      const value = pending.shift()!;
+      clearTimeout(value.timer);
+      value.reject(error);
+    }
+  };
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk: string) => {
+    stdout += chunk;
+    let next = stdout.indexOf('\n');
+    while (next >= 0) {
+      const line = stdout.slice(0, next).trim();
+      stdout = stdout.slice(next + 1);
+      const request = pending.shift();
+      if (!request || !line) {
+        closed = true; child.kill('SIGKILL');
+        failAll(new Error('JOB_B_INTERFACE_PROTOCOL_FRAMING_INVALID'));
+        return;
+      }
+      clearTimeout(request.timer);
+      try {
+        request.resolve(validateResponse(JSON.parse(line), manifest));
+      } catch (error) {
+        request.reject(error instanceof Error ? error : new Error('JOB_B_INTERFACE_RESPONSE_INVALID'));
+      }
+      next = stdout.indexOf('\n');
+    }
+  });
+  child.stderr.resume();
+  child.on('error', () => { closed = true; failAll(new Error('JOB_B_INTERFACE_PROCESS_START_FAILED')); });
+  child.on('close', () => {
+    if (!closed) { closed = true; failAll(new Error('JOB_B_INTERFACE_PROCESS_FAILED')); }
+  });
+  return {
+    solve(request, requestTimeoutMs = timeoutMs) {
+      if (closed) return Promise.reject(new Error('JOB_B_INTERFACE_SESSION_CLOSED'));
+      return new Promise<JobBInterfaceResponse>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const index = pending.findIndex(item => item.resolve === resolve);
+          if (index >= 0) pending.splice(index, 1);
+          closed = true; child.kill('SIGKILL');
+          reject(new Error('JOB_B_INTERFACE_TIMEOUT'));
+          failAll(new Error('JOB_B_INTERFACE_TIMEOUT'));
+        }, requestTimeoutMs);
+        pending.push({ resolve, reject, timer });
+        child.stdin.write(`${JSON.stringify({
+          protocol: JOB_B_INTERFACE_PROTOCOL, operation: 'SOLVE_INTERFACE', ...request,
+        })}\n`);
+      });
+    },
+    close() {
+      if (closed) return;
+      closed = true; child.kill('SIGKILL');
+      failAll(new Error('JOB_B_INTERFACE_SESSION_CLOSED'));
+    },
+  };
+}
+
 export function preflightSevenComponentTwoFilmInterface(
   options?: { timeoutMs?: number },
 ) {

@@ -1,14 +1,20 @@
 import { createHash } from 'node:crypto';
+import sourceManifest from './stage4-finite-rate-source-manifest.json';
 import {
   evaluateJobA,
   JOB_A_COMPONENT_ORDER,
   JOB_A_IMPLEMENTATION_SHA256,
 } from './job-a';
 import {
-  evaluateSevenComponentLocalEquilibrium,
+  createSevenComponentLocalEquilibriumSession,
   STAGE4_SEVEN_COMPONENT_ADAPTER_VERSION,
 } from './stage4-seven-component-adapter';
 import { calculateKumarHartlandEcDetails } from './stage4-mixing-audit';
+import {
+  createSevenComponentTwoFilmInterfaceSession,
+  type JobBInterfaceRequest,
+  type JobBInterfaceResponse,
+} from './job-b-interface';
 
 /**
  * A deliberately small, rate-based Stage-4 calculation.  It is not a
@@ -17,13 +23,16 @@ import { calculateKumarHartlandEcDetails } from './stage4-mixing-audit';
  * reported.  No Stage-2 outlet is used as a physical-column outlet or target.
  */
 export const STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION =
-  'ECR_STAGE4_PREDICTIVE_PHYSICAL_SIZING_V1' as const;
+  'ECR_STAGE4_PREDICTIVE_PHYSICAL_SIZING_V2' as const;
 export const STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH = createHash('sha256').update([
   STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
-  'seven-component-local-equilibrium-secants',
+  'dynamically-updated-pinned-seven-component-local-equilibrium',
   'job-a-two-film-coefficients',
-  'conserved-counter-current-finite-volume-axial-dispersion',
+  'non-equimolar-conserved-counter-current-finite-volume-axial-dispersion',
+  'independent-fv-refinement-two-and-four-cells-per-physical-compartment',
+  'molar-average-diagonal-generalized-fick-screening-frame',
   'kh-screening-ec-ed-zero-c0126-c0105',
+  JSON.stringify(sourceManifest),
 ].join('|')).digest('hex');
 
 const MW = [170.3348, 120.1916, 142.1971, 202.2506, 405.58, 99.1311, 18.01528];
@@ -39,23 +48,6 @@ const normalize = (values: number[]) => {
   }
   return values.map(value => value / total);
 };
-const maximum = (values: number[]) => Math.max(...values.map(Math.abs));
-
-/** Thomas solve for the implicit finite-volume continuous-phase equations. */
-function solveTridiagonal(lower: number[], diagonal: number[], upper: number[], rhs: number[]) {
-  const n = rhs.length;
-  const d = [...diagonal], b = [...rhs], u = [...upper], l = [...lower];
-  for (let row = 1; row < n; row += 1) {
-    const factor = l[row] / d[row - 1];
-    d[row] -= factor * u[row - 1];
-    b[row] -= factor * b[row - 1];
-  }
-  const x = Array(n).fill(0);
-  x[n - 1] = b[n - 1] / d[n - 1];
-  for (let row = n - 2; row >= 0; row -= 1) x[row] = (b[row] - u[row] * x[row + 1]) / d[row];
-  if (x.some(value => !finite(value))) throw new Error('STAGE4_IMPLICIT_AXIAL_DISPERSION_SOLVE_FAILED');
-  return x;
-}
 
 export type Stage4ScreeningProcessBasis = {
   temperatureK: number;
@@ -85,7 +77,8 @@ type Flash = {
 type FlashEvaluator = (request: {
   temperatureK: number; componentMolarInventory: number[];
   componentOrder: [...typeof JOB_A_COMPONENT_ORDER];
-}) => Promise<Flash>;
+}, timeoutMs?: number) => Promise<Flash>;
+type InterfaceEvaluator = (request: JobBInterfaceRequest, timeoutMs?: number) => Promise<JobBInterfaceResponse>;
 
 export type Stage4PhysicalSizingInput = {
   calculatedNt: number;
@@ -102,6 +95,14 @@ export type Stage4PhysicalSizingInput = {
   hydraulics: Stage4ScreeningHydraulics;
   stage1Targets: Record<string, unknown>;
   maximumCompartments?: number;
+};
+export type Stage4PhysicalSizingProgress = {
+  caseCoefficient: 0.0126 | 0.0105;
+  physicalCompartments: number;
+  finiteVolumeCellsPerPhysicalCompartment: 2 | 4;
+  state: 'STARTED' | 'CONVERGED' | 'NUMERICAL_FAILURE';
+  localFlashCalls: number;
+  reason: string | null;
 };
 
 export function calculateKumarHartlandScreeningDispersion(input: {
@@ -244,8 +245,67 @@ export function evaluateStage4ProductTargets(outletOil: number[], oilFeed: numbe
   };
 }
 
+type LocalFlash = {
+  continuousEquilibriumComposition: number[];
+  dispersedEquilibriumComposition: number[];
+  resultHash: string | null;
+};
+type MeshSolve = {
+  converged: boolean;
+  reason: string | null;
+  iterations: number;
+  localFlashCalls: number;
+  continuousOutlet: number[];
+  dispersedOutlet: number[];
+  transfer: number[][];
+  maxScaledUpdateResidual: number | null;
+  maxScaledConstitutiveResidual: number | null;
+  maxScaledComponentBalanceResidual: number | null;
+  maxAxialResidualMolS: number | null;
+  maxDiffusiveFrameResidualMolS: number | null;
+  maxFilmEqualityResidualMolS: number | null;
+  maxStefanIdentityResidualMolS: number | null;
+};
+
+/** Component residual scale is the total supplied inventory of that component,
+ * not the phase that happens to be indexed by the residual vector. */
+const scaledMaximum = (values: number[], componentSupplyScale: number[]) =>
+  Math.max(...values.map((value, index) =>
+    Math.abs(value) / componentSupplyScale[index % componentSupplyScale.length]));
+
+function validateLocalFlash(flash: Flash, continuousIsExtract: boolean): LocalFlash {
+  if (flash.status !== 'CALCULATED' || flash.phaseOrientation !== 'NMP_RICH_EXTRACT'
+    || !Array.isArray(flash.raffinateComposition) || !Array.isArray(flash.extractComposition)
+    || flash.raffinateComposition.length !== 7 || flash.extractComposition.length !== 7) {
+    throw new Error(`STAGE4_PINNED_7C_LOCAL_EQUILIBRIUM_UNAVAILABLE:${flash.status}`);
+  }
+  const continuousEquilibriumComposition = continuousIsExtract
+    ? flash.extractComposition : flash.raffinateComposition;
+  const dispersedEquilibriumComposition = continuousIsExtract
+    ? flash.raffinateComposition : flash.extractComposition;
+  if (![...continuousEquilibriumComposition, ...dispersedEquilibriumComposition]
+    .every(positive)) throw new Error('STAGE4_LOCAL_EQUILIBRIUM_COMPOSITION_INVALID');
+  return {
+    continuousEquilibriumComposition,
+    dispersedEquilibriumComposition,
+    resultHash: typeof flash.resultHash === 'string' ? flash.resultHash : null,
+  };
+}
+
 async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
-  flashEvaluator: FlashEvaluator) {
+  flashEvaluator: FlashEvaluator, interfaceEvaluator: InterfaceEvaluator,
+  controls: {
+    deadlineMs: number; operationTimeoutMs: number; cancelled: () => boolean;
+    progress?: (event: Stage4PhysicalSizingProgress) => void;
+  }) {
+  const remainingOperationMs = () => Math.max(1, Math.min(
+    controls.operationTimeoutMs, controls.deadlineMs - Date.now(),
+  ));
+  if (controls.cancelled() || Date.now() > controls.deadlineMs) {
+    throw new Error(controls.cancelled()
+      ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
+      : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
+  }
   const { processBasis: basis, hydraulics } = input;
   const feed = feeds(basis);
   const continuousPhase = basis.phaseConfiguration === 'nmp-continuous-rrbo-dispersed'
@@ -260,21 +320,12 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     continuousViscosityPaS: continuousPhase.dynamicViscosityPaS,
   });
   const total = feed.continuous.map((value, i) => value + feed.dispersed[i]);
-  const flash = await flashEvaluator({
+  // This first flash is only adapter/provenance binding and the base-film
+  // composition. It is never retained as an equilibrium partition closure.
+  const inletFlash = validateLocalFlash(await flashEvaluator({
     temperatureK: basis.temperatureK, componentMolarInventory: total,
     componentOrder: [...JOB_A_COMPONENT_ORDER],
-  });
-  if (flash.status !== 'CALCULATED' || flash.phaseOrientation !== 'NMP_RICH_EXTRACT'
-    || !Array.isArray(flash.raffinateComposition) || !Array.isArray(flash.extractComposition)
-    || flash.raffinateComposition.length !== 7 || flash.extractComposition.length !== 7) {
-    throw new Error(`STAGE4_PINNED_7C_LOCAL_EQUILIBRIUM_UNAVAILABLE:${flash.status}`);
-  }
-  const eqC = feed.continuousIsExtract ? flash.extractComposition : flash.raffinateComposition;
-  const eqD = feed.continuousIsExtract ? flash.raffinateComposition : flash.extractComposition;
-  // The equilibrium secant is defined consistently as xC* = m xD*.
-  // That convention makes the two-film driving force xC - m xD.
-  const m = eqC.map((value, i) => value / eqD[i]);
-  if (![...eqC, ...eqD, ...m].every(positive)) throw new Error('STAGE4_EQUILIBRIUM_SECANT_INVALID');
+  }, remainingOperationMs()), feed.continuousIsExtract);
   const localComposition = normalize(feed.continuous);
   const jobA = evaluateJobA({
     stage1SnapshotHash: input.stage1SnapshotHash, theoreticalStages: input.calculatedNt,
@@ -283,8 +334,8 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     // The validated adapter response is the runtime integrity evidence used
     // here.  This field is an immutable adapter binding, not a second worker
     // launch merely to obtain a redundant preflight response.
-    thermodynamicAdapterPreflightHash: typeof flash.resultHash === 'string'
-      ? flash.resultHash : hash(`PINNED_7C_ADAPTER:${STAGE4_SEVEN_COMPONENT_ADAPTER_VERSION}`),
+    thermodynamicAdapterPreflightHash: inletFlash.resultHash
+      ?? hash(`PINNED_7C_ADAPTER:${STAGE4_SEVEN_COMPONENT_ADAPTER_VERSION}`),
     stage3RunId: String(input.stage3RunId), stage3ImmutableHash: input.stage3ImmutableHash,
     stage3ImplementationHash: input.stage3ImplementationHash, selectedTrialId: input.selectedTrialId,
     selectedTrialOrdinal: input.selectedTrialOrdinal, temperatureK: basis.temperatureK,
@@ -307,14 +358,6 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
   const dTot = dispersedPhase.densityKgM3 / (normalize(feed.dispersed)
     .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
-  // xC*=m xD*.  Eliminating the interface compositions from
-  // kc Cc(xC-xC*)=kd Cd(xD*-xD) gives
-  // N=Kc Cc(xC-m xD), with 1/Kc=1/kc+m Cc/(kd Cd).
-  const Kc = kc.map((value, i) => calculateTwoFilmContinuousFlux({
-    kcMPerS: value, kdMPerS: kd[i], continuousTotalConcentrationMolM3: cTot,
-    dispersedTotalConcentrationMolM3: dTot, partitionXCOverXD: m[i],
-    continuousMoleFraction: 0, dispersedMoleFraction: 0,
-  }).kocMPerS);
   const max = input.maximumCompartments ?? 80;
   if (!Number.isInteger(max) || max < input.calculatedNt) {
     throw new Error('STAGE4_PHYSICAL_COUNT_BOUND_BELOW_ACCEPTED_NT');
@@ -326,15 +369,18 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     dispersedPecletPerPhysicalCompartment: {
       value: null, status: 'INFINITE_ZERO_DISPERSION_LIMIT_ED_ZERO',
     },
-    equilibrium: { adapterResultHash: flash.resultHash ?? null,
-      continuousEquilibriumComposition: eqC, dispersedEquilibriumComposition: eqD, secantM: m },
+    equilibrium: {
+      localClosure: 'PINNED_7C_FLASH_REEVALUATED_FROM_EACH_CURRENT_LOCAL_COUNTERCURRENT_STATE',
+      inletAdapterResultHash: inletFlash.resultHash,
+    },
     jobA: { implementationSha256: JOB_A_IMPLEMENTATION_SHA256, resultSha256: jobA.resultSha256 },
     twoFilm: {
-      continuousOverallCoefficientKocMPerS: Kc,
       continuousFilmCoefficientKcMPerS: kc,
       dispersedFilmCoefficientKdMPerS: kd,
-      concentrationConvention: 'Koc is continuous-phase coefficient in N_i=Koc_i*Ctot,c*(xC_i-m_i*xD_i); Ctot=phase density / phase-average molecular weight.',
-      partitionConvention: 'm_i=xC_i,eq/xD_i,eq; equilibrium driving force is xC_i-m_i*xD_i.',
+      constitutiveClosure: 'Job-B 13-unknown interface root: six continuous and six dispersed interface logits plus total Stefan molar flux; seven pinned-7C isoactivity equations and six independent component-flux equality equations.',
+      rateEquations: 'rCi=kc_i CtC(xCb_i-xCi_i); JCi=rCi-xCi_i sum(rC); rDi=kd_i CtD(xDi_i-xDb_i); JDi=rDi-xDi_i sum(rD); Ni=JCi+xCi_i N=JDi+xDi_i N.',
+      concentrationConvention: 'CtC and CtD are locally recomputed as frozen phase density divided by local phase-average molecular weight. Job-A kc/kd remain frozen from the persisted Stage-3 hydraulic state.',
+      referenceFrame: 'Screening diagonal generalized-Fick two-film closure. J is zero-sum only in the molar-average diffusive frame; total interphase N_i retains its Stefan/convective sum and can change phase total molar flow.',
       orientation: feed.continuousIsExtract
         ? 'continuous=NMP-rich extract; dispersed=raffinate'
         : 'continuous=raffinate; dispersed=NMP-rich extract',
@@ -342,112 +388,336 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     selected: null as any, attemptedPhysicalCompartments: [] as number[],
     maximumPhysicalCompartmentsSearched: max,
     nonconvergedPhysicalCounts: [] as number[],
+    physicalCountOutcomes: [] as Array<{
+      physicalCompartments: number;
+      status: 'TARGET_PASS' | 'TARGET_FAIL' | 'NUMERICAL_UNRESOLVED';
+      reason: string | null;
+    }>,
     lastConservedPhysicalTrial: null as any,
+    meshRefinement: {
+      coarseFiniteVolumeCellsPerPhysicalCompartment: 2,
+      refinedFiniteVolumeCellsPerPhysicalCompartment: 4,
+      acceptanceRelativeOutletDifference: .01,
+    },
     searchTermination: null as string | null,
   };
-  // A physical compartment cannot represent more than one accepted
-  // theoretical stage in this reported overall-efficiency convention.
-  // Starting below Nt could produce eta>1, which is a physical-consistency
-  // failure rather than an attractive smaller design.
+  const solveMesh = async (physicalCompartments: number, cellsPerPhysicalCompartment: number):
+    Promise<MeshSolve> => {
+    const cells = physicalCompartments * cellsPerPhysicalCompartment;
+    const dz = pitch / cellsPerPhysicalCompartment;
+    const interfacialArea = a * area * dz;
+    const dispersionConductance = dispersion.valueM2S * area * cTot / dz;
+    const feedScale = feed.continuous.map((value, index) =>
+      Math.max(value + feed.dispersed[index], 1e-12));
+    let transfer = Array.from({ length: cells }, () => Array(7).fill(0));
+    let latestFrame = 0;
+    let latestFilmEquality = 0;
+    let latestStefanIdentity = 0;
+    let flashCalls = 0;
+    const maxIterations = 80;
+    const relativeTolerance = 2e-6;
+    for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+      if (Date.now() > controls.deadlineMs || controls.cancelled()) {
+        return { converged: false,
+          reason: controls.cancelled() ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED' : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
+          iterations: iteration,
+          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+          maxStefanIdentityResidualMolS: null };
+      }
+      latestFrame = 0;
+      latestFilmEquality = 0;
+      latestStefanIdentity = 0;
+      const faces = Array.from({ length: cells + 1 }, () => Array(7).fill(0));
+      faces[0] = [...feed.continuous];
+      for (let j = 0; j < cells; j += 1) {
+        faces[j + 1] = faces[j].map((value, i) => value - transfer[j][i]);
+      }
+      const qFaces = faces.map(row => row.reduce((sum, value) => sum + value, 0));
+      if (faces.flat().some(value => !finite(value) || value < -1e-11)
+        || qFaces.some(value => !positive(value))) {
+        return { converged: false, reason: 'NONNEGATIVE_CONTINUOUS_FACE_GATE_FAILED', iterations: iteration,
+          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+          maxStefanIdentityResidualMolS: null };
+      }
+      // With known face component fluxes, the continuous implicit FV equation
+      // is marched from the zero-diffusive-flux outlet. This is algebraically
+      // equivalent to a tridiagonal solve but preserves the component flux
+      // exactly even when the total continuous molar flow changes.
+      const xc = Array.from({ length: cells }, () => Array(7).fill(0));
+      xc[cells - 1] = faces[cells].map((value, i) => value / qFaces[cells]);
+      for (let j = cells - 2; j >= 0; j -= 1) {
+        xc[j] = faces[j + 1].map((value, i) =>
+          (value + dispersionConductance * xc[j + 1][i])
+          / (qFaces[j + 1] + dispersionConductance));
+      }
+      const dIn = Array.from({ length: cells }, () => Array(7).fill(0));
+      const dOut = Array.from({ length: cells }, () => Array(7).fill(0));
+      let dispersed = [...feed.dispersed];
+      for (let j = cells - 1; j >= 0; j -= 1) {
+        dIn[j] = [...dispersed];
+        dispersed = dispersed.map((value, i) => value + transfer[j][i]);
+        dOut[j] = [...dispersed];
+      }
+      if ([...xc.flat(), ...dIn.flat(), ...dOut.flat()].some(value => !finite(value) || value < -1e-11)) {
+        return { converged: false, reason: 'NONNEGATIVE_LOCAL_PHASE_STATE_GATE_FAILED', iterations: iteration,
+          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+          maxStefanIdentityResidualMolS: null };
+      }
+      const proposed: number[][] = [];
+      try {
+        for (let j = 0; j < cells; j += 1) {
+          const dInventory = dIn[j].map((value, i) => .5 * (value + dOut[j][i]));
+          const xD = normalize(dInventory);
+          const localCtC = continuousPhase.densityKgM3 / (xc[j]
+            .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
+          const localCtD = dispersedPhase.densityKgM3 / (xD
+            .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
+          if (controls.cancelled() || Date.now() > controls.deadlineMs) {
+            throw new Error(controls.cancelled()
+              ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
+              : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
+          }
+          const interfaceResult = await interfaceEvaluator({
+            componentOrder: [...JOB_A_COMPONENT_ORDER], T: basis.temperatureK,
+            x_bulk_continuous: xc[j], x_bulk_dispersed: xD, kc, kd,
+            CtC: localCtC, CtD: localCtD, phase_config: basis.phaseConfiguration as any,
+          }, remainingOperationMs());
+          if (interfaceResult.status !== 'CALCULATED_PRELIMINARY_INTERFACE'
+            || !interfaceResult.interface
+            || interfaceResult.interface.continuousComponentFluxMolM2S.length !== 7) {
+            throw new Error(`STAGE4_JOB_B_INTERFACE_UNAVAILABLE:${interfaceResult.status}`);
+          }
+          const raw = interfaceResult.interface.continuousComponentFluxMolM2S
+            .map(value => value * interfacialArea);
+          const equality = interfaceResult.interface.fluxEqualityResidualMolM2S;
+          if (equality.length !== 7 || equality.some(value => !finite(value))
+            || !finite(interfaceResult.interface.totalMolarFluxMolM2S)) {
+            throw new Error('STAGE4_JOB_B_INTERFACE_FILM_CLOSURE_INVALID');
+          }
+          latestFilmEquality = Math.max(latestFilmEquality,
+            ...equality.map(value => Math.abs(value) * interfacialArea));
+          latestStefanIdentity = Math.max(latestStefanIdentity, Math.abs(
+            raw.reduce((sum, value) => sum + value, 0)
+            - interfaceResult.interface.totalMolarFluxMolM2S * interfacialArea,
+          ));
+          // In the allowed molar-average generalized-Fick screening frame, the
+          // diffusive part sums to zero. Its non-zero total transfer is kept as
+          // Stefan/convective phase transfer, never discarded by forcing it to
+          // zero as the earlier diagnostic implementation did.
+          const diffusive = interfaceResult.interface.continuousDiffusiveFluxMolM2S;
+          if (diffusive.length !== 7 || diffusive.some(value => !finite(value))) {
+            throw new Error('STAGE4_JOB_B_INTERFACE_DIFFUSIVE_FRAME_INVALID');
+          }
+          latestFrame = Math.max(latestFrame,
+            Math.abs(diffusive.reduce((sum, value) => sum + value, 0)) * interfacialArea);
+          proposed.push(raw);
+        }
+      } catch (error) {
+        return { converged: false, reason: error instanceof Error ? error.message : 'LOCAL_EQUILIBRIUM_FAILURE',
+          iterations: iteration + 1, localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+          maxStefanIdentityResidualMolS: null };
+      }
+      // A bounded line search maintains non-negative face and countercurrent
+      // dispersed flows; it is numerical damping, not a transfer limiter.
+      let relaxation = .20;
+      const feasible = (candidate: number[][]) => {
+        const c = [...feed.continuous], d = [...feed.dispersed];
+        for (let j = 0; j < cells; j += 1) {
+          for (let i = 0; i < 7; i += 1) c[i] -= candidate[j][i];
+          if (c.some(value => value < -1e-12 || !finite(value))) return false;
+        }
+        for (let j = cells - 1; j >= 0; j -= 1) {
+          for (let i = 0; i < 7; i += 1) d[i] += candidate[j][i];
+          if (d.some(value => value < -1e-12 || !finite(value))) return false;
+        }
+        return [...c, ...d].every(value => value >= -1e-12 && finite(value));
+      };
+      let next = transfer.map((row, j) => row.map((value, i) =>
+        value + relaxation * (proposed[j][i] - value)));
+      while (!feasible(next) && relaxation > 1e-10) {
+        relaxation /= 2;
+        next = transfer.map((row, j) => row.map((value, i) =>
+          value + relaxation * (proposed[j][i] - value)));
+      }
+      if (!feasible(next)) {
+        return { converged: false, reason: 'NONNEGATIVE_LINE_SEARCH_EXHAUSTED', iterations: iteration + 1,
+          localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+          maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+          maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+          maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+          maxStefanIdentityResidualMolS: null };
+      }
+      const update = scaledMaximum(next.flatMap((row, j) => row.map((value, i) =>
+        value - transfer[j][i])), feedScale);
+      if (update <= relativeTolerance) {
+        // `proposed` was evaluated from the *current* reconstructed faces and
+        // local interface roots. Qualify that same state; returning `next`
+        // would otherwise pair outlets with stale constitutive evaluations.
+        const continuousOutlet = feed.continuous.map((value, i) =>
+          value - transfer.reduce((sum, row) => sum + row[i], 0));
+        const dispersedOutlet = feed.dispersed.map((value, i) =>
+          value + transfer.reduce((sum, row) => sum + row[i], 0));
+        const constitutive = scaledMaximum(transfer.flatMap((row, j) =>
+          row.map((value, i) => value - proposed[j][i])), feedScale);
+        const axial = Math.max(...transfer.flatMap((row, j) => row.map((value, i) =>
+          faces[j][i] - faces[j + 1][i] - value).map(Math.abs)));
+        const balance = scaledMaximum(continuousOutlet.map((value, i) =>
+          feed.continuous[i] + feed.dispersed[i] - value - dispersedOutlet[i]), feedScale);
+        // Job-B has solved local chemical-potential/interface stability during
+        // every iteration. Independently admit the converged bulk state using
+        // the pinned flash once per FV cell, with liquid holdup inventory
+        // rather than a throughput surrogate.
+        try {
+          for (let j = 0; j < cells; j += 1) {
+            const xD = normalize(dIn[j].map((value, i) => .5 * (value + dOut[j][i])));
+            const localCtC = continuousPhase.densityKgM3 / (xc[j]
+              .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
+            const localCtD = dispersedPhase.densityKgM3 / (xD
+              .reduce((sum, fraction, i) => sum + fraction * MW[i], 0) / 1000);
+            const inventory = xc[j].map((fraction, i) =>
+              (1 - hydraulics.operatingHoldup) * area * dz * localCtC * fraction
+              + hydraulics.operatingHoldup * area * dz * localCtD * xD[i]);
+            if (controls.cancelled() || Date.now() > controls.deadlineMs) {
+              throw new Error(controls.cancelled()
+                ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
+                : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
+            }
+            validateLocalFlash(await flashEvaluator({
+              temperatureK: basis.temperatureK, componentMolarInventory: inventory,
+              componentOrder: [...JOB_A_COMPONENT_ORDER],
+            }, remainingOperationMs()), feed.continuousIsExtract);
+            flashCalls += 1;
+          }
+        } catch (error) {
+          return { converged: false, reason: error instanceof Error ? error.message : 'FINAL_LOCAL_LLE_QUALIFICATION_FAILED',
+            iterations: iteration + 1, localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+            maxScaledUpdateResidual: update, maxScaledConstitutiveResidual: constitutive,
+            maxScaledComponentBalanceResidual: balance, maxAxialResidualMolS: axial,
+            maxDiffusiveFrameResidualMolS: latestFrame,
+            maxFilmEqualityResidualMolS: latestFilmEquality,
+            maxStefanIdentityResidualMolS: latestStefanIdentity };
+        }
+        return { converged: constitutive <= 1e-5 && balance <= 1e-10,
+          reason: constitutive <= 1e-5 && balance <= 1e-10 ? null
+            : `FINAL_SCALED_RESIDUAL_GATE_FAILED:${constitutive}:${balance}`,
+          iterations: iteration + 1, localFlashCalls: flashCalls, continuousOutlet, dispersedOutlet, transfer,
+          maxScaledUpdateResidual: update, maxScaledConstitutiveResidual: constitutive,
+          maxScaledComponentBalanceResidual: balance, maxAxialResidualMolS: axial,
+          maxDiffusiveFrameResidualMolS: latestFrame,
+          maxFilmEqualityResidualMolS: latestFilmEquality,
+          maxStefanIdentityResidualMolS: latestStefanIdentity };
+      }
+      transfer = next;
+    }
+    return { converged: false, reason: 'COUNTERCURRENT_NONLINEAR_ITERATION_LIMIT', iterations: maxIterations,
+      localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
+      maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
+      maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
+      maxDiffusiveFrameResidualMolS: null, maxFilmEqualityResidualMolS: null,
+      maxStefanIdentityResidualMolS: null };
+  };
+
+  // N is physical hardware. The finite-volume resolution below is deliberately
+  // independent (2 then 4 axial cells per physical compartment).
+  let lowerCountUnresolved = false;
   for (let count = input.calculatedNt; count <= max; count += 1) {
     result.attemptedPhysicalCompartments.push(count);
-    let transfer = Array.from({ length: count }, () => Array(7).fill(0));
-    let converged = false;
-    let finalContinuous: number[][] = [];
-    const qContinuous = feed.continuous.reduce((sum, value) => sum + value, 0);
-    const faceConductance = dispersion.valueM2S * area * cTot / pitch;
-    for (let iteration = 0; iteration < 2_000; iteration += 1) {
-      // These equations are solved implicitly, component-by-component, on
-      // one shared set of faces.  At the inlet the total component flux is
-      // Qc*xFeed (Danckwerts); at the outlet the diffusive face flux is zero.
-      const xc = Array.from({ length: count }, () => Array(7).fill(0));
-      try {
-        for (let component = 0; component < 7; component += 1) {
-          if (count === 1) {
-            xc[0][component] = (qContinuous * normalize(feed.continuous)[component]
-              - transfer[0][component]) / qContinuous;
-            continue;
-          }
-          const lower = Array(count).fill(0);
-          const diagonal = Array(count).fill(qContinuous + 2 * faceConductance);
-          const upper = Array(count).fill(-faceConductance);
-          const rhs = Array(count).fill(0);
-          diagonal[0] = qContinuous + faceConductance;
-          rhs[0] = qContinuous * normalize(feed.continuous)[component] - transfer[0][component];
-          for (let j = 1; j < count - 1; j += 1) {
-            lower[j] = -(qContinuous + faceConductance);
-            rhs[j] = -transfer[j][component];
-          }
-          // Last cell: zero diffusive flux at the outlet face.
-          lower[count - 1] = -(qContinuous + faceConductance);
-          diagonal[count - 1] = qContinuous + faceConductance;
-          rhs[count - 1] = -transfer[count - 1][component];
-          const solved = solveTridiagonal(lower, diagonal, upper, rhs);
-          solved.forEach((value, j) => { xc[j][component] = value; });
-        }
-      } catch {
-        break;
-      }
-      const xd = Array.from({ length: count }, () => Array(7).fill(0));
-      let dispersed = [...feed.dispersed];
-      for (let j = count - 1; j >= 0; j -= 1) {
-        xd[j] = dispersed.map((value, i) => value + .5 * transfer[j][i]);
-        dispersed = dispersed.map((value, i) => value + transfer[j][i]);
-      }
-      if ([...xc.flat(), ...xd.flat()].some(value => !finite(value) || value < -1e-12)) break;
-      const proposedTransfer = xc.map((continuous, j) => {
-        const xContinuous = normalize(continuous);
-        const xDispersed = normalize(xd[j]);
-        const raw = Kc.map((_coefficient, i) => a * area * pitch
-          * calculateTwoFilmContinuousFlux({
-            kcMPerS: kc[i], kdMPerS: kd[i], continuousTotalConcentrationMolM3: cTot,
-            dispersedTotalConcentrationMolM3: dTot, partitionXCOverXD: m[i],
-            continuousMoleFraction: xContinuous[i], dispersedMoleFraction: xDispersed[i],
-          }).fluxMolM2S);
-        const totalRaw = raw.reduce((sum, value) => sum + value, 0);
-        return raw.map((value, i) => value - xContinuous[i] * totalRaw);
-      });
-      const nextTransfer = transfer.map((row, j) => row.map((value, i) =>
-        value + .005 * (proposedTransfer[j][i] - value)));
-      const delta = maximum(nextTransfer.flatMap((row, j) => row.map((value, i) =>
-        value - transfer[j][i])));
-      transfer = nextTransfer;
-      finalContinuous = xc;
-      if (delta < 1e-10) { converged = true; break; }
-    }
-    if (!converged) {
+    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+      finiteVolumeCellsPerPhysicalCompartment: 2, state: 'STARTED', localFlashCalls: 0, reason: null });
+    const coarse = await solveMesh(count, 2);
+    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+      finiteVolumeCellsPerPhysicalCompartment: 2,
+      state: coarse.converged ? 'CONVERGED' : 'NUMERICAL_FAILURE',
+      localFlashCalls: coarse.localFlashCalls, reason: coarse.reason });
+    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+      finiteVolumeCellsPerPhysicalCompartment: 4, state: 'STARTED', localFlashCalls: 0, reason: null });
+    const refined = await solveMesh(count, 4);
+    controls.progress?.({ caseCoefficient: c, physicalCompartments: count,
+      finiteVolumeCellsPerPhysicalCompartment: 4,
+      state: refined.converged ? 'CONVERGED' : 'NUMERICAL_FAILURE',
+      localFlashCalls: refined.localFlashCalls, reason: refined.reason });
+    if (!coarse.converged || !refined.converged) {
       result.nonconvergedPhysicalCounts.push(count);
-      continue;
+      result.physicalCountOutcomes.push({ physicalCompartments: count,
+        status: 'NUMERICAL_UNRESOLVED', reason: `COARSE:${coarse.reason};REFINED:${refined.reason}` });
+      lowerCountUnresolved = true;
+      result.lastConservedPhysicalTrial = {
+        physicalCompartments: count, status: 'NUMERICAL_FAILURE',
+        coarse: { reason: coarse.reason, iterations: coarse.iterations, localFlashCalls: coarse.localFlashCalls },
+        refined: { reason: refined.reason, iterations: refined.iterations, localFlashCalls: refined.localFlashCalls },
+      };
+      // No higher count can establish a minimum while this count is unknown.
+      // Preserve the evidence and leave time for the other coefficient case.
+      break;
     }
-    const cf = finalContinuous[count - 1].map(value => qContinuous * value);
-    const df = feed.dispersed.map((value, i) =>
-      value + transfer.reduce((sum, row) => sum + row[i], 0));
+    const meshDifference = scaledMaximum(refined.continuousOutlet.map((value, i) =>
+      value - coarse.continuousOutlet[i]).concat(refined.dispersedOutlet.map((value, i) =>
+      value - coarse.dispersedOutlet[i])), feed.continuous.map((value, i) =>
+      Math.max(value + feed.dispersed[i], 1e-12)));
+    const cf = refined.continuousOutlet;
+    const df = refined.dispersedOutlet;
     const oilOutlet = feed.continuousIsExtract ? df : cf;
-    if (oilOutlet.some(value => !finite(value) || value < 0)) continue;
-    const duty = evaluateStage4ProductTargets(oilOutlet, feed.continuousIsExtract ? feed.dispersed : feed.continuous,
-      input.stage1Targets);
-    const xFeed = normalize(feed.continuous);
-    const axialResiduals = finalContinuous.flatMap((x, j) => x.map((value, i) => {
-      const incoming = j === 0
-        ? qContinuous * xFeed[i]
-        : qContinuous * finalContinuous[j - 1][i]
-          + faceConductance * (finalContinuous[j - 1][i] - value);
-      const outgoing = j === count - 1
-        ? qContinuous * value // explicit zero-gradient / zero-diffusive outlet face
-        : qContinuous * value + faceConductance * (value - finalContinuous[j + 1][i]);
-      return incoming - outgoing - transfer[j][i];
-    }));
-    const mixResidual = maximum(axialResiduals);
-    const balance = maximum(cf.map((value, i) => feed.continuous[i] + feed.dispersed[i] - value - df[i]));
-    if (mixResidual > 1e-8 || balance > 1e-8) continue;
+    if (oilOutlet.some(value => !finite(value) || value < 0)) {
+      result.nonconvergedPhysicalCounts.push(count);
+      result.physicalCountOutcomes.push({ physicalCompartments: count,
+        status: 'NUMERICAL_UNRESOLVED', reason: 'FINAL_OIL_OUTLET_NONNEGATIVE_GATE_FAILED' });
+      lowerCountUnresolved = true;
+      break;
+    }
+    const duty = evaluateStage4ProductTargets(oilOutlet,
+      feed.continuousIsExtract ? feed.dispersed : feed.continuous, input.stage1Targets);
+    const coarseOilOutlet = feed.continuousIsExtract ? coarse.dispersedOutlet : coarse.continuousOutlet;
+    const coarseDuty = evaluateStage4ProductTargets(coarseOilOutlet,
+      feed.continuousIsExtract ? feed.dispersed : feed.continuous, input.stage1Targets);
+    const targetStatusChanged = coarseDuty.metrics.some((metric, index) =>
+      metric.status !== duty.metrics[index].status);
+    if (meshDifference > .01 || targetStatusChanged) {
+      result.nonconvergedPhysicalCounts.push(count);
+      result.physicalCountOutcomes.push({ physicalCompartments: count,
+        status: 'NUMERICAL_UNRESOLVED', reason: targetStatusChanged
+          ? 'FV_REFINEMENT_CHANGED_TARGET_STATUS' : 'FV_REFINEMENT_OUTLET_DIFFERENCE_EXCEEDS_1_PCT' });
+      lowerCountUnresolved = true;
+      result.lastConservedPhysicalTrial = { physicalCompartments: count, status: 'FV_REFINEMENT_NOT_CONVERGED',
+        relativeOutletDifference: meshDifference, targetStatusChanged, coarse, refined };
+      break;
+    }
+    const mixResidual = refined.maxAxialResidualMolS ?? 1;
+    const balance = refined.maxScaledComponentBalanceResidual ?? 1;
+    if (mixResidual > 1e-10 || balance > 1e-10
+      || (refined.maxDiffusiveFrameResidualMolS ?? 1) > 1e-9
+      || (refined.maxFilmEqualityResidualMolS ?? 1) > 1e-9
+      || (refined.maxStefanIdentityResidualMolS ?? 1) > 1e-9) {
+      result.nonconvergedPhysicalCounts.push(count);
+      result.physicalCountOutcomes.push({ physicalCompartments: count,
+        status: 'NUMERICAL_UNRESOLVED', reason: 'FINAL_CONSERVATION_OR_FRAME_RESIDUAL_GATE_FAILED' });
+      lowerCountUnresolved = true;
+      break;
+    }
     result.lastConservedPhysicalTrial = {
       physicalCompartments: count, activeHeightM: count * pitch,
       overallEfficiency: input.calculatedNt / count,
       targetCompliance: duty,
-      maximumGlobalComponentBalanceResidualMolS: balance,
+      maximumScaledGlobalComponentBalanceResidual: balance,
       continuousAxialDispersionConservationResidualMolS: mixResidual,
+      scaledConstitutiveResidual: refined.maxScaledConstitutiveResidual,
+      finiteVolumeRefinementRelativeOutletDifference: meshDifference,
     };
-    if (duty.allEvaluatedTargetsPassed) {
+    result.physicalCountOutcomes.push({ physicalCompartments: count,
+      status: duty.allEvaluatedTargetsPassed ? 'TARGET_PASS' : 'TARGET_FAIL',
+      reason: duty.allEvaluatedTargetsPassed ? null : 'GOVERNED_PRODUCT_TARGETS_NOT_MET' });
+    if (duty.allEvaluatedTargetsPassed && !result.selected && !lowerCountUnresolved) {
       result.selected = {
         physicalCompartments: count, activeHeightM: count * pitch,
         overallEfficiency: input.calculatedNt / count,
@@ -455,52 +725,129 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
           * hydraulics.continuousSuperficialVelocityMS / dispersion.valueM2S,
         continuousOutletMolarFlowMolS: cf, dispersedOutletMolarFlowMolS: df,
         oilRaffinateOutletMolarFlowMolS: oilOutlet, targetCompliance: duty,
-        maximumGlobalComponentBalanceResidualMolS: balance,
+        maximumScaledGlobalComponentBalanceResidual: balance,
         continuousAxialDispersionConservationResidualMolS: mixResidual,
+        scaledConstitutiveResidual: refined.maxScaledConstitutiveResidual,
+        continuousPhaseTotalMolarFlowChangeMolS: cf.reduce((sum, value) => sum + value, 0)
+          - feed.continuous.reduce((sum, value) => sum + value, 0),
+        dispersedPhaseTotalMolarFlowChangeMolS: df.reduce((sum, value) => sum + value, 0)
+          - feed.dispersed.reduce((sum, value) => sum + value, 0),
+        molarAverageDiffusiveFrameResidualMolS: refined.maxDiffusiveFrameResidualMolS,
+        maximumFilmEqualityResidualMolS: refined.maxFilmEqualityResidualMolS,
+        stefanTotalFluxIdentityResidualMolS: refined.maxStefanIdentityResidualMolS,
+        finiteVolumeRefinementRelativeOutletDifference: meshDifference,
         axialDispersion: {
           EcM2S: dispersion.valueM2S, EdM2S: 0, continuousOnly: true,
           discretization: 'implicit cell-centred finite volume; Danckwerts inlet total component flux Qc*xFeed; zero diffusive outlet face',
         },
-        continuousOverallCoefficientKocMPerS: Kc,
-        continuousTransferUnitsNoc: Kc.map(value =>
-          value * a * (count * pitch) / hydraulics.continuousSuperficialVelocityMS),
-        concentrationConvention: 'Noc_i=Koc_i*a*H/Vc using superficial Vc and total active-liquid interfacial area a=6φ/d32.',
+        localThermodynamics: 'Job-B evaluates pinned 7C chemical potentials and interface stability at each local nonlinear state; the independently pinned bulk 7C flash is freshly admitted at every converged FV-cell state.',
+        concentrationConvention: 'Diagonal generalized-Fick two-film screening; total component transfer includes non-equimolar Stefan/convective contribution while the molar-average diffusive residual is zero.',
       };
-      result.searchTermination = 'FIRST_TARGET_COMPLIANT_CONSERVED_PHYSICAL_COUNT';
-      return result;
+      break;
     }
   }
-  result.searchTermination = result.nonconvergedPhysicalCounts.length
-    ? 'TARGET_COMPLIANCE_UNKNOWN_NUMERICAL_PHYSICAL_COUNTS_REMAIN'
-    : 'NO_TARGET_COMPLIANT_CONSERVED_PHYSICAL_COUNT_WITHIN_EXPLICIT_SEARCH_BOUND';
+  result.searchTermination = result.selected
+    ? 'FIRST_CERTIFIABLE_TARGET_COMPLIANT_CONSERVED_PHYSICAL_COUNT'
+    : result.nonconvergedPhysicalCounts.length
+      ? 'TARGET_COMPLIANCE_UNKNOWN_NUMERICAL_PHYSICAL_COUNTS_REMAIN'
+      : 'NO_TARGET_COMPLIANT_CONSERVED_PHYSICAL_COUNT_WITHIN_EXPLICIT_SEARCH_BOUND';
   return result;
 }
 
 export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSizingInput,
-  options?: { flashEvaluator?: FlashEvaluator; diagnosticFrozenInletEquilibrium?: boolean }) {
+  options?: {
+    flashEvaluator?: FlashEvaluator;
+    interfaceEvaluator?: InterfaceEvaluator;
+    timeoutMs?: number;
+    /** Bounded whole-solve budget; every mesh/count reports a numerical
+     * failure rather than allowing child timeouts to become unbounded work. */
+    wallClockBudgetMs?: number;
+    abortSignal?: AbortSignal;
+    onNumericalProgress?: (progress: Stage4PhysicalSizingProgress) => void;
+    onProgress?: (progress: {
+      phase: 'PRIMARY_RUNNING' | 'PRIMARY_COMPLETE' | 'SENSITIVITY_RUNNING' | 'SENSITIVITY_COMPLETE';
+      completedCases: 0 | 1 | 2;
+      totalCases: 2;
+    }) => void | Promise<void>;
+  }) {
   if (!Number.isInteger(input.calculatedNt) || input.calculatedNt < 1) {
     throw new Error('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
   }
-  if (options?.diagnosticFrozenInletEquilibrium !== true) {
-    throw new Error('STAGE4_DYNAMIC_LOCAL_7C_EQUILIBRIUM_CLOSURE_REQUIRED');
+  const wallClockBudgetMs = options?.wallClockBudgetMs ?? 900_000;
+  if (!Number.isFinite(wallClockBudgetMs) || wallClockBudgetMs <= 0 || wallClockBudgetMs > 1_800_000) {
+    throw new Error('STAGE4_WALL_CLOCK_BUDGET_INVALID');
   }
-  const rawEvaluator = options?.flashEvaluator ?? ((request) =>
-    evaluateSevenComponentLocalEquilibrium(request, { timeoutMs: 300_000 }));
-  // Both K&H cases have identical thermodynamic state.  Do not start two
-  // adapter workers just because the dispersion sensitivity is evaluated in
-  // parallel.
+  const controls = {
+    deadlineMs: Date.now() + wallClockBudgetMs,
+    operationTimeoutMs: options?.timeoutMs ?? 120_000,
+    cancelled: () => options?.abortSignal?.aborted === true,
+    progress: options?.onNumericalProgress,
+  };
+  const session = options?.flashEvaluator ? null : createSevenComponentLocalEquilibriumSession({
+    timeoutMs: options?.timeoutMs ?? 120_000,
+  });
+  const interfaceSession = options?.interfaceEvaluator ? null
+    : createSevenComponentTwoFilmInterfaceSession({ timeoutMs: options?.timeoutMs ?? 120_000 });
+  const closeSessions = () => {
+    session?.close();
+    interfaceSession?.close();
+  };
+  let rejectInterrupted!: (reason: Error) => void;
+  const interrupted = new Promise<never>((_resolve, reject) => { rejectInterrupted = reject; });
+  // The watchdog is active between requests too; keep its rejection handled
+  // even when no evaluation is currently awaiting it.
+  void interrupted.catch(() => undefined);
+  const abort = () => {
+    rejectInterrupted(new Error('STAGE4_FINITE_RATE_SOLVER_CANCELLED'));
+    closeSessions();
+  };
+  const deadlineTimer = setTimeout(() => {
+    rejectInterrupted(new Error('GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED'));
+    closeSessions();
+  }, Math.max(1, controls.deadlineMs - Date.now()));
+  options?.abortSignal?.addEventListener('abort', abort, { once: true });
+  if (options?.abortSignal?.aborted) abort();
+  const underlyingFlash: FlashEvaluator = options?.flashEvaluator ?? (request =>
+    session!.evaluate(request) as Promise<Flash>);
+  const underlyingInterface: InterfaceEvaluator = options?.interfaceEvaluator ?? (request =>
+    interfaceSession!.solve(request));
+  const rawEvaluator: FlashEvaluator = (request, timeout) =>
+    Promise.race([underlyingFlash(request, timeout), interrupted]);
+  const interfaceEvaluator: InterfaceEvaluator = (request, timeout) =>
+    Promise.race([underlyingInterface(request, timeout), interrupted]);
+  // Both K&H cases share one serial persistent pinned engine. This avoids a
+  // process-per-cell import without widening the immutable adapter contract.
   const flashes = new Map<string, Promise<Flash>>();
-  const evaluator: FlashEvaluator = request => {
+  const evaluator: FlashEvaluator = (request, timeout) => {
     const key = JSON.stringify(request);
     const cached = flashes.get(key);
     if (cached) return cached;
-    const pending = rawEvaluator(request);
+    // This cache deduplicates only simultaneous requests. Settled local
+    // states are removed, so changing countercurrent states cannot be
+    // accidentally reused and memory is bounded even in a long count sweep.
+    if (flashes.size >= 256) flashes.clear();
+    const pending = rawEvaluator(request, timeout);
     flashes.set(key, pending);
+    void pending.then(
+      () => { if (flashes.get(key) === pending) flashes.delete(key); },
+      () => { if (flashes.get(key) === pending) flashes.delete(key); },
+    );
     return pending;
   };
-  const [primary, sensitivity] = await Promise.all([
-    solveCase(input, .0126, evaluator), solveCase(input, .0105, evaluator),
-  ]);
+  let primary: Awaited<ReturnType<typeof solveCase>>;
+  let sensitivity: Awaited<ReturnType<typeof solveCase>>;
+  try {
+    await options?.onProgress?.({ phase: 'PRIMARY_RUNNING', completedCases: 0, totalCases: 2 });
+    primary = await solveCase(input, .0126, evaluator, interfaceEvaluator, controls);
+    await options?.onProgress?.({ phase: 'PRIMARY_COMPLETE', completedCases: 1, totalCases: 2 });
+    await options?.onProgress?.({ phase: 'SENSITIVITY_RUNNING', completedCases: 1, totalCases: 2 });
+    sensitivity = await solveCase(input, .0105, evaluator, interfaceEvaluator, controls);
+    await options?.onProgress?.({ phase: 'SENSITIVITY_COMPLETE', completedCases: 2, totalCases: 2 });
+  } finally {
+    clearTimeout(deadlineTimer);
+    options?.abortSignal?.removeEventListener('abort', abort);
+    closeSessions();
+  }
   const p = primary.selected, s = sensitivity.selected;
   const comparable = !!p && !!s;
   const heightRelativeDifference = comparable
@@ -509,12 +856,13 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
     ? Math.abs(p.overallEfficiency - s.overallEfficiency) / Math.max(p.overallEfficiency, s.overallEfficiency) : null;
   const robust = comparable && p.physicalCompartments === s.physicalCompartments
     && heightRelativeDifference! <= .05 && efficiencyRelativeDifference! <= .05;
-  const primaryUnresolved = !p && primary.nonconvergedPhysicalCounts.length > 0;
+  const unresolved = primary.nonconvergedPhysicalCounts.length > 0
+    || sensitivity.nonconvergedPhysicalCounts.length > 0;
   return {
-    status: p ? 'DIAGNOSTIC_FROZEN_INLET_EQUILIBRIUM_NOT_PHYSICAL_SIZING'
-      : primaryUnresolved ? 'DIAGNOSTIC_TARGET_COMPLIANCE_UNRESOLVED_NUMERICAL_COUNTS_REMAIN'
-        : 'DIAGNOSTIC_NO_TARGET_COMPLIANT_COUNT_WITHIN_BOUND',
-    classification: 'DIAGNOSTIC ONLY — FROZEN INLET EQUILIBRIUM — NOT PHYSICAL SIZING',
+    status: comparable ? 'CALCULATED_FINITE_RATE_SCREENING'
+      : unresolved ? 'NUMERICAL_FAILURE_UNRESOLVED_PHYSICAL_COUNTS_REMAIN'
+        : 'TARGET_FAILURE_NO_TARGET_COMPLIANT_COUNT_WITHIN_BOUND',
+    classification: 'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN',
     screeningNotice: 'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN',
     implementation: {
       version: STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION,
@@ -530,12 +878,12 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
       note: 'Ec proximity alone is not a robustness criterion.',
     },
     assumptions: [
-      'Diagnostic count search starts at the accepted Stage-2 theoretical-stage count and accepts the first target-compliant conserved physical solve; fixed-point iterations solve the nonlinear algebraic system and are not axial mesh refinement.',
+      'Each K&H case searches upward from accepted Stage-2 Nt and stops at the first certifiable conserved, mesh-qualified target pass or the first numerically unresolved count. An unresolved lower count prevents any higher count from establishing a minimum; remaining budget is reserved for the other coefficient case.',
       'Overall efficiency is calculated after the search as Stage-2 accepted Nt/Nphysical; it is never an input.',
-      'The 7-component local equilibrium is a pinned adapter flash at the actual combined inlet inventory; its resulting phase-composition secants are retained during each axial solve. This is a screening closure, not a fitted Stage-2 target or an exact 2017 reproduction.',
-      'This routine is diagnostic-only because a frozen inlet equilibrium cannot substitute for a dynamically updated local 7C equilibrium closure.',
+      'Job-B evaluates pinned seven-component chemical potentials/interface stability from each current local countercurrent state. The independently pinned bulk-equilibrium adapter re-evaluates the converged holdup-weighted inventory in every FV cell; no inlet equilibrium partition is retained as a column closure.',
+      'This is a finite-rate diagonal generalized-Fick screening closure in a molar-average frame, not a full Maxwell–Stefan model. The zero-sum diffusive frame residual does not erase non-equimolar Stefan/convective phase transfer.',
       'Job A two-film coefficients use frozen Stage-3 hydraulic state and phase-average feed compositions; composition-dependent transport and axial variation require pilot validation.',
-      'Ec uses the authorized screening expression; Ed=0. Numerical iteration count is integration resolution, never a physical compartment count.',
+      'Ec uses the authorized screening expression; Ed=0. Two and four finite-volume cells per physical compartment are independently solved; mesh and nonlinear iteration counts are never physical compartment count.',
     ],
   };
 }

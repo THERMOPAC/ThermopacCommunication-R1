@@ -6,6 +6,9 @@ import { createServer, type ViteDevServer } from "vite";
 
 const stage4Path = "/design-software/ecr-pre-pilot-design/stage-4";
 const stage4Endpoint = "/api/ecr-pre-pilot/designs/47/stage4/pre-pilot-sizing/latest";
+const stage4CalculateEndpoint = "/api/ecr-pre-pilot/designs/47/stage4/pre-pilot-sizing/calculate";
+const stage4RetryEndpoint = "/api/ecr-pre-pilot/designs/47/stage4/pre-pilot-sizing/retry";
+const stage4StopEndpoint = "/api/ecr-pre-pilot/designs/47/stage4/pre-pilot-sizing/stop";
 const notice =
   "PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN";
 
@@ -251,6 +254,7 @@ let vite: ViteDevServer;
 let browser: Browser;
 let origin: string;
 let stage4Response: ResponseFixture;
+let stage4ActionRequests: Array<{ path: string; body: string }> = [];
 let previousReplId: string | undefined;
 
 function chromiumPath(): string {
@@ -313,7 +317,31 @@ async function openStage4() {
       json(200, { id: 47, projectNumber: "ECR-BROWSER-47" });
       return;
     }
-    if (url.pathname === stage4Endpoint) {
+    if ([stage4CalculateEndpoint, stage4RetryEndpoint, stage4StopEndpoint].includes(url.pathname)
+      && request.method() === "POST") {
+      stage4ActionRequests.push({ path: url.pathname, body: request.postData() ?? "" });
+      const actionStatus = url.pathname === stage4StopEndpoint ? "INTERRUPTED" : "RUNNING";
+      const actionPayload = url.pathname === stage4StopEndpoint
+        ? {
+          ...stage4Response.body,
+          status: actionStatus,
+          calculation: {
+            status: actionStatus,
+            progress: { phase: "FINITE_RATE_SOLVER_INTERRUPTED_EXPLICIT_RETRY_REQUIRED", completedCases: 0, totalCases: 2 },
+          },
+        }
+        : {
+        status: actionStatus,
+        calculation: {
+          status: actionStatus,
+          progress: { phase: "PRIMARY_RUNNING", completedCases: 0, totalCases: 2 },
+        },
+        message: "Stage 4 calculation queued",
+      };
+      json(url.pathname === stage4StopEndpoint ? 200 : 202, actionPayload);
+      return;
+    }
+    if (url.pathname === stage4Endpoint && request.method() === "GET") {
       json(stage4Response.status, stage4Response.body);
       return;
     }
@@ -374,6 +402,7 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
   });
 
   it("renders the dependency-blocked primary/sensitivity table without claiming physical sizing", async () => {
+    stage4ActionRequests = [];
     stage4Response = { status: 200, body: dependencyBlockedFixture() };
     const page = await openStage4();
     try {
@@ -401,6 +430,7 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
   }, 60_000);
 
   it("renders no-solution termination without inventing count, height, efficiency, or outlet", async () => {
+    stage4ActionRequests = [];
     stage4Response = { status: 200, body: noSolutionFixture() };
     const page = await openStage4();
     try {
@@ -420,6 +450,7 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
   }, 60_000);
 
   it("renders a protected API failure as blocked and leaves no stale sizing result", async () => {
+    stage4ActionRequests = [];
     stage4Response = {
       status: 409,
       body: { error: "STAGE4_PINNED_7C_LOCAL_EQUILIBRIUM_UNAVAILABLE:FAILED" },
@@ -434,6 +465,98 @@ describe.sequential("ECR pre-pilot integrated Stage 4 browser regressions", () =
       expect(text).toContain("blocked or failed");
       expect(text).toContain("STAGE4_PINNED_7C_LOCAL_EQUILIBRIUM_UNAVAILABLE:FAILED");
       expect(text).not.toContain("Predicted primary raffinate outlet");
+    } finally {
+      await page.close();
+    }
+  }, 60_000);
+
+  it("does not start a solver on initial render and sends one empty calculate request", async () => {
+    stage4ActionRequests = [];
+    stage4Response = { status: 200, body: resultFixture() };
+    const page = await openStage4();
+    try {
+      await page.waitForFunction(
+        () => document.querySelector('[data-testid="stage4-pre-pilot-sizing"]')?.textContent?.includes("c=0.0126") === true,
+        { timeout: 30_000 },
+      );
+      expect(stage4ActionRequests).toHaveLength(0);
+      const calculate = await page.$('[data-testid="stage4-calculate"]');
+      expect(calculate).not.toBeNull();
+      await calculate?.click();
+      await page.waitForFunction(() => document.querySelector('[data-testid="stage4-calculate"]')?.textContent?.includes("Stage 4 running") === true, { timeout: 5_000 });
+      // The disabled button and the client-side in-flight guard prevent a
+      // double click from creating duplicate solver requests.
+      await calculate?.click().catch(() => undefined);
+      expect(stage4ActionRequests).toEqual([{ path: stage4CalculateEndpoint, body: "{}" }]);
+    } finally {
+      await page.close();
+    }
+  }, 60_000);
+
+  it("uses explicit retry for a numerical failure instead of silently POSTing calculate", async () => {
+    stage4ActionRequests = [];
+    const failure = resultFixture();
+    failure.status = "NUMERICAL_FAILURE";
+    const physicalSizing = failure.physicalSizing as Record<string, any>;
+    physicalSizing.status = "NUMERICAL_FAILURE";
+    physicalSizing.primary = selectedCase(0.0126, {
+      ec: 0.0015,
+      pec: 0.53,
+      count: null,
+      height: null,
+      efficiency: null,
+      termination: "FINITE_RATE_SOLVER_NUMERICAL_FAILURE",
+    });
+    physicalSizing.sensitivity = selectedCase(0.0105, {
+      ec: 0.0013,
+      pec: 0.61,
+      count: null,
+      height: null,
+      efficiency: null,
+      termination: "FINITE_RATE_SOLVER_NUMERICAL_FAILURE",
+    });
+    failure.mainOutputs = { diameterM: 0.8, overallEfficiency: null, physicalCompartments: null, activeHeightM: null };
+    stage4Response = { status: 200, body: failure };
+    const page = await openStage4();
+    try {
+      await page.waitForFunction(
+        () => document.querySelector('[data-testid="stage4-calculate"]')?.textContent?.includes("Retry Stage 4") === true,
+        { timeout: 30_000 },
+      );
+      await page.click('[data-testid="stage4-calculate"]');
+      await page.waitForFunction(() => document.querySelector('[data-testid="stage4-calculate"]')?.textContent?.includes("Stage 4 running") === true, { timeout: 5_000 });
+      expect(stage4ActionRequests).toEqual([{ path: stage4RetryEndpoint, body: "{}" }]);
+    } finally {
+      await page.close();
+    }
+  }, 60_000);
+
+  it("exposes Stop during a running calculation and sends the guarded empty stop request", async () => {
+    stage4ActionRequests = [];
+    const running = resultFixture();
+    running.status = "RUNNING";
+    running.mainOutputs = { diameterM: 0.8, overallEfficiency: null, physicalCompartments: null, activeHeightM: null };
+    running.calculation = {
+      status: "RUNNING",
+      progress: {
+        phase: "PRIMARY_RUNNING",
+        completedCases: 0,
+        totalCases: 2,
+        physicalCompartments: 3,
+        finiteVolumeCellsPerPhysicalCompartment: 2,
+        state: "STARTED",
+        localFlashCalls: 12,
+      },
+    };
+    stage4Response = { status: 200, body: running };
+    const page = await openStage4();
+    try {
+      await page.waitForSelector('[data-testid="stage4-stop"]', { visible: true, timeout: 30_000 });
+      expect(await page.$eval('[data-testid="stage4-run-progress"]', element => (element as HTMLElement).innerText))
+        .toContain("Local flash calls");
+      await page.click('[data-testid="stage4-stop"]');
+      await page.waitForFunction(() => document.querySelector('[data-testid="stage4-stop"]') == null, { timeout: 5_000 });
+      expect(stage4ActionRequests).toEqual([{ path: stage4StopEndpoint, body: "{}" }]);
     } finally {
       await page.close();
     }

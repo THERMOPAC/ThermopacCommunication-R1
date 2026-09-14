@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -292,6 +293,126 @@ async function invoke(operation: string, body: JsonObject, timeoutMs = 120_000) 
       protocol: STAGE4_SEVEN_COMPONENT_ADAPTER_PROTOCOL, operation, ...body,
     })}\n`);
   });
+}
+
+/**
+ * A single Stage-4 physical-column solve makes many local-flash requests.
+ * Keep the independently packaged adapter process alive for that solve so the
+ * immutable 7C engine is imported once, rather than once per finite-volume
+ * cell.  Manifest verification remains at session creation and every reply is
+ * still validated (including its canonical result digest) before use.
+ *
+ * This is deliberately a narrow local-equilibrium session: it does not expose
+ * the frozen Stage-2 cascade or mutate any pinned runtime artifact.
+ */
+export interface SevenComponentLocalEquilibriumSession {
+  evaluate(request: LocalEquilibriumRequest, timeoutMs?: number): Promise<AdapterResponse>;
+  close(): void;
+}
+
+export function createSevenComponentLocalEquilibriumSession(
+  options?: { timeoutMs?: number },
+): SevenComponentLocalEquilibriumSession {
+  const root = runtimeRoot();
+  const manifest = verifyManifest(root);
+  const baseRoot = baseRuntimeRoot(root, manifest);
+  verifyBaseManifest(baseRoot, manifest.baseRuntime);
+  const worker = path.join(root, 'server/ecr-pre-pilot/stage4-seven-component-adapter/worker.py');
+  const python = process.env.STAGE4_EQUILIBRIUM_ADAPTER_PYTHON ?? 'python3.12';
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of [
+    'PATH', 'LD_LIBRARY_PATH', 'LIBRARY_PATH', 'NIX_LD', 'NIX_LD_LIBRARY_PATH',
+    'LOCALE_ARCHIVE', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TMPDIR',
+  ]) {
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  }
+  Object.assign(env, {
+    PYTHONDONTWRITEBYTECODE: '1',
+    PYTHONUNBUFFERED: '1',
+    STAGE4_EQUILIBRIUM_ADAPTER_PROTOCOL: STAGE4_SEVEN_COMPONENT_ADAPTER_PROTOCOL,
+    STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT: root,
+    STAGE4_EQUILIBRIUM_BASE_RUNTIME_ROOT: baseRoot,
+  });
+  const child: ChildProcessWithoutNullStreams = spawn(python, [worker], {
+    cwd: root, stdio: ['pipe', 'pipe', 'pipe'], env,
+  });
+  const timeoutMs = options?.timeoutMs ?? 120_000;
+  let closed = false;
+  let stdout = '';
+  type Pending = {
+    resolve: (response: AdapterResponse) => void;
+    reject: (reason: Error) => void;
+    timer: NodeJS.Timeout;
+  };
+  const pending: Pending[] = [];
+  const failAll = (error: Error) => {
+    while (pending.length) {
+      const request = pending.shift()!;
+      clearTimeout(request.timer);
+      request.reject(error);
+    }
+  };
+  child.stdout.setEncoding('utf8');
+  child.stdout.on('data', (chunk: string) => {
+    stdout += chunk;
+    let newline = stdout.indexOf('\n');
+    while (newline >= 0) {
+      const line = stdout.slice(0, newline).trim();
+      stdout = stdout.slice(newline + 1);
+      const request = pending.shift();
+      if (!request) {
+        closed = true;
+        child.kill('SIGKILL');
+        failAll(new Error('STAGE4_ADAPTER_PROTOCOL_FRAMING_INVALID'));
+        return;
+      }
+      clearTimeout(request.timer);
+      try {
+        request.resolve(validateResponse(JSON.parse(line), manifest));
+      } catch (error) {
+        request.reject(error instanceof Error ? error : new Error('STAGE4_ADAPTER_RESPONSE_INVALID'));
+      }
+      newline = stdout.indexOf('\n');
+    }
+  });
+  child.stderr.resume();
+  child.on('error', () => {
+    closed = true;
+    failAll(new Error('STAGE4_ADAPTER_PROCESS_START_FAILED'));
+  });
+  child.on('close', () => {
+    if (!closed) {
+      closed = true;
+      failAll(new Error('STAGE4_ADAPTER_PROCESS_FAILED'));
+    }
+  });
+  return {
+    evaluate(request: LocalEquilibriumRequest, requestTimeoutMs = timeoutMs) {
+      if (closed) return Promise.reject(new Error('STAGE4_ADAPTER_SESSION_CLOSED'));
+      return new Promise<AdapterResponse>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const index = pending.findIndex(item => item.resolve === resolve);
+          if (index >= 0) pending.splice(index, 1);
+          closed = true;
+          child.kill('SIGKILL');
+          reject(new Error('STAGE4_ADAPTER_TIMEOUT'));
+          failAll(new Error('STAGE4_ADAPTER_TIMEOUT'));
+        }, requestTimeoutMs);
+        pending.push({ resolve, reject, timer });
+        child.stdin.write(`${JSON.stringify({
+          protocol: STAGE4_SEVEN_COMPONENT_ADAPTER_PROTOCOL,
+          operation: 'LOCAL_EQUILIBRIUM',
+          ...request,
+        })}\n`);
+      });
+    },
+    close() {
+      if (closed) return;
+      closed = true;
+      child.kill('SIGKILL');
+      failAll(new Error('STAGE4_ADAPTER_SESSION_CLOSED'));
+    },
+  };
 }
 
 export async function evaluateSevenComponentLocalEquilibrium(

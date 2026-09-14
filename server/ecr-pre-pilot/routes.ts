@@ -46,7 +46,10 @@ import {
   startSinglePartialTransferQualification,
 } from './partial-transfer-qualification-service';
 import {
+  calculateStage4PrePilotSizing,
   getLiveStage4PrePilotSizing,
+  retryStage4PrePilotSizing,
+  stopStage4PrePilotSizing,
 } from './stage4-pre-pilot-sizing-service';
 
 export function setupEcrPrePilotRoutes(app: Express): void {
@@ -481,8 +484,8 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       }
     },
   );
-  // This is a live, read-only projection.  It deliberately accepts no
-  // Eo/HETS, pitch, candidate, or Job-C payload that could bypass governance.
+  // The latest read is intentionally read-only. A finite-rate calculation can
+  // only be started by the explicit empty-body POST below.
   app.get(
     '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/latest',
     ensureAuthenticated,
@@ -496,6 +499,75 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       } catch (error: any) {
         return res.status(409).json({
           error: error?.message ?? 'STAGE4_PRE_PILOT_SIZING_RESULT_INTEGRITY_FAILURE',
+        });
+      }
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/calculate',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'STAGE4_PRE_PILOT_SIZING_CLIENT_SCIENTIFIC_INPUT_PROHIBITED' });
+      }
+      try {
+        return res.status(202).json(await calculateStage4PrePilotSizing(
+          Number((req.user as any).id), designId,
+        ));
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'STAGE4_PRE_PILOT_SIZING_CALCULATION_START_FAILED',
+        });
+      }
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/retry',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'STAGE4_PRE_PILOT_SIZING_CLIENT_SCIENTIFIC_INPUT_PROHIBITED' });
+      }
+      try {
+        return res.status(202).json(await retryStage4PrePilotSizing(
+          Number((req.user as any).id), designId,
+        ));
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'STAGE4_PRE_PILOT_SIZING_RETRY_START_FAILED',
+        });
+      }
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/stop',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
+        || Object.keys(req.body).length)) {
+        return res.status(400).json({ error: 'STAGE4_PRE_PILOT_SIZING_CLIENT_SCIENTIFIC_INPUT_PROHIBITED' });
+      }
+      try {
+        return res.json(await stopStage4PrePilotSizing(
+          Number((req.user as any).id), designId,
+        ));
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'STAGE4_PRE_PILOT_SIZING_STOP_FAILED',
         });
       }
     },

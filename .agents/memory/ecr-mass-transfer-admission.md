@@ -33,6 +33,12 @@ The immutable result basis includes the complete duty-acceptance contract,
 closure and parent hashes, and the exact Stage-3 trial identity. Changing the
 duty target or tolerance must change the result hash even if the same design is
 selected.
+Bind the solver source manifest to calculation lineage and refresh it after
+reviewed numerical or lifecycle changes; a static version label alone is
+insufficient.
+
+**Why:** Persisted terminal outcomes are intentionally deduplicated, so a
+code fix can otherwise continue returning a result from the old implementation.
 
 Documented correlation extrapolation and lack of pilot validation do not block
 pre-pilot predictive calculation. They must be visible as applicability,
@@ -45,6 +51,20 @@ diagonal generalized-Fick/two-film approximation with componentwise
 diffusivities, an explicit reference frame, and exact zero-net-flux correction;
 full Maxwell-Stefan cross-diffusion and a thermodynamic-factor matrix are later
 release-qualification improvements, not automatic predictive blockers.
+The zero-sum condition applies to each film's molar-average **diffusive**
+flux, not the total interphase component flux. Retain the solved Stefan
+contribution so total molar flows can change between phases.
+
+**Why:** Subtracting a bulk-composition-weighted total from the entire transfer
+vector forced artificial equimolar transfer while still passing global
+component conservation. Conservation alone did not validate the rate model.
+
+**How to apply:** Qualify the interface chemical potentials, film equality,
+both diffusive-frame sums, and total-flux/Stefan identity on the final bulk
+state. Never report a later target-passing count as the minimum if a lower
+count remains numerically unresolved; mesh refinement is separate from the
+physical compartment count.
+
 Wilke–Chang provenance text alone is not an implemented or approved estimator.
 Acetone-to-RRBO/NMP applicability is an uncertainty flag; absent predictive
 transport equations or required molecular inputs is a calculation blocker.

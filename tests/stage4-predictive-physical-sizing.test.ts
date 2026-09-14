@@ -9,6 +9,31 @@ import {
 const h = 'a'.repeat(64);
 
 describe('Stage-4 predictive physical sizing', () => {
+  it('enforces the global deadline even while an evaluator is awaiting an unresolved operation', async () => {
+    const input = {
+      calculatedNt: 5,
+      processBasis: {
+        temperatureK: 298.15, phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+        rrboFeed: { flowM3S: 1e-5, densityKgM3: 850, dynamicViscosityPaS: .003 },
+        wetSolventPhase: { flowM3S: 1e-5, densityKgM3: 997, dynamicViscosityPaS: .001083 },
+        composition: {
+          rrboFeedWt: { saturates: 70, monoAromatics: 10, diAromatics: 8, polyAromatics: 5, polarAromatics: 4, nmp: 3 },
+          wetSolventWt: { nmp: 99, water: 1 },
+        },
+      },
+      hydraulics: {
+        diameterM: .9742129194448474, rotorDiameterM: .4871064597224237, rpm: 30,
+        continuousSuperficialVelocityMS: .0009598419119466572,
+        dispersedSuperficialVelocityMS: .0014905956171508057,
+      },
+    } as any;
+    await expect(runStage4PredictivePhysicalSizing(input, {
+      wallClockBudgetMs: 30,
+      flashEvaluator: () => new Promise(() => undefined),
+      interfaceEvaluator: () => new Promise(() => undefined),
+    })).rejects.toThrow('GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
+  });
+
   it('replays the authorized K&H screening Ec values for design 269', () => {
     const common = {
       diameterM: .9742129194448474, rotorDiameterM: .4871064597224237, rpm: 30,
@@ -47,7 +72,9 @@ describe('Stage-4 predictive physical sizing', () => {
       },
       hydraulics: {
         diameterM: .9742129194448474, rotorDiameterM: .4871064597224237, rpm: 30,
-        d32M: .0025707441992382585, operatingHoldup: .0816427744236363,
+        // Deliberately weak area gives this deterministic adapter stub a
+        // non-boundary finite-rate fixed point; production uses persisted d32.
+        d32M: .1, operatingHoldup: .0816427744236363,
         continuousSuperficialVelocityMS: .0009598419119466572,
         dispersedSuperficialVelocityMS: .0014905956171508057,
       },
@@ -59,8 +86,7 @@ describe('Stage-4 predictive physical sizing', () => {
         sulfurAllocationPolyPct: 20, sulfurAllocationPaPct: 20,
       },
     }, {
-      diagnosticFrozenInletEquilibrium: true,
-      flashEvaluator: async () => {
+      flashEvaluator: async (request) => {
         flashes += 1;
         return {
           status: 'CALCULATED', phaseOrientation: 'NMP_RICH_EXTRACT', resultHash: h,
@@ -68,15 +94,39 @@ describe('Stage-4 predictive physical sizing', () => {
           extractComposition: [.03, .02, .02, .01, .01, .85, .06],
         };
       },
+      interfaceEvaluator: async () => {
+        return ({
+        status: 'CALCULATED_PRELIMINARY_INTERFACE',
+        interface: {
+          // Total component flux deliberately has a nonzero Stefan sum. The
+          // solver must retain it rather than replacing it with a zero-sum
+          // diffusive vector.
+          continuousComponentFluxMolM2S: [-1e-7, -1e-7, -1e-7, -1e-7, -1e-7, 1e-7, 1e-7],
+          continuousDiffusiveFluxMolM2S: Array(7).fill(0),
+          dispersedDiffusiveFluxMolM2S: Array(7).fill(0),
+          dispersedComponentFluxMolM2S: [-1e-7, -1e-7, -1e-7, -1e-7, -1e-7, 1e-7, 1e-7],
+          continuousMoleFractions: Array(7).fill(1 / 7),
+          dispersedMoleFractions: Array(7).fill(1 / 7),
+          totalMolarFluxMolM2S: -3e-7,
+          fluxEqualityResidualMolM2S: Array(7).fill(0),
+        },
+        } as any);
+      },
     });
-    expect(flashes).toBe(1);
+    // One inlet binding flash plus the evolving local cell states. A single
+    // frozen inlet flash is not an accepted physical-column closure.
+    expect(flashes).toBeGreaterThan(1);
     expect(result.primary.selected).not.toBeNull();
     expect(result.primary.selected.overallEfficiency).toBe(
       2 / result.primary.selected.physicalCompartments,
     );
     expect(result.primary.selected.physicalCompartments).toBeGreaterThanOrEqual(2);
-    expect(result.primary.selected.maximumGlobalComponentBalanceResidualMolS).toBeLessThan(1e-8);
-    expect(result.status).toBe('DIAGNOSTIC_FROZEN_INLET_EQUILIBRIUM_NOT_PHYSICAL_SIZING');
+    expect(result.primary.selected.maximumScaledGlobalComponentBalanceResidual).toBeLessThan(1e-10);
+    expect(result.primary.searchTermination)
+      .toBe('FIRST_CERTIFIABLE_TARGET_COMPLIANT_CONSERVED_PHYSICAL_COUNT');
+    expect(result.status).toBe('CALCULATED_FINITE_RATE_SCREENING');
+    expect(result.primary.selected.continuousPhaseTotalMolarFlowChangeMolS)
+      .not.toBeCloseTo(0, 14);
     expect(result.screeningNotice).toContain('REQUIRES PILOT VALIDATION');
   });
 
