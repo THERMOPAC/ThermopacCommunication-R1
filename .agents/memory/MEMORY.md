@@ -1,3 +1,4 @@
+- [Kühni paper audit boundary](kuhni-paper-audit-boundary.md) — missing extracted equations are not absent evidence; verify primary algebra and distinguish pre-pilot extrapolation from calibration.
 - [LLX localData hydration](llx-localdata-hydration.md) — inputs refetch must merge UNDER local values after first load or whole-section saves persist rollbacks (lost OT/OP/capacity).
 - [LLX pending prod DB ALTERs](llx-prod-db-alters-pending.md) — constraint widenings (mechanical_vessel, ecp/ecr_design) applied to dev only; apply to prod at next publish; never drop comparison/summary from ds_results_section_chk.
 - [LLX V&V framework](llx-vv-framework.md) — verification (release-scoped, computed from evidence) vs engineering confidence (revision-scoped) never merged; tolerances never widened; registers never invented.
