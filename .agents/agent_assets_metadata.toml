@@ -1087,3 +1087,17 @@ mtime_ms = 1789361395997
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/4127a6e1-cc45-4ee9-9764-1e151575a9bf/2501e8aa-6553-4b78-8488-9505148c01da"
 storage_version_token = "1789361422307550"
 content_type = "image/png"
+
+[[outputs]]
+id = "ccwro_hN3KsyIjkdIZMyW"
+uri = "file://research/stage4-interface-root-resolution.md"
+type = "text"
+title = "Stage 4 interface-root diagnosis and correction"
+description = "Measured failed checks, unchanged acceptance limits, and qualified results for both exact mesh-specific inlet requests. Local qualification is separate from column sizing."
+logical_id = "1650085f-763b-44d0-8a8f-2e5fe60d1ae7"
+content_hash = "sha256:5ef7e47c74713fa04a332979ae9bd653c97e007ea270657c5b95f699ddba71d4"
+size = 3533
+mtime_ms = 1789369216519
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/1650085f-763b-44d0-8a8f-2e5fe60d1ae7/8b0a91a4-b1c8-4e77-a82b-e0049b5af09a"
+storage_version_token = "1789369228703134"
+content_type = "text/markdown"

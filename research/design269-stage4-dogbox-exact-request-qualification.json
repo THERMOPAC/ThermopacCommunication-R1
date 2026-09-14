@@ -1,0 +1,1587 @@
+{
+  "schema": "DESIGN269_STAGE4_DOGBOX_EXACT_REQUEST_QUALIFICATION_V1",
+  "scope": {
+    "noFullColumnExecution": true,
+    "requestCaptureSha256": "e60dfeea5f3d2ca5079d71df224f0226106fc43e5a63d187b9a1543a02fe5b7d",
+    "originalWorkerSha256": "70229d3eacfde61d906f39bc3dec8a29387cabfc96944493ffb5318653e02f2d",
+    "wrapperSourceSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265",
+    "wrapperArtifactSha256": "b95b9a7b42bf286e4ebc54a9dcc4a9150be29285b3e988f9fcbbcc245c17bc4b",
+    "numericalStrategy": {
+      "id": "STAGE4_DOGBOX_JAC_SCALED_V1",
+      "leastSquaresMethod": "dogbox",
+      "xScale": "jac"
+    }
+  },
+  "cases": [
+    {
+      "mesh": "coarse",
+      "actualEngineRequestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "request": {
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "T": 333.15,
+        "x_bulk_continuous": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.9730927044548102,
+          0.026907295545189853
+        ],
+        "x_bulk_dispersed": [
+          0.831407891171669,
+          0.09703368504249356,
+          0.04686707538501485,
+          0.0164755066368913,
+          0.008215841763931277,
+          0,
+          0
+        ],
+        "kc": [
+          0.00002084860236698595,
+          0.000025459744357085994,
+          0.000024871160500530255,
+          0.00002194164643140475,
+          0.000016309525055256572,
+          0.00002629806255143195,
+          0.000032789791656593186
+        ],
+        "kd": [
+          0.0000013074357939320277,
+          0.0000016179319845886038,
+          0.0000015780698542047561,
+          0.000001380657498324959,
+          0.0000010060726045372094,
+          0.0000016748193672026443,
+          0.0000021196019578990626
+        ],
+        "CtC": 10283.811255512806,
+        "CtD": 5137.775970988926,
+        "phase_config": "nmp-continuous-rrbo-dispersed"
+      },
+      "response": {
+        "acceptanceThresholds": {
+          "absoluteFluxToleranceMolM2S": 1e-12,
+          "independentStartReproductionRelativeTolerance": 0.000001,
+          "maximumIsoactivityLogResidual": 0.00002,
+          "maximumScaledFluxEqualityResidual": 1e-8,
+          "minimumInterfaceCompositionSeparation": 0.0001,
+          "minimumLocalStabilityCurvature": -0.000001,
+          "postInterfaceTpdThreshold": -1e-8,
+          "requiredNumericalJacobianRank": 13
+        },
+        "bulkBoundary": {
+          "boundaryZerosPreserved": true,
+          "continuousMoleFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          "continuousTotalMolarConcentrationMolM3": 10283.811255512806,
+          "dispersedMoleFractions": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "dispersedTotalMolarConcentrationMolM3": 5137.775970988926,
+          "sourceQualification": "CALLER_MUST_BIND_RECORDED_GOVERNED_INCOMING_STAGE2_BOUNDARIES"
+        },
+        "closure": {
+          "d32Used": false,
+          "evidenceQualification": "MOLAR_ANALOGUE_OF_ESTABLISHED_MIXTURE_AVERAGE_CORRECTION;NO_REPOSITORY_PRIMARY_SOURCE_OR_RRBO_NMP_VALIDATION",
+          "holdupUsed": false,
+          "imposedZeroTotalMolarFlux": false,
+          "logFloor": 1e-14,
+          "logFloorScope": "NUMERICAL_INTERFACE_COORDINATES_ONLY",
+          "name": "PRELIMINARY_MIXTURE_AVERAGED_FICKIAN_MOLAR_FRAME",
+          "qualification": "PRE_PILOT_APPROXIMATION_NOT_RELEASE_QUALIFIED",
+          "sumDiffusiveFluxConstraint": "ENFORCED_BY_MIXTURE_AVERAGED_CORRECTION"
+        },
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "endpointAssessments": [
+          {
+            "endpointStabilityAccepted": true,
+            "localStability": {
+              "continuous": {
+                "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+                "dimension": 6,
+                "eigenvalues": [
+                  0.00023868235082157827,
+                  0.00048823058640644985,
+                  0.001342312801846609,
+                  0.0026504641003520075,
+                  0.011738965996595387,
+                  0.050313985794792404
+                ],
+                "minimumEigenvalue": 0.00023868235082157827,
+                "stepSizeConverged": true
+              },
+              "dispersed": {
+                "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+                "dimension": 6,
+                "eigenvalues": [
+                  0.00013030826304166683,
+                  0.0005433922641296327,
+                  0.0017198100596591125,
+                  0.0029419193329442927,
+                  0.016340978645719803,
+                  0.09350183076245476
+                ],
+                "minimumEigenvalue": 0.00013030826304166683,
+                "stepSizeConverged": true
+              }
+            },
+            "numericalAccepted": true,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "postInterfaceTpd": {
+              "continuous": {
+                "allRefinementsAccepted": true,
+                "ambiguityTriggered": false,
+                "classification": "ROUTINE_STABLE",
+                "escalationUsed": false,
+                "explicitMonoRichBasinSearch": {
+                  "acceptanceFailure": null,
+                  "allRequiredSearchesAccepted": true,
+                  "historicalFalseBasinSeedIncluded": true,
+                  "minimizingComposition": [
+                    0.3172140884982867,
+                    0.4999999999980289,
+                    0.0009072930336399656,
+                    0.0002965746673158846,
+                    0.00010094676620065997,
+                    0.17640216507505538,
+                    0.005078931961472557
+                  ],
+                  "minimum": 2.152133051244082,
+                  "negativeBasinFound": false,
+                  "postSplitTpdThreshold": -1e-8,
+                  "region": "x_MONO >= 0.5",
+                  "searches": [
+                    {
+                      "composition": [
+                        0.317214154251617,
+                        0.49999999999942096,
+                        0.0009072929441046175,
+                        0.00029657492195488854,
+                        0.0001009485308763841,
+                        0.17640209100429513,
+                        0.005078938347731094
+                      ],
+                      "minimum": 2.152133051252203,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051252203,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.3172140884982867,
+                        0.4999999999980289,
+                        0.0009072930336399656,
+                        0.0002965746673158846,
+                        0.00010094676620065997,
+                        0.17640216507505538,
+                        0.005078931961472557
+                      ],
+                      "minimum": 2.152133051244082,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051244082,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.317214399275048,
+                        0.5000000000000093,
+                        0.0009072874353948597,
+                        0.0002965725998709226,
+                        0.00010094657243799042,
+                        0.1764018754435292,
+                        0.005078918673709918
+                      ],
+                      "minimum": 2.152133051255976,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051255976,
+                      "replayOptimizerSuccess": true
+                    }
+                  ],
+                  "seedCount": 3
+                },
+                "minimum": 0
+              },
+              "dispersed": {
+                "allRefinementsAccepted": true,
+                "ambiguityTriggered": false,
+                "classification": "ROUTINE_STABLE",
+                "escalationUsed": false,
+                "explicitMonoRichBasinSearch": {
+                  "acceptanceFailure": null,
+                  "allRequiredSearchesAccepted": true,
+                  "historicalFalseBasinSeedIncluded": true,
+                  "minimizingComposition": [
+                    0.3172141647341179,
+                    0.4999999999992595,
+                    0.0009072898286158817,
+                    0.00029657118644115486,
+                    0.00010094534079999662,
+                    0.17640209217338965,
+                    0.005078936737376016
+                  ],
+                  "minimum": 2.152133051251529,
+                  "negativeBasinFound": false,
+                  "postSplitTpdThreshold": -1e-8,
+                  "region": "x_MONO >= 0.5",
+                  "searches": [
+                    {
+                      "composition": [
+                        0.3172141647341179,
+                        0.4999999999992595,
+                        0.0009072898286158817,
+                        0.00029657118644115486,
+                        0.00010094534079999662,
+                        0.17640209217338965,
+                        0.005078936737376016
+                      ],
+                      "minimum": 2.152133051251529,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051251529,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.3172145702326279,
+                        0.5000000000003638,
+                        0.0009073100084630038,
+                        0.0002965852531171378,
+                        0.00010095163732570556,
+                        0.1764016765008071,
+                        0.005078906367295403
+                      ],
+                      "minimum": 2.1521330512581494,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.1521330512581494,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.31721429412689794,
+                        0.4999999999999475,
+                        0.0009072881063039578,
+                        0.0002965736205356456,
+                        0.00010094430864960812,
+                        0.17640196761088972,
+                        0.005078932226775669
+                      ],
+                      "minimum": 2.152133051255673,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051255673,
+                      "replayOptimizerSuccess": true
+                    }
+                  ],
+                  "seedCount": 3
+                },
+                "minimum": 0
+              }
+            },
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS"
+          },
+          {
+            "numericalAccepted": true,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS"
+          },
+          {
+            "numericalAccepted": true,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_PHASE_TEMPLATE"
+          },
+          {
+            "numericalAccepted": false,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_TEMPLATE_BULK_C"
+          },
+          {
+            "numericalAccepted": false,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_BULK_D_TEMPLATE"
+          },
+          {
+            "numericalAccepted": false,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": false,
+            "startClass": "FROZEN_BULK_BOUNDARIES"
+          }
+        ],
+        "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+        "engineId": "ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O",
+        "engineVersion": "7C-1.5.0",
+        "independentReproductionMaximumRelativeDifference": 2.275957200481571e-15,
+        "independentReproductionStartClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS",
+        "interface": {
+          "continuousComponentFluxMolM2S": [
+            -0.007108073031324841,
+            -0.0008070898411020486,
+            -0.0003806393305225346,
+            -0.00011762656901104767,
+            -0.00004289924582718296,
+            0.000011313053613185714,
+            0.00010098208474936524
+          ],
+          "continuousDiffusiveFluxMolM2S": [
+            -0.006844104946840209,
+            -0.0007823407523864906,
+            -0.0003687016280581529,
+            -0.00011346646694305158,
+            -0.00004088835707658467,
+            0.007833073593583132,
+            0.0003164285577213548
+          ],
+          "continuousMoleFractions": [
+            0.031635551812784705,
+            0.0029660823576792,
+            0.0014306873710694449,
+            0.0004985721087286408,
+            0.00024099722276464002,
+            0.9374076843892853,
+            0.025820424737687954
+          ],
+          "dispersedComponentFluxMolM2S": [
+            -0.007108073031324838,
+            -0.0008070898411020483,
+            -0.0003806393305225346,
+            -0.00011762656901104767,
+            -0.000042899245827183,
+            0.000011313053613183329,
+            0.00010098208474936654
+          ],
+          "dispersedDiffusiveFluxMolM2S": [
+            0.00015608404120695928,
+            -0.0007805961198855933,
+            -0.00036549758148202746,
+            -0.00011302523339049856,
+            -0.00004180689008291522,
+            0.000696115350677205,
+            0.00044872643295687027
+          ],
+          "dispersedMoleFractions": [
+            0.8705810700295674,
+            0.0031751698008985383,
+            0.00181467993466852,
+            0.0005514522398270006,
+            0.00013091460209383097,
+            0.08207090108101349,
+            0.04167581231193124
+          ],
+          "fluxEqualityResidualMolM2S": [
+            -2.6020852139652106e-18,
+            -2.168404344971009e-19,
+            0,
+            0,
+            4.0657581468206416e-20,
+            2.3852447794681098e-18,
+            -1.3010426069826053e-18
+          ],
+          "totalMolarFluxMolM2S": -0.008344032879425102
+        },
+        "jobBInterfaceArtifactSha256": "b95b9a7b42bf286e4ebc54a9dcc4a9150be29285b3e988f9fcbbcc245c17bc4b",
+        "nonApplicableFlashGates": {
+          "holdupWeightedGibbsFeedTest": "NOT_APPLICABLE_INTERFACE_BOUNDARY_SOLVE",
+          "mixedFeedTpdTest": "NOT_APPLICABLE_NO_ARTIFICIAL_MIXED_FEED_CREATED"
+        },
+        "numericalStrategy": {
+          "id": "STAGE4_DOGBOX_JAC_SCALED_V1",
+          "leastSquaresMethod": "dogbox",
+          "legacyWorkerSha256": "70229d3eacfde61d906f39bc3dec8a29387cabfc96944493ffb5318653e02f2d",
+          "wrapperWorkerSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265",
+          "xScale": "jac"
+        },
+        "operation": "SOLVE_INTERFACE",
+        "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+        "protocol": "ECR_JOB_B_INTERFACE_V1",
+        "resultHash": "19cc0063b4c6c1e75f54bb23370a101119402c901950118cfafbab7cab31d600",
+        "scientificIntegrity": {
+          "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+          "cascadeSolverChanged": false,
+          "cascadeSolverParent": "7C-1.2.0",
+          "fallbackPhaseModel": null,
+          "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+          "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+          "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+          "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+          "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+          "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+          "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+          "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+          "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+          "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+          "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+          "inheritedSixComponentResidualApplied": false,
+          "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+          "interactionPairCount": 8,
+          "interactionParameterCount": 48,
+          "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+          "nativeGibbsContributionRetained": true,
+          "profileSha256ByFamily": {
+            "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+            "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+            "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+            "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+            "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+            "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+            "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+          },
+          "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+          "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+          "singleStageIsMatrixMember": true,
+          "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+          "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+          "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+          "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+          "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+          "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+          "tpdThresholdsChanged": false
+        },
+        "scientificRuntime": {
+          "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+          "numpy": "2.1.3",
+          "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+          "scipy": "1.14.1",
+          "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+        },
+        "selectedGateEvidence": {
+          "endpointStabilityAccepted": true,
+          "localStability": {
+            "continuous": {
+              "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+              "dimension": 6,
+              "eigenvalues": [
+                0.00023868235082157827,
+                0.00048823058640644985,
+                0.001342312801846609,
+                0.0026504641003520075,
+                0.011738965996595387,
+                0.050313985794792404
+              ],
+              "minimumEigenvalue": 0.00023868235082157827,
+              "stepSizeConverged": true
+            },
+            "dispersed": {
+              "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+              "dimension": 6,
+              "eigenvalues": [
+                0.00013030826304166683,
+                0.0005433922641296327,
+                0.0017198100596591125,
+                0.0029419193329442927,
+                0.016340978645719803,
+                0.09350183076245476
+              ],
+              "minimumEigenvalue": 0.00013030826304166683,
+              "stepSizeConverged": true
+            }
+          },
+          "numericalAccepted": true,
+          "phaseOrientationAccepted": true,
+          "phaseSeparationAccepted": true,
+          "postInterfaceTpd": {
+            "continuous": {
+              "allRefinementsAccepted": true,
+              "ambiguityTriggered": false,
+              "classification": "ROUTINE_STABLE",
+              "escalationUsed": false,
+              "explicitMonoRichBasinSearch": {
+                "acceptanceFailure": null,
+                "allRequiredSearchesAccepted": true,
+                "historicalFalseBasinSeedIncluded": true,
+                "minimizingComposition": [
+                  0.3172140884982867,
+                  0.4999999999980289,
+                  0.0009072930336399656,
+                  0.0002965746673158846,
+                  0.00010094676620065997,
+                  0.17640216507505538,
+                  0.005078931961472557
+                ],
+                "minimum": 2.152133051244082,
+                "negativeBasinFound": false,
+                "postSplitTpdThreshold": -1e-8,
+                "region": "x_MONO >= 0.5",
+                "searches": [
+                  {
+                    "composition": [
+                      0.317214154251617,
+                      0.49999999999942096,
+                      0.0009072929441046175,
+                      0.00029657492195488854,
+                      0.0001009485308763841,
+                      0.17640209100429513,
+                      0.005078938347731094
+                    ],
+                    "minimum": 2.152133051252203,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051252203,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.3172140884982867,
+                      0.4999999999980289,
+                      0.0009072930336399656,
+                      0.0002965746673158846,
+                      0.00010094676620065997,
+                      0.17640216507505538,
+                      0.005078931961472557
+                    ],
+                    "minimum": 2.152133051244082,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051244082,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.317214399275048,
+                      0.5000000000000093,
+                      0.0009072874353948597,
+                      0.0002965725998709226,
+                      0.00010094657243799042,
+                      0.1764018754435292,
+                      0.005078918673709918
+                    ],
+                    "minimum": 2.152133051255976,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051255976,
+                    "replayOptimizerSuccess": true
+                  }
+                ],
+                "seedCount": 3
+              },
+              "minimum": 0
+            },
+            "dispersed": {
+              "allRefinementsAccepted": true,
+              "ambiguityTriggered": false,
+              "classification": "ROUTINE_STABLE",
+              "escalationUsed": false,
+              "explicitMonoRichBasinSearch": {
+                "acceptanceFailure": null,
+                "allRequiredSearchesAccepted": true,
+                "historicalFalseBasinSeedIncluded": true,
+                "minimizingComposition": [
+                  0.3172141647341179,
+                  0.4999999999992595,
+                  0.0009072898286158817,
+                  0.00029657118644115486,
+                  0.00010094534079999662,
+                  0.17640209217338965,
+                  0.005078936737376016
+                ],
+                "minimum": 2.152133051251529,
+                "negativeBasinFound": false,
+                "postSplitTpdThreshold": -1e-8,
+                "region": "x_MONO >= 0.5",
+                "searches": [
+                  {
+                    "composition": [
+                      0.3172141647341179,
+                      0.4999999999992595,
+                      0.0009072898286158817,
+                      0.00029657118644115486,
+                      0.00010094534079999662,
+                      0.17640209217338965,
+                      0.005078936737376016
+                    ],
+                    "minimum": 2.152133051251529,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051251529,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.3172145702326279,
+                      0.5000000000003638,
+                      0.0009073100084630038,
+                      0.0002965852531171378,
+                      0.00010095163732570556,
+                      0.1764016765008071,
+                      0.005078906367295403
+                    ],
+                    "minimum": 2.1521330512581494,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.1521330512581494,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.31721429412689794,
+                      0.4999999999999475,
+                      0.0009072881063039578,
+                      0.0002965736205356456,
+                      0.00010094430864960812,
+                      0.17640196761088972,
+                      0.005078932226775669
+                    ],
+                    "minimum": 2.152133051255673,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051255673,
+                    "replayOptimizerSuccess": true
+                  }
+                ],
+                "seedCount": 3
+              },
+              "minimum": 0
+            }
+          },
+          "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS"
+        },
+        "selectedStartClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS",
+        "stage4AdapterArtifactSha256": "5dcb38f4a73e712d2a503840c263385b89a87dbd69fb3fab73e5eafa6fa56012",
+        "startDiagnostics": [
+          {
+            "continuousDiffusiveSumResidualMolM2S": 6.505213034913027e-19,
+            "continuousTotalFluxIdentityResidualMolM2S": 0,
+            "cost": 2.4510295238906687e-28,
+            "dispersedDiffusiveSumResidualMolM2S": 2.710505431213761e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 0,
+            "functionEvaluations": 9,
+            "maximumFluxEqualityResidualMolM2S": 3.686287386450715e-18,
+            "maximumInterfaceCompositionSeparation": 0.855336783308274,
+            "maximumIsoactivityLogResidual": 1.5001888620247428e-14,
+            "maximumScaledFluxEqualityResidual": 1.363048593539079e-17,
+            "numericalJacobianRank": 13,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_PHASE_TEMPLATE"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 1.734723475976807e-17,
+            "continuousTotalFluxIdentityResidualMolM2S": 4.440892098500626e-16,
+            "cost": 0.6549701936746504,
+            "dispersedDiffusiveSumResidualMolM2S": 1.5180117166960382e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 4.440892098500626e-16,
+            "functionEvaluations": 308,
+            "maximumFluxEqualityResidualMolM2S": 0.2631673866417227,
+            "maximumInterfaceCompositionSeparation": 1.2106118110755126e-7,
+            "maximumIsoactivityLogResidual": 7.936940178421281e-7,
+            "maximumScaledFluxEqualityResidual": 0.9730927044533373,
+            "numericalJacobianRank": 9,
+            "optimizerStatus": 3,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "FROZEN_BULK_BOUNDARIES"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 0,
+            "continuousTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "cost": 295.74439816148725,
+            "dispersedDiffusiveSumResidualMolM2S": 9.715668746209077e-20,
+            "dispersedTotalFluxIdentityResidualMolM2S": 3.469446951953614e-18,
+            "functionEvaluations": 65,
+            "maximumFluxEqualityResidualMolM2S": 0.009073248453630368,
+            "maximumInterfaceCompositionSeparation": 0.9349434526994268,
+            "maximumIsoactivityLogResidual": 24.26540132187197,
+            "maximumScaledFluxEqualityResidual": 0.026907295544136508,
+            "numericalJacobianRank": 3,
+            "optimizerStatus": 2,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_TEMPLATE_BULK_C"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 0,
+            "continuousTotalFluxIdentityResidualMolM2S": 0,
+            "cost": 278.6054731611488,
+            "dispersedDiffusiveSumResidualMolM2S": 6.136797610034975e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 3.469446951953614e-18,
+            "functionEvaluations": 226,
+            "maximumFluxEqualityResidualMolM2S": 0.009073248453650134,
+            "maximumInterfaceCompositionSeparation": 0.4127940292356598,
+            "maximumIsoactivityLogResidual": 23.60189624132064,
+            "maximumScaledFluxEqualityResidual": 0.026907295544195124,
+            "numericalJacobianRank": 6,
+            "optimizerStatus": 2,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_BULK_D_TEMPLATE"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 7.589415207398531e-19,
+            "continuousTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "cost": 9.730779296812694e-29,
+            "dispersedDiffusiveSumResidualMolM2S": 1.0842021724855044e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 0,
+            "functionEvaluations": 9,
+            "maximumFluxEqualityResidualMolM2S": 3.3610267347050637e-18,
+            "maximumInterfaceCompositionSeparation": 0.8553367833082752,
+            "maximumIsoactivityLogResidual": 1.0352829704629585e-14,
+            "maximumScaledFluxEqualityResidual": 1.2427795999915133e-17,
+            "numericalJacobianRank": 13,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 2.710505431213761e-18,
+            "continuousTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "cost": 1.0392579642048386e-28,
+            "dispersedDiffusiveSumResidualMolM2S": 5.421010862427522e-20,
+            "dispersedTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "functionEvaluations": 9,
+            "maximumFluxEqualityResidualMolM2S": 2.6020852139652106e-18,
+            "maximumInterfaceCompositionSeparation": 0.8553367833082719,
+            "maximumIsoactivityLogResidual": 1.1546319456101628e-14,
+            "maximumScaledFluxEqualityResidual": 1.2136416473921739e-17,
+            "numericalJacobianRank": 13,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS"
+          }
+        ],
+        "status": "CALCULATED_PRELIMINARY_INTERFACE",
+        "temperatureK": 333.15,
+        "version": "1.0.0",
+        "workerSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265"
+      },
+      "allOriginalWorkerSelectionGatesPassed": true
+    },
+    {
+      "mesh": "refined",
+      "actualEngineRequestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+      "request": {
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "T": 333.15,
+        "x_bulk_continuous": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.9730927044548101,
+          0.026907295545189846
+        ],
+        "x_bulk_dispersed": [
+          0.831407891171669,
+          0.09703368504249356,
+          0.04686707538501485,
+          0.0164755066368913,
+          0.008215841763931277,
+          0,
+          0
+        ],
+        "kc": [
+          0.00002084860236698595,
+          0.000025459744357085994,
+          0.000024871160500530255,
+          0.00002194164643140475,
+          0.000016309525055256572,
+          0.00002629806255143195,
+          0.000032789791656593186
+        ],
+        "kd": [
+          0.0000013074357939320277,
+          0.0000016179319845886038,
+          0.0000015780698542047561,
+          0.000001380657498324959,
+          0.0000010060726045372094,
+          0.0000016748193672026443,
+          0.0000021196019578990626
+        ],
+        "CtC": 10283.811255512808,
+        "CtD": 5137.775970988926,
+        "phase_config": "nmp-continuous-rrbo-dispersed"
+      },
+      "response": {
+        "acceptanceThresholds": {
+          "absoluteFluxToleranceMolM2S": 1e-12,
+          "independentStartReproductionRelativeTolerance": 0.000001,
+          "maximumIsoactivityLogResidual": 0.00002,
+          "maximumScaledFluxEqualityResidual": 1e-8,
+          "minimumInterfaceCompositionSeparation": 0.0001,
+          "minimumLocalStabilityCurvature": -0.000001,
+          "postInterfaceTpdThreshold": -1e-8,
+          "requiredNumericalJacobianRank": 13
+        },
+        "bulkBoundary": {
+          "boundaryZerosPreserved": true,
+          "continuousMoleFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189846
+          ],
+          "continuousTotalMolarConcentrationMolM3": 10283.811255512808,
+          "dispersedMoleFractions": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "dispersedTotalMolarConcentrationMolM3": 5137.775970988926,
+          "sourceQualification": "CALLER_MUST_BIND_RECORDED_GOVERNED_INCOMING_STAGE2_BOUNDARIES"
+        },
+        "closure": {
+          "d32Used": false,
+          "evidenceQualification": "MOLAR_ANALOGUE_OF_ESTABLISHED_MIXTURE_AVERAGE_CORRECTION;NO_REPOSITORY_PRIMARY_SOURCE_OR_RRBO_NMP_VALIDATION",
+          "holdupUsed": false,
+          "imposedZeroTotalMolarFlux": false,
+          "logFloor": 1e-14,
+          "logFloorScope": "NUMERICAL_INTERFACE_COORDINATES_ONLY",
+          "name": "PRELIMINARY_MIXTURE_AVERAGED_FICKIAN_MOLAR_FRAME",
+          "qualification": "PRE_PILOT_APPROXIMATION_NOT_RELEASE_QUALIFIED",
+          "sumDiffusiveFluxConstraint": "ENFORCED_BY_MIXTURE_AVERAGED_CORRECTION"
+        },
+        "componentOrder": [
+          "SAT",
+          "MONO",
+          "DI",
+          "POLY",
+          "PA",
+          "NMP",
+          "H2O"
+        ],
+        "endpointAssessments": [
+          {
+            "endpointStabilityAccepted": true,
+            "localStability": {
+              "continuous": {
+                "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+                "dimension": 6,
+                "eigenvalues": [
+                  0.00023880492143268283,
+                  0.0004883842713389786,
+                  0.0013424383756871045,
+                  0.0026506639811421043,
+                  0.011739194744120334,
+                  0.050314067913053706
+                ],
+                "minimumEigenvalue": 0.00023880492143268283,
+                "stepSizeConverged": true
+              },
+              "dispersed": {
+                "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+                "dimension": 6,
+                "eigenvalues": [
+                  0.00013034155721353783,
+                  0.0005439262193097146,
+                  0.0017201636522684862,
+                  0.0029423692011747295,
+                  0.016341480150447688,
+                  0.09350208580715258
+                ],
+                "minimumEigenvalue": 0.00013034155721353783,
+                "stepSizeConverged": true
+              }
+            },
+            "numericalAccepted": true,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "postInterfaceTpd": {
+              "continuous": {
+                "allRefinementsAccepted": true,
+                "ambiguityTriggered": false,
+                "classification": "ROUTINE_STABLE",
+                "escalationUsed": false,
+                "explicitMonoRichBasinSearch": {
+                  "acceptanceFailure": null,
+                  "allRequiredSearchesAccepted": true,
+                  "historicalFalseBasinSeedIncluded": true,
+                  "minimizingComposition": [
+                    0.317213892759489,
+                    0.49999999999825817,
+                    0.0009072865784110429,
+                    0.0002965768803058205,
+                    0.00010094965978536771,
+                    0.1764023658776381,
+                    0.0050789282461126285
+                  ],
+                  "minimum": 2.152133051245468,
+                  "negativeBasinFound": false,
+                  "postSplitTpdThreshold": -1e-8,
+                  "region": "x_MONO >= 0.5",
+                  "searches": [
+                    {
+                      "composition": [
+                        0.317213892759489,
+                        0.49999999999825817,
+                        0.0009072865784110429,
+                        0.0002965768803058205,
+                        0.00010094965978536771,
+                        0.1764023658776381,
+                        0.0050789282461126285
+                      ],
+                      "minimum": 2.152133051245468,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051245468,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.3172144690254949,
+                        0.49999999999963907,
+                        0.0009073066463064968,
+                        0.0002965760267711342,
+                        0.0001009492856757046,
+                        0.1764017923313175,
+                        0.0050789066847953404
+                      ],
+                      "minimum": 2.152133051253708,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051253708,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.3172138802526933,
+                        0.4999999999999561,
+                        0.0009072896887416541,
+                        0.0002965730407269851,
+                        0.00010094563349330307,
+                        0.17640238275137898,
+                        0.005078928633009689
+                      ],
+                      "minimum": 2.152133051255801,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.152133051255801,
+                      "replayOptimizerSuccess": true
+                    }
+                  ],
+                  "seedCount": 3
+                },
+                "minimum": 0
+              },
+              "dispersed": {
+                "allRefinementsAccepted": true,
+                "ambiguityTriggered": false,
+                "classification": "ROUTINE_STABLE",
+                "escalationUsed": false,
+                "explicitMonoRichBasinSearch": {
+                  "acceptanceFailure": null,
+                  "allRequiredSearchesAccepted": true,
+                  "historicalFalseBasinSeedIncluded": true,
+                  "minimizingComposition": [
+                    0.31721432722447085,
+                    0.49999999999908956,
+                    0.0009072930308449423,
+                    0.00029657193367894197,
+                    0.00010094848888220834,
+                    0.17640193179574784,
+                    0.005078927527285741
+                  ],
+                  "minimum": 2.1521330512503467,
+                  "negativeBasinFound": false,
+                  "postSplitTpdThreshold": -1e-8,
+                  "region": "x_MONO >= 0.5",
+                  "searches": [
+                    {
+                      "composition": [
+                        0.3172139940639337,
+                        0.4999999999999872,
+                        0.0009072897218232017,
+                        0.00029657769914630174,
+                        0.00010094756768182502,
+                        0.17640226309297793,
+                        0.005078927854449903
+                      ],
+                      "minimum": 2.1521330512556984,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.1521330512556984,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.31721432722447085,
+                        0.49999999999908956,
+                        0.0009072930308449423,
+                        0.00029657193367894197,
+                        0.00010094848888220834,
+                        0.17640193179574784,
+                        0.005078927527285741
+                      ],
+                      "minimum": 2.1521330512503467,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.1521330512503467,
+                      "replayOptimizerSuccess": true
+                    },
+                    {
+                      "composition": [
+                        0.31721421998824767,
+                        0.4999999999999972,
+                        0.0009072906672923958,
+                        0.0002965701227520758,
+                        0.00010094103645080526,
+                        0.17640204092387687,
+                        0.005078937261383043
+                      ],
+                      "minimum": 2.1521330512563495,
+                      "optimizerSuccess": true,
+                      "region": "x_MONO >= 0.5",
+                      "replayMaximumCompositionDifference": 0,
+                      "replayMinimum": 2.1521330512563495,
+                      "replayOptimizerSuccess": true
+                    }
+                  ],
+                  "seedCount": 3
+                },
+                "minimum": 0
+              }
+            },
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS"
+          },
+          {
+            "numericalAccepted": true,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS"
+          },
+          {
+            "numericalAccepted": true,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_PHASE_TEMPLATE"
+          },
+          {
+            "numericalAccepted": false,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": true,
+            "startClass": "ORIENTED_TEMPLATE_BULK_C"
+          },
+          {
+            "numericalAccepted": false,
+            "phaseOrientationAccepted": true,
+            "phaseSeparationAccepted": false,
+            "startClass": "ORIENTED_BULK_D_TEMPLATE"
+          },
+          {
+            "numericalAccepted": false,
+            "phaseOrientationAccepted": false,
+            "phaseSeparationAccepted": false,
+            "startClass": "FROZEN_BULK_BOUNDARIES"
+          }
+        ],
+        "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+        "engineId": "ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O",
+        "engineVersion": "7C-1.5.0",
+        "independentReproductionMaximumRelativeDifference": 2.4424906541753444e-15,
+        "independentReproductionStartClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS",
+        "interface": {
+          "continuousComponentFluxMolM2S": [
+            -0.007108073031324999,
+            -0.0008070898411020488,
+            -0.0003806393305225347,
+            -0.00011762656901104771,
+            -0.00004289924582718298,
+            0.000011313053613166632,
+            0.0001009820847493605
+          ],
+          "continuousDiffusiveFluxMolM2S": [
+            -0.006844104946840356,
+            -0.0007823407523864903,
+            -0.0003687016280581527,
+            -0.00011346646694305154,
+            -0.00004088835707658465,
+            0.007833073593583281,
+            0.0003164285577213548
+          ],
+          "continuousMoleFractions": [
+            0.031635551812785385,
+            0.0029660823576791984,
+            0.001430687371069444,
+            0.0004985721087286404,
+            0.00024099722276463986,
+            0.9374076843892847,
+            0.025820424737687947
+          ],
+          "dispersedComponentFluxMolM2S": [
+            -0.007108073031325,
+            -0.0008070898411020488,
+            -0.0003806393305225349,
+            -0.00011762656901104774,
+            -0.000042899245827183,
+            0.00001131305361316815,
+            0.0001009820847493595
+          ],
+          "dispersedDiffusiveFluxMolM2S": [
+            0.0001560840412069993,
+            -0.0007805961198855939,
+            -0.00036549758148202795,
+            -0.00011302523339049868,
+            -0.00004180689008291525,
+            0.0006961153506771644,
+            0.0004487264329568721
+          ],
+          "dispersedMoleFractions": [
+            0.8705810700295723,
+            0.0031751698008984463,
+            0.001814679934668459,
+            0.0005514522398269822,
+            0.00013091460209382495,
+            0.08207090108100862,
+            0.041675812311931376
+          ],
+          "fluxEqualityResidualMolM2S": [
+            8.673617379884035e-19,
+            0,
+            2.168404344971009e-19,
+            2.710505431213761e-20,
+            2.0328790734103208e-20,
+            -1.5178830414797062e-18,
+            1.0028870095490916e-18
+          ],
+          "totalMolarFluxMolM2S": -0.008344032879425287
+        },
+        "jobBInterfaceArtifactSha256": "b95b9a7b42bf286e4ebc54a9dcc4a9150be29285b3e988f9fcbbcc245c17bc4b",
+        "nonApplicableFlashGates": {
+          "holdupWeightedGibbsFeedTest": "NOT_APPLICABLE_INTERFACE_BOUNDARY_SOLVE",
+          "mixedFeedTpdTest": "NOT_APPLICABLE_NO_ARTIFICIAL_MIXED_FEED_CREATED"
+        },
+        "numericalStrategy": {
+          "id": "STAGE4_DOGBOX_JAC_SCALED_V1",
+          "leastSquaresMethod": "dogbox",
+          "legacyWorkerSha256": "70229d3eacfde61d906f39bc3dec8a29387cabfc96944493ffb5318653e02f2d",
+          "wrapperWorkerSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265",
+          "xScale": "jac"
+        },
+        "operation": "SOLVE_INTERFACE",
+        "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+        "protocol": "ECR_JOB_B_INTERFACE_V1",
+        "resultHash": "4f22c0da44282d5d376efe02f13fea95e358f072aaaadd584504daecfe5bc806",
+        "scientificIntegrity": {
+          "activeThermodynamicModel": "NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH_KISTER",
+          "cascadeSolverChanged": false,
+          "cascadeSolverParent": "7C-1.2.0",
+          "fallbackPhaseModel": null,
+          "frozenResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+          "frozenResidualParameterVectorSha256": "fa2227aa99c8bd134525304e68b8f8be5b9fb4b79427fdc520db7920df82827d",
+          "frozenResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+          "frozenSixComponentProvenanceSha256": "3476498d39f96b9761495f11a9e93e626d42aed2eda9f9082fa0a0e29bdd2f5e",
+          "frozenSixComponentRunnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+          "governingWorkflow": "SIMULTANEOUS_COUNTER_CURRENT_14N_EQUATIONS",
+          "h2oGenerationManifestSha256": "943b753db28b910e1b672f74571769ec09a781009deccc88db151b64fb780eba",
+          "h2oProfileVerificationSha256": "a60f687e1ef953f036c095281bd2461ca212193c35f1d6558e59104441070bf5",
+          "historicalResidualBearingQualificationRunnerSha256": "6918807ad2426803b8ea162eb02f0e32a902776323c75e960cacb5296e2e428e",
+          "historicalResidualModelSha256": "8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1",
+          "historicalResidualResultsSha256": "412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29",
+          "inheritedSixComponentResidualApplied": false,
+          "interactionForm": "sum_[pairs,k=0..2] [a+b*(Tref/T-1)]*xi*xj*(xi-xj)^k",
+          "interactionPairCount": 8,
+          "interactionParameterCount": 48,
+          "isolatedComplistSha256": "ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0",
+          "nativeGibbsContributionRetained": true,
+          "profileSha256ByFamily": {
+            "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+            "H2O": "82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1",
+            "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+            "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+            "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+            "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+            "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+          },
+          "residualScopeDecision": "SCOPED_OUT_AFTER_FAILED_DECLARED_LLE_VALIDATION_AND_REPRODUCED_MONO_RICH_FALSE_INSTABILITY",
+          "sevenComponentRuntimeCompatibilitySha256": "0129f65b9c1c63604dd01bd8516b91e7b742deb7e2cd15b344a2388f24c22e1a",
+          "singleStageIsMatrixMember": true,
+          "sixGenerationManifestSha256": "65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9",
+          "task238ArtifactVersion": "TASK-238-NMP-OIL-RK-0.2.0",
+          "task238ModelSha256": "cb826e81e11143c667dc745677179df76bde0107bcc676d0d52a62078113e1ba",
+          "task238ParameterVectorSha256": "851fc110959f6ac5622ee94bf04fa6b4396532753f774c33d59e5741570b3c08",
+          "task238ProtocolSha256": "7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023a5e039d",
+          "task238ResultsSha256": "a014064f61e37c8030af34c1893ef1c25c747ccd6750d53147b23f6dcb4955ec",
+          "tpdThresholdsChanged": false
+        },
+        "scientificRuntime": {
+          "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+          "numpy": "2.1.3",
+          "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+          "scipy": "1.14.1",
+          "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+        },
+        "selectedGateEvidence": {
+          "endpointStabilityAccepted": true,
+          "localStability": {
+            "continuous": {
+              "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+              "dimension": 6,
+              "eigenvalues": [
+                0.00023880492143268283,
+                0.0004883842713389786,
+                0.0013424383756871045,
+                0.0026506639811421043,
+                0.011739194744120334,
+                0.050314067913053706
+              ],
+              "minimumEigenvalue": 0.00023880492143268283,
+              "stepSizeConverged": true
+            },
+            "dispersed": {
+              "coordinate": "six independent log mole-fraction ratios ln(x_i/x_H2O)",
+              "dimension": 6,
+              "eigenvalues": [
+                0.00013034155721353783,
+                0.0005439262193097146,
+                0.0017201636522684862,
+                0.0029423692011747295,
+                0.016341480150447688,
+                0.09350208580715258
+              ],
+              "minimumEigenvalue": 0.00013034155721353783,
+              "stepSizeConverged": true
+            }
+          },
+          "numericalAccepted": true,
+          "phaseOrientationAccepted": true,
+          "phaseSeparationAccepted": true,
+          "postInterfaceTpd": {
+            "continuous": {
+              "allRefinementsAccepted": true,
+              "ambiguityTriggered": false,
+              "classification": "ROUTINE_STABLE",
+              "escalationUsed": false,
+              "explicitMonoRichBasinSearch": {
+                "acceptanceFailure": null,
+                "allRequiredSearchesAccepted": true,
+                "historicalFalseBasinSeedIncluded": true,
+                "minimizingComposition": [
+                  0.317213892759489,
+                  0.49999999999825817,
+                  0.0009072865784110429,
+                  0.0002965768803058205,
+                  0.00010094965978536771,
+                  0.1764023658776381,
+                  0.0050789282461126285
+                ],
+                "minimum": 2.152133051245468,
+                "negativeBasinFound": false,
+                "postSplitTpdThreshold": -1e-8,
+                "region": "x_MONO >= 0.5",
+                "searches": [
+                  {
+                    "composition": [
+                      0.317213892759489,
+                      0.49999999999825817,
+                      0.0009072865784110429,
+                      0.0002965768803058205,
+                      0.00010094965978536771,
+                      0.1764023658776381,
+                      0.0050789282461126285
+                    ],
+                    "minimum": 2.152133051245468,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051245468,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.3172144690254949,
+                      0.49999999999963907,
+                      0.0009073066463064968,
+                      0.0002965760267711342,
+                      0.0001009492856757046,
+                      0.1764017923313175,
+                      0.0050789066847953404
+                    ],
+                    "minimum": 2.152133051253708,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051253708,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.3172138802526933,
+                      0.4999999999999561,
+                      0.0009072896887416541,
+                      0.0002965730407269851,
+                      0.00010094563349330307,
+                      0.17640238275137898,
+                      0.005078928633009689
+                    ],
+                    "minimum": 2.152133051255801,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.152133051255801,
+                    "replayOptimizerSuccess": true
+                  }
+                ],
+                "seedCount": 3
+              },
+              "minimum": 0
+            },
+            "dispersed": {
+              "allRefinementsAccepted": true,
+              "ambiguityTriggered": false,
+              "classification": "ROUTINE_STABLE",
+              "escalationUsed": false,
+              "explicitMonoRichBasinSearch": {
+                "acceptanceFailure": null,
+                "allRequiredSearchesAccepted": true,
+                "historicalFalseBasinSeedIncluded": true,
+                "minimizingComposition": [
+                  0.31721432722447085,
+                  0.49999999999908956,
+                  0.0009072930308449423,
+                  0.00029657193367894197,
+                  0.00010094848888220834,
+                  0.17640193179574784,
+                  0.005078927527285741
+                ],
+                "minimum": 2.1521330512503467,
+                "negativeBasinFound": false,
+                "postSplitTpdThreshold": -1e-8,
+                "region": "x_MONO >= 0.5",
+                "searches": [
+                  {
+                    "composition": [
+                      0.3172139940639337,
+                      0.4999999999999872,
+                      0.0009072897218232017,
+                      0.00029657769914630174,
+                      0.00010094756768182502,
+                      0.17640226309297793,
+                      0.005078927854449903
+                    ],
+                    "minimum": 2.1521330512556984,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.1521330512556984,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.31721432722447085,
+                      0.49999999999908956,
+                      0.0009072930308449423,
+                      0.00029657193367894197,
+                      0.00010094848888220834,
+                      0.17640193179574784,
+                      0.005078927527285741
+                    ],
+                    "minimum": 2.1521330512503467,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.1521330512503467,
+                    "replayOptimizerSuccess": true
+                  },
+                  {
+                    "composition": [
+                      0.31721421998824767,
+                      0.4999999999999972,
+                      0.0009072906672923958,
+                      0.0002965701227520758,
+                      0.00010094103645080526,
+                      0.17640204092387687,
+                      0.005078937261383043
+                    ],
+                    "minimum": 2.1521330512563495,
+                    "optimizerSuccess": true,
+                    "region": "x_MONO >= 0.5",
+                    "replayMaximumCompositionDifference": 0,
+                    "replayMinimum": 2.1521330512563495,
+                    "replayOptimizerSuccess": true
+                  }
+                ],
+                "seedCount": 3
+              },
+              "minimum": 0
+            }
+          },
+          "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS"
+        },
+        "selectedStartClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS",
+        "stage4AdapterArtifactSha256": "5dcb38f4a73e712d2a503840c263385b89a87dbd69fb3fab73e5eafa6fa56012",
+        "startDiagnostics": [
+          {
+            "continuousDiffusiveSumResidualMolM2S": 1.6263032587282567e-18,
+            "continuousTotalFluxIdentityResidualMolM2S": 0,
+            "cost": 1.0843611096740965e-28,
+            "dispersedDiffusiveSumResidualMolM2S": 2.168404344971009e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "functionEvaluations": 9,
+            "maximumFluxEqualityResidualMolM2S": 4.7704895589362195e-18,
+            "maximumInterfaceCompositionSeparation": 0.8553367833082755,
+            "maximumIsoactivityLogResidual": 8.881784197001252e-15,
+            "maximumScaledFluxEqualityResidual": 1.7639452386976313e-17,
+            "numericalJacobianRank": 13,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_PHASE_TEMPLATE"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 3.469446951953614e-18,
+            "continuousTotalFluxIdentityResidualMolM2S": 4.440892098500626e-16,
+            "cost": 0.6549701942119965,
+            "dispersedDiffusiveSumResidualMolM2S": 1.7731428875859536e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 0,
+            "functionEvaluations": 1646,
+            "maximumFluxEqualityResidualMolM2S": 0.26316738664225614,
+            "maximumInterfaceCompositionSeparation": 0.000007083948330210976,
+            "maximumIsoactivityLogResidual": 0.00002524449199192702,
+            "maximumScaledFluxEqualityResidual": 0.9730927044553097,
+            "numericalJacobianRank": 9,
+            "optimizerStatus": 2,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "FROZEN_BULK_BOUNDARIES"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 1.734723475976807e-18,
+            "continuousTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "cost": 295.7439290825033,
+            "dispersedDiffusiveSumResidualMolM2S": 7.005163315102552e-20,
+            "dispersedTotalFluxIdentityResidualMolM2S": 0,
+            "functionEvaluations": 56,
+            "maximumFluxEqualityResidualMolM2S": 0.009073248453629923,
+            "maximumInterfaceCompositionSeparation": 0.932991867974704,
+            "maximumIsoactivityLogResidual": 24.265060952202766,
+            "maximumScaledFluxEqualityResidual": 0.026907295544135183,
+            "numericalJacobianRank": 3,
+            "optimizerStatus": 2,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_TEMPLATE_BULK_C"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 0,
+            "continuousTotalFluxIdentityResidualMolM2S": 0,
+            "cost": 0.002096211078055403,
+            "dispersedDiffusiveSumResidualMolM2S": 6.065894032424783e-19,
+            "dispersedTotalFluxIdentityResidualMolM2S": 5.551115123125783e-17,
+            "functionEvaluations": 42,
+            "maximumFluxEqualityResidualMolM2S": 0.016003998406163733,
+            "maximumInterfaceCompositionSeparation": 3.254951863596034e-12,
+            "maximumIsoactivityLogResidual": 7.180034344855812e-12,
+            "maximumScaledFluxEqualityResidual": 0.05917668708821595,
+            "numericalJacobianRank": 5,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_BULK_D_TEMPLATE"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 1.0842021724855044e-18,
+            "continuousTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "cost": 2.833352899577472e-28,
+            "dispersedDiffusiveSumResidualMolM2S": 5.421010862427522e-20,
+            "dispersedTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "functionEvaluations": 9,
+            "maximumFluxEqualityResidualMolM2S": 2.8189256484623115e-18,
+            "maximumInterfaceCompositionSeparation": 0.8553367833082752,
+            "maximumIsoactivityLogResidual": 1.5987211554602254e-14,
+            "maximumScaledFluxEqualityResidual": 1.0423312774122367e-17,
+            "numericalJacobianRank": 13,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_PLUS"
+          },
+          {
+            "continuousDiffusiveSumResidualMolM2S": 7.589415207398531e-19,
+            "continuousTotalFluxIdentityResidualMolM2S": 0,
+            "cost": 5.3792275409278705e-28,
+            "dispersedDiffusiveSumResidualMolM2S": 5.421010862427522e-20,
+            "dispersedTotalFluxIdentityResidualMolM2S": 1.734723475976807e-18,
+            "functionEvaluations": 9,
+            "maximumFluxEqualityResidualMolM2S": 1.5178830414797062e-18,
+            "maximumInterfaceCompositionSeparation": 0.8553367833082761,
+            "maximumIsoactivityLogResidual": 1.9539925233402755e-14,
+            "maximumScaledFluxEqualityResidual": 5.612553032219736e-18,
+            "numericalJacobianRank": 13,
+            "optimizerStatus": 1,
+            "optimizerSuccess": true,
+            "requiredNumericalJacobianRank": 13,
+            "startClass": "ORIENTED_PHASE_TEMPLATE_PERTURB_MINUS"
+          }
+        ],
+        "status": "CALCULATED_PRELIMINARY_INTERFACE",
+        "temperatureK": 333.15,
+        "version": "1.0.0",
+        "workerSha256": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265"
+      },
+      "allOriginalWorkerSelectionGatesPassed": true
+    }
+  ],
+  "qualificationPassed": true,
+  "conclusion": "Both unique captured mesh-specific Stage-4 first requests pass the original worker selection conjunction under the fixed dogbox/jac wrapper; no full-column execution was performed."
+}

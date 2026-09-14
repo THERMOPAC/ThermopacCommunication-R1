@@ -10,8 +10,8 @@ import {
   STAGE4_SEVEN_COMPONENT_ADAPTER_VERSION,
 } from './stage4-seven-component-adapter';
 import { calculateKumarHartlandEcDetails } from './stage4-mixing-audit';
+import { createStage4DogboxInterfaceSession } from './stage4-dogbox-interface';
 import {
-  createSevenComponentTwoFilmInterfaceSession,
   type JobBInterfaceRequest,
   type JobBInterfaceResponse,
 } from './job-b-interface';
@@ -251,6 +251,13 @@ type LocalFlash = {
   resultHash: string | null;
 };
 type MeshSolve = {
+  interfaceFailure?: {
+    requestHash: string;
+    request: Record<string, unknown>;
+    response: Record<string, unknown>;
+    iteration: number;
+    cellIndex: number;
+  };
   converged: boolean;
   reason: string | null;
   iterations: number;
@@ -414,6 +421,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
     let latestFilmEquality = 0;
     let latestStefanIdentity = 0;
     let flashCalls = 0;
+    let interfaceFailure: MeshSolve['interfaceFailure'];
     const maxIterations = 80;
     const relativeTolerance = 2e-6;
     for (let iteration = 0; iteration < maxIterations; iteration += 1) {
@@ -486,14 +494,22 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
               ? 'STAGE4_FINITE_RATE_SOLVER_CANCELLED'
               : 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED');
           }
-          const interfaceResult = await interfaceEvaluator({
+          const interfaceRequest = {
             componentOrder: [...JOB_A_COMPONENT_ORDER], T: basis.temperatureK,
             x_bulk_continuous: xc[j], x_bulk_dispersed: xD, kc, kd,
             CtC: localCtC, CtD: localCtD, phase_config: basis.phaseConfiguration as any,
-          }, remainingOperationMs());
+          };
+          const interfaceResult = await interfaceEvaluator(interfaceRequest, remainingOperationMs());
           if (interfaceResult.status !== 'CALCULATED_PRELIMINARY_INTERFACE'
             || !interfaceResult.interface
             || interfaceResult.interface.continuousComponentFluxMolM2S.length !== 7) {
+            interfaceFailure = {
+              requestHash: createHash('sha256').update(JSON.stringify(interfaceRequest)).digest('hex'),
+              request: interfaceRequest,
+              response: interfaceResult,
+              iteration: iteration + 1,
+              cellIndex: j,
+            };
             throw new Error(`STAGE4_JOB_B_INTERFACE_UNAVAILABLE:${interfaceResult.status}`);
           }
           const raw = interfaceResult.interface.continuousComponentFluxMolM2S
@@ -523,6 +539,7 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
         }
       } catch (error) {
         return { converged: false, reason: error instanceof Error ? error.message : 'LOCAL_EQUILIBRIUM_FAILURE',
+          interfaceFailure,
           iterations: iteration + 1, localFlashCalls: flashCalls, continuousOutlet: [], dispersedOutlet: [], transfer,
           maxScaledUpdateResidual: null, maxScaledConstitutiveResidual: null,
           maxScaledComponentBalanceResidual: null, maxAxialResidualMolS: null,
@@ -655,8 +672,10 @@ async function solveCase(input: Stage4PhysicalSizingInput, c: 0.0126 | 0.0105,
       lowerCountUnresolved = true;
       result.lastConservedPhysicalTrial = {
         physicalCompartments: count, status: 'NUMERICAL_FAILURE',
-        coarse: { reason: coarse.reason, iterations: coarse.iterations, localFlashCalls: coarse.localFlashCalls },
-        refined: { reason: refined.reason, iterations: refined.iterations, localFlashCalls: refined.localFlashCalls },
+        coarse: { reason: coarse.reason, iterations: coarse.iterations, localFlashCalls: coarse.localFlashCalls,
+          interfaceFailure: coarse.interfaceFailure ?? null },
+        refined: { reason: refined.reason, iterations: refined.iterations, localFlashCalls: refined.localFlashCalls,
+          interfaceFailure: refined.interfaceFailure ?? null },
       };
       // No higher count can establish a minimum while this count is unknown.
       // Preserve the evidence and leave time for the other coefficient case.
@@ -787,7 +806,7 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
     timeoutMs: options?.timeoutMs ?? 120_000,
   });
   const interfaceSession = options?.interfaceEvaluator ? null
-    : createSevenComponentTwoFilmInterfaceSession({ timeoutMs: options?.timeoutMs ?? 120_000 });
+    : createStage4DogboxInterfaceSession({ timeoutMs: options?.timeoutMs ?? 120_000 });
   const closeSessions = () => {
     session?.close();
     interfaceSession?.close();
@@ -883,6 +902,7 @@ export async function runStage4PredictivePhysicalSizing(input: Stage4PhysicalSiz
       'Job-B evaluates pinned seven-component chemical potentials/interface stability from each current local countercurrent state. The independently pinned bulk-equilibrium adapter re-evaluates the converged holdup-weighted inventory in every FV cell; no inlet equilibrium partition is retained as a column closure.',
       'This is a finite-rate diagonal generalized-Fick screening closure in a molar-average frame, not a full Maxwell–Stefan model. The zero-sum diffusive frame residual does not erase non-equimolar Stefan/convective phase transfer.',
       'Job A two-film coefficients use frozen Stage-3 hydraulic state and phase-average feed compositions; composition-dependent transport and axial variation require pilot validation.',
+      'Stage-4 interface roots use a separately pinned dogbox/Jacobian-scaled numerical strategy; the legacy interface equations, bounds, independent reproduction and physical/stability acceptance gates are unchanged.',
       'Ec uses the authorized screening expression; Ed=0. Two and four finite-volume cells per physical compartment are independently solved; mesh and nonlinear iteration counts are never physical compartment count.',
     ],
   };

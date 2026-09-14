@@ -55,7 +55,7 @@ describe('Stage-4 predictive physical sizing', () => {
 
   it('searches real integer physical compartments before deriving efficiency', async () => {
     let flashes = 0;
-    const result = await runStage4PredictivePhysicalSizing({
+    const input: Parameters<typeof runStage4PredictivePhysicalSizing>[0] = {
       calculatedNt: 2, stage1SnapshotHash: h, stage2JobId: 'stage2',
       stage2ResultHash: h, stage2EngineHash: h, stage3RunId: 1,
       stage3ImmutableHash: h, stage3ImplementationHash: h, selectedTrialId: 'point',
@@ -85,7 +85,8 @@ describe('Stage-4 predictive physical sizing', () => {
         sulfurAllocationSatPct: 20, sulfurAllocationMonoPct: 20, sulfurAllocationDiPct: 20,
         sulfurAllocationPolyPct: 20, sulfurAllocationPaPct: 20,
       },
-    }, {
+    };
+    const evaluators: NonNullable<Parameters<typeof runStage4PredictivePhysicalSizing>[1]> = {
       flashEvaluator: async (request) => {
         flashes += 1;
         return {
@@ -112,7 +113,8 @@ describe('Stage-4 predictive physical sizing', () => {
         },
         } as any);
       },
-    });
+    };
+    const result = await runStage4PredictivePhysicalSizing(input, evaluators);
     // One inlet binding flash plus the evolving local cell states. A single
     // frozen inlet flash is not an accepted physical-column closure.
     expect(flashes).toBeGreaterThan(1);
@@ -128,6 +130,28 @@ describe('Stage-4 predictive physical sizing', () => {
     expect(result.primary.selected.continuousPhaseTotalMolarFlowChangeMolS)
       .not.toBeCloseTo(0, 14);
     expect(result.screeningNotice).toContain('REQUIRES PILOT VALIDATION');
+    const blockedResponse = {
+      status: 'BLOCKED_NO_ACCEPTED_PHYSICAL_INTERFACE_ROOT',
+      interface: null,
+      startDiagnostics: [{ startClass: 'bulk', jacobianRank: 12, requiredJacobianRank: 13 }],
+      endpointAssessments: [{ numericalAccepted: false }],
+      acceptanceThresholds: { scaledFluxEquality: 1e-8 },
+    };
+    const blocked = await runStage4PredictivePhysicalSizing(input, {
+      ...evaluators, interfaceEvaluator: async () => blockedResponse as any,
+    });
+    expect(blocked.status).toBe('NUMERICAL_FAILURE_UNRESOLVED_PHYSICAL_COUNTS_REMAIN');
+    for (const coefficientCase of [blocked.primary, blocked.sensitivity]) {
+      for (const mesh of ['coarse', 'refined']) {
+        const evidence = coefficientCase.lastConservedPhysicalTrial[mesh].interfaceFailure;
+        expect(evidence.response).toEqual(blockedResponse);
+        expect(evidence.requestHash).toMatch(/^[a-f0-9]{64}$/);
+        expect(evidence.request.componentOrder).toHaveLength(7);
+        expect(evidence.request.kc).toHaveLength(7);
+        expect(evidence.iteration).toBe(1);
+        expect(evidence.cellIndex).toBe(0);
+      }
+    }
   });
 
   it('uses a consistent two-film partition orientation and rejects nonphysical phase inputs', () => {

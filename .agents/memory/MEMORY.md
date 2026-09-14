@@ -113,7 +113,8 @@
 - [Project 236 bounded hydraulic search](project236-bounded-hydraulic-search.md) — calculate a pre-pilot RPM/diameter envelope, but final RPM waits for coupled transfer/efficiency.
 - [Project 236 deformed-drop gate](project236-deformed-drop-gate.md) — persist extrapolated trials for audit only; show/select only CALCULATED_IN_RANGE results.
 - [ECR Pre-Pilot stage ownership](ecr-prepilot-stage-ownership.md) — Inputs → thermodynamics → hydrodynamics → future mass transfer; downstream stages consume upstream authority without duplicating ownership.
-- [ECR mass-transfer admission](ecr-mass-transfer-admission.md) — use valid Stage-2 N_T else 7; extrapolation still calculates; Stage 3 owns operating holdup; final design is deterministic.
+- [ECR mass-transfer admission](ecr-mass-transfer-admission.md) — unified Stage 4 requires accepted Stage-2 N_T without a default; derive physical count before efficiency and retain independent closure gates.
+- [Interface-root numerical diagnosis](interface-root-numerical-diagnosis.md) — optimizer success can hide nonzero-residual minima; qualify remedies on exact assembled requests with unchanged gates.
 - [ECR Job-A predictive closure](ecr-job-a-predictive-closure.md) — Laitinen K&H base route plus exact-identity Joback volumes closes 7C diffusivity/film inputs without inventing Kühni C2.
 - [Stage-2 local adapter authority](ecr-stage2-local-adapter-authority.md) — reuse the frozen 7C engine in a separate artifact; calculated duty is admitted only from a validated owned DB job.
 - [Job-B state and film boundaries](ecr-job-b-local-flux-boundary.md) — Stage-2 owns bulk states; zero-sum interface flux does not establish a nonnegative finite-film profile.

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, Loader2, Play, RefreshCw } from "lucide-react";
+import Stage4InterfaceFailureDiagnostics, {
+  type Stage4InterfaceFailureCase,
+} from "./stage4-interface-failure-diagnostics";
 
 type RecordValue = Record<string, unknown>;
 type Props = { designId: number | null };
@@ -414,6 +417,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const geometry = record(displayResult?.physicalGeometry);
   const audit = record(displayResult?.mixingAudit);
   const physicalSizing = record(displayResult?.physicalSizing);
+  const diagnosticPhysicalSizing = record(result?.physicalSizing);
+  const diagnosticPrimary = record(diagnosticPhysicalSizing.primary);
+  const diagnosticSensitivity = record(diagnosticPhysicalSizing.sensitivity);
   const primary = record(physicalSizing.primary);
   const sensitivity = record(physicalSizing.sensitivity);
   const primaryDispersion = record(primary.dispersion);
@@ -488,6 +494,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
       selected: primarySelected,
       searchTermination: primary.searchTermination,
       targetCompliance: record(primarySelected.targetCompliance),
+      lastConservedPhysicalTrial: diagnosticPrimary.lastConservedPhysicalTrial,
     },
     {
       key: "sensitivity",
@@ -499,8 +506,16 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
       selected: sensitivitySelected,
       searchTermination: sensitivity.searchTermination,
       targetCompliance: record(sensitivitySelected.targetCompliance),
+      lastConservedPhysicalTrial: diagnosticSensitivity.lastConservedPhysicalTrial,
     },
   ];
+
+  const interfaceFailureCases: Stage4InterfaceFailureCase[] = cases.map(item => ({
+    key: item.key,
+    label: item.label,
+    coefficient: item.coefficient,
+    trial: item.lastConservedPhysicalTrial,
+  }));
 
   const renderAudit = () => {
     if (result?.mixingAudit == null) return null;
@@ -765,6 +780,8 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               </p>
             </div>
           )}
+
+           <Stage4InterfaceFailureDiagnostics cases={interfaceFailureCases} />
 
           {!staleLineage && <>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">

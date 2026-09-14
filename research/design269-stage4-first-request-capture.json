@@ -1,0 +1,567 @@
+{
+  "schema": "DESIGN269_STAGE4_ENGINE_ASSEMBLED_FIRST_REQUEST_CAPTURE_V1",
+  "scope": {
+    "designId": 269,
+    "enginePath": "runStage4PredictivePhysicalSizing injected capture-only evaluators",
+    "physicalCompartments": 5,
+    "maximumCompartments": 5,
+    "noPythonWorkerOrScientificFlash": true,
+    "noColumnIterationBeyondFirstBlockedCell": true,
+    "noPersistenceOrProductionEdit": true,
+    "flashStubDisclosure": "STRUCTURAL_EXTRACTION_ORIENTATION_STUB_ONLY; NOT A SCIENTIFIC FLASH AND NOT USED AS LOCAL INTERFACE COMPOSITION",
+    "interfaceStubDisclosure": "CAPTURE_ONLY_BLOCKED_RESPONSE; NOT A SCIENTIFIC INTERFACE RESPONSE"
+  },
+  "sourceBinding": {
+    "baselineExecutedDiagnosisScriptSha256": "1851ed4484b74eef7a711b1f1fc744876f2cff75372156cd1c7ecf9a8ebaf005",
+    "baselineEvidenceSha256": "1e6774cfb5a714bbf4ee595f2e5e854e5c70347d5d336cd7fdcd075fb1b4aafa",
+    "stage4SizingSourceSha256": "c500592c4ed16dd70c889cc94aea01a814112c20af939e616febfa611cafe998"
+  },
+  "requestAssemblyComparison": [
+    {
+      "caseCoefficient": 0.0126,
+      "mesh": "coarse",
+      "actualEngineRequestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "historicalManualRequestHash": "ed2340c6146e8de562a18b206970df77bd7fa7595cd0ef8f0caabc6c9b065f80",
+      "bitwiseJsonIdentityWithManual": false,
+      "maximumAbsoluteDifferenceFromManualByField": {
+        "T": 0,
+        "CtC": 1.8189894035458565e-12,
+        "CtD": 0,
+        "x_bulk_continuous": 1.1102230246251565e-16,
+        "x_bulk_dispersed": 0,
+        "kc": 0,
+        "kd": 0
+      },
+      "engineFailureCaptureAgreesWithInterceptor": true
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "mesh": "refined",
+      "actualEngineRequestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+      "historicalManualRequestHash": "ed2340c6146e8de562a18b206970df77bd7fa7595cd0ef8f0caabc6c9b065f80",
+      "bitwiseJsonIdentityWithManual": false,
+      "maximumAbsoluteDifferenceFromManualByField": {
+        "T": 0,
+        "CtC": 0,
+        "CtD": 0,
+        "x_bulk_continuous": 6.938893903907228e-18,
+        "x_bulk_dispersed": 0,
+        "kc": 0,
+        "kd": 0
+      },
+      "engineFailureCaptureAgreesWithInterceptor": true
+    },
+    {
+      "caseCoefficient": 0.0105,
+      "mesh": "coarse",
+      "actualEngineRequestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "historicalManualRequestHash": "ed2340c6146e8de562a18b206970df77bd7fa7595cd0ef8f0caabc6c9b065f80",
+      "bitwiseJsonIdentityWithManual": false,
+      "maximumAbsoluteDifferenceFromManualByField": {
+        "T": 0,
+        "CtC": 1.8189894035458565e-12,
+        "CtD": 0,
+        "x_bulk_continuous": 1.1102230246251565e-16,
+        "x_bulk_dispersed": 0,
+        "kc": 0,
+        "kd": 0
+      },
+      "engineFailureCaptureAgreesWithInterceptor": true
+    },
+    {
+      "caseCoefficient": 0.0105,
+      "mesh": "refined",
+      "actualEngineRequestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+      "historicalManualRequestHash": "ed2340c6146e8de562a18b206970df77bd7fa7595cd0ef8f0caabc6c9b065f80",
+      "bitwiseJsonIdentityWithManual": false,
+      "maximumAbsoluteDifferenceFromManualByField": {
+        "T": 0,
+        "CtC": 0,
+        "CtD": 0,
+        "x_bulk_continuous": 6.938893903907228e-18,
+        "x_bulk_dispersed": 0,
+        "kc": 0,
+        "kd": 0
+      },
+      "engineFailureCaptureAgreesWithInterceptor": true
+    }
+  ],
+  "actualHashSummary": {
+    "uniqueActualEngineRequestHashes": [
+      "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+      "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d"
+    ],
+    "allFourActualEngineRequestsBitwiseIdentical": false,
+    "comment": "No identity claim is made from analysis alone; hashes above are direct injected-evaluator captures from production assembly."
+  },
+  "capturedEngineRequests": [
+    {
+      "caseCoefficient": 0.0126,
+      "mesh": "coarse",
+      "capturedByInjectedEvaluator": {
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512806,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "requestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc"
+      },
+      "enginePersistableFailureCapture": {
+        "requestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512806,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "response": {
+          "status": "BLOCKED_NO_ACCEPTED_PHYSICAL_INTERFACE_ROOT"
+        },
+        "iteration": 1,
+        "cellIndex": 0
+      }
+    },
+    {
+      "caseCoefficient": 0.0126,
+      "mesh": "refined",
+      "capturedByInjectedEvaluator": {
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189846
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512808,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "requestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d"
+      },
+      "enginePersistableFailureCapture": {
+        "requestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189846
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512808,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "response": {
+          "status": "BLOCKED_NO_ACCEPTED_PHYSICAL_INTERFACE_ROOT"
+        },
+        "iteration": 1,
+        "cellIndex": 0
+      }
+    },
+    {
+      "caseCoefficient": 0.0105,
+      "mesh": "coarse",
+      "capturedByInjectedEvaluator": {
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512806,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "requestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc"
+      },
+      "enginePersistableFailureCapture": {
+        "requestHash": "b595ab74f3c6c14e288fa22258fe2d9a55714735c5d8114010536f702a3b83cc",
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189853
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512806,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "response": {
+          "status": "BLOCKED_NO_ACCEPTED_PHYSICAL_INTERFACE_ROOT"
+        },
+        "iteration": 1,
+        "cellIndex": 0
+      }
+    },
+    {
+      "caseCoefficient": 0.0105,
+      "mesh": "refined",
+      "capturedByInjectedEvaluator": {
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189846
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512808,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "requestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d"
+      },
+      "enginePersistableFailureCapture": {
+        "requestHash": "57f466d9540ad09bdb71372204f94bf78ec3d3532391df19acd1414a7c3dba8d",
+        "request": {
+          "componentOrder": [
+            "SAT",
+            "MONO",
+            "DI",
+            "POLY",
+            "PA",
+            "NMP",
+            "H2O"
+          ],
+          "T": 333.15,
+          "x_bulk_continuous": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548101,
+            0.026907295545189846
+          ],
+          "x_bulk_dispersed": [
+            0.831407891171669,
+            0.09703368504249356,
+            0.04686707538501485,
+            0.0164755066368913,
+            0.008215841763931277,
+            0,
+            0
+          ],
+          "kc": [
+            0.00002084860236698595,
+            0.000025459744357085994,
+            0.000024871160500530255,
+            0.00002194164643140475,
+            0.000016309525055256572,
+            0.00002629806255143195,
+            0.000032789791656593186
+          ],
+          "kd": [
+            0.0000013074357939320277,
+            0.0000016179319845886038,
+            0.0000015780698542047561,
+            0.000001380657498324959,
+            0.0000010060726045372094,
+            0.0000016748193672026443,
+            0.0000021196019578990626
+          ],
+          "CtC": 10283.811255512808,
+          "CtD": 5137.775970988926,
+          "phase_config": "nmp-continuous-rrbo-dispersed"
+        },
+        "response": {
+          "status": "BLOCKED_NO_ACCEPTED_PHYSICAL_INTERFACE_ROOT"
+        },
+        "iteration": 1,
+        "cellIndex": 0
+      }
+    }
+  ]
+}

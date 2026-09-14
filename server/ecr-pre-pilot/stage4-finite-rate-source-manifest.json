@@ -1,7 +1,10 @@
 {
   "schema": "STAGE4_FINITE_RATE_SOURCE_MANIFEST_V1",
   "files": {
-    "server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts": "2b1d1e15a10041b89b85e5a8425bb2885a337e427265d9ae6c05a1c8762992eb",
+    "server/ecr-pre-pilot/stage4-predictive-physical-sizing.ts": "d794dcae3093f6835d9e054fc0b222ff240c4a09d4e6b018cf6538e3e0157fa8",
+    "server/ecr-pre-pilot/stage4-dogbox-interface.ts": "f9a89bc8700a0dde9333244c5799d279175da0df4da7d660bfdcdc08af22dc1f",
+    "server/ecr-pre-pilot/job-b-interface-stage4-dogbox/worker.py": "bd87f14e95ca7bdf4690a3e9fcf7a8e51e4fe4498ee3bd87b699ba1c7bef0265",
+    "scripts/package-stage4-job-b-dogbox.mjs": "722ca6566902386071686dac218a0c258b5c7ba1336219cf0a6a045adb5f7e11",
     "server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts": "4a7a69ed4e24faa7c303dd05ffdd4725efb8c7f349cc2842d1648dd71a3d1d34",
     "server/ecr-pre-pilot/stage4-mixing-audit.ts": "e4eebab6d80151f78cfd7bdeaf744469a5640ec116b509c4ac9a4304f521e623",
     "server/ecr-pre-pilot/job-a.ts": "3578f7461d0002e920ecf45fb64aed30cab3c70646c69756bae0b52e51581569",
