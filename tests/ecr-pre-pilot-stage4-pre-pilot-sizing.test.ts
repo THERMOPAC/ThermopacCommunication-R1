@@ -50,7 +50,7 @@ describe('Stage 4 live pre-pilot physical-sizing projection', () => {
     expect(result.overallEfficiency).toMatchObject({
       value: null,
       status: 'DEPENDENCY_BLOCKED',
-      dependency: 'STAGE4_GEOMETRY_INPUT_REQUIRED',
+      dependency: 'STAGE4_ROTOR_DIAMETER_REQUIRED',
     });
     expect(result.mainOutputs.physicalCompartments).toBeNull();
     expect(result.mainOutputs.activeHeightM).toBeNull();
@@ -76,7 +76,7 @@ describe('Stage 4 live pre-pilot physical-sizing projection', () => {
     });
     expect(called).toBe(false);
     expect(result.mainOutputs.physicalCompartments).toBeNull();
-    expect(result.mixingAudit.blockers[0].code).toBe('STAGE4_GEOMETRY_INPUT_REQUIRED');
+    expect(result.mixingAudit.blockers[0].code).toBe('STAGE4_ROTOR_DIAMETER_REQUIRED');
   });
 
   it('rejects an invalid Stage-2 NT rather than applying the historical default of seven', () => {

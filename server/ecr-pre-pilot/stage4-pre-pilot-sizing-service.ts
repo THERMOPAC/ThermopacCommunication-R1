@@ -2,6 +2,9 @@ import { pool } from '../db';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
 import { validateStage1Snapshot } from './stage1';
 import { buildStage4MixingAudit } from './stage4-mixing-audit';
+import {
+  loadValidatedCompletedSevenComponentNtForStage4,
+} from './predictive-nt-job-service';
 
 const FINITE = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
@@ -145,7 +148,7 @@ export function deriveStage4PrePilotSizing(input: {
   // A supplied extension cannot bypass missing correlation/geometry evidence.
   const overallEfficiency = closureResult(context,
     mixingAudit.blockers.length ? null : input.overallEfficiencyClosure);
-  if (overallEfficiency.value === null) {
+  if (overallEfficiency.value === null && mixingAudit.blockers.length) {
     overallEfficiency.dependency = mixingAudit.blockers[0].code;
   }
   const pitchM = 0.5 * hydraulics.diameterM;
@@ -210,8 +213,8 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
   );
   if (!design.rows[0]) fail('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
   const stage1 = validateStage1Snapshot(design.rows[0].input_data);
-  const stage2Rows = await pool.query<{ id: string; result_snapshot: any }>(
-    `SELECT id::text,result_snapshot FROM ecr_pre_pilot_predictive_nt_jobs
+  const stage2Rows = await pool.query<{ id: string; engine_hash: string; result_snapshot: any }>(
+    `SELECT id::text,engine_hash,result_snapshot FROM ecr_pre_pilot_predictive_nt_jobs
       WHERE design_id=$1 AND created_by=$2 AND status='completed'
         AND result_snapshot IS NOT NULL
         AND result_snapshot->>'status' IS DISTINCT FROM 'ENGINE_ERROR'
@@ -228,6 +231,16 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
   if (!stage2) fail('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
   const nt = stage2.result_snapshot.establishedTheoreticalStages
     ?? stage2.result_snapshot.predictiveNt;
+  // Re-establish the unique accepted Stage-2 result through the server-owned
+  // validator.  The loose status query above is only a discovery query and is
+  // never the scientific authority for Stage 4.
+  const trustedStage2 = await loadValidatedCompletedSevenComponentNtForStage4(
+    stage2.id, userId, designId,
+  );
+  if (trustedStage2.jobId !== stage2.id || trustedStage2.theoreticalStages !== nt
+    || trustedStage2.engineHash !== stage2.engine_hash) {
+    fail('STAGE4_STAGE2_TRUSTED_AUTHORITY_MISMATCH');
+  }
   const stage2ResultHash = kuhniRunHash(stage2.result_snapshot);
   // Read the immutable persisted Stage-3 record directly.  The normal
   // resolver-reader performs a numerical replay for its own verification;
@@ -269,10 +282,117 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
     || row.stage2_result_hash !== stage2ResultHash) {
     fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   }
-  return deriveStage4PrePilotSizing({
+  const projection = deriveStage4PrePilotSizing({
     calculatedNt: nt,
     stage2JobId: stage2.id,
     stage2ResultHash,
     stage3,
   });
+  const selected = stage3.result.hydraulicDiagnosticPoint;
+  const operating = stage3.result.hydraulicRpmEnvelope.find((candidate: any) =>
+    candidate?.rpm === selected?.rpm
+    && candidate?.columnDiameterM === selected?.columnDiameterM)?.operatingHydraulics;
+  if (!FINITE(selected.rotorDiameterM) || selected.rotorDiameterM <= 0
+    || !FINITE(operating?.continuousSuperficialVelocityMS)
+    || !FINITE(operating?.dispersedSuperficialVelocityMS)
+    || !/^[a-f0-9]{64}$/.test(String(stage2.engine_hash))
+    || !/^[a-f0-9]{64}$/.test(String(stage3.result?.engine?.implementationHash ?? ''))) {
+    fail('STAGE4_PINNED_TRANSFER_AND_MIXING_LINEAGE_INPUT_REQUIRED');
+  }
+  // Do not promote the currently available film/flash ingredients into a
+  // physical-column result.  A single inlet flash and a forced zero-sum
+  // transfer vector are not the required local 7C/non-equimolar closure.
+  // In particular, a bounded integer search with unresolved numerical counts
+  // must never be represented as a physical "no solution".
+  const physicalSizing = {
+    status: 'DEPENDENCY_BLOCKED' as const,
+    classification: 'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN',
+    screeningNotice: 'PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN',
+    implementation: null,
+    primary: {
+      selected: null,
+      searchTermination: 'NOT_STARTED_REQUIRED_PHYSICAL_CLOSURE_MISSING',
+      attemptedPhysicalCompartments: [],
+      nonconvergedPhysicalCounts: [],
+      lastConservedPhysicalTrial: null,
+    },
+    sensitivity: {
+      selected: null,
+      searchTermination: 'NOT_STARTED_REQUIRED_PHYSICAL_CLOSURE_MISSING',
+      attemptedPhysicalCompartments: [],
+      nonconvergedPhysicalCounts: [],
+      lastConservedPhysicalTrial: null,
+    },
+    blockers: [
+      'STAGE4_DYNAMIC_LOCAL_7C_EQUILIBRIUM_CLOSURE_REQUIRED',
+      'STAGE4_NON_EQUIMOLAR_MULTICOMPONENT_TWO_FILM_INTERFACE_CLOSURE_REQUIRED',
+      'STAGE4_INDEPENDENT_AXIAL_MESH_REFINEMENT_EVIDENCE_REQUIRED',
+    ],
+    materiality: {
+      threshold: 'same integer physical compartments and <=5% relative active-height and overall-efficiency difference',
+      comparable: false,
+      heightRelativeDifference: null,
+      efficiencyRelativeDifference: null,
+      robustToKhCoefficientSensitivity: false,
+      classification: 'NOT_COMPARABLE_PHYSICAL_SOLVES_NOT_AVAILABLE',
+      note: 'Ec proximity alone is not a robustness criterion.',
+    },
+    assumptions: [
+      'K&H Ec and Ed=0 are screening inputs only; they do not close the missing local multicomponent physical-column model.',
+      'No physical-compartment count, active height, or overall efficiency is reported until the three explicit closure blockers are resolved.',
+    ],
+  };
+  const primary = physicalSizing.primary.selected;
+  return {
+    ...projection,
+    status: physicalSizing.status,
+    classification: physicalSizing.classification,
+    screeningNotice: physicalSizing.screeningNotice,
+    mainOutputs: {
+      diameterM: selected.columnDiameterM,
+      overallEfficiency: primary?.overallEfficiency ?? null,
+      physicalCompartments: primary?.physicalCompartments ?? null,
+      activeHeightM: primary?.activeHeightM ?? null,
+    },
+    overallEfficiency: {
+      value: primary?.overallEfficiency ?? null,
+      status: primary
+        ? 'CALCULATED_FROM_CONSERVED_TRANSFER_AND_AXIAL_DISPERSION_SCREENING'
+        : 'NOT_EXECUTED_REQUIRED_CLOSURE_MISSING',
+      dependency: primary ? null : physicalSizing.primary.searchTermination,
+      closure: {
+        implementationId: null,
+        version: null,
+        implementationHash: null,
+      },
+    },
+    mixingAudit: {
+      ...projection.mixingAudit,
+      transferSolution: {
+        status: primary ? 'CALCULATED_CONSERVED_AXIAL_DISPERSION_SCREENING'
+          : 'NOT_EXECUTED_REQUIRED_CLOSURE_MISSING',
+        detail: primary
+          ? 'A rate-based seven-component, two-film, conserved counter-current physical-compartment search was run from the persisted Stage-3 point. No Stage-2 outlet was relabelled as a physical-column outlet.'
+          : 'No physical-compartment search was executed. Dynamic local 7C equilibrium, non-equimolar two-film interface closure, and independent mesh-refinement evidence are required before a physical-column prediction may be reported.',
+        physicalSizingStatus: physicalSizing.status,
+      },
+    },
+    physicalSizing,
+    physicalGeometry: {
+      ...projection.physicalGeometry,
+      equations: [
+        'pitch = 0.5 × D',
+        'physicalCompartments = first target-compliant integer count from conserved physical transfer-model search',
+        'overallEfficiency = valid calculated Stage-2 NT / solved physical compartment count',
+        'activeHeight = physicalCompartments × pitch',
+      ],
+    },
+    assumptions: physicalSizing.assumptions,
+  };
 }
+
+/**
+ * The physical solve remains blocked rather than caching or replaying an
+ * unjustified frozen-equilibrium approximation.  This endpoint stays read
+ * only; it never writes Stage 2 or Stage 3.
+ */

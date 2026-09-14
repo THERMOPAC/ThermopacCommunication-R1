@@ -12,7 +12,7 @@ vi.mock('react', async (original) => {
   ] };
 });
 
-it('renders precise blockers and distinguishes an Ed assumption from physical sizing', () => {
+it('renders the current mixing dependency and distinguishes an Ed assumption from physical sizing', () => {
   const mixingAudit = buildStage4MixingAudit({
     selected: { columnDiameterM: 1, rotorDiameterM: 0.5, rpm: 30, d32M: 0.003 },
     operating: { operatingHoldup: 0.1, continuousSuperficialVelocityMS: 0.001, dispersedSuperficialVelocityMS: 0.002 },
@@ -25,9 +25,8 @@ it('renders precise blockers and distinguishes an Ed assumption from physical si
   }, null, false];
   const html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
   expect(html).toContain('stage4-mixing-audit');
-  expect(html).toContain('STAGE4_GEOMETRY_INPUT_REQUIRED');
-  expect(html).toContain('statorOpeningGeometry');
-  expect(html).toContain('STAGE4_AXIAL_MIXING_SOURCE_EQUATION_UNVERIFIED');
+  expect(html).toContain('STAGE4_CONTINUOUS_MIXING_PROPERTIES_REQUIRED');
+  expect(html).toContain('Kumar–Hartland continuous-phase axial-dispersion expression');
   expect(html).toContain('Dispersed E_d (screening assumption)');
   expect(html).toContain('No transfer solution or physical sizing is claimed');
   expect(html).toContain('PRE-PILOT PREDICTIVE / SCREENING');

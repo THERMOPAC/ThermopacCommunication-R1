@@ -35,3 +35,17 @@ abstract reports RDC mixing up to 20% above ARD, but that does NOT justify
 replacing only 0.0105 by 0.0126. The 2017 nomenclature defines V as superficial
 and N as s^-1 but does not separately define Vbar or the trailing e. Neither
 “interstitial velocity” nor “Euler's number” is established by that source.
+
+The engineer explicitly authorized the supplied fully defined 0.0126
+expression as the Stage-4 screening authority, with superficial Vc and no
+undefined trailing factor. The 2017 expression is supporting evidence only,
+not the coded authoritative equation. Ed=0 is the primary screening assumption;
+0.0105 must be run as a full sizing sensitivity, not only an Ec comparison.
+
+**Why:** The engineer chose predictive screening despite the unresolved source
+notation, while requiring the discrepancy to remain visible.
+
+**How to apply:** Do not reinstate source-transcription or absent-stator blockers
+for this authorized expression. Assess robustness from valid physical sizing
+results for both coefficients, never Ec proximity alone. Label every result
+PRE-PILOT PREDICTIVE / SCREENING — REQUIRES PILOT VALIDATION BEFORE FINAL DESIGN.
