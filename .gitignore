@@ -12,6 +12,7 @@ vite.config.ts.*
 # ── Replit / local ────────────────────────────────────────────────────────────
 attached_assets
 temp
+test-artifacts/
 wpqr_documents
 .sap-session-cache.json
 
