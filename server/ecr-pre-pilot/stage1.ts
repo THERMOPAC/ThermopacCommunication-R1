@@ -214,7 +214,7 @@ const PHASE_CONFIGURATIONS = new Set([
   'nmp-continuous-rrbo-dispersed',
   'rrbo-continuous-nmp-dispersed',
 ]);
-const SOLVENT_RATIOS = new Set([0.5, 0.75, 0.9, 1, 1.25, 1.5, 2]);
+const SOLVENT_RATIOS = new Set([0.5, 0.6, 0.7, 0.75, 0.9, 1, 1.25, 1.5, 2]);
 const SULFUR_TARGETS = new Set([750, 1000, 1500, 2000, 2500]);
 const SATURATES_TARGETS = new Set([90, 92.5, 95, 97.5]);
 const AROMATICS_TARGETS = new Set(Array.from({ length: 17 }, (_, index) => 2 + index * 0.5));

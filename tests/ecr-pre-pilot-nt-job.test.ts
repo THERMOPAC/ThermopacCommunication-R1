@@ -435,6 +435,21 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     } as any)).toThrow('PREDICTIVE_NT_SIX_COMPONENT_CONTRACT_REQUIRED');
   });
 
+  it.each([0.5, 0.6, 0.7, 0.75, 0.9, 1, 1.25, 1.5, 2])(
+    'accepts solvent/oil dropdown ratio %s through saved Stage 1 and 7C validation',
+    (ratio) => {
+      const stage1 = canonicalizeStage1Input({
+        ...validStage1(209),
+        solventOilRatio: ratio.toFixed(2),
+      }, 209);
+      expect(stage1.solventOilRatio).toBe(ratio);
+      const input = derivePredictiveNtInputFromStage1(makeStage1Snapshot(stage1), 209);
+      expect(input.sourceSolventOilMassRatio).toBe(ratio);
+      expect(input.wetSolventConstruction?.totalWetSolventMassPerUnitFeedMass).toBe(ratio);
+      expect(() => validatePredictiveNtJobInput(input)).not.toThrow();
+    },
+  );
+
   it('routes new controlled-water derivations to the 7C contract with an exact wet-solvent closure', () => {
     const seven = derivePredictiveNtInputFromStage1(
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),

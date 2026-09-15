@@ -442,7 +442,7 @@ const PHASE_OPTIONS = [
   { value: "nmp-continuous-rrbo-dispersed", label: "NMP continuous / RRBO dispersed" },
   { value: "rrbo-continuous-nmp-dispersed", label: "RRBO continuous / NMP dispersed" },
 ];
-const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
+const SOLVENT_OIL_RATIO_OPTIONS = ["0.50", "0.60", "0.70", "0.75", "0.90", "1.00", "1.25", "1.50", "2.00"];
 const NMP_WATER_OPTIONS = [
   "0.5",
   "1.0",
