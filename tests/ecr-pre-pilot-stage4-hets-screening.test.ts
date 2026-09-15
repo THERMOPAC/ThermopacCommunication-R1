@@ -1,6 +1,10 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import {
+  ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+} from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
 const state = vi.hoisted(() => ({
   row: null as any,
@@ -8,6 +12,8 @@ const state = vi.hoisted(() => ({
   query: vi.fn(),
   values: [] as unknown[],
   index: 0,
+  optimizer: false,
+  optimizerRuns: 0,
 }));
 
 vi.mock('../server/db', () => ({ pool: { query: state.query } }));
@@ -41,6 +47,13 @@ vi.mock('../server/ecr-pre-pilot/stage4-predictive-physical-sizing', () => ({
   STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH: 'f'.repeat(64),
   runStage4PredictivePhysicalSizing: state.finiteRateRun,
 }));
+vi.mock('../server/ecr-pre-pilot-service', () => ({
+  createStage3Stage4OptimizerRun: vi.fn(async () => {
+    state.optimizerRuns += 1;
+    state.optimizer = true;
+    return optimizedStage3Row();
+  }),
+}));
 vi.mock('react', async original => {
   const actual = await original<typeof import('react')>();
   return {
@@ -72,8 +85,78 @@ const stage3Result = {
   },
 };
 
+function optimizedStage3Row() {
+  const processBasis = {
+    stage1SnapshotHash: 's'.repeat(64),
+    phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+  };
+  const geometry = {
+    columnDiameterM: 0.8,
+    compartmentHeightM: 0.2,
+    hcToColumn: 0.25,
+    rotorDiameterM: 0.32,
+    rotorToColumn: 0.4,
+    freeArea: 0.3,
+  };
+  const result: any = {
+    schemaVersion: 'ECR_STAGE3_STAGE4_OPTIMIZER_RESULT_V1',
+    status: 'OPTIMIZED_FIXED_GEOMETRY_WINDOW',
+    classification: 'PRE_PILOT_HYDRAULIC_SCREENING_NOT_SEPARATION_QUALIFICATION',
+    engine: {
+      id: 'ecr_stage3_stage4_optimizer',
+      version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+      implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+    },
+    stage1Authority: {
+      snapshotHash: 's'.repeat(64),
+      phaseConfiguration: processBasis.phaseConfiguration,
+      processBasisSchemaVersion: 'TEST',
+    },
+    processBasis,
+    designNt: { value: 7, provenance: 'FIXED_DESIGN7', stage2IsReferenceOnly: true },
+    selectedOrientation: processBasis.phaseConfiguration,
+    selectedGeometry: geometry,
+    selectedRpm: 50,
+    selectedTrial: { status: 'CALCULATED_IN_RANGE', columnDiameterM: geometry.columnDiameterM, rpm: 50 },
+    hydraulicDiagnosticPoint: null,
+    stage4GeometryInput: {
+      status: 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY',
+      ...geometry,
+      rpm: 50,
+      optimizerResultHash: 'o'.repeat(64),
+    },
+    theoreticalStagesUsed: {
+      value: 5,
+      provenance: 'STAGE_2_CALCULATED_NT',
+      stage2JobId: 'stage-2',
+      stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
+    },
+  };
+  result.calculationHash = JSON.stringify(result);
+  return {
+    id: 'optimizer-stage-3',
+    immutable_hash: JSON.stringify({
+      basis: processBasis,
+      theoreticalStages: result.theoreticalStagesUsed,
+      parentHydrodynamicRun: null,
+      result,
+    }),
+    stage1_snapshot_hash: 's'.repeat(64),
+    implementation_hash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+    stage2_job_id: 'stage-2',
+    stage2_result_hash: result.theoreticalStagesUsed.stage2ResultHash,
+    parent_hydrodynamic_run_id: null,
+    parent_hydrodynamic_run_hash: null,
+    process_basis: processBasis,
+    theoretical_stage_authority: result.theoreticalStagesUsed,
+    result_snapshot: result,
+  };
+}
+
 function resetDb() {
   state.row = null;
+  state.optimizer = false;
+  state.optimizerRuns = 0;
   state.finiteRateRun.mockReset();
   state.query.mockReset();
   state.query.mockImplementation(async (sql: string, params: any[] = []) => {
@@ -88,19 +171,7 @@ function resetDb() {
       }] };
     }
     if (sql.includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) {
-      const processBasis = stage3Result.processBasis;
-      return { rows: [{
-        id: 'stage-3',
-        immutable_hash: JSON.stringify({
-          basis: processBasis, theoreticalStages: stage3Result.theoreticalStagesUsed,
-          parentHydrodynamicRun: null, result: stage3Result,
-        }),
-        stage1_snapshot_hash: 's'.repeat(64), stage2_job_id: 'stage-2',
-        stage2_result_hash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
-        parent_hydrodynamic_run_id: null, parent_hydrodynamic_run_hash: null,
-        process_basis: processBasis, theoretical_stage_authority: stage3Result.theoreticalStagesUsed,
-        result_snapshot: stage3Result,
-      }] };
+      return { rows: state.optimizer ? [optimizedStage3Row()] : [] };
     }
     if (sql.includes('INSERT INTO ecr_pre_pilot_stage4')) {
       state.row = {
@@ -155,7 +226,9 @@ describe('Stage 4 deterministic HETS screening', () => {
     const result = await calculateStage4PrePilotSizing(7, 269);
     expect(state.finiteRateRun).not.toHaveBeenCalled();
     expect(result.calculation.status).toBe('CALCULATED');
-    expect(result.hetsSizing.installedActiveHeightM).toBe(7.3065975);
+    expect(state.optimizerRuns).toBe(1);
+    expect(result.hetsSizing.installedActiveHeightM).toBe(7);
+    expect(result.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
   });
 
   it('renders the HETS result card and does not promote outlet or target claims', () => {

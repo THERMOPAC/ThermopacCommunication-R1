@@ -167,7 +167,13 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const applyPayload = useCallback((next: RecordValue) => {
     // A current lineage with no persisted HETS result is intentionally a
     // pre-calculation state, not an incomplete finite-rate screen.
-    if (responseStatus(next) === "UNRUN") {
+    // Keep the explicit optimizer-required state visible: it carries the
+    // historical-record warning and leaves Calculate Stage 4 actionable.
+    if (
+      responseStatus(next) === "UNRUN"
+      && next.currentOptimizerRequired !== true
+      && next.historicalCalculationOnly !== true
+    ) {
       setRun(null);
       setResult(null);
       return;
@@ -503,6 +509,10 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const stage4Retryable = STAGE4_RETRY_STATES.has(stage4Status);
   const stage4Terminal = STAGE4_TERMINAL_STATES.has(stage4Status);
   const stage4Action = stage4Retryable ? retry : calculate;
+  const currentOptimizerRequired = result?.currentOptimizerRequired === true
+    || run?.currentOptimizerRequired === true;
+  const historicalCalculationOnly = currentOptimizerRequired
+    || result?.historicalCalculationOnly === true;
   const hetsSizing = record(displayResult?.hetsSizing);
   const isHetsResult = (
     displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7"
@@ -732,6 +742,32 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           </div>
         </div>
       )}
+      {historicalCalculationOnly && (
+        <div
+          data-testid="stage4-historical-result-warning"
+          role="alert"
+          className="m-3 rounded border border-amber-400 bg-amber-50 p-3 text-[10px] text-amber-950"
+        >
+          <p className="font-semibold">
+            Historical Stage 4 record — not optimized for the current{" "}
+            {currentOptimizerRequired ? "Stage 1 snapshot" : "Stage 3 optimizer geometry"}.
+          </p>
+          <p className="mt-1">
+            The prior legacy geometry is retained as immutable history and is not current Stage 4 authority.{" "}
+            {currentOptimizerRequired
+              ? "Calculate Stage 4 to run the bounded Stage 3/4 optimizer first, then size from its selected hc/D = 0.20–0.30 geometry."
+              : "Calculate Stage 4 to persist sizing from the current optimizer's selected hc/D = 0.20–0.30 geometry."}{" "}
+            No legacy hc = 0.5D value is used for the new calculation.
+          </p>
+          {result?.previousCalculation && (
+            <p className="mt-1 font-mono">
+              Historical status: {text(record(result.previousCalculation).status)} · implementation:{" "}
+              {text(result.historicalCalculationImplementationVersion
+                ?? record(result.previousCalculation).implementationVersion)}
+            </p>
+          )}
+        </div>
+      )}
 
       {isHetsResult ? (
         <div className="space-y-3 p-3" data-testid="stage4-hets-result">
@@ -755,7 +791,14 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                   ["Stage 3 hydraulic column diameter", `${fixed(hetsSizing.stage3HydraulicColumnDiameterM, 3)} m`],
                   ["Compartment height rule", text(hetsSizing.compartmentHeightRule)],
                   ...(optimizedStage3Geometry
-                    ? [["Selected Stage-3 hc/D", fixed(hydraulic.hcToColumn, 2)]]
+                    ? [
+                      ["Selected Stage-3 orientation", text(hydraulic.orientation ?? displayResult?.selectedOrientation)],
+                      ["Selected Stage-3 hc/D", fixed(hydraulic.hcToColumn, 2)],
+                      ["Selected Stage-3 rotor diameter", `${fixed(hydraulic.rotorDiameterM, 3)} m`],
+                      ["Selected Stage-3 rotor/D", fixed(hydraulic.rotorToColumn, 2)],
+                      ["Selected Stage-3 free area", fixed(hydraulic.freeArea, 2)],
+                      ["Selected Stage-3 RPM", fixed(hydraulic.selectedRpm, 1)],
+                    ]
                     : []),
                   ["Physical compartment height", `${fixed(hetsSizing.physicalCompartmentHeightM, 3)} m`],
                   ["Screening HETS", `${fixed(hetsSizing.screeningHetsMPerTheoreticalStage, 3)} m/theoretical stage`],

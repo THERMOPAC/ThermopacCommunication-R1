@@ -1,11 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import {
+  ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+} from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
 const state = vi.hoisted(() => ({
   rows: new Map<string, any>(),
   previous: null as any,
   stage1Hash: 's'.repeat(64),
   stage2Available: true,
+  currentOptimizer: false,
+  optimizerRuns: 0,
   finiteRateRun: vi.fn(),
   query: vi.fn(),
 }));
@@ -39,6 +45,13 @@ vi.mock('../server/ecr-pre-pilot/stage4-predictive-physical-sizing', () => ({
   STAGE4_PREDICTIVE_PHYSICAL_SIZING_VERSION: 'retired-test-implementation',
   STAGE4_PREDICTIVE_PHYSICAL_SIZING_HASH: 'f'.repeat(64),
   runStage4PredictivePhysicalSizing: state.finiteRateRun,
+}));
+vi.mock('../server/ecr-pre-pilot-service', () => ({
+  createStage3Stage4OptimizerRun: vi.fn(async (_userId: number, _designId: number) => {
+    state.optimizerRuns += 1;
+    state.currentOptimizer = true;
+    return optimizerRow();
+  }),
 }));
 
 const {
@@ -85,6 +98,75 @@ function stage3Row() {
   };
 }
 
+function optimizerRow() {
+  const processBasis = {
+    stage1SnapshotHash: state.stage1Hash,
+    phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+  };
+  const geometry = {
+    columnDiameterM: 0.8,
+    compartmentHeightM: 0.2,
+    hcToColumn: 0.25,
+    rotorDiameterM: 0.32,
+    rotorToColumn: 0.4,
+    freeArea: 0.3,
+  };
+  const result: any = {
+    schemaVersion: 'ECR_STAGE3_STAGE4_OPTIMIZER_RESULT_V1',
+    status: 'OPTIMIZED_FIXED_GEOMETRY_WINDOW',
+    classification: 'PRE_PILOT_HYDRAULIC_SCREENING_NOT_SEPARATION_QUALIFICATION',
+    engine: {
+      id: 'ecr_stage3_stage4_optimizer',
+      version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+      implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+    },
+    stage1Authority: {
+      snapshotHash: state.stage1Hash,
+      phaseConfiguration: processBasis.phaseConfiguration,
+      processBasisSchemaVersion: 'TEST',
+    },
+    processBasis,
+    designNt: { value: 7, provenance: 'FIXED_DESIGN7', stage2IsReferenceOnly: true },
+    selectedOrientation: processBasis.phaseConfiguration,
+    selectedGeometry: geometry,
+    selectedOperatingWindow: { lowRpm: 30, highRpm: 70, widthRpm: 40 },
+    selectedRpm: 50,
+    selectedTrial: { status: 'CALCULATED_IN_RANGE', columnDiameterM: geometry.columnDiameterM, rpm: 50 },
+    hydraulicDiagnosticPoint: null,
+    stage4GeometryInput: {
+      status: 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY',
+      ...geometry,
+      rpm: 50,
+      optimizerResultHash: 'o'.repeat(64),
+    },
+    theoreticalStagesUsed: {
+      value: 5,
+      provenance: 'STAGE_2_CALCULATED_NT',
+      stage2JobId: 'stage-2',
+      stage2ResultHash: JSON.stringify(stage2Snapshot()),
+    },
+  };
+  result.calculationHash = JSON.stringify(result);
+  return {
+    id: 'optimizer-stage-3',
+    immutable_hash: JSON.stringify({
+      basis: processBasis,
+      theoreticalStages: result.theoreticalStagesUsed,
+      parentHydrodynamicRun: null,
+      result,
+    }),
+    stage1_snapshot_hash: state.stage1Hash,
+    implementation_hash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+    stage2_job_id: 'stage-2',
+    stage2_result_hash: result.theoreticalStagesUsed.stage2ResultHash,
+    parent_hydrodynamic_run_id: null,
+    parent_hydrodynamic_run_hash: null,
+    process_basis: processBasis,
+    theoretical_stage_authority: result.theoreticalStagesUsed,
+    result_snapshot: result,
+  };
+}
+
 function key(userId: number, designId: number, lineage: string) {
   return `${userId}:${designId}:${lineage}`;
 }
@@ -94,6 +176,8 @@ function reset() {
   state.previous = null;
   state.stage1Hash = 's'.repeat(64);
   state.stage2Available = true;
+  state.currentOptimizer = false;
+  state.optimizerRuns = 0;
   state.finiteRateRun.mockReset();
   state.query.mockReset();
   state.query.mockImplementation(async (sql: string, params: any[] = []) => {
@@ -106,9 +190,12 @@ function reset() {
         result_snapshot: stage2Snapshot(),
       }] : [] };
     }
-    if (sql.includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) return { rows: [stage3Row()] };
+    if (sql.includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) {
+      return { rows: state.currentOptimizer ? [optimizerRow()] : [] };
+    }
     if (sql.includes('lineage_hash<>')) return { rows: state.previous ? [state.previous] : [] };
     if (sql.includes('FROM ecr_pre_pilot_stage4_physical_sizing_calculations')) {
+      if (params.length === 2) return { rows: state.previous ? [state.previous] : [] };
       return { rows: state.rows.get(key(params[0], params[1], params[2]))
         ? [state.rows.get(key(params[0], params[1], params[2]))] : [] };
     }
@@ -149,14 +236,18 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     ]);
     expect(first.calculation.lineageHash).toBe(second.calculation.lineageHash);
     expect(state.rows.size).toBe(1);
+    expect(state.optimizerRuns).toBe(1);
     expect(first.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
     expect(first.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
+      compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
+      physicalCompartmentHeightM: 0.2,
       requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 15,
-      installedActiveHeightM: 7.3065975,
+      requiredPhysicalCompartments: 35,
+      installedActiveHeightM: 7,
     });
+    expect(first.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
     expect(state.finiteRateRun).not.toHaveBeenCalled();
   });
 
@@ -190,8 +281,8 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
       requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 15,
-      installedActiveHeightM: 7.3065975,
+      requiredPhysicalCompartments: 35,
+      installedActiveHeightM: 7,
     });
   });
 
@@ -223,7 +314,9 @@ describe('Stage 4 persisted HETS lifecycle', () => {
       errorCode: 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
       completedAt: 'previous-completed-at',
       progress: { phase: 'FAILED', completedCases: 1 },
+      implementationVersion: null,
       historical: true,
+      staleReason: 'LEGACY_STAGE4_RESULT_REQUIRES_CURRENT_STAGE3_OPTIMIZER',
     });
     expect(JSON.stringify(result)).not.toContain('"physicalCompartments":99');
     expect(JSON.stringify(result)).not.toContain('must-not-be-exposed');

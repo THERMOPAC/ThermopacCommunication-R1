@@ -5,6 +5,12 @@ description: User-approved assumption-based sizing replaces the operational fini
 
 Treat the operational Stage 4 result as fixed-`Ndesign=7` HETS-based pre-pilot physical screening, independently of the unqualified finite-rate/Broyden research route.
 
+New optimized sizing must never fall back to historical fixed-ratio geometry when a current optimizer result is absent.
+
+**Why:** Installing an optimizer alone left the real project displaying its old 0.50D result as current because no optimization had been saved. Historical compatibility must not silently defeat the user's changed design basis.
+
+**How to apply:** Keep reads read-only and historical results visibly historical; an explicit Calculate action obtains current optimized geometry before sizing. Verify the existing-project transition, not only isolated new-result formulas.
+
 **Why:** The user stopped the expensive whole-column qualification and explicitly approved a transparent assumed-HETS conversion of existing hydraulic geometry using a fixed Stage-4 design basis of seven theoretical stages. The decision expressly applies to both NMP-continuous/RRBO-dispersed and RRBO-continuous/NMP-dispersed orientations. This is a change in engineering scope, not evidence that the stopped solver converged.
 
 **How to apply:** Do not restore finite-rate convergence or transport-property requirements as prerequisites for this screening route. Preserve current Stage-1/Stage-3 hydraulic snapshot integrity and Stage-3 HETS admission through lightweight persisted-evidence checks without executing scientific-runtime preflight. Preserve Stage-2 scientific acceptance checks when Stage-2 evidence exists, but do not make an actual Stage-2 value a gate for the fixed-7 assumption-based sizing. Show that actual value as nullable reference-only evidence, never as the fixed sizing value.

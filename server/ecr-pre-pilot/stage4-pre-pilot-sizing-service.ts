@@ -66,6 +66,21 @@ type Stage3Projection = {
   result: Record<string, any>;
 };
 
+type Stage4AuthorityOptions = {
+  /**
+   * GET is deliberately read-only. The explicit Calculate action may opt in
+   * to creating the current bounded optimizer record when one does not yet
+   * exist for the current Stage-1 snapshot.
+   */
+  ensureCurrentOptimizer?: boolean;
+};
+
+// Calculate is synchronous from the caller's perspective, but two browser
+// submissions can still arrive before the first optimizer insert commits.
+// Share that one explicit optimizer action instead of creating duplicate
+// immutable rows for the same current Stage-1 snapshot.
+const optimizerCreationInFlight = new Map<string, Promise<unknown>>();
+
 type PersistedStage2 = {
   id: string; design_id: number; created_by: number; input_snapshot: unknown; model_hash: string; status: string;
   engine_hash: string;
@@ -270,7 +285,15 @@ export function deriveStage4PrePilotSizing(input: {
     && optimizerGeometry.hcToColumn >= 0.2
     && optimizerGeometry.hcToColumn <= 0.3
     && positiveFinite(optimizerGeometry.rotorDiameterM)
+    && positiveFinite(optimizerGeometry.rotorToColumn)
+    && optimizerGeometry.rotorToColumn >= 0.33
+    && optimizerGeometry.rotorToColumn <= 0.5
+    && positiveFinite(optimizerGeometry.freeArea)
+    && optimizerGeometry.freeArea >= 0.2
+    && optimizerGeometry.freeArea <= 0.4
     && positiveFinite(optimizerGeometry.rpm)
+    && optimizerGeometry.rpm >= 30
+    && optimizerGeometry.rpm <= 70
     && Math.abs(
       optimizerGeometry.compartmentHeightM - optimizerGeometry.columnDiameterM * optimizerGeometry.hcToColumn,
     ) <= 1e-9
@@ -341,6 +364,11 @@ export function deriveStage4PrePilotSizing(input: {
        rotorToColumn: optimizedHydraulics ? optimizerGeometry!.rotorToColumn : null,
        freeArea: optimizedHydraulics ? optimizerGeometry!.freeArea : null,
        selectedRpm: optimizedHydraulics ? optimizerGeometry!.rpm : null,
+        orientation: optimizedHydraulics
+          ? input.stage3.result.selectedOrientation
+            ?? input.stage3.result.stage1Authority?.phaseConfiguration
+            ?? null
+          : null,
        source: optimizedHydraulics
          ? 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION'
          : inRangeHydraulics
@@ -350,7 +378,7 @@ export function deriveStage4PrePilotSizing(input: {
       stage3ImmutableHash: input.stage3.immutableHash,
        optimizerVersion: optimizedHydraulics ? ECR_STAGE3_STAGE4_OPTIMIZER_VERSION : null,
        optimizerResultHash: optimizedHydraulics
-         ? input.stage3.immutableHash
+          ? optimizerGeometry!.optimizerResultHash ?? input.stage3.immutableHash
          : null,
     },
     // Stage-2 is optional reference evidence for this fixed-design screening;
@@ -435,6 +463,7 @@ export type Stage4PrePilotSizingAuthority = {
 export async function loadStage4PrePilotSizingAuthority(
   userId: number,
   designId: number,
+  options: Stage4AuthorityOptions = {},
 ): Promise<Stage4PrePilotSizingAuthority> {
   const design = await pool.query<{ input_data: unknown }>(
     'SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2',
@@ -486,16 +515,30 @@ export async function loadStage4PrePilotSizingAuthority(
       ORDER BY created_at DESC,id DESC LIMIT 1`,
     [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION],
   );
-  // Historical rows remain replayable, but a current Stage-4 calculation
-  // always prefers the newest optimizer selection for this Stage-1 snapshot.
-  // The fallback exists only for immutable legacy records with no current
-  // optimizer row yet.
-  const currentOptimizerRows = optimizerStage3Rows.rows.filter((candidate) =>
-    candidate.result_snapshot?.engine?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
-    && candidate.stage1_snapshot_hash === stage1.immutableHash);
-  const stage3Rows = currentOptimizerRows.length
-    ? { ...optimizerStage3Rows, rows: currentOptimizerRows }
-    : await pool.query<{
+  let currentOptimizerRows = optimizerStage3Rows.rows;
+  if (!currentOptimizerRows.length && options.ensureCurrentOptimizer) {
+    // Keep the normal GET path side-effect free. A user-triggered Stage-4
+    // calculation is the explicit boundary at which the existing bounded,
+    // Stage-1-authoritative optimizer may be run and persisted.
+    const optimizerKey = `${userId}:${designId}:${stage1.immutableHash}`;
+    const existingCreation = optimizerCreationInFlight.get(optimizerKey);
+    if (existingCreation) {
+      await existingCreation;
+    } else {
+      const creation = (async () => {
+        const { createStage3Stage4OptimizerRun } = await import('../ecr-pre-pilot-service');
+        return createStage3Stage4OptimizerRun(userId, designId);
+      })();
+      optimizerCreationInFlight.set(optimizerKey, creation);
+      try {
+        await creation;
+      } finally {
+        if (optimizerCreationInFlight.get(optimizerKey) === creation) {
+          optimizerCreationInFlight.delete(optimizerKey);
+        }
+      }
+    }
+    const refreshed = await pool.query<{
       id: string; immutable_hash: string; stage1_snapshot_hash: string;
       implementation_hash: string;
       stage2_job_id: string | null; stage2_result_hash: string | null;
@@ -508,9 +551,23 @@ export async function loadStage4PrePilotSizingAuthority(
               theoretical_stage_authority,result_snapshot
          FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
         WHERE design_id=$1 AND created_by=$2
+          AND stage1_snapshot_hash=$3
+          AND result_snapshot->'engine'->>'version'=$4
         ORDER BY created_at DESC,id DESC LIMIT 1`,
-      [designId, userId],
+      [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION],
     );
+    currentOptimizerRows = refreshed.rows;
+  }
+  // Historical rows remain replayable, but they are never a Stage-4 input.
+  // In particular, do not fall back to a V1.x/V1.5 row whose legacy geometry
+  // implies hc=0.5D. The explicit Calculate action above is the only path
+  // allowed to establish the current optimizer authority.
+  if (!currentOptimizerRows.length) {
+    fail(options.ensureCurrentOptimizer
+      ? 'STAGE4_CURRENT_STAGE3_OPTIMIZER_UNAVAILABLE'
+      : 'STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
+  }
+  const stage3Rows = { ...optimizerStage3Rows, rows: currentOptimizerRows };
   const row = stage3Rows.rows[0];
   if (!row) fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   const immutableHash = kuhniRunHash({
@@ -601,6 +658,7 @@ function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: Stored
     ].includes(calculation?.result_snapshot?.implementation?.implementationHash);
   const result = calculated ? calculation.result_snapshot : {
     status: 'UNRUN',
+    currentOptimizerRequired: false,
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
     mainOutputs: { diameterM: authority.projection.mainOutputs.diameterM, overallEfficiency: null, physicalCompartments: null, activeHeightM: null },
@@ -620,6 +678,9 @@ function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: Stored
       errorCode: calculation?.error_code ?? null,
     },
     ...(historical ? {
+      historicalCalculationOnly: true,
+      historicalCalculationImplementationVersion:
+        historical.result_snapshot?.implementation?.version ?? null,
       previousCalculation: {
         status: historical.status, errorCode: historical.error_code,
         completedAt: historical.completed_at, progress: historical.progress_snapshot, historical: true as const,
@@ -628,8 +689,105 @@ function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: Stored
   };
 }
 
+/**
+ * A legacy Stage-3/Stage-4 chain must not be presented as the current result
+ * merely because it is the newest row in the immutable ledger. Keep only
+ * non-scientific lifecycle metadata visible until the user explicitly
+ * calculates Stage 4, at which point the bounded optimizer is established.
+ */
+async function currentOptimizerRequiredResult(
+  userId: number,
+  designId: number,
+  reason: string,
+) {
+  const previous = await pool.query<StoredCalculation>(
+    `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
+            deadline_at::text,completed_at::text
+       FROM ecr_pre_pilot_stage4_physical_sizing_calculations
+      WHERE created_by=$1 AND design_id=$2
+      ORDER BY completed_at DESC NULLS LAST,id DESC LIMIT 1`,
+    [userId, designId],
+  );
+  const historical = previous.rows[0] ?? null;
+  return {
+    status: 'UNRUN',
+    currentOptimizerRequired: true,
+    currentOptimizerStatus: 'NOT_RUN_FOR_CURRENT_STAGE1_SNAPSHOT',
+    currentOptimizerReason: reason,
+    classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
+    screeningNotice: 'PRE-PILOT SCREENING',
+    // These fields are intentionally null: no legacy D or hc=0.5D value is
+    // current authority, and no new Stage-4 number exists yet.
+    mainOutputs: {
+      diameterM: null,
+      overallEfficiency: null,
+      physicalCompartments: null,
+      activeHeightM: null,
+      requiredActiveHeightM: null,
+      installedActiveHeightM: null,
+    },
+    designNt: {
+      value: STAGE4_HETS_DESIGN_NT,
+      provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT',
+      label: 'FIXED STAGE-4 HETS PRE-PILOT PHYSICAL SIZING DESIGN BASIS (N_T=7)',
+    },
+    actualStage2NtReference: {
+      value: null,
+      status: 'NOT_AVAILABLE_REFERENCE_ONLY',
+      label: 'ACTUAL ACCEPTED STAGE-2 PREDICTIVE N_T — REFERENCE ONLY; NOT THE STAGE-4 HETS SIZING BASIS',
+      stage2JobId: null,
+      stage2ResultHash: null,
+    },
+    selectedStage3Hydraulics: {
+      source: 'CURRENT_STAGE3_OPTIMIZER_REQUIRED',
+      diameterM: null,
+      compartmentHeightM: null,
+      hcToColumn: null,
+      rotorDiameterM: null,
+      rotorToColumn: null,
+      freeArea: null,
+      selectedRpm: null,
+    },
+    assumptions: [
+      'A current Stage-3 optimizer record is required before new Stage-4 sizing.',
+      'Legacy Stage-3 geometry and hc=0.5D Stage-4 records remain immutable historical evidence only.',
+      'Calculate Stage 4 runs the bounded Stage-1-authoritative optimizer first, then persists fixed-N_T=7 HETS sizing from its selected geometry.',
+    ],
+    calculation: {
+      status: 'UNRUN',
+      progress: { phase: 'CURRENT_STAGE3_OPTIMIZER_REQUIRED' },
+      lineageHash: null,
+      startedAt: null,
+      completedAt: null,
+      errorCode: reason,
+    },
+    ...(historical ? {
+      previousCalculation: {
+        status: historical.status,
+        errorCode: historical.error_code,
+        completedAt: historical.completed_at,
+        progress: historical.progress_snapshot,
+        implementationVersion: historical.result_snapshot?.implementation?.version ?? null,
+        historical: true as const,
+        staleReason: 'LEGACY_STAGE4_RESULT_REQUIRES_CURRENT_STAGE3_OPTIMIZER',
+      },
+    } : {}),
+  };
+}
+
 export async function getLiveStage4PrePilotSizing(userId: number, designId: number) {
-  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  let authority: Stage4PrePilotSizingAuthority;
+  try {
+    // GET remains read-only. It must not create an optimizer or reinterpret a
+    // historical V1.x/V1.5 row as current authority.
+    authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    if (reason === 'STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED') {
+      return currentOptimizerRequiredResult(userId, designId, reason);
+    }
+    throw error;
+  }
   const stored = await pool.query<StoredCalculation>(
     `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
             deadline_at::text,completed_at::text
@@ -661,7 +819,12 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
 }
 
 export async function calculateStage4PrePilotSizing(userId: number, designId: number) {
-  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
+  // This is the explicit side-effect boundary: if the current Stage-1
+  // snapshot has no optimizer row, create the existing bounded optimizer now.
+  // No legacy Stage-3 row can satisfy this authority.
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId, {
+    ensureCurrentOptimizer: true,
+  });
   const lookup = () => pool.query<StoredCalculation>(
     `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
             deadline_at::text,completed_at::text

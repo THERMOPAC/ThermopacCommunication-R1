@@ -555,7 +555,8 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     },
   );
   // The latest read is intentionally read-only. The explicit empty-body POST
-  // persists a synchronous deterministic HETS screening calculation; it never
+  // persists a synchronous deterministic HETS screening calculation and, when
+  // needed, runs the existing bounded Stage-3/4 optimizer first; it never
   // starts a finite-rate or background scientific job.
   app.get(
     '/api/ecr-pre-pilot/designs/:id/stage4/pre-pilot-sizing/latest',

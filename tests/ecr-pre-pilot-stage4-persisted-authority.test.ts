@@ -46,31 +46,14 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
     });
   });
 
-  it('loads read-only Design 269 authority with fixed-Nt=7 HETS sizing and Stage-2 as reference only', async () => {
+  it('does not reinterpret the historical Design 269 geometry without a current optimizer', async () => {
     const design = await pool.query<{ created_by: number }>(
       'SELECT created_by FROM ecr_pre_pilot_designs WHERE id=269',
     );
-    const authority = await loadStage4PrePilotSizingAuthority(Number(design.rows[0].created_by), 269);
-    expect(authority.projection.designNt.value).toBe(7);
-    expect(authority.projection.actualStage2NtReference.value).toBe(4);
-    expect(authority.projection.hetsSizing).toMatchObject({
-      fixedDesignTheoreticalStages: 7,
-      actualStage2TheoreticalStagesReference: 4,
-      stage3HydraulicColumnDiameterM: .6930996970569214,
-      physicalCompartmentHeightM: .3465498485284607,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 21,
-      installedActiveHeightM: 7.277546819097675,
-    });
-    expect(authority.projection.stage2Stage1Compatibility).toMatchObject({
-      status: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION',
-      excludedScientificInputField: 'stage1.phaseConfiguration',
-    });
-    expect(authority.projection.stage3HetsAdmission).toMatchObject({
-      status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
-      source: 'V150_EXTRAPOLATED_MODEL_ROOT',
-      columnDiameterM: .6930996970569214,
-    });
+    await expect(loadStage4PrePilotSizingAuthority(
+      Number(design.rows[0].created_by),
+      269,
+    )).rejects.toThrow('STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
   });
 
   it('rejects a Stage-2 result hash that is changed without changing its stored Stage-1 input', async () => {
