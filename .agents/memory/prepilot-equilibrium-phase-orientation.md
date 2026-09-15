@@ -21,3 +21,17 @@ interface limits needed to calculate a defensible hydraulic diameter.
 **How to apply:** Keep reverse hydraulics explicitly unsupported until that
 complete chain is qualified. Explain the hydraulic prerequisite separately
 from successful equilibrium and preserve historical scientific replay.
+
+Do not describe this boundary as physical impossibility: general agitated-column
+literature permits either heavy- or light-phase dispersion. A signed force balance
+and reversed port proposal are necessary but not a complete qualified chain.
+
+**Why:** The supplemental primary-source assessment found general support for
+heavy dispersion, but not an independently reproduced RRBO/NMP downward-drop
+drag, interface, swarm and flooding chain. Reversing phases also inverts the
+viscosity ratio and can put an otherwise usable drop correlation out of range.
+
+**How to apply:** Distinguish theoretical feasibility from hydraulic admission.
+Use `research/kuhni-reverse-orientation-qualification.md` for the source-access
+limits and analytical boundary; never treat a successful equilibrium or finite
+terminal root as validation of the missing swarm/flooding closure.

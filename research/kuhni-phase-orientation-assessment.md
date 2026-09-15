@@ -1,8 +1,17 @@
 # Kühni Stage-3 phase-orientation applicability assessment
 
-**Task:** 297  
+**Supplemental evidence review:** 2026-09-15 (see
+`kuhni-reverse-orientation-qualification.md`)
 **Decision:** Do not enable RRBO-continuous/NMP-dispersed downward-drop
 hydraulic sizing from the currently reviewed source evidence.
+
+The supplemental review distinguishes physical feasibility from qualification:
+Rode et al. (2013) explicitly permits either heavy- or light-phase dispersion
+in its general discussion of agitated columns. Thus this decision is **not**
+a claim that downward heavy drops are impossible. Signed force balance and
+countercurrent port directions can be derived, but neither that derivation
+nor the newly assessed sources qualifies the complete RRBO/NMP sizing chain.
+The result remains unsupported; no resolver version or scientific input changes.
 
 ## Scope and decision
 
