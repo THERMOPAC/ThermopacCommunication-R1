@@ -22,6 +22,10 @@ import {
   KUHNI_GEOMETRY_RESOLVER_V130_VERSION,
 } from '../server/ecr-pre-pilot/kuhni-geometry-resolver-v130';
 import { kuhniRunHash } from '../server/ecr-pre-pilot/kuhni-hydrodynamics';
+import {
+  ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  optimizeStage3Stage4,
+} from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
 const state = vi.hoisted(() => ({
   query: vi.fn(),
@@ -54,6 +58,7 @@ vi.mock('../server/ecr-pre-pilot/stage4-seven-component-adapter', async (importO
 const {
   createKuhniGeometryResolverRun,
   evaluateEcrPrePilotJobA,
+  getStage3Stage4OptimizerRuns,
   getKuhniGeometryResolverRuns,
 } = await import('../server/ecr-pre-pilot-service');
 
@@ -188,6 +193,13 @@ beforeEach(() => {
       };
     }
     if (normalized.includes('from ecr_pre_pilot_kuhni_geometry_resolver_runs')) {
+      if (normalized.includes("result_snapshot->'engine'->>'version'=$4")) {
+        return {
+          rows: state.geometryRows.filter((row) =>
+            row.stage1SnapshotHash === params[2]
+            && row.result?.engine?.version === params[3]),
+        };
+      }
       return { rows: state.geometryRows };
     }
     throw new Error(`UNEXPECTED_MOCK_DB_QUERY:${sql}`);
@@ -232,6 +244,28 @@ describe('Kühni V1.2.0 service persistence and dependency boundaries', () => {
       governed: false,
       stage4Input: false,
     });
+  });
+
+  it('loads only the current optimizer row, verifies its persisted hash, and compacts the grid', async () => {
+    const result = optimizeStage3Stage4(currentBasis, currentSnapshot.immutableHash, {
+      diameterMinM: 0.2,
+      diameterMaxM: 0.4,
+      diameterStepM: 0.2,
+    });
+    expect(result.engine.implementationHash).toBe(ECR_STAGE3_STAGE4_OPTIMIZER_HASH);
+    const currentRow = persistedRow('optimizer-current', currentBasis, result);
+    state.geometryRows = [{
+      ...currentRow,
+      id: 'optimizer-stale',
+      stage1SnapshotHash: 'stale-stage1-hash',
+    }, currentRow];
+
+    const latest = await getStage3Stage4OptimizerRuns(7, 209, true);
+    expect(latest?.integrityStatus).toBe('VERIFIED');
+    expect(latest?.stage1SnapshotHash).toBe(currentSnapshot.immutableHash);
+    expect(latest?.result?.engine?.implementationHash).toBe(ECR_STAGE3_STAGE4_OPTIMIZER_HASH);
+    expect(latest?.result?.orientationComparison?.every((item: any) =>
+      item.geometryGrid.length === 0)).toBe(true);
   });
 
   it('replays and verifies V1.0.0, V1.0.1, V1.1.0, and V1.2.0 rows', async () => {

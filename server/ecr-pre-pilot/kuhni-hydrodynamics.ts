@@ -31,6 +31,12 @@ export interface KuhniHydrodynamicInput {
   rotorSpeedRpmStep: number;
   powerNumber: number;
   directTurbulenceC: number;
+  /**
+   * Additive scale-up mode used only by the versioned Stage 3/4 optimizer.
+   * Historical resolver engines leave this unset and therefore retain their
+   * diagnostic-hold behavior.
+   */
+  allowApplicabilityExtrapolation?: boolean;
 }
 export type HydrodynamicProcessBasis = EcrPrePilotHydrodynamicProcessBasis;
 type Status =
@@ -109,7 +115,7 @@ export function evaluateKuhniHydrodynamics(input: KuhniHydrodynamicInput, basis:
     if (!(continuous.densityKgM3 > dispersed.densityKgM3)) holdupDiagnostics.push('CONTINUOUS_PHASE_NOT_HEAVIER: Eq18 requires positive delta-rho = rho_c-rho_d.');
     if (tipBlocked) runBlockers.add(`RPM_${rpm}:TIP_SPEED_LIMIT_EXCEEDED`);
     let phi: number | null = null, d32: number | null = null, slip: number | null = null, vk: number | null = null, a: number | null = null;
-    if (!tipBlocked && !holdupDiagnostics.length) {
+    if (!tipBlocked && (input.allowApplicabilityExtrapolation || !holdupDiagnostics.length)) {
       const theta = (continuous.densityKgM3 / (G * basis.interfacialTensionNM)) ** .25;
       const pi = .0267 + (psi / G * theta) ** .77;
       const Phi = (ud * theta) ** .64 * Math.exp(20.7 * uc * theta);

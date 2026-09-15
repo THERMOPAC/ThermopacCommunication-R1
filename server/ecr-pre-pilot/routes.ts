@@ -6,8 +6,9 @@ import {
   saveEcrPrePilotStage1,
   createKuhniHydrodynamicRun,
   getKuhniHydrodynamicRuns,
-  createKuhniGeometryResolverRun,
   getKuhniGeometryResolverRuns,
+  createStage3Stage4OptimizerRun,
+  getStage3Stage4OptimizerRuns,
   evaluateEcrPrePilotJobA,
   evaluateEcrPrePilotJobB,
   evaluateEcrPrePilotJobC,
@@ -195,9 +196,78 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       const designId = Number(req.params.id);
       if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       try {
-        return res.status(201).json(await createKuhniGeometryResolverRun(Number((req.user as any).id), designId));
+        // New runs use the bounded Stage-3/4 optimizer. The resolver service
+        // remains available below only for immutable historical replay.
+        return res.status(201).json(await createStage3Stage4OptimizerRun(
+          Number((req.user as any).id),
+          designId,
+          req.body,
+        ));
       } catch (error: any) {
         return res.status(error.message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422).json({ error: error.message });
+      }
+    },
+  );
+  app.post(
+    '/api/ecr-pre-pilot/designs/:id/stage3-stage4-optimizer/runs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        return res.status(201).json(await createStage3Stage4OptimizerRun(
+          Number((req.user as any).id),
+          designId,
+          req.body,
+        ));
+      } catch (error: any) {
+        const message = error?.message ?? 'ECR_STAGE3_STAGE4_OPTIMIZER_FAILED';
+        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422;
+        return res.status(status).json({ error: message });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/stage3-stage4-optimizer/latest',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        const run = await getStage3Stage4OptimizerRuns(
+          Number((req.user as any).id),
+          designId,
+          true,
+        );
+        return run ? res.json(run) : res.status(404).json({ error: 'Stage3/4 optimizer run not found' });
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'ECR_STAGE3_STAGE4_OPTIMIZER_INTEGRITY_FAILURE',
+        });
+      }
+    },
+  );
+  app.get(
+    '/api/ecr-pre-pilot/designs/:id/stage3-stage4-optimizer/runs',
+    ensureAuthenticated,
+    async (req: Request, res: Response) => {
+      const designId = Number(req.params.id);
+      if (!Number.isInteger(designId) || designId <= 0) {
+        return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
+      }
+      try {
+        return res.json(await getStage3Stage4OptimizerRuns(
+          Number((req.user as any).id),
+          designId,
+        ));
+      } catch (error: any) {
+        return res.status(409).json({
+          error: error?.message ?? 'ECR_STAGE3_STAGE4_OPTIMIZER_INTEGRITY_FAILURE',
+        });
       }
     },
   );
@@ -708,7 +778,9 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       const designId = Number(req.params.id);
       if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       try {
-        const run = await getKuhniGeometryResolverRuns(Number((req.user as any).id), designId, true);
+        // Legacy resolver GET is replay-only. New generation is routed through
+        // the versioned Stage-3/4 optimizer above.
+        const run = await getKuhniGeometryResolverRuns(Number((req.user as any).id), designId, true, true);
         return run ? res.json(run) : res.status(404).json({ error: 'Kuhni geometry resolver run not found' });
       } catch (error: any) {
         return res.status(error.message === 'ECR_PRE_PILOT_KUHNI_RESOLVER_INTEGRITY_FAILURE' ? 409 : 500).json({ error: error.message });
@@ -722,7 +794,8 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       const designId = Number(req.params.id);
       if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       try {
-        return res.json(await getKuhniGeometryResolverRuns(Number((req.user as any).id), designId));
+        // Legacy resolver GET is replay-only.
+        return res.json(await getKuhniGeometryResolverRuns(Number((req.user as any).id), designId, false, true));
       } catch (error: any) {
         return res.status(error.message === 'ECR_PRE_PILOT_KUHNI_RESOLVER_INTEGRITY_FAILURE' ? 409 : 500).json({ error: error.message });
       }

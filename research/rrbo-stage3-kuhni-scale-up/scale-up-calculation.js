@@ -14,6 +14,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const PI = Math.PI;
 const G = 9.80665;
@@ -178,8 +179,11 @@ function hydrodynamics(
   heightRatio = 0.5,
   enforceTipLimit = true,
   computeCapacity = true,
+  geometry = {},
 ) {
-  const rotorDiameterM = ROTOR_TO_COLUMN * diameterM;
+  const rotorToColumn = geometry.rotorToColumn ?? ROTOR_TO_COLUMN;
+  const statorFreeArea = geometry.statorFreeArea ?? STATOR_FREE_AREA;
+  const rotorDiameterM = rotorToColumn * diameterM;
   const compartmentHeightM = heightRatio * diameterM;
   const n = rpm / 60;
   const areaM2 = PI * diameterM ** 2 / 4;
@@ -200,7 +204,7 @@ function hydrodynamics(
     - 1.669 * sourcePowerNumber ** -3.945
     - 2.807 * (d32M / (diameterM - rotorDiameterM)) ** 1.336
     - 1.159 * (compartmentHeightM / diameterM) ** 2.049
-    + 2.1 * STATOR_FREE_AREA ** 1.032;
+    + 2.1 * statorFreeArea ** 1.032;
   const characteristicVelocityMS = terminal.velocityMS * characteristicFactor;
   const characteristicRe = basis.rhoC * characteristicVelocityMS * d32M / basis.muC;
   const characteristicDrag = myintDrag(
@@ -282,16 +286,17 @@ function hydrodynamics(
   };
 }
 
-function rootAtLoading(basis, rpm, heightRatio = 0.5) {
+function rootAtLoading(basis, rpm, heightRatio = 0.5, geometry = {}) {
+  const rotorToColumn = geometry.rotorToColumn ?? ROTOR_TO_COLUMN;
   const physicalMinimumM = Math.max(0.1, 0.05 / heightRatio);
   const tipDerivedMaximumM = MAX_TIP_SPEED_MS * 60
-    / (PI * ROTOR_TO_COLUMN * rpm);
+    / (PI * rotorToColumn * rpm);
   const samples = [];
   for (let i = 0; i <= 30; i += 1) {
     const diameter = physicalMinimumM
       * (tipDerivedMaximumM / physicalMinimumM) ** (i / 30);
     try {
-      const result = hydrodynamics(diameter, rpm, basis, heightRatio);
+      const result = hydrodynamics(diameter, rpm, basis, heightRatio, true, true, geometry);
       samples.push({ diameter, residual: result.actualLoading - DESIGN_FLOOD_FRACTION });
     } catch {
       // A candidate outside an equation domain is not a valid bracket point.
@@ -303,15 +308,31 @@ function rootAtLoading(basis, rpm, heightRatio = 0.5) {
       brackets.push([samples[i - 1].diameter, samples[i].diameter]);
     }
   }
-  const upper = hydrodynamics(tipDerivedMaximumM, rpm, basis, heightRatio);
+  const upper = hydrodynamics(
+    tipDerivedMaximumM,
+    rpm,
+    basis,
+    heightRatio,
+    true,
+    true,
+    geometry,
+  );
   const roots = brackets.map(([low, high]) => {
     const diameter = bisect(
-      (value) => hydrodynamics(value, rpm, basis, heightRatio).actualLoading
+      (value) => hydrodynamics(
+        value,
+        rpm,
+        basis,
+        heightRatio,
+        true,
+        true,
+        geometry,
+      ).actualLoading
         - DESIGN_FLOOD_FRACTION,
       low,
       high,
     );
-    return hydrodynamics(diameter, rpm, basis, heightRatio);
+    return hydrodynamics(diameter, rpm, basis, heightRatio, true, true, geometry);
   });
   const root = roots[0] ?? null;
   return {
@@ -508,13 +529,28 @@ function run() {
   };
 }
 
-const output = run();
-const outputArgumentIndex = process.argv.indexOf('--output');
-if (outputArgumentIndex >= 0) {
-  const outputPath = process.argv[outputArgumentIndex + 1];
-  if (!outputPath) throw new Error('MISSING_OUTPUT_PATH');
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-  fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
-} else {
-  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+export {
+  cases,
+  hydrodynamics,
+  rootAtLoading,
+  run,
+  terminalState,
+};
+
+function isMainModule() {
+  return process.argv[1]
+    && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+}
+
+if (isMainModule()) {
+  const output = run();
+  const outputArgumentIndex = process.argv.indexOf('--output');
+  if (outputArgumentIndex >= 0) {
+    const outputPath = process.argv[outputArgumentIndex + 1];
+    if (!outputPath) throw new Error('MISSING_OUTPUT_PATH');
+    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+    fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
+  } else {
+    process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  }
 }

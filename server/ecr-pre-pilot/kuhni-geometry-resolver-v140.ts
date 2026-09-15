@@ -85,7 +85,7 @@ type SignedTerminalState = {
   forceBalanceResidualN: number;
 };
 
-type ReverseTrialDiagnostic = {
+export type KuhniReverseTrialDiagnostic = {
   rpm: number;
   columnDiameterM: number;
   rotorDiameterM: number;
@@ -131,6 +131,14 @@ type ReverseTrialDiagnostic = {
     closure: string[];
   };
   status: 'CALCULATED_EXTRAPOLATED';
+};
+
+export type KuhniReverseTrialGeometry = {
+  rotorToColumn?: number;
+  compartmentToColumn?: number;
+  statorFreeArea?: number;
+  powerNumber?: number;
+  directTurbulenceC?: number;
 };
 
 function bisect(fn: (x: number) => number, low: number, high: number, iterations = 60) {
@@ -260,21 +268,34 @@ function selectReversePhases(basis: HydrodynamicProcessBasis) {
   };
 }
 
-function reverseTrial(
+export function evaluateKuhniReverseTrial(
   columnDiameterM: number,
   rpm: number,
   basis: HydrodynamicProcessBasis,
-): ReverseTrialDiagnostic {
+  geometry: KuhniReverseTrialGeometry = {},
+): KuhniReverseTrialDiagnostic {
   const { continuous, dispersed } = selectReversePhases(basis);
-  const rotorDiameterM = ROTOR_TO_COLUMN * columnDiameterM;
-  const compartmentHeightM = COMPARTMENT_TO_COLUMN * columnDiameterM;
+  const rotorToColumn = geometry.rotorToColumn ?? ROTOR_TO_COLUMN;
+  const compartmentToColumn = geometry.compartmentToColumn ?? COMPARTMENT_TO_COLUMN;
+  const statorFreeArea = geometry.statorFreeArea ?? STATOR_FREE_AREA;
+  const powerNumber = geometry.powerNumber ?? POWER_NUMBER;
+  const directTurbulenceC = geometry.directTurbulenceC ?? DIRECT_TURBULENCE_C;
+  if (
+    !(rotorToColumn > 0 && rotorToColumn < 1)
+    || !(compartmentToColumn > 0)
+    || !(statorFreeArea > 0 && statorFreeArea < 1)
+    || !(powerNumber > 0)
+    || !(directTurbulenceC > 0)
+  ) throw new Error('NON_PHYSICAL_REVERSE_GEOMETRY');
+  const rotorDiameterM = rotorToColumn * columnDiameterM;
+  const compartmentHeightM = compartmentToColumn * columnDiameterM;
   const n = rpm / 60;
   const tipSpeedMS = PI * rotorDiameterM * n;
   if (tipSpeedMS > MAX_TIP_SPEED_MS) throw new Error('TIP_SPEED_LIMIT_EXCEEDED');
   const areaM2 = PI * columnDiameterM ** 2 / 4;
-  const powerW = POWER_NUMBER * continuous.densityKgM3 * n ** 3 * rotorDiameterM ** 5;
+  const powerW = powerNumber * continuous.densityKgM3 * n ** 3 * rotorDiameterM ** 5;
   const psiWKg = powerW / (areaM2 * compartmentHeightM * continuous.densityKgM3);
-  const d32M = DIRECT_TURBULENCE_C
+  const d32M = directTurbulenceC
     * (basis.interfacialTensionNM / continuous.densityKgM3) ** 0.6 * psiWKg ** -0.4;
   if (!(d32M > 0 && Number.isFinite(d32M))) throw new Error('D32_NOT_CALCULABLE');
 
@@ -295,7 +316,7 @@ function reverseTrial(
     - 1.669 * sourcePowerNumber ** -3.945
     - 2.807 * (d32M / (columnDiameterM - rotorDiameterM)) ** 1.336
     - 1.159 * (compartmentHeightM / columnDiameterM) ** 2.049
-    + 2.1 * STATOR_FREE_AREA ** 1.032;
+    + 2.1 * statorFreeArea ** 1.032;
   if (!(characteristicFactor > 0)) {
     throw new Error('NON_POSITIVE_GARTHE_CHARACTERISTIC_FACTOR');
   }
@@ -409,6 +430,14 @@ function reverseTrial(
   };
 }
 
+function reverseTrial(
+  columnDiameterM: number,
+  rpm: number,
+  basis: HydrodynamicProcessBasis,
+): KuhniReverseTrialDiagnostic {
+  return evaluateKuhniReverseTrial(columnDiameterM, rpm, basis);
+}
+
 function reverseDiameterForRpm(rpm: number, basis: HydrodynamicProcessBasis) {
   const physicalMinimumM = Math.max(
     MIN_ROTOR_DIAMETER_M / ROTOR_TO_COLUMN,
@@ -486,7 +515,7 @@ export function resolveKuhniGeometryV140(
     return { ...result, calculationHash: kuhniRunHash(result) };
   }
 
-  const diagnostics: ReverseTrialDiagnostic[] = [];
+  const diagnostics: KuhniReverseTrialDiagnostic[] = [];
   const rejectedRpmTrials: Array<{ rpm: number; reason: string; message: string }> = [];
   for (let rpm = MIN_RPM; rpm <= MAX_RPM; rpm += RPM_STEP) {
     try {

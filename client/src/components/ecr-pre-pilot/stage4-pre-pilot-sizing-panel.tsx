@@ -431,6 +431,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const efficiency = record(displayResult?.overallEfficiency);
   const stage2Stage1Compatibility = record(displayResult?.stage2Stage1Compatibility);
   const stage3HetsAdmission = record(displayResult?.stage3HetsAdmission);
+  const optimizedStage3Geometry = text(
+    record(displayResult?.implementation).version,
+  ).includes("OPTIMIZED_GEOMETRY");
   const stage3HetsLimitations = list(stage3HetsAdmission.limitations).map(record);
   const geometry = record(displayResult?.physicalGeometry);
   const audit = record(displayResult?.mixingAudit);
@@ -501,7 +504,10 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const stage4Terminal = STAGE4_TERMINAL_STATES.has(stage4Status);
   const stage4Action = stage4Retryable ? retry : calculate;
   const hetsSizing = record(displayResult?.hetsSizing);
-  const isHetsResult = displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7"
+  const isHetsResult = (
+    displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7"
+    || optimizedStage3Geometry
+  )
     && Object.keys(hetsSizing).length > 0;
   const fixed = (value: unknown, digits: number) =>
     isFiniteNumber(value) ? value.toFixed(digits) : "—";
@@ -748,6 +754,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                   ["Actual accepted Stage-2 Nₜ (reference only)", fixed(hetsSizing.actualStage2TheoreticalStagesReference, 0)],
                   ["Stage 3 hydraulic column diameter", `${fixed(hetsSizing.stage3HydraulicColumnDiameterM, 3)} m`],
                   ["Compartment height rule", text(hetsSizing.compartmentHeightRule)],
+                  ...(optimizedStage3Geometry
+                    ? [["Selected Stage-3 hc/D", fixed(hydraulic.hcToColumn, 2)]]
+                    : []),
                   ["Physical compartment height", `${fixed(hetsSizing.physicalCompartmentHeightM, 3)} m`],
                   ["Screening HETS", `${fixed(hetsSizing.screeningHetsMPerTheoreticalStage, 3)} m/theoretical stage`],
                   ["HETS-implied compartment efficiency hc/HETS (not performance)", isFiniteNumber(hetsSizing.calculatedScreeningCompartmentEfficiency)
@@ -769,7 +778,10 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
             <p className="mt-1">
               Fixed Stage-4 design Nₜ = 7 and HETS = 1.0 m/theoretical stage are engineering
               physical-sizing assumptions for both NMP-continuous/RRBO-dispersed and the reverse orientation.
-              Its conservatism for RRBO/NMP is not established. Column diameter, compartment pitch,
+              {optimizedStage3Geometry
+                ? " The selected Stage-3 optimizer column diameter and hc are carried forward as immutable geometry; newly generated hc/D is constrained to 0.20–0.30."
+                : " Historical/pre-pilot records retain their original compartment geometry rule."}
+              {" "}Its conservatism for RRBO/NMP is not established. Column diameter, compartment pitch,
               screening efficiency, and active height require pilot and final vendor/mechanical confirmation.
             </p>
             <p className="mt-1">
@@ -783,7 +795,8 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
             <p className="mt-1">
               Fixed Stage-4 HETS design Nₜ: {number(designNt.value)} · Actual accepted Stage-2 Nₜ
               reference only: {number(actualStage2NtReference.value)} · Stage-3 hydraulic screening diameter:
-              {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter was recalculated.
+              {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter or selected
+              compartment height was recalculated.
             </p>
             {stage3HetsAdmission.status === "INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE" && (
               <p className="mt-1">

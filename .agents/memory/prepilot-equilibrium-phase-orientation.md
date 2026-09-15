@@ -1,3 +1,11 @@
+## Optimizer feasibility and phase authority
+
+Keep the Stage-1 phase orientation authoritative when selecting optimization results; the alternative orientation is comparison-only. A denser dispersed phase is not itself invalid: use signed buoyancy and countercurrent closure.
+
+**Why:** A heavy-continuous-only holdup calculation can reject physically legitimate NMP-dispersed cases, while automatic selection of the other orientation silently changes the requested design. Separately, a closed signed force balance can still be grossly over capacity.
+
+**How to apply:** Require the existing loading and tip-speed limits independently of force-balance closure for every accepted operating-window point. Never equate diagnostic calculability with hydraulic feasibility, and retain realistic lighter-RRBO/heavier-NMP regression properties.
+
 ---
 name: Pre-pilot equilibrium phase orientation
 description: Thermodynamic extract/raffinate identity is distinct from hydraulic continuous/dispersed assignment.

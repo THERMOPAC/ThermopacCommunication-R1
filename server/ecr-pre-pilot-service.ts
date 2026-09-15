@@ -52,6 +52,12 @@ import {
   type KuhniStage3PresentationQualification,
 } from "./ecr-pre-pilot/kuhni-stage3-presentation";
 import {
+  ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+  compactStage3Stage4OptimizerResult,
+  optimizeStage3Stage4,
+} from "./ecr-pre-pilot/stage3-stage4-optimizer";
+import {
   JOB_A_COMPONENT_ORDER,
   JOB_A_MOLECULAR_DATA,
   JOB_A_STAGE2_ENGINE_ID,
@@ -465,7 +471,165 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
   };
 }
 
-export async function getKuhniGeometryResolverRuns(userId: number, designId: number, latest = false) {
+/**
+ * Persist the additive Stage3/4 optimizer in the same immutable resolver
+ * ledger.  Keeping one ledger preserves the existing ownership and freshness
+ * checks while the versioned engine dispatch above/below keeps V1.1-V1.5
+ * historical replay untouched.
+ */
+export async function createStage3Stage4OptimizerRun(
+  userId: number,
+  designId: number,
+  rawControls?: unknown,
+) {
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const stage1 = validateStage1Snapshot(design.rows[0].input_data);
+  const basis = makeStage1HydrodynamicProcessBasis(stage1);
+  const stage2 = await pool.query<{ id: string; status: string; result_snapshot: any }>(
+    `SELECT id::text,status,result_snapshot
+       FROM ecr_pre_pilot_predictive_nt_jobs
+      WHERE design_id=$1 AND created_by=$2 AND status='completed'
+        AND result_snapshot IS NOT NULL
+        AND result_snapshot->>'status' IS DISTINCT FROM 'ENGINE_ERROR'
+        AND result_snapshot->>'executionStatus' = ANY($3::text[])
+        AND result_snapshot#>>'{stage1TargetGovernance,stage1SnapshotHash}'=$4
+      ORDER BY created_at DESC,id DESC LIMIT 1`,
+    [designId, userId, [...USABLE_THERMODYNAMIC_EXECUTION_STATUSES], stage1.immutableHash],
+  );
+  const stage2Authority = resolveTheoreticalStageAuthority(stage1.immutableHash, stage2.rows[0] as any);
+  const parent = await pool.query<{ id: string; immutable_hash: string }>(
+    `SELECT id::text,immutable_hash
+       FROM ecr_pre_pilot_kuhni_hydrodynamic_runs
+      WHERE design_id=$1 AND created_by=$2
+      ORDER BY created_at DESC,id DESC LIMIT 1`,
+    [designId, userId],
+  );
+  const parentRun = parent.rows[0] ?? null;
+  const result = optimizeStage3Stage4(basis, stage1.immutableHash, rawControls);
+  const immutableHash = kuhniRunHash({
+    basis,
+    theoreticalStages: stage2Authority,
+    parentHydrodynamicRun: parentRun,
+    result,
+  });
+  const saved = await pool.query<{ id: string; created_at: string }>(
+    `INSERT INTO ecr_pre_pilot_kuhni_geometry_resolver_runs
+       (design_id,created_by,stage1_snapshot_hash,stage2_job_id,stage2_result_hash,
+        parent_hydrodynamic_run_id,parent_hydrodynamic_run_hash,process_basis,
+        theoretical_stage_authority,result_snapshot,implementation_hash,immutable_hash)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     RETURNING id::text,created_at`,
+    [
+      designId, userId, stage1.immutableHash,
+      stage2Authority.stage2JobId, stage2Authority.stage2ResultHash,
+      parentRun?.id ?? null, parentRun?.immutable_hash ?? null,
+      basis, stage2Authority, result, ECR_STAGE3_STAGE4_OPTIMIZER_HASH, immutableHash,
+    ],
+  );
+  const apiResult = compactStage3Stage4OptimizerResult(result);
+  return {
+    id: saved.rows[0].id,
+    createdAt: saved.rows[0].created_at,
+    immutableHash,
+    integrityStatus: 'VERIFIED' as const,
+    stage1SnapshotHash: stage1.immutableHash,
+    implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+    optimizerVersion: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+    stage2Reference: {
+      value: stage2Authority.stage2AcceptedPredictiveNt,
+      jobId: stage2Authority.stage2JobId,
+      resultHash: stage2Authority.stage2ResultHash,
+      status: stage2Authority.stage2AcceptedPredictiveNtProvenance,
+    },
+    ...apiResult,
+  };
+}
+
+export async function getStage3Stage4OptimizerRuns(
+  userId: number,
+  designId: number,
+  latest = false,
+) {
+  const design = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  if (!design.rows[0]) throw new Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
+  const currentStage1 = validateStage1Snapshot(design.rows[0].input_data);
+  const rows = await pool.query<any>(
+    `SELECT id::text,created_at AS "createdAt",
+            stage1_snapshot_hash AS "stage1SnapshotHash",
+            stage2_job_id::text AS "stage2JobId",
+            stage2_result_hash AS "stage2ResultHash",
+            parent_hydrodynamic_run_id::text AS "parentHydrodynamicRunId",
+            parent_hydrodynamic_run_hash AS "parentHydrodynamicRunHash",
+            process_basis AS "processBasis",
+            theoretical_stage_authority AS "theoreticalStages",
+            result_snapshot AS result,
+            implementation_hash AS "implementationHash",
+            immutable_hash AS "immutableHash"
+       FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
+      WHERE design_id=$1 AND created_by=$2
+        AND stage1_snapshot_hash=$3
+        AND result_snapshot->'engine'->>'version'=$4
+      ORDER BY created_at DESC,id DESC
+      ${latest ? 'LIMIT 1' : ''}`,
+    [designId, userId, currentStage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION],
+  );
+  const verified = rows.rows.map((row) => {
+    const result = row.result;
+    const { calculationHash, ...calculationPayload } = result ?? {};
+    const immutableHash = kuhniRunHash({
+      basis: row.processBasis,
+      theoreticalStages: row.theoreticalStages,
+      parentHydrodynamicRun: row.parentHydrodynamicRunId
+        ? { id: row.parentHydrodynamicRunId, immutable_hash: row.parentHydrodynamicRunHash }
+        : null,
+      result,
+    });
+    if (
+      immutableHash !== row.immutableHash
+      || row.implementationHash !== ECR_STAGE3_STAGE4_OPTIMIZER_HASH
+      || row.implementationHash !== result?.engine?.implementationHash
+      || row.stage1SnapshotHash !== currentStage1.immutableHash
+      || row.processBasis?.stage1SnapshotHash !== currentStage1.immutableHash
+      || result?.stage1Authority?.snapshotHash !== currentStage1.immutableHash
+      || kuhniRunHash(calculationPayload) !== calculationHash
+    ) {
+      throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_INTEGRITY_FAILURE');
+    }
+    const presentationQualification: KuhniStage3PresentationQualification =
+      qualifyKuhniStage3Presentation({
+        result,
+        processBasis: row.processBasis,
+        runStage1SnapshotHash: row.stage1SnapshotHash,
+        currentStage1SnapshotHash: currentStage1.immutableHash,
+        integrityVerified: true,
+      });
+    return {
+      id: row.id,
+      createdAt: row.createdAt,
+      immutableHash: row.immutableHash,
+      integrityStatus: 'VERIFIED' as const,
+      stage1SnapshotHash: row.stage1SnapshotHash,
+      implementationHash: row.implementationHash,
+      presentationQualification,
+      result: compactStage3Stage4OptimizerResult(result),
+    };
+  });
+  return latest ? verified[0] ?? null : verified;
+}
+
+export async function getKuhniGeometryResolverRuns(
+  userId: number,
+  designId: number,
+  latest = false,
+  historicalOnly = false,
+) {
   const currentDesign = await pool.query<{ input_data: unknown }>(
     `SELECT input_data
        FROM ecr_pre_pilot_designs
@@ -495,8 +659,13 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
             immutable_hash AS "immutableHash"
        FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
       WHERE design_id=$1 AND created_by=$2
+      ${historicalOnly
+        ? `AND result_snapshot->'engine'->>'version' <> $3`
+        : ''}
       ORDER BY created_at DESC, id DESC ${latest ? 'LIMIT 1' : ''}`,
-    [designId, userId],
+    historicalOnly
+      ? [designId, userId, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION]
+      : [designId, userId],
   );
   const verified = rows.rows.map((row: any) => {
     const replayed = kuhniRunHash({
@@ -524,6 +693,12 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
           return resolveKuhniGeometryV140(row.processBasis, row.theoreticalStages);
         case KUHNI_GEOMETRY_RESOLVER_V150_VERSION:
           return resolveKuhniGeometryV150(row.processBasis, row.theoreticalStages);
+        case ECR_STAGE3_STAGE4_OPTIMIZER_VERSION:
+          return optimizeStage3Stage4(
+            row.processBasis,
+            row.processBasis?.stage1SnapshotHash,
+            row.result?.controls,
+          );
         default:
           throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_UNKNOWN_ENGINE_VERSION');
       }
@@ -584,7 +759,10 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
   } catch {
     throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_SAVED_STAGE1_REQUIRED');
   }
-  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  // Job A is a historical resolver consumer; the current Stage-3/4
+  // optimizer is consumed by Stage 4 and must not be mistaken for a V1.x
+  // geometry replay.
+  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true, true) as any;
   if (!stage3) throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_VERIFIED_STAGE3_REQUIRED');
   const result = stage3.result as any;
   const activeV130 = result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V130_VERSION
@@ -727,7 +905,7 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
  */
 export async function evaluateEcrPrePilotJobB(userId: number, designId: number) {
   const jobA = await evaluateEcrPrePilotJobA(userId, designId);
-  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true, true);
   assertJobBStage3ParentMatchesJobA(jobA, stage3);
   const envelope = (stage3.result as any)?.hydraulicRpmEnvelope as any[] ?? [];
   const trial = envelope.find((candidate, ordinal) =>
@@ -913,7 +1091,7 @@ export async function prepareEcrPrePilotJobC(
   if (stage1.immutableHash !== jobA.dependencies.stage1SnapshotHash) {
     throw new Error('JOB_C_DEPENDENCY_BLOCKED:STAGE1_CHANGED');
   }
-  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true, true);
   assertJobBStage3ParentMatchesJobA(jobA, stage3);
   const envelope = (stage3!.result as any).hydraulicRpmEnvelope as any[];
   const trial = envelope.find((candidate, ordinal) =>
@@ -1529,7 +1707,7 @@ export async function evaluateCompletedJobCPhysicalSizing(
     processBasis = makeStage1HydrodynamicProcessBasis(stage1);
     // Use the immutable Stage-3 result pinned by the accepted parent, not a
     // later resolver run that may belong to a different Stage-1 snapshot.
-    const stage3 = (await getKuhniGeometryResolverRuns(userId, designId))
+    const stage3 = (await getKuhniGeometryResolverRuns(userId, designId, false, true))
       .find((run: any) => run.immutableHash === completed.result?.dependencies?.stage3ImmutableHash);
     if (!stage3) {
       throw new Error('JOB_C_PHYSICAL_SIZING_DEPENDENCY_BLOCKED:ACCEPTED_STAGE3_IMMUTABLE_RESULT_REQUIRED');
@@ -1842,7 +2020,7 @@ export async function evaluatePartialTransferPhysicalSizing(
   }
   // Reuse the resolver's self-authenticating immutable-result reader. Raw
   // database JSON is never sufficient authority for this calculation.
-  const stage3 = (await getKuhniGeometryResolverRuns(userId, designId))
+  const stage3 = (await getKuhniGeometryResolverRuns(userId, designId, false, true))
     .find((item: any) => item.immutableHash === source.anchor.sourceDependencies.stage3ImmutableHash);
   const request = source.anchor.workerRequest;
   if (!stage3) {
@@ -2304,7 +2482,7 @@ export async function getLatestPartialTransferPhysicalSizing(userId: number, des
       sourceStage3ImmutableHash: anchor.sourceDependencies.stage3ImmutableHash,
       savedStage3ImmutableHash: row.stage3_immutable_hash };
   }
-  const currentStage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
+  const currentStage3 = await getKuhniGeometryResolverRuns(userId, designId, true, true);
   if (!currentStage3 || currentStage3.immutableHash !== row.stage3_immutable_hash) {
     return { ...savedAssessment, status: 'DEPENDENCY_BLOCKED', staleStatus: 'STALE',
       reason: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CURRENT_STAGE3_LINEAGE_CHANGED',

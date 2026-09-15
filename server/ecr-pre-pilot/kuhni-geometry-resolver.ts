@@ -49,6 +49,14 @@ const MAX_TIP_SPEED_MS = 4.5;
 const MIN_ROTOR_DIAMETER_M = 0.05;
 const MIN_COMPARTMENT_HEIGHT_M = 0.05;
 
+export type KuhniHydraulicTrialGeometry = {
+  rotorToColumn?: number;
+  compartmentToColumn?: number;
+  statorFreeArea?: number;
+  powerNumber?: number;
+  directTurbulenceC?: number;
+};
+
 function implementationHash(version: string, resultAdmissionRule: string) {
   const descriptors = [
   version,
@@ -142,21 +150,34 @@ function evaluateCandidate(
   columnDiameterM: number,
   rpm: number,
   basis: HydrodynamicProcessBasis,
+  geometry: KuhniHydraulicTrialGeometry = {},
 ) {
   const continuous = basis.phaseConfiguration === 'nmp-continuous-rrbo-dispersed'
     ? basis.wetSolventPhase : basis.rrboFeed;
   const dispersed = basis.phaseConfiguration === 'nmp-continuous-rrbo-dispersed'
     ? basis.rrboFeed : basis.wetSolventPhase;
   if (!(continuous.densityKgM3 > dispersed.densityKgM3)) throw new Error('CONTINUOUS_PHASE_MUST_BE_HEAVIER');
-  const rotorDiameterM = ROTOR_TO_COLUMN * columnDiameterM;
-  const compartmentHeightM = COMPARTMENT_TO_COLUMN * columnDiameterM;
+  const rotorToColumn = geometry.rotorToColumn ?? ROTOR_TO_COLUMN;
+  const compartmentToColumn = geometry.compartmentToColumn ?? COMPARTMENT_TO_COLUMN;
+  const statorFreeArea = geometry.statorFreeArea ?? STATOR_FREE_AREA;
+  const powerNumber = geometry.powerNumber ?? POWER_NUMBER;
+  const directTurbulenceC = geometry.directTurbulenceC ?? DIRECT_TURBULENCE_C;
+  if (
+    !(rotorToColumn > 0 && rotorToColumn < 1)
+    || !(compartmentToColumn > 0)
+    || !(statorFreeArea > 0 && statorFreeArea < 1)
+    || !(powerNumber > 0)
+    || !(directTurbulenceC > 0)
+  ) throw new Error('NON_PHYSICAL_HYDRAULIC_TRIAL_GEOMETRY');
+  const rotorDiameterM = rotorToColumn * columnDiameterM;
+  const compartmentHeightM = compartmentToColumn * columnDiameterM;
   const n = rpm / 60;
   const tipSpeedMS = PI * rotorDiameterM * n;
   if (tipSpeedMS > MAX_TIP_SPEED_MS) throw new Error('TIP_SPEED_LIMIT_EXCEEDED');
   const areaM2 = PI * columnDiameterM ** 2 / 4;
-  const powerW = POWER_NUMBER * continuous.densityKgM3 * n ** 3 * rotorDiameterM ** 5;
+  const powerW = powerNumber * continuous.densityKgM3 * n ** 3 * rotorDiameterM ** 5;
   const psiWKg = powerW / (areaM2 * compartmentHeightM * continuous.densityKgM3);
-  const d32M = DIRECT_TURBULENCE_C
+  const d32M = directTurbulenceC
     * (basis.interfacialTensionNM / continuous.densityKgM3) ** 0.6 * psiWKg ** -0.4;
   if (!(d32M > 0 && Number.isFinite(d32M))) throw new Error('D32_NOT_CALCULABLE');
   const terminal = terminalState(
@@ -170,7 +191,7 @@ function evaluateCandidate(
     - 1.669 * sourcePowerNumber ** -3.945
     - 2.807 * (d32M / (columnDiameterM - rotorDiameterM)) ** 1.336
     - 1.159 * (compartmentHeightM / columnDiameterM) ** 2.049
-    + 2.1 * STATOR_FREE_AREA ** 1.032;
+    + 2.1 * statorFreeArea ** 1.032;
   if (!(characteristicFactor > 0)) throw new Error('NON_POSITIVE_GARTHE_CHARACTERISTIC_FACTOR');
   const characteristicVelocityMS = terminal.velocityMS * characteristicFactor;
   const characteristicRe = continuous.densityKgM3 * characteristicVelocityMS * d32M / continuous.dynamicViscosityPaS;
@@ -222,6 +243,20 @@ function evaluateCandidate(
     applicability, dragApplicability, shapeApplicability,
     status: applicability.length ? 'CALCULATED_EXTRAPOLATED' as const : 'CALCULATED_IN_RANGE' as const,
   };
+}
+
+/**
+ * Reusable ordinary-orientation hydraulic closure for additive optimizer
+ * geometry trials. Defaults preserve the frozen resolver equations and
+ * historical replay values exactly.
+ */
+export function evaluateKuhniHydraulicTrial(
+  columnDiameterM: number,
+  rpm: number,
+  basis: HydrodynamicProcessBasis,
+  geometry: KuhniHydraulicTrialGeometry = {},
+) {
+  return evaluateCandidate(columnDiameterM, rpm, basis, geometry);
 }
 
 function diameterForRpm(rpm: number, basis: HydrodynamicProcessBasis) {

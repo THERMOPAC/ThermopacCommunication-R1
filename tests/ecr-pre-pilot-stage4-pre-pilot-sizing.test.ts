@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { deriveStage4PrePilotSizing } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
+import { ECR_STAGE3_STAGE4_OPTIMIZER_VERSION } from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
 const stage3 = () => ({
   id: 42,
@@ -27,6 +28,46 @@ const input = () => ({
 });
 
 describe('Stage 4 HETS pre-pilot sizing projection', () => {
+  it('uses the current optimizer geometry and never regenerates legacy half-diameter compartments', () => {
+    const stage1Hash = 'b'.repeat(64);
+    const result = {
+      engine: { version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION },
+      stage1Authority: { snapshotHash: stage1Hash },
+      processBasis: { stage1SnapshotHash: stage1Hash },
+      stage4GeometryInput: {
+        status: 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY',
+        columnDiameterM: 0.4,
+        compartmentHeightM: 0.08,
+        hcToColumn: 0.2,
+        rotorDiameterM: 0.16,
+        rotorToColumn: 0.4,
+        freeArea: 0.3,
+        rpm: 50,
+      },
+      hydraulicDiagnosticPoint: null,
+      theoreticalStagesUsed: {
+        value: 7,
+        provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+        stage3GeometryDesignNt: 7,
+      },
+    };
+    const resultSizing = deriveStage4PrePilotSizing({
+      calculatedNt: 5,
+      stage2JobId: 'stage-2-job',
+      stage2ResultHash: 'c'.repeat(64),
+      stage3: {
+        id: 43,
+        immutableHash: 'd'.repeat(64),
+        stage1SnapshotHash: stage1Hash,
+        result,
+      },
+    });
+    expect(resultSizing.mainOutputs.diameterM).toBe(0.4);
+    expect(resultSizing.selectedStage3Hydraulics.compartmentHeightM).toBe(0.08);
+    expect(resultSizing.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(7 / 0.08));
+    expect(resultSizing.implementation.version).not.toContain('LEGACY');
+  });
+
   it('uses fixed Stage-4 design Nt=7 and retains the actual Stage-2 value as reference', () => {
     const result = deriveStage4PrePilotSizing(input());
 

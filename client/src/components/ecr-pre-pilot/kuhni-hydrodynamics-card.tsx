@@ -3,6 +3,7 @@ import { ChevronDown, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Stage3Stage4OptimizerPanel } from "./stage3-stage4-optimizer-panel";
 
 type KuhniRun = {
   id?: string | number;
@@ -899,53 +900,31 @@ export function KuhniHydrodynamicsCard({
   const [loading, setLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [optimizerRefreshToken, setOptimizerRefreshToken] = useState(0);
 
   const loadRuns = async () => {
     if (!designId) return;
     setLoading(true);
     setLoadingError(null);
     try {
-      const [latestResponse, runsResponse, resolverLatestResponse, resolverRunsResponse] = await Promise.all([
+      const [latestResponse, runsResponse] = await Promise.all([
         fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-hydrodynamics/latest`, { credentials: "include" }),
         fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-hydrodynamics/runs`, { credentials: "include" }),
-        fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-geometry-resolver/latest`, { credentials: "include" }),
-        fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-geometry-resolver/runs`, { credentials: "include" }),
       ]);
       if (!latestResponse.ok && latestResponse.status !== 404) throw new Error("Latest hydrodynamic run could not be loaded.");
       if (!runsResponse.ok) throw new Error("Hydrodynamic run history could not be loaded.");
-      if (!resolverLatestResponse.ok && resolverLatestResponse.status !== 404) throw new Error("Latest geometry resolver run could not be loaded.");
-      if (!resolverRunsResponse.ok) throw new Error("Geometry resolver history could not be loaded.");
       const latestPayload = latestResponse.status === 404 ? null : await latestResponse.json();
       const runsPayload = await runsResponse.json();
-      const resolverLatestPayload = resolverLatestResponse.status === 404 ? null : await resolverLatestResponse.json();
-      const resolverRunsPayload = await resolverRunsResponse.json();
       const latestResult = latestPayload?.result
         ? { ...latestPayload.result, id: latestPayload.id, createdAt: latestPayload.createdAt, immutableHash: latestPayload.immutableHash }
         : null;
       setLatest(latestResult as KuhniRun | null);
       setRuns((runsPayload?.runs ?? runsPayload ?? []) as KuhniRun[]);
-      setResolverLatest(resolverLatestPayload?.result
-         ? {
-           ...resolverLatestPayload.result,
-           id: resolverLatestPayload.id,
-           createdAt: resolverLatestPayload.createdAt,
-           immutableHash: resolverLatestPayload.immutableHash,
-           integrityStatus: resolverLatestPayload.integrityStatus,
-           stage1SnapshotHash: resolverLatestPayload.stage1SnapshotHash,
-           implementationHash: resolverLatestPayload.implementationHash,
-           presentationQualification: resolverLatestPayload.presentationQualification,
-         }
-        : null);
-       setResolverRuns((resolverRunsPayload?.runs ?? resolverRunsPayload ?? []).map((item: KuhniRun & { result?: Record<string, unknown>; presentationQualification?: unknown }) => ({
-         ...(item.result ?? item),
-         id: item.id,
-         createdAt: item.createdAt,
-         immutableHash: item.immutableHash,
-         integrityStatus: item.integrityStatus,
-         stage1SnapshotHash: item.stage1SnapshotHash,
-         implementationHash: item.implementationHash,
-         presentationQualification: item.presentationQualification,
-       })) as KuhniRun[]);
+      // Historical resolver records remain available through their explicit
+      // replay endpoint, but are intentionally not loaded into the current
+      // Stage-3 card or allowed to displace the optimizer result.
+      setResolverLatest(null);
+      setResolverRuns([]);
     } catch (error: unknown) {
       setLoadingError(error instanceof Error ? error.message : "Hydrodynamic results could not be loaded.");
     } finally {
@@ -969,22 +948,27 @@ export function KuhniHydrodynamicsCard({
     setSubmitting(true);
     setLoadingError(null);
     try {
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/kuhni-geometry-resolver/runs`, {
+      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/stage3-stage4-optimizer/runs`, {
         method: "POST",
         credentials: "include",
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? payload.message ?? "Hydrodynamic screening could not start.");
-      setResolverLatest(payload as KuhniRun);
+      setOptimizerRefreshToken((value) => value + 1);
       await loadRuns();
-      toast({ title: "Kuhni resolver complete", description: "The automatic hydraulic envelope and theoretical-stage provenance were persisted immutably." });
+      toast({ title: "Stage 3/4 optimizer complete", description: "The current Stage-1-authoritative optimizer geometry and RPM window were persisted immutably." });
     } catch (error: unknown) {
-      setLoadingError(error instanceof Error ? error.message : "Hydrodynamic screening could not start.");
-      toast({ title: "Kuhni screening failed", description: error instanceof Error ? error.message : "The run could not be completed.", variant: "destructive" });
+      setLoadingError(error instanceof Error ? error.message : "Stage 3/4 optimization could not start.");
+      toast({ title: "Stage 3/4 optimizer failed", description: error instanceof Error ? error.message : "The run could not be completed.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
+  const legacyResolverLatest = asRecord(resolverLatest?.engine)?.id === "kuhni_geometry_resolver"
+    ? resolverLatest
+    : null;
+  const legacyResolverRuns = resolverRuns.filter((item) =>
+    asRecord(item.engine)?.id === "kuhni_geometry_resolver");
 
   return (
     <Card className="overflow-hidden border-slate-300 shadow-sm">
@@ -993,7 +977,7 @@ export function KuhniHydrodynamicsCard({
           <div className="flex items-start gap-2.5">
             <div className="rounded-md bg-slate-900 p-2 text-white"><ShieldCheck className="h-4 w-4" /></div>
             <div>
-              <CardTitle className="text-[15px] text-slate-900">Stage 3 · Automatic Kuhni geometry resolution</CardTitle>
+              <CardTitle className="text-[15px] text-slate-900">Stage 3 · Current Kuhni geometry optimization</CardTitle>
               <CardDescription className="mt-0.5 max-w-2xl text-[11px] leading-4">
                  Server-owned geometry and RPM resolution from immutable Stage 1 using the fixed Stage-3 pre-pilot design basis N_T=7. Any accepted Stage-2 Predictive N_T remains separate scientific evidence.
               </CardDescription>
@@ -1006,11 +990,15 @@ export function KuhniHydrodynamicsCard({
             className="h-8 gap-1.5 bg-slate-900 px-3 text-xs hover:bg-slate-700"
           >
             {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {submitting ? "Resolving geometry…" : "Run automatic resolver"}
+            {submitting ? "Optimizing geometry…" : "Run current optimizer"}
           </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 px-4 py-4">
+        <Stage3Stage4OptimizerPanel
+          designId={designId}
+          refreshToken={optimizerRefreshToken}
+        />
         <div className={`rounded-md border p-3 ${thermodynamicDependencyReady ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/70"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className={`text-xs font-semibold ${thermodynamicDependencyReady ? "text-emerald-950" : "text-amber-950"}`}>
@@ -1051,12 +1039,12 @@ export function KuhniHydrodynamicsCard({
           </p>
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-4 text-amber-950">
-          <strong>Resolver boundary.</strong> Stage 3 now calculates the hydraulic diameter/RPM envelope. Final operating RPM, physical compartments and active height remain visibly dependency-blocked until the approved mass-transfer and compartment-efficiency model is available.
+          <strong>Optimizer boundary.</strong> Stage 3 selects a fixed geometry and useful RPM window from the bounded screening grid. Stage 4 carries that immutable geometry into the fixed-N<sub>T</sub>=7 HETS screening route; no separation or commercial qualification is claimed.
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Server-owned calculation authority</h3>
-            <span className="font-mono text-[10px] text-slate-400">POST /kuhni-geometry-resolver/runs · empty body</span>
+            <span className="font-mono text-[10px] text-slate-400">POST /stage3-stage4-optimizer/runs · server-owned controls</span>
           </div>
           <p className="mt-2 text-[11px] leading-4 text-slate-600">
              Geometry, RPM and flooding design fraction are not user inputs. Every run snapshots the current Stage‑1 process basis and uses the immutable STAGE3_GEOMETRY_DESIGN_NT=7 basis while retaining any newest valid Stage‑2 accepted Predictive N_T as separate scientific reporting.
@@ -1064,16 +1052,16 @@ export function KuhniHydrodynamicsCard({
         </div>
         <div className="border-t border-slate-200 pt-3">
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">System-calculated Stage-3 outputs</h3>
-          <p className="mt-1 text-[10px] leading-4 text-slate-500">Myint/Garthe local states, turning-point capacity and physical search bounds are replayed server-side and persisted in the immutable resolver record.</p>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">Candidate grids, root residuals, signed reverse diagnostics and deterministic selection rationale are persisted in the immutable optimizer record.</p>
         </div>
-        {loading && !resolverLatest ? (
+        {loading && !legacyResolverLatest ? (
           <div className="space-y-2"><div className="h-8 animate-pulse rounded bg-slate-100" /><div className="h-20 animate-pulse rounded bg-slate-100" /></div>
         ) : loadingError ? (
           <div className="flex items-center justify-between rounded-md border border-red-200 bg-red-50 p-3 text-[11px] text-red-800"><span>{loadingError}</span><Button type="button" variant="outline" onClick={() => void loadRuns()} className="h-7 gap-1 px-2 text-[11px]"><RefreshCw className="h-3 w-3" /> Retry</Button></div>
-        ) : !resolverLatest ? (
-          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-[11px] text-slate-500">No immutable geometry resolver run yet. Run the automatic resolver to calculate the hydraulic envelope.</div>
+        ) : !legacyResolverLatest ? (
+          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-5 text-center text-[11px] text-slate-500">No historical geometry resolver run yet. The new fixed-geometry optimizer result is presented above.</div>
         ) : (
-          <KuhniResolverPanel run={resolverLatest} runCount={resolverRuns.length} />
+          <KuhniResolverPanel run={legacyResolverLatest} runCount={legacyResolverRuns.length} />
         )}
         {latest && (
           <details className="rounded-md border border-slate-200 bg-slate-50 p-3">
