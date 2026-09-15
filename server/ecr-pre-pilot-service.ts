@@ -578,9 +578,11 @@ export async function getStage3Stage4OptimizerRuns(
       WHERE design_id=$1 AND created_by=$2
         AND stage1_snapshot_hash=$3
         AND result_snapshot->'engine'->>'version'=$4
+         AND implementation_hash=$5
+         AND result_snapshot->'engine'->>'implementationHash'=$5
       ORDER BY created_at DESC,id DESC
       ${latest ? 'LIMIT 1' : ''}`,
-    [designId, userId, currentStage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION],
+    [designId, userId, currentStage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH],
   );
   const verified = rows.rows.map((row) => {
     const result = row.result;

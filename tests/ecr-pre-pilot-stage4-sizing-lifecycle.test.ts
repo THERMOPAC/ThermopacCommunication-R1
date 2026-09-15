@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   stage1Hash: 's'.repeat(64),
   stage2Available: true,
   currentOptimizer: false,
+  optimizerDiameterM: 0.8,
   optimizerRuns: 0,
   finiteRateRun: vi.fn(),
   query: vi.fn(),
@@ -104,10 +105,10 @@ function optimizerRow() {
     phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
   };
   const geometry = {
-    columnDiameterM: 0.8,
-    compartmentHeightM: 0.2,
+    columnDiameterM: state.optimizerDiameterM,
+    compartmentHeightM: state.optimizerDiameterM * 0.25,
     hcToColumn: 0.25,
-    rotorDiameterM: 0.32,
+    rotorDiameterM: state.optimizerDiameterM * 0.4,
     rotorToColumn: 0.4,
     freeArea: 0.3,
   };
@@ -177,6 +178,7 @@ function reset() {
   state.stage1Hash = 's'.repeat(64);
   state.stage2Available = true;
   state.currentOptimizer = false;
+  state.optimizerDiameterM = 0.8;
   state.optimizerRuns = 0;
   state.finiteRateRun.mockReset();
   state.query.mockReset();
@@ -268,6 +270,43 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(changed.status).toBe('UNRUN');
     expect(changed.calculation.lineageHash).not.toBe(first.calculation.lineageHash);
     expect(changed.mainOutputs.physicalCompartments).toBeNull();
+  });
+
+  it('keeps a V1.0 1.2 m record historical, then persists the current .5 m optimizer result', async () => {
+    reset();
+    state.previous = {
+      status: 'CALCULATED',
+      error_code: null,
+      progress_snapshot: { phase: 'COMPLETE' },
+      completed_at: 'legacy-completed-at',
+      result_snapshot: {
+        implementation: {
+          version: 'ECR_STAGE4_HETS_SCREENING_V1.0',
+          implementationHash: '0'.repeat(64),
+        },
+        mainOutputs: { diameterM: 1.2, physicalCompartments: 14, activeHeightM: 7 },
+        selectedStage3Hydraulics: { diameterM: 1.2, compartmentHeightM: 0.6 },
+      },
+      attempt_token: 'must-not-be-exposed',
+    };
+
+    const stale = await getLiveStage4PrePilotSizing(8, 269);
+    expect(stale.currentOptimizerRequired).toBe(true);
+    expect(stale.historicalCalculationOnly).toBe(true);
+    expect(stale.mainOutputs.diameterM).toBeNull();
+    expect(JSON.stringify(stale)).not.toContain('"diameterM":1.2');
+
+    state.optimizerDiameterM = 0.5;
+    const current = await calculateStage4PrePilotSizing(8, 269);
+    expect(current.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
+    expect(current.currentOptimizer).toMatchObject({
+      version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+      implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+    });
+    expect(current.mainOutputs.diameterM).toBe(0.5);
+    expect(current.selectedStage3Hydraulics.compartmentHeightM).toBe(0.125);
+    expect(current.selectedStage3Hydraulics.compartmentHeightM)
+      .not.toBe(current.mainOutputs.diameterM * 0.5);
   });
 
   it('permits fixed-Nt=7 HETS sizing with a nullable absent Stage-2 reference', async () => {

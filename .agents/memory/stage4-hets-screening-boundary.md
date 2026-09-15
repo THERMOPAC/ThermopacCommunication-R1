@@ -11,6 +11,12 @@ New optimized sizing must never fall back to historical fixed-ratio geometry whe
 
 **How to apply:** Keep reads read-only and historical results visibly historical; an explicit Calculate action obtains current optimized geometry before sizing. Verify the existing-project transition, not only isolated new-result formulas.
 
+Ranking changes also invalidate downstream sizing even when Stage-1 inputs are identical.
+
+**Why:** A saved wider-window result remained displayed as calculated after the size-balanced ranking was introduced; input freshness alone cannot establish methodology freshness.
+
+**How to apply:** Check current optimizer version and implementation identity in Stage-4 freshness, keep recalculation available for historical results, and expose the persisted ranking rationale on Stage 4 itself.
+
 **Why:** The user stopped the expensive whole-column qualification and explicitly approved a transparent assumed-HETS conversion of existing hydraulic geometry using a fixed Stage-4 design basis of seven theoretical stages. The decision expressly applies to both NMP-continuous/RRBO-dispersed and RRBO-continuous/NMP-dispersed orientations. This is a change in engineering scope, not evidence that the stopped solver converged.
 
 **How to apply:** Do not restore finite-rate convergence or transport-property requirements as prerequisites for this screening route. Preserve current Stage-1/Stage-3 hydraulic snapshot integrity and Stage-3 HETS admission through lightweight persisted-evidence checks without executing scientific-runtime preflight. Preserve Stage-2 scientific acceptance checks when Stage-2 evidence exists, but do not make an actual Stage-2 value a gate for the fixed-7 assumption-based sizing. Show that actual value as nullable reference-only evidence, never as the fixed sizing value.

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { deriveStage4PrePilotSizing } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
-import { ECR_STAGE3_STAGE4_OPTIMIZER_VERSION } from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
+import {
+  ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+} from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
 const stage3 = () => ({
   id: 42,
@@ -31,7 +34,10 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
   it('uses the current optimizer geometry and never regenerates legacy half-diameter compartments', () => {
     const stage1Hash = 'b'.repeat(64);
     const result = {
-      engine: { version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION },
+      engine: {
+        version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+        implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+      },
       stage1Authority: { snapshotHash: stage1Hash },
       processBasis: { stage1SnapshotHash: stage1Hash },
       stage4GeometryInput: {

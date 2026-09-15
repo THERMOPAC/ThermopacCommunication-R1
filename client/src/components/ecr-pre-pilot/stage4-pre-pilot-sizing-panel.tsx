@@ -424,9 +424,12 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   }, [applyPayload, basePath, clearPolling, run]);
 
   const staleLineage = hasStaleLineage(result) || hasStaleLineage(run);
+  const historicalPayload = result?.historicalCalculationOnly === true
+    || result?.currentOptimizerRequired === true
+    || run?.currentOptimizerRequired === true;
   // A stale response may still be useful as a diagnostic, but none of its
   // numerical fields are authoritative for the current design.
-  const displayResult = staleLineage ? null : result;
+  const displayResult = staleLineage || historicalPayload ? null : result;
   const outputs = record(displayResult?.mainOutputs);
   const designNt = record(displayResult?.designNt);
   const actualStage2NtReference = record(displayResult?.actualStage2NtReference);
@@ -440,6 +443,28 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const optimizedStage3Geometry = text(
     record(displayResult?.implementation).version,
   ).includes("OPTIMIZED_GEOMETRY");
+  const optimizerRanking = record(hydraulic.ranking);
+  const optimizerAlternatives = list(optimizerRanking.alternatives)
+    .map(record)
+    .filter((alternative, index, all) => {
+      const geometry = record(alternative.geometry);
+      const key = [
+        geometry.columnDiameterM,
+        geometry.hcToColumn,
+        geometry.rotorToColumn,
+        geometry.freeArea,
+      ].join(":");
+      return all.findIndex(candidate => {
+        const candidateGeometry = record(candidate.geometry);
+        return [
+          candidateGeometry.columnDiameterM,
+          candidateGeometry.hcToColumn,
+          candidateGeometry.rotorToColumn,
+          candidateGeometry.freeArea,
+        ].join(":") === key;
+      }) === index;
+    });
+  const optimizerSelectedWindow = record(optimizerRanking.selectedWindow);
   const stage3HetsLimitations = list(stage3HetsAdmission.limitations).map(record);
   const geometry = record(displayResult?.physicalGeometry);
   const audit = record(displayResult?.mixingAudit);
@@ -504,15 +529,14 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const calculation = record(result?.calculation);
   const calculationProgress = record(calculation.progress ?? runProgress);
   const hasCalculationProgress = Object.keys(calculationProgress).length > 0;
-  const stage4Status = responseStatus(result ?? run);
+  const stage4Status = historicalPayload ? "UNRUN" : responseStatus(result ?? run);
   const stage4Running = stage4Status === "RUNNING" || isRunActive(run);
   const stage4Retryable = STAGE4_RETRY_STATES.has(stage4Status);
   const stage4Terminal = STAGE4_TERMINAL_STATES.has(stage4Status);
   const stage4Action = stage4Retryable ? retry : calculate;
   const currentOptimizerRequired = result?.currentOptimizerRequired === true
     || run?.currentOptimizerRequired === true;
-  const historicalCalculationOnly = currentOptimizerRequired
-    || result?.historicalCalculationOnly === true;
+  const historicalCalculationOnly = historicalPayload;
   const hetsSizing = record(displayResult?.hetsSizing);
   const isHetsResult = (
     displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7"
@@ -847,6 +871,76 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                 {text(stage3HetsAdmission.source)}. This is not governed hydraulics, finite-rate
                 Stage 4, mass-transfer readiness, or commercial release authority.
               </p>
+            )}
+            {optimizedStage3Geometry && (
+              <section
+                data-testid="stage4-current-ranking"
+                className="mt-3 rounded border border-emerald-200 bg-emerald-50/50 p-3"
+              >
+                <h4 className="text-xs font-semibold text-emerald-950">
+                  Current persisted optimizer ranking
+                </h4>
+                <p className="mt-1">
+                  Stage 4 uses the verified selected Stage-3 optimizer point; it
+                  does not rerun or re-rank the hydraulic candidates on GET.
+                  {text(optimizerRanking.objective) !== "—"
+                    ? ` ${text(optimizerRanking.objective)}`
+                    : ""}
+                </p>
+                <dl className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {[
+                    ["Selected D", number(hydraulic.diameterM, "m")],
+                    ["Selected hc/D", number(hydraulic.hcToColumn)],
+                    ["Selected RPM", number(hydraulic.selectedRpm)],
+                    ["Selected useful window",
+                      optimizerSelectedWindow.rpmMin !== undefined
+                        ? `${number(optimizerSelectedWindow.rpmMin)}–${number(optimizerSelectedWindow.rpmMax)} rpm (${number(optimizerSelectedWindow.widthRpm)} rpm wide)`
+                        : "—"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded border border-emerald-100 bg-white p-2">
+                      <dt className="text-slate-600">{label}</dt>
+                      <dd className="mt-1 font-mono">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {optimizerAlternatives.length > 0 && (
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full min-w-[680px] text-left">
+                      <thead>
+                        <tr className="border-b border-emerald-200">
+                          {["Role", "D [m]", "hc/D", "RPM window", "Width", "Why retained"].map(label => (
+                            <th key={label} className="p-1 font-semibold">{label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {optimizerAlternatives.slice(0, 5).map((alternative, index) => {
+                          const geometry = record(alternative.geometry);
+                          const window = record(alternative.operatingWindow);
+                          return (
+                            <tr key={`${String(geometry.columnDiameterM)}-${String(geometry.hcToColumn)}-${index}`} className="border-b border-emerald-100 align-top">
+                              <td className="p-1">{text(alternative.role)}</td>
+                              <td className="p-1 font-mono">{number(geometry.columnDiameterM)}</td>
+                              <td className="p-1 font-mono">{number(geometry.hcToColumn)}</td>
+                              <td className="p-1 font-mono">
+                                {window.rpmMin === undefined
+                                  ? "—"
+                                  : `${number(window.rpmMin)}–${number(window.rpmMax)} rpm`}
+                              </td>
+                              <td className="p-1 font-mono">{number(window.widthRpm)} rpm</td>
+                              <td className="p-1">{text(alternative.rationale)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <p className="mt-2 break-all font-mono text-[9px]">
+                  Optimizer engine: {text(hydraulic.optimizerVersion)} · implementation hash:{" "}
+                  {text(hydraulic.optimizerImplementationHash)}
+                </p>
+              </section>
             )}
             {stage2Stage1Compatibility.status
               === "EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION" && (

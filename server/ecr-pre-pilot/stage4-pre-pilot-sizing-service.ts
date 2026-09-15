@@ -276,6 +276,7 @@ export function deriveStage4PrePilotSizing(input: {
   const inRangeHydraulics = selected?.status === 'CALCULATED_IN_RANGE'
     && positiveFinite(selected.columnDiameterM);
   const optimizerGeometry = input.stage3.result.engine?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
+    && input.stage3.result.engine?.implementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
     ? input.stage3.result.stage4GeometryInput
     : null;
   const optimizedHydraulics = optimizerGeometry?.status === 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY'
@@ -334,6 +335,11 @@ export function deriveStage4PrePilotSizing(input: {
          ? STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH
          : STAGE4_HETS_IMPLEMENTATION_HASH,
     },
+     currentOptimizer: optimizedHydraulics ? {
+       version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+       implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+       resultHash: optimizerGeometry!.optimizerResultHash ?? input.stage3.immutableHash,
+     } : null,
     mainOutputs: {
       diameterM,
       overallEfficiency: screeningEfficiency,
@@ -377,9 +383,29 @@ export function deriveStage4PrePilotSizing(input: {
       stage3RunId: input.stage3.id,
       stage3ImmutableHash: input.stage3.immutableHash,
        optimizerVersion: optimizedHydraulics ? ECR_STAGE3_STAGE4_OPTIMIZER_VERSION : null,
+        optimizerImplementationHash: optimizedHydraulics
+          ? input.stage3.result.engine?.implementationHash ?? null
+          : null,
        optimizerResultHash: optimizedHydraulics
           ? optimizerGeometry!.optimizerResultHash ?? input.stage3.immutableHash
          : null,
+        ...(optimizedHydraulics ? {
+          ranking: {
+            objective: input.stage3.result.selectionRationale?.objective ?? null,
+            selectedWindow: input.stage3.result.selectedOperatingWindow ?? null,
+            usefulWindowPreference:
+              input.stage3.result.selectionRationale?.usefulWindowPreference ?? null,
+            // Keep the compact occupied-grid comparison and the non-dominated
+            // frontier together. Stage 4 only presents this persisted
+            // evidence; it never reruns or re-ranks the optimizer.
+            alternatives: [
+              ...(input.stage3.result.selectionRationale?.alternatives ?? []),
+              ...(input.stage3.result.selectionRationale?.sizeWindowComparisons ?? [])
+                .filter((candidate: any) => candidate?.role !== 'SELECTED_COMPACT'
+                  && candidate?.role !== 'BEST_AVAILABLE'),
+            ],
+          },
+        } : {}),
     },
     // Stage-2 is optional reference evidence for this fixed-design screening;
     // do not fabricate a compatibility finding when it is absent.
@@ -460,6 +486,40 @@ export type Stage4PrePilotSizingAuthority = {
   lineageHash: string;
 };
 
+/**
+ * A Stage-4 calculation is current only when it was produced from the
+ * currently accepted optimizer record.  Checking the Stage-4 implementation
+ * hash alone is not sufficient: V3 HETS rows can carry the same fixed N_T=7
+ * label while still containing the old width-first/0.5D geometry.
+ */
+function isCurrentStage4Calculation(
+  authority: Stage4PrePilotSizingAuthority,
+  calculation: StoredCalculation | null,
+): boolean {
+  if (calculation?.status !== 'CALCULATED') return false;
+  const result = calculation.result_snapshot;
+  const resultHydraulics = result?.selectedStage3Hydraulics;
+  const currentHydraulics = authority.projection.selectedStage3Hydraulics;
+  return result?.currentOptimizer?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
+    && result?.currentOptimizer?.implementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
+    && result?.currentOptimizer?.resultHash === currentHydraulics.optimizerResultHash
+    && result?.implementation?.version === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION
+    && result?.implementation?.implementationHash === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH
+    && result?.calculationModel === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION
+    && resultHydraulics?.optimizerVersion === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
+    && resultHydraulics?.optimizerImplementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
+    && resultHydraulics?.optimizerResultHash === currentHydraulics.optimizerResultHash
+    && resultHydraulics?.stage3RunId === currentHydraulics.stage3RunId
+    && resultHydraulics?.stage3ImmutableHash === currentHydraulics.stage3ImmutableHash
+    && resultHydraulics?.diameterM === currentHydraulics.diameterM
+    && resultHydraulics?.compartmentHeightM === currentHydraulics.compartmentHeightM
+    && resultHydraulics?.hcToColumn === currentHydraulics.hcToColumn
+    && resultHydraulics?.rotorDiameterM === currentHydraulics.rotorDiameterM
+    && resultHydraulics?.rotorToColumn === currentHydraulics.rotorToColumn
+    && resultHydraulics?.freeArea === currentHydraulics.freeArea
+    && resultHydraulics?.selectedRpm === currentHydraulics.selectedRpm;
+}
+
 export async function loadStage4PrePilotSizingAuthority(
   userId: number,
   designId: number,
@@ -512,8 +572,10 @@ export async function loadStage4PrePilotSizingAuthority(
       WHERE design_id=$1 AND created_by=$2
         AND stage1_snapshot_hash=$3
         AND result_snapshot->'engine'->>'version'=$4
+        AND implementation_hash=$5
+        AND result_snapshot->'engine'->>'implementationHash'=$5
       ORDER BY created_at DESC,id DESC LIMIT 1`,
-    [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION],
+     [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH],
   );
   let currentOptimizerRows = optimizerStage3Rows.rows;
   if (!currentOptimizerRows.length && options.ensureCurrentOptimizer) {
@@ -553,8 +615,10 @@ export async function loadStage4PrePilotSizingAuthority(
         WHERE design_id=$1 AND created_by=$2
           AND stage1_snapshot_hash=$3
           AND result_snapshot->'engine'->>'version'=$4
+          AND implementation_hash=$5
+          AND result_snapshot->'engine'->>'implementationHash'=$5
         ORDER BY created_at DESC,id DESC LIMIT 1`,
-      [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION],
+       [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH],
     );
     currentOptimizerRows = refreshed.rows;
   }
@@ -651,14 +715,11 @@ type StoredCalculation = {
 };
 
 function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: StoredCalculation | null, historical?: StoredCalculation | null) {
-  const calculated = calculation?.status === 'CALCULATED'
-    && [
-      STAGE4_HETS_IMPLEMENTATION_HASH,
-      STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH,
-    ].includes(calculation?.result_snapshot?.implementation?.implementationHash);
+  const calculated = isCurrentStage4Calculation(authority, calculation);
   const result = calculated ? calculation.result_snapshot : {
     status: 'UNRUN',
     currentOptimizerRequired: false,
+    historicalCalculationOnly: Boolean(historical),
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
     mainOutputs: { diameterM: authority.projection.mainOutputs.diameterM, overallEfficiency: null, physicalCompartments: null, activeHeightM: null },
@@ -684,6 +745,7 @@ function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: Stored
       previousCalculation: {
         status: historical.status, errorCode: historical.error_code,
         completedAt: historical.completed_at, progress: historical.progress_snapshot, historical: true as const,
+        staleReason: 'STAGE4_RESULT_REQUIRES_CURRENT_OPTIMIZER_ENGINE_AND_HASH',
       },
     } : {}),
   };
@@ -693,7 +755,8 @@ function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: Stored
  * A legacy Stage-3/Stage-4 chain must not be presented as the current result
  * merely because it is the newest row in the immutable ledger. Keep only
  * non-scientific lifecycle metadata visible until the user explicitly
- * calculates Stage 4, at which point the bounded optimizer is established.
+ * calculates Stage 4, at which point the bounded optimizer and its current
+ * implementation hash are established.
  */
 async function currentOptimizerRequiredResult(
   userId: number,
@@ -712,6 +775,7 @@ async function currentOptimizerRequiredResult(
   return {
     status: 'UNRUN',
     currentOptimizerRequired: true,
+    historicalCalculationOnly: Boolean(historical),
     currentOptimizerStatus: 'NOT_RUN_FOR_CURRENT_STAGE1_SNAPSHOT',
     currentOptimizerReason: reason,
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
@@ -762,6 +826,8 @@ async function currentOptimizerRequiredResult(
       errorCode: reason,
     },
     ...(historical ? {
+      historicalCalculationImplementationVersion:
+        historical.result_snapshot?.implementation?.version ?? null,
       previousCalculation: {
         status: historical.status,
         errorCode: historical.error_code,
@@ -797,10 +863,7 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
   );
   let calculation = stored.rows[0] ?? null;
   let historical: StoredCalculation | null = null;
-  if (!calculation || ![
-    STAGE4_HETS_IMPLEMENTATION_HASH,
-    STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH,
-  ].includes(calculation.result_snapshot?.implementation?.implementationHash)) {
+  if (!isCurrentStage4Calculation(authority, calculation)) {
     historical = calculation;
     if (!historical) {
       const previous = await pool.query<StoredCalculation>(
@@ -833,10 +896,7 @@ export async function calculateStage4PrePilotSizing(userId: number, designId: nu
     [userId, designId, authority.lineageHash],
   );
   let calculation = (await lookup()).rows[0] ?? null;
-  if (!calculation || ![
-    STAGE4_HETS_IMPLEMENTATION_HASH,
-    STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH,
-  ].includes(calculation.result_snapshot?.implementation?.implementationHash)) {
+  if (!isCurrentStage4Calculation(authority, calculation)) {
     const optimized = authority.projection.implementation?.implementationHash
       === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH;
     const implementationHash = optimized
@@ -855,7 +915,20 @@ export async function calculateStage4PrePilotSizing(userId: number, designId: nu
          progress_snapshot,attempt_token,deadline_at,completed_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'CALCULATED',$11,
                '{"phase":"COMPLETE"}'::jsonb,$12,now(),now())
-       ON CONFLICT (created_by,design_id,lineage_hash) DO NOTHING`,
+        ON CONFLICT (created_by,design_id,lineage_hash) DO UPDATE SET
+          stage1_snapshot_hash=EXCLUDED.stage1_snapshot_hash,
+          stage2_job_id=EXCLUDED.stage2_job_id,
+          stage2_result_hash=EXCLUDED.stage2_result_hash,
+          stage3_run_id=EXCLUDED.stage3_run_id,
+          stage3_immutable_hash=EXCLUDED.stage3_immutable_hash,
+          targets_hash=EXCLUDED.targets_hash,
+          implementation_hash=EXCLUDED.implementation_hash,
+          status=EXCLUDED.status,
+          result_snapshot=EXCLUDED.result_snapshot,
+          progress_snapshot=EXCLUDED.progress_snapshot,
+          attempt_token=EXCLUDED.attempt_token,
+          deadline_at=EXCLUDED.deadline_at,
+          completed_at=EXCLUDED.completed_at`,
       [designId, userId, authority.lineageHash, authority.solverInput.stage1SnapshotHash,
          authority.solverInput.stage2JobId, authority.solverInput.stage2ResultHash,
         authority.solverInput.stage3RunId, authority.solverInput.stage3ImmutableHash,
