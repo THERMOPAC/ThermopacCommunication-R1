@@ -17,7 +17,27 @@ export { evaluateKuhniReverseTrial };
  * historical records and must remain frozen.
  */
 export const ECR_STAGE3_STAGE4_OPTIMIZER_VERSION =
+  'ECR_STAGE3_STAGE4_OPTIMIZER_V1.1.0';
+/**
+ * The pre-correction engine remains named here so immutable rows written by
+ * V1.0.0 can still be replayed and verified.  It is deliberately not returned
+ * by a current-result query and is never used for new runs.
+ */
+export const ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION =
   'ECR_STAGE3_STAGE4_OPTIMIZER_V1.0.0';
+const LEGACY_OPTIMIZER_DESCRIPTOR = [
+  ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION,
+  'fixed-design-nt:7',
+  'stage2-nt:reference-only',
+  'grid:D|hc/D=.20,.25,.30|rotor/D=.33,.40,.50|free-area=.20,.30,.40|rpm=30..70',
+  'accepted-basis:Np=1.2|existing-d32|larger-diameter-scale-up-disclosed',
+  'candidate-forward-model:kuhni-phase1-primitives',
+  'selection:fixed-geometry-useful-rpm-window-not-minimum-d-or-maximum-rpm',
+  'root-search:bounded-finite-grid-bisection-all-brackets',
+].join('|');
+export const ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_HASH = createHash('sha256')
+  .update(LEGACY_OPTIMIZER_DESCRIPTOR)
+  .digest('hex');
 const OPTIMIZER_DESCRIPTOR = [
   ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
   'fixed-design-nt:7',
@@ -25,7 +45,8 @@ const OPTIMIZER_DESCRIPTOR = [
   'grid:D|hc/D=.20,.25,.30|rotor/D=.33,.40,.50|free-area=.20,.30,.40|rpm=30..70',
   'accepted-basis:Np=1.2|existing-d32|larger-diameter-scale-up-disclosed',
   'candidate-forward-model:kuhni-phase1-primitives',
-  'selection:fixed-geometry-useful-rpm-window-not-minimum-d-or-maximum-rpm',
+  'selection:useful-window-preference-then-smallest-adequate-diameter-then-wider-frontier',
+  'useful-window-preference:configurable-ranking-preference-default-15-rpm-not-hydraulic-limit',
   'root-search:bounded-finite-grid-bisection-all-brackets',
 ].join('|');
 export const ECR_STAGE3_STAGE4_OPTIMIZER_HASH = createHash('sha256')
@@ -46,6 +67,7 @@ export const OPTIMIZER_FREE_AREA_GRID = [0.2, 0.3, 0.4] as const;
 export const OPTIMIZER_DEFAULT_DIAMETER_MIN_M = 0.2;
 export const OPTIMIZER_DEFAULT_DIAMETER_MAX_M = 1.5;
 export const OPTIMIZER_DEFAULT_DIAMETER_STEP_M = 0.1;
+export const OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM = 15;
 
 type Orientation =
   | 'nmp-continuous-rrbo-dispersed'
@@ -62,6 +84,11 @@ export type Stage3Stage4OptimizerControls = {
   rotorToColumn?: number[];
   freeArea?: number[];
   compareOrientations?: boolean;
+  /**
+   * Ranking preference only.  This does not reject a hydraulic trial or
+   * change the accepted 30..70 rpm search bounds.
+   */
+  minimumUsefulWindowRpm?: number;
 };
 
 export type CanonicalStage3Stage4OptimizerControls = {
@@ -75,6 +102,7 @@ export type CanonicalStage3Stage4OptimizerControls = {
   rotorToColumn: number[];
   freeArea: number[];
   compareOrientations: boolean;
+  minimumUsefulWindowRpm: number;
 };
 
 type Candidate = {
@@ -104,7 +132,7 @@ type Candidate = {
   sourceDiagnostics: string[];
 };
 
-type GeometryGroup = {
+export type GeometryGroup = {
   geometry: {
     columnDiameterM: number;
     compartmentHeightM: number;
@@ -128,6 +156,42 @@ type GeometryGroup = {
     centerDistanceRpm: number;
     tieBreakPowerVolumeWM3: number;
   };
+  /** Ranking metadata is additive and never enters hydraulic admission. */
+  meetsUsefulWindowPreference?: boolean;
+};
+
+export type OptimizerRankingAlternative = {
+  role:
+    | 'SELECTED_COMPACT'
+    | 'WIDER_FRONTIER'
+    | 'FRONTIER_ALTERNATIVE'
+    | 'SIZE_WINDOW_COMPARISON'
+    | 'BEST_AVAILABLE';
+  geometry: GeometryGroup['geometry'];
+  operatingWindow: NonNullable<GeometryGroup['operatingWindow']>;
+  meetsUsefulWindowPreference: boolean;
+  representativeTrial: {
+    rpm: number;
+    tipSpeedMS: number;
+    actualLoading: number | null;
+    designFloodFraction: number | null;
+    d32M: number | null;
+    holdup: number | null;
+    powerVolumeWM3: number;
+  } | null;
+  rationale: string;
+};
+
+export type OptimizerRankingEvidence = {
+  usefulWindowPreference: {
+    minimumWindowWidthRpm: number;
+    meaning: 'RANKING_PREFERENCE_NOT_HYDRAULIC_LIMIT';
+    adequateGeometryCount: number;
+    selectedMeetsPreference: boolean;
+  };
+  paretoFrontier: OptimizerRankingAlternative[];
+  sizeWindowComparisons: OptimizerRankingAlternative[];
+  alternatives: OptimizerRankingAlternative[];
 };
 
 type OrientationResult = {
@@ -144,6 +208,7 @@ type OrientationResult = {
   selectedGeometry: GeometryGroup['geometry'] | null;
   operatingWindow: GeometryGroup['operatingWindow'];
   selectedScore: GeometryGroup['score'] | null;
+  rankingEvidence?: OptimizerRankingEvidence;
   selectedRpm: number | null;
   selectedTrial: Candidate | null;
   geometryGrid: GeometryGroup[];
@@ -170,7 +235,8 @@ export type Stage3Stage4OptimizerResult = {
   classification: 'PRE_PILOT_HYDRAULIC_SCREENING_NOT_SEPARATION_QUALIFICATION';
   engine: {
     id: 'ecr_stage3_stage4_optimizer';
-    version: typeof ECR_STAGE3_STAGE4_OPTIMIZER_VERSION;
+    version: typeof ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
+      | typeof ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION;
     implementationHash: string;
   };
   stage1Authority: {
@@ -184,7 +250,9 @@ export type Stage3Stage4OptimizerResult = {
     provenance: 'FIXED_DESIGN7';
     stage2IsReferenceOnly: true;
   };
-  controls: CanonicalStage3Stage4OptimizerControls;
+  /** Legacy V1.0 replay rows intentionally omit the additive preference. */
+  controls: Omit<CanonicalStage3Stage4OptimizerControls, 'minimumUsefulWindowRpm'>
+    & { minimumUsefulWindowRpm?: number };
   selectedOrientation: Orientation | null;
   selectedGeometry: GeometryGroup['geometry'] | null;
   selectedOperatingWindow: GeometryGroup['operatingWindow'];
@@ -209,6 +277,10 @@ export type Stage3Stage4OptimizerResult = {
     objective: string;
     ordering: string[];
     selectedScore: GeometryGroup['score'] | null;
+    usefulWindowPreference?: OptimizerRankingEvidence['usefulWindowPreference'];
+    paretoFrontier?: OptimizerRankingAlternative[];
+    sizeWindowComparisons?: OptimizerRankingAlternative[];
+    alternatives?: OptimizerRankingAlternative[];
   };
   /** Stage 4 consumes this object and never reconstructs hc from D. */
   stage4GeometryInput: {
@@ -290,6 +362,21 @@ export function canonicalizeStage3Stage4OptimizerControls(
   const rpmMin = numberOr('rpmMin', OPTIMIZER_RPM_MIN);
   const rpmMax = numberOr('rpmMax', OPTIMIZER_RPM_MAX);
   const rpmStep = numberOr('rpmStep', OPTIMIZER_DEFAULT_RPM_STEP);
+  // This value is intentionally a preference, not an admission bound.  A
+  // caller may request a threshold larger than the bounded search span; in
+  // that case the deterministic ranking records that no candidate met it and
+  // still returns the best available hydraulic window.
+  const preferenceSource = source.minimumUsefulWindowRpm === undefined
+    ? source.minimumWindowWidthRpm === undefined
+      ? source.usefulWindowMinRpm
+      : source.minimumWindowWidthRpm
+    : source.minimumUsefulWindowRpm;
+  const minimumUsefulWindowRpm = preferenceSource === undefined
+    ? OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM
+    : (typeof preferenceSource === 'number'
+      || (typeof preferenceSource === 'string' && preferenceSource.trim() !== ''))
+      ? Number(preferenceSource)
+      : Number.NaN;
   if (
     !finite(diameterMinM) || !finite(diameterMaxM) || diameterMinM <= 0
     || diameterMaxM <= diameterMinM || diameterMaxM > 5 || diameterStepM <= 0
@@ -300,6 +387,9 @@ export function canonicalizeStage3Stage4OptimizerControls(
     || rpmMax > OPTIMIZER_RPM_MAX || rpmMax < rpmMin
     || !finite(rpmStep) || rpmStep <= 0
   ) throw new Error('INVALID_STAGE3_STAGE4_OPTIMIZER_RPM_GRID');
+  if (!finite(minimumUsefulWindowRpm) || minimumUsefulWindowRpm < 0) {
+    throw new Error('INVALID_STAGE3_STAGE4_OPTIMIZER_USEFUL_WINDOW_PREFERENCE');
+  }
   const controls = {
     diameterMinM,
     diameterMaxM,
@@ -322,6 +412,7 @@ export function canonicalizeStage3Stage4OptimizerControls(
     compareOrientations: source.compareOrientations === undefined
       ? true
       : Boolean(source.compareOrientations),
+    minimumUsefulWindowRpm,
   };
   const diameterCount = Math.ceil((diameterMaxM - diameterMinM) / diameterStepM) + 1;
   const rpmCount = Math.ceil((rpmMax - rpmMin) / rpmStep) + 1;
@@ -620,7 +711,7 @@ function geometryKey(diameterM: number, hc: number, rotor: number, free: number)
   return [diameterM, hc, rotor, free].map((value) => value.toFixed(12)).join('|');
 }
 
-function selectWindow(groups: GeometryGroup[]): GeometryGroup | null {
+function selectLegacyWindow(groups: GeometryGroup[]): GeometryGroup | null {
   const feasible = groups.filter((group) => group.operatingWindow);
   feasible.sort((left, right) =>
     right.score.windowWidthRpm - left.score.windowWidthRpm
@@ -636,9 +727,301 @@ function selectWindow(groups: GeometryGroup[]): GeometryGroup | null {
   return feasible[0] ?? null;
 }
 
+function rankingStableTie(left: GeometryGroup, right: GeometryGroup): number {
+  return right.score.edgeMarginRpm - left.score.edgeMarginRpm
+    || right.score.validTrialCount - left.score.validTrialCount
+    || left.score.centerDistanceRpm - right.score.centerDistanceRpm
+    || left.score.tieBreakPowerVolumeWM3 - right.score.tieBreakPowerVolumeWM3
+    || left.geometry.columnDiameterM - right.geometry.columnDiameterM
+    || left.geometry.hcToColumn - right.geometry.hcToColumn
+    || left.geometry.rotorToColumn - right.geometry.rotorToColumn
+    || left.geometry.freeArea - right.geometry.freeArea;
+}
+
+function groupWidth(group: GeometryGroup): number {
+  return group.operatingWindow?.widthRpm ?? Number.NEGATIVE_INFINITY;
+}
+
+function dominatesForSizeWindow(left: GeometryGroup, right: GeometryGroup): boolean {
+  const leftWidth = groupWidth(left);
+  const rightWidth = groupWidth(right);
+  const noLarger = left.geometry.columnDiameterM <= right.geometry.columnDiameterM;
+  const noNarrower = leftWidth >= rightWidth;
+  const strictlyBetter = left.geometry.columnDiameterM < right.geometry.columnDiameterM
+    || leftWidth > rightWidth;
+  return noLarger && noNarrower && strictlyBetter;
+}
+
+function representativeTrial(group: GeometryGroup): Candidate | null {
+  if (!group.operatingWindow) return null;
+  const midpoint = (group.operatingWindow.rpmMin + group.operatingWindow.rpmMax) / 2;
+  return [...group.trials]
+    .filter((trial) =>
+      trial.status === 'FEASIBLE'
+      && trial.rpm >= group.operatingWindow!.rpmMin
+      && trial.rpm <= group.operatingWindow!.rpmMax)
+    .sort((left, right) =>
+      Math.abs(left.rpm - midpoint) - Math.abs(right.rpm - midpoint)
+      // A midpoint tie is resolved toward the higher occupied RPM so the
+      // representative agrees with the corrected selected-trial rule.
+      || right.rpm - left.rpm
+      || left.powerVolumeWM3 - right.powerVolumeWM3)[0] ?? null;
+}
+
+function selectedAlternativeRole(
+  selected: GeometryGroup | null,
+  minimumUsefulWindowRpm: number,
+): OptimizerRankingAlternative['role'] {
+  return selected?.operatingWindow
+    && selected.operatingWindow.widthRpm >= minimumUsefulWindowRpm - 1e-12
+    ? 'SELECTED_COMPACT'
+    : 'BEST_AVAILABLE';
+}
+
+function representativeTrialEvidence(group: GeometryGroup) {
+  const trial = representativeTrial(group);
+  return trial
+    ? {
+      rpm: trial.rpm,
+      tipSpeedMS: trial.tipSpeedMS,
+      actualLoading: trial.actualLoading,
+      designFloodFraction: trial.designFloodFraction ?? null,
+      d32M: trial.d32M,
+      holdup: trial.holdup,
+      powerVolumeWM3: trial.powerVolumeWM3,
+    }
+    : null;
+}
+
+function summarizeRankingAlternative(
+  group: GeometryGroup,
+  role: OptimizerRankingAlternative['role'],
+  minimumUsefulWindowRpm: number,
+  selected: GeometryGroup | null,
+  rationaleOverride?: string,
+): OptimizerRankingAlternative {
+  const operatingWindow = group.operatingWindow!;
+  const meets = operatingWindow.widthRpm >= minimumUsefulWindowRpm - 1e-12;
+  const selectedText = selected && group === selected
+    ? selectedAlternativeRole(selected, minimumUsefulWindowRpm) === 'SELECTED_COMPACT'
+      ? 'It is the selected smallest adequate geometry.'
+      : 'No geometry met the useful-window preference; it is the best available hydraulic window, not a smallest adequate geometry.'
+    : meets
+      ? 'It meets the useful-window preference and is retained for size/window review.'
+      : 'It is retained as a below-preference hydraulic fallback/frontier point.';
+  const rationale = rationaleOverride ?? (role === 'WIDER_FRONTIER'
+    ? `It trades a larger column for the widest retained frontier window (${operatingWindow.widthRpm} rpm). ${selectedText}`
+    : selectedText);
+  return {
+    role,
+    geometry: group.geometry,
+    operatingWindow,
+    meetsUsefulWindowPreference: meets,
+    representativeTrial: representativeTrialEvidence(group),
+    rationale,
+  };
+}
+
+function bestFeasibleGroupAtDiameter(
+  groups: readonly GeometryGroup[],
+  diameterM: number,
+): GeometryGroup | null {
+  return [...groups]
+    .filter((group) =>
+      group.operatingWindow !== null
+      && Math.abs(group.geometry.columnDiameterM - diameterM) <= 1e-12)
+    .sort((left, right) =>
+      groupWidth(right) - groupWidth(left)
+      || rankingStableTie(left, right))[0] ?? null;
+}
+
+function buildSizeWindowComparisons(
+  feasible: readonly GeometryGroup[],
+  selected: GeometryGroup | null,
+  wider: GeometryGroup | null,
+  minimumUsefulWindowRpm: number,
+): OptimizerRankingAlternative[] {
+  if (!selected) return [];
+  const selectedDiameter = selected.geometry.columnDiameterM;
+  const occupiedLargerDiameters = uniqueSorted(
+    feasible
+      .map((group) => group.geometry.columnDiameterM)
+      .filter((diameterM) => diameterM > selectedDiameter + 1e-12),
+  );
+  const comparisonDiameters = occupiedLargerDiameters.slice(0, 2);
+  if (
+    wider
+    && !comparisonDiameters.some((diameterM) =>
+      Math.abs(diameterM - wider.geometry.columnDiameterM) <= 1e-12)
+  ) {
+    comparisonDiameters.push(wider.geometry.columnDiameterM);
+  }
+  const comparisonGroups = [
+    selected,
+    ...comparisonDiameters
+      .map((diameterM) => bestFeasibleGroupAtDiameter(feasible, diameterM))
+      .filter((group): group is GeometryGroup => Boolean(group)),
+  ];
+  return comparisonGroups.map((group) => {
+    const isSelected = group === selected;
+    const isWider = wider === group;
+    const widthDelta = isSelected || !selected
+      ? 0
+      : groupWidth(group) - groupWidth(selected);
+    const widthStatement = isSelected
+      ? selectedAlternativeRole(selected, minimumUsefulWindowRpm) === 'SELECTED_COMPACT'
+        ? 'It is the selected smallest adequate occupied-grid geometry.'
+        : 'No geometry met the useful-window preference; this is the best available hydraulic window and not a smallest adequate geometry.'
+      : Math.abs(widthDelta) <= 1e-12
+        ? `Its contiguous window is the same width as the selected ${selectedDiameter.toFixed(3)} m candidate; the diameter-first rule therefore retains the smaller selected geometry without a cost assumption.`
+        : widthDelta > 0
+          ? `It adds ${widthDelta} rpm of window width versus the selected ${selectedDiameter.toFixed(3)} m candidate and is retained as an occupied-grid size/window comparison.`
+          : `Its window is ${Math.abs(widthDelta)} rpm narrower than the selected ${selectedDiameter.toFixed(3)} m candidate; it remains visible as an occupied-grid comparison.`;
+    return summarizeRankingAlternative(
+      group,
+      isSelected
+        ? selectedAlternativeRole(selected, minimumUsefulWindowRpm)
+        : isWider ? 'WIDER_FRONTIER' : 'SIZE_WINDOW_COMPARISON',
+      minimumUsefulWindowRpm,
+      selected,
+      widthStatement,
+    );
+  });
+}
+
+/**
+ * Rank only already-admitted hydraulic geometry groups.  This function never
+ * changes trial admission: the useful-window value is an explicit preference
+ * used after the hydraulic envelope has been formed.
+ *
+ * The first decision is adequacy (window >= preference).  Among adequate
+ * groups, the smallest diameter wins; width, edge margin and the remaining
+ * deterministic fields only resolve equal-size ties.  If no group meets the
+ * preference, the widest available group is returned and the evidence records
+ * that the preference was unmet.  The Pareto frontier and the next occupied
+ * size-grid comparisons are retained to make the size/window tradeoff
+ * auditable without an invented cost or power weight.
+ */
+export function rankGeometryGroups(
+  groups: readonly GeometryGroup[],
+  minimumUsefulWindowRpm = OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM,
+): {
+  selected: GeometryGroup | null;
+  adequateGeometryCount: number;
+  paretoFrontier: GeometryGroup[];
+  sizeWindowComparisons: OptimizerRankingAlternative[];
+  alternatives: OptimizerRankingAlternative[];
+} {
+  if (!finite(minimumUsefulWindowRpm) || minimumUsefulWindowRpm < 0) {
+    throw new Error('INVALID_STAGE3_STAGE4_OPTIMIZER_USEFUL_WINDOW_PREFERENCE');
+  }
+  const feasible = groups.filter((group) => group.operatingWindow !== null);
+  const adequate = feasible.filter((group) =>
+    group.operatingWindow!.widthRpm >= minimumUsefulWindowRpm - 1e-12);
+  const pool = adequate.length ? adequate : feasible;
+  const ranked = [...pool].sort((left, right) => {
+    if (!adequate.length) {
+      return groupWidth(right) - groupWidth(left)
+        || left.geometry.columnDiameterM - right.geometry.columnDiameterM
+        || rankingStableTie(left, right);
+    }
+    return left.geometry.columnDiameterM - right.geometry.columnDiameterM
+      || groupWidth(right) - groupWidth(left)
+      || rankingStableTie(left, right);
+  });
+  const selected = ranked[0] ?? null;
+  const paretoFrontier = feasible
+    .filter((group) => !feasible.some((other) => other !== group
+      && dominatesForSizeWindow(other, group)))
+    .sort((left, right) =>
+      left.geometry.columnDiameterM - right.geometry.columnDiameterM
+      || groupWidth(right) - groupWidth(left)
+      || rankingStableTie(left, right));
+  const wider = [...paretoFrontier]
+    .filter((group) => group !== selected)
+    .sort((left, right) =>
+      groupWidth(right) - groupWidth(left)
+      || left.geometry.columnDiameterM - right.geometry.columnDiameterM
+      || rankingStableTie(left, right))[0];
+  const sizeWindowComparisons = buildSizeWindowComparisons(
+    feasible,
+    selected,
+    wider ?? null,
+    minimumUsefulWindowRpm,
+  );
+  const sizeComparisonAlternatives = sizeWindowComparisons.filter((alternative) =>
+    alternative.role !== 'SELECTED_COMPACT' && alternative.role !== 'BEST_AVAILABLE');
+  const frontierAlternatives = paretoFrontier
+    .filter((group) => group !== selected)
+    .map((group) => summarizeRankingAlternative(
+      group,
+      group === wider ? 'WIDER_FRONTIER' : 'FRONTIER_ALTERNATIVE',
+      minimumUsefulWindowRpm,
+      selected,
+    ));
+  const comparisonKeys = new Set(sizeWindowComparisons.map((alternative) =>
+    geometryKey(
+      alternative.geometry.columnDiameterM,
+      alternative.geometry.hcToColumn,
+      alternative.geometry.rotorToColumn,
+      alternative.geometry.freeArea,
+    )));
+  const distinctFrontierAlternatives = frontierAlternatives.filter((alternative) =>
+    !comparisonKeys.has(geometryKey(
+      alternative.geometry.columnDiameterM,
+      alternative.geometry.hcToColumn,
+      alternative.geometry.rotorToColumn,
+      alternative.geometry.freeArea,
+    )));
+  const alternatives = [...sizeComparisonAlternatives, ...distinctFrontierAlternatives];
+  return {
+    selected,
+    adequateGeometryCount: adequate.length,
+    paretoFrontier,
+    sizeWindowComparisons,
+    alternatives,
+  };
+}
+
+function selectWindow(
+  groups: GeometryGroup[],
+  minimumUsefulWindowRpm: number,
+): GeometryGroup | null {
+  return rankGeometryGroups(groups, minimumUsefulWindowRpm).selected;
+}
+
+function selectedTrialForPolicy(
+  selected: GeometryGroup | null,
+  controls: CanonicalStage3Stage4OptimizerControls,
+  rankingPolicy: 'CORRECTED' | 'LEGACY',
+): Candidate | null {
+  if (!selected?.operatingWindow) return null;
+  if (rankingPolicy === 'LEGACY') {
+    // Frozen V1.0 replay behavior: preserve the prior rounded-midpoint
+    // lookup and its historical global-feasible fallback exactly.
+    return selected.trials.find((trial) =>
+      trial.status === 'FEASIBLE'
+      && trial.rpm === Math.round(
+        (selected.operatingWindow!.rpmMin + selected.operatingWindow!.rpmMax) / 2 / controls.rpmStep,
+      ) * controls.rpmStep,
+    ) ?? selected.trials.find((trial) => trial.status === 'FEASIBLE') ?? null;
+  }
+  const midpoint = (selected.operatingWindow.rpmMin + selected.operatingWindow.rpmMax) / 2;
+  return [...selected.trials]
+    .filter((trial) =>
+      trial.status === 'FEASIBLE'
+      && trial.rpm >= selected.operatingWindow!.rpmMin
+      && trial.rpm <= selected.operatingWindow!.rpmMax)
+    .sort((left, right) =>
+      Math.abs(left.rpm - midpoint) - Math.abs(right.rpm - midpoint)
+      || right.rpm - left.rpm
+      || left.powerVolumeWM3 - right.powerVolumeWM3)[0] ?? null;
+}
+
 function optimizeOrientation(
   basis: HydrodynamicProcessBasis,
   controls: CanonicalStage3Stage4OptimizerControls,
+  rankingPolicy: 'CORRECTED' | 'LEGACY' = 'CORRECTED',
 ): OrientationResult {
   const { continuous, dispersed } = phaseProperties(basis);
   const diameters = boundedGrid(
@@ -714,16 +1097,24 @@ function optimizeOrientation(
               tieBreakPowerVolumeWM3: candidateAtCenter?.powerVolumeWM3
                 ?? Number.POSITIVE_INFINITY,
             },
+            ...(rankingPolicy === 'CORRECTED' && operatingWindow
+              ? {
+                meetsUsefulWindowPreference:
+                  operatingWindow.widthRpm >= controls.minimumUsefulWindowRpm - 1e-12,
+              }
+              : {}),
           });
         }
       }
     }
   }
-  const selected = selectWindow(groups);
-  const selectedTrial = selected?.trials.find((trial) =>
-    trial.status === 'FEASIBLE'
-    && trial.rpm === Math.round((selected.operatingWindow!.rpmMin + selected.operatingWindow!.rpmMax) / 2 / controls.rpmStep) * controls.rpmStep,
-  ) ?? selected?.trials.find((trial) => trial.status === 'FEASIBLE') ?? null;
+  const correctedRanking = rankingPolicy === 'CORRECTED'
+    ? rankGeometryGroups(groups, controls.minimumUsefulWindowRpm)
+    : null;
+  const selected = rankingPolicy === 'CORRECTED'
+    ? correctedRanking!.selected
+    : selectLegacyWindow(groups);
+  const selectedTrial = selectedTrialForPolicy(selected, controls, rankingPolicy);
   const rootSamples = diameters.map((diameterM) => ({
     x: diameterM,
     residual: Math.PI * (selected?.geometry.rotorToColumn ?? controls.rotorToColumn[0])
@@ -755,6 +1146,34 @@ function optimizeOrientation(
   };
   const observed = [variation.holdupRange, variation.d32RangeM, variation.powerVolumeRangeWM3]
     .some((value) => value !== null && value > 1e-12);
+  const rankingEvidence = correctedRanking
+    ? {
+      usefulWindowPreference: {
+        minimumWindowWidthRpm: controls.minimumUsefulWindowRpm,
+        meaning: 'RANKING_PREFERENCE_NOT_HYDRAULIC_LIMIT' as const,
+        adequateGeometryCount: correctedRanking.adequateGeometryCount,
+        selectedMeetsPreference: Boolean(
+          selected?.operatingWindow
+          && selected.operatingWindow.widthRpm >= controls.minimumUsefulWindowRpm - 1e-12,
+        ),
+      },
+      paretoFrontier: [
+        ...(selected?.operatingWindow
+          ? [summarizeRankingAlternative(
+            selected,
+            selectedAlternativeRole(selected, controls.minimumUsefulWindowRpm),
+            controls.minimumUsefulWindowRpm,
+            selected,
+          )]
+          : []),
+        ...correctedRanking.alternatives.filter((alternative) =>
+          alternative.role === 'WIDER_FRONTIER'
+          || alternative.role === 'FRONTIER_ALTERNATIVE'),
+      ],
+      sizeWindowComparisons: correctedRanking.sizeWindowComparisons,
+      alternatives: correctedRanking.alternatives,
+    }
+    : undefined;
   return {
     orientation: basis.phaseConfiguration as Orientation,
     status: selected ? 'SELECTED' : 'NO_FEASIBLE_WINDOW',
@@ -769,6 +1188,7 @@ function optimizeOrientation(
     selectedGeometry: selected?.geometry ?? null,
     operatingWindow: selected?.operatingWindow ?? null,
     selectedScore: selected?.score ?? null,
+    ...(rankingEvidence ? { rankingEvidence } : {}),
     selectedRpm: selectedTrial?.rpm ?? null,
     selectedTrial,
     geometryGrid: groups,
@@ -812,15 +1232,10 @@ function alternativeBasis(basis: HydrodynamicProcessBasis): HydrodynamicProcessB
   return { ...basis, phaseConfiguration };
 }
 
-/**
- * Evaluate the selected Stage-1 orientation and, by default, the alternate
- * phase assignment using the same immutable Stage-1 physical properties.
- */
-export function optimizeStage3Stage4(
+function validateOptimizerAuthority(
   basis: HydrodynamicProcessBasis,
   stage1SnapshotHash: string,
-  rawControls?: unknown,
-): Stage3Stage4OptimizerResult {
+): void {
   if (
     !basis
     || typeof basis !== 'object'
@@ -833,10 +1248,18 @@ export function optimizeStage3Stage4(
   ) {
     throw new Error('STAGE3_STAGE4_OPTIMIZER_STAGE1_AUTHORITY_INVALID');
   }
+}
+
+function optimizeStage3Stage4Internal(
+  basis: HydrodynamicProcessBasis,
+  stage1SnapshotHash: string,
+  rawControls: unknown,
+  rankingPolicy: 'CORRECTED' | 'LEGACY',
+): Stage3Stage4OptimizerResult {
   const controls = canonicalizeStage3Stage4OptimizerControls(rawControls);
-  const current = optimizeOrientation(basis, controls);
+  const current = optimizeOrientation(basis, controls, rankingPolicy);
   const comparison = controls.compareOrientations
-    ? optimizeOrientation(alternativeBasis(basis), controls)
+    ? optimizeOrientation(alternativeBasis(basis), controls, rankingPolicy)
     : null;
   const orientations = [
     { ...current, status: current.selectedGeometry ? 'SELECTED' as const : current.status },
@@ -859,14 +1282,22 @@ export function optimizeStage3Stage4(
       rpm: selected.selectedRpm,
     })
     : null;
+  const outputControls = rankingPolicy === 'LEGACY'
+    ? (({ minimumUsefulWindowRpm: _ignored, ...legacyControls }) =>
+      legacyControls as CanonicalStage3Stage4OptimizerControls)(controls)
+    : controls;
   const resultWithoutHash: Omit<Stage3Stage4OptimizerResult, 'calculationHash'> = {
     schemaVersion: 'ECR_STAGE3_STAGE4_OPTIMIZER_RESULT_V1',
     status: selected ? 'OPTIMIZED_FIXED_GEOMETRY_WINDOW' : 'NO_FEASIBLE_ORIENTATION',
     classification: 'PRE_PILOT_HYDRAULIC_SCREENING_NOT_SEPARATION_QUALIFICATION',
     engine: {
       id: 'ecr_stage3_stage4_optimizer',
-      version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
-      implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+      version: rankingPolicy === 'LEGACY'
+        ? ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION
+        : ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+      implementationHash: rankingPolicy === 'LEGACY'
+        ? ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_HASH
+        : ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
     },
     stage1Authority: {
       snapshotHash: stage1SnapshotHash,
@@ -875,7 +1306,7 @@ export function optimizeStage3Stage4(
     },
     processBasis: basis,
     designNt: { value: 7, provenance: 'FIXED_DESIGN7', stage2IsReferenceOnly: true },
-    controls,
+    controls: outputControls,
     selectedOrientation: selected?.orientation ?? null,
     selectedGeometry: selected?.selectedGeometry ?? null,
     selectedOperatingWindow: selected?.operatingWindow ?? null,
@@ -898,18 +1329,34 @@ export function optimizeStage3Stage4(
       freeArea: controls.freeArea,
       rpm: boundedGrid(controls.rpmMin, controls.rpmMax, controls.rpmStep, 'RPM_GRID'),
     })),
-    selectionRationale: {
-      objective: 'Maximize a contiguous valid fixed-geometry RPM-window width, then central edge margin and valid count; no invented power limit is applied.',
-      ordering: [
-        'windowWidthRpm descending',
-        'edgeMarginRpm descending',
-        'validTrialCount descending',
-        'distance of representative RPM from search midpoint ascending',
-        'representative P/V ascending as a tie-break only',
-        'D, hc/D, rotor/D, and free area ascending as stable deterministic ties',
-      ],
-      selectedScore: selected?.selectedScore ?? null,
-    },
+    selectionRationale: rankingPolicy === 'LEGACY'
+      ? {
+        objective: 'Maximize a contiguous valid fixed-geometry RPM-window width, then central edge margin and valid count; no invented power limit is applied.',
+        ordering: [
+          'windowWidthRpm descending',
+          'edgeMarginRpm descending',
+          'validTrialCount descending',
+          'distance of representative RPM from search midpoint ascending',
+          'representative P/V ascending as a tie-break only',
+          'D, hc/D, rotor/D, and free area ascending as stable deterministic ties',
+        ],
+        selectedScore: selected?.selectedScore ?? null,
+      }
+      : {
+        objective: 'Prefer a configurable useful contiguous RPM window, then choose the smallest adequate column; retain the non-dominated wider-window frontier without invented cost or power weights.',
+        ordering: [
+          'useful-window preference: widthRpm >= minimumUsefulWindowRpm (ranking preference only; not a hydraulic limit)',
+          'among candidates meeting the preference: column diameter ascending (smallest adequate diameter)',
+          'for equal diameter: window width descending',
+          'edgeMarginRpm, validTrialCount, representative RPM distance, P/V, hc/D, rotor/D, and free area as deterministic tie-breaks',
+          'retain Pareto frontier by minimizing diameter and maximizing contiguous window width; report wider frontier alternatives rather than converting tradeoffs into a fabricated score',
+        ],
+        selectedScore: selected?.selectedScore ?? null,
+        usefulWindowPreference: current.rankingEvidence?.usefulWindowPreference,
+        paretoFrontier: current.rankingEvidence?.paretoFrontier,
+        sizeWindowComparisons: current.rankingEvidence?.sizeWindowComparisons,
+        alternatives: current.rankingEvidence?.alternatives,
+      },
     stage4GeometryInput: {
       status: selected?.selectedGeometry && selectedTrial
         ? 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY' : 'UNAVAILABLE',
@@ -928,7 +1375,13 @@ export function optimizeStage3Stage4(
       'Fixed design N_T=7 is the Stage 3/4 design basis. Actual accepted Stage-2 N_T is reference evidence only.',
       'Np=1.2, the existing d32 primitive, and larger-diameter scale-up are accepted assumptions retained with source-range disclosures.',
       'Only hc/D=0.20, 0.25, and 0.30 are newly generated. Historical legacy geometry remains replayable but is not a new optimizer candidate.',
-      'The result seeks a fixed geometry with a contiguous useful RPM window. It does not impose an invented power limit or automatically select maximum RPM/minimum diameter.',
+      ...(rankingPolicy === 'LEGACY'
+        ? [
+          'The result seeks a fixed geometry with a contiguous useful RPM window. It does not impose an invented power limit or automatically select maximum RPM/minimum diameter.',
+        ]
+        : [
+          'The useful-window minimum is a transparent ranking preference, not a hydraulic limit. The corrected ranking chooses the true smallest adequate diameter and retains the wider non-dominated frontier for review.',
+        ]),
       'For RRBO-continuous/NMP-dispersed Stage-1 orientation, signed V1.4/V1.5 reverse force-balance, countercurrent and extrapolated d32 primitives are used. Reverse diagnostics remain explicitly extrapolated and never silently switch to the alternate orientation.',
       'HETS=1.0 m/theoretical stage remains a screening implication only; separation, outlet quality, and commercial qualification are not claimed.',
       'Source-range diagnostics are retained as extrapolation metadata; physical invalidity and non-finite equation states are rejected.',
@@ -939,6 +1392,34 @@ export function optimizeStage3Stage4(
   // The Stage-3 immutable row hash, rather than a self-referential result
   // field, is the Stage-4 geometry lineage identity.
   return { ...resultWithoutHash, calculationHash };
+}
+
+/**
+ * Current immutable optimizer entry point.  The Stage-1 basis and all
+ * hydraulic/geometry bounds remain server-owned.
+ */
+export function optimizeStage3Stage4(
+  basis: HydrodynamicProcessBasis,
+  stage1SnapshotHash: string,
+  rawControls?: unknown,
+): Stage3Stage4OptimizerResult {
+  validateOptimizerAuthority(basis, stage1SnapshotHash);
+  return optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'CORRECTED');
+}
+
+/**
+ * Read-only numerical replay for V1.0.0 rows.  It intentionally uses the old
+ * width-first selector and emits the old engine/hash/shape, so historical
+ * hashes remain verifiable while current-result APIs can treat those rows as
+ * stale rather than silently re-ranking them.
+ */
+export function replayLegacyStage3Stage4(
+  basis: HydrodynamicProcessBasis,
+  stage1SnapshotHash: string,
+  rawControls?: unknown,
+): Stage3Stage4OptimizerResult {
+  validateOptimizerAuthority(basis, stage1SnapshotHash);
+  return optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'LEGACY');
 }
 
 export const runStage3Stage4Optimizer = optimizeStage3Stage4;

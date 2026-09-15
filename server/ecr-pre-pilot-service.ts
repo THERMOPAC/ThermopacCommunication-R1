@@ -53,9 +53,11 @@ import {
 } from "./ecr-pre-pilot/kuhni-stage3-presentation";
 import {
   ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION,
   ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
   compactStage3Stage4OptimizerResult,
   optimizeStage3Stage4,
+  replayLegacyStage3Stage4,
 } from "./ecr-pre-pilot/stage3-stage4-optimizer";
 import {
   JOB_A_COMPONENT_ORDER,
@@ -695,6 +697,12 @@ export async function getKuhniGeometryResolverRuns(
           return resolveKuhniGeometryV150(row.processBasis, row.theoreticalStages);
         case ECR_STAGE3_STAGE4_OPTIMIZER_VERSION:
           return optimizeStage3Stage4(
+            row.processBasis,
+            row.processBasis?.stage1SnapshotHash,
+            row.result?.controls,
+          );
+        case ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION:
+          return replayLegacyStage3Stage4(
             row.processBasis,
             row.processBasis?.stage1SnapshotHash,
             row.result?.controls,

@@ -117,7 +117,20 @@ describe("Stage 3/4 fixed-geometry optimizer", () => {
     expect(nmpContinuous.selectedGeometry?.hcToColumn).toBeGreaterThanOrEqual(0.2);
     expect(nmpContinuous.selectedGeometry?.hcToColumn).toBeLessThanOrEqual(0.3);
     expect(nmpContinuous.selectedOperatingWindow?.rpmMin).toBe(30);
-    expect(nmpContinuous.selectedOperatingWindow?.rpmMax).toBe(70);
+    const nmpSelection = nmpContinuous.orientationComparison.find((item) =>
+      item.orientation === "nmp-continuous-rrbo-dispersed");
+    expect(nmpContinuous.controls.minimumUsefulWindowRpm).toEqual(expect.any(Number));
+    const nmpPreference = nmpContinuous.controls.minimumUsefulWindowRpm as number;
+    const adequateNmpGroups = nmpSelection?.geometryGrid.filter((group) =>
+      group.operatingWindow
+      && group.operatingWindow.widthRpm >= nmpPreference);
+    expect(adequateNmpGroups?.length).toBeGreaterThan(0);
+    expect(nmpContinuous.selectedOperatingWindow?.widthRpm)
+      .toBeGreaterThanOrEqual(nmpPreference);
+    expect(nmpContinuous.selectedGeometry?.columnDiameterM).toBe(
+      Math.min(...(adequateNmpGroups ?? []).map((group) => group.geometry.columnDiameterM)),
+    );
+    expect(nmpContinuous.selectionRationale.usefulWindowPreference?.selectedMeetsPreference).toBe(true);
     expect(nmpContinuous.orientationComparison).toHaveLength(2);
     expect(nmpContinuous.orientationComparison.every((item) =>
       item.geometryGrid.every((group) => group.geometry.hcToColumn <= 0.3))).toBe(true);
