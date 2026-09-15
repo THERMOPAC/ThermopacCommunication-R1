@@ -51,3 +51,16 @@ attributed to reverse orientation in general or to lack of exact-fluid data.
 **How to apply:** Use persisted operating-temperature Stage-1 properties and
 check shape/interface assumptions as well as viscosity ratio. Consult
 `research/rrbo-low-kappa-terminal-audit.md` for candidate equations and source limits.
+
+Apply the same full-chain qualification standard to both orientations.
+Passing Myint scalar ranges is not qualification of the turbulence drop-size,
+Garthe scale-up, swarm closure or flooding limit.
+
+**Why:** The historical NMP-continuous result passed the implemented drop
+drag/shape checks while its column geometry and agitation extrapolated the
+Garthe experimental envelope. Comparing that status against a full-chain
+reverse-orientation rejection overstated the historical result's qualification.
+
+**How to apply:** Distinguish historical software admission from scientific
+qualification; audit each saved operating-temperature basis independently,
+and retain extrapolation warnings symmetrically without promoting either result.
