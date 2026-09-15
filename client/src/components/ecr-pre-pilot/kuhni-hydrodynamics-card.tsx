@@ -161,6 +161,22 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
   )[0];
   const hiddenExtrapolatedCount = extrapolatedTrialCount
     + Number(run.excludedExtrapolatedTrialCount ?? 0);
+  const reverseDiagnostics = asRecord(run.reverseOrientationDiagnostics);
+  const reverseTrials = Array.isArray(reverseDiagnostics?.trials)
+    ? reverseDiagnostics.trials
+      .map(asRecord)
+      .filter((trial): trial is Record<string, unknown> => Boolean(trial))
+    : [];
+  const reverseRejectedTrials = Array.isArray(reverseDiagnostics?.rejectedTrials)
+    ? reverseDiagnostics.rejectedTrials
+      .map(asRecord)
+      .filter((trial): trial is Record<string, unknown> => Boolean(trial))
+    : [];
+  const reverseSelectedProperties = asRecord(reverseDiagnostics?.selectedPhaseProperties);
+  const reverseContinuous = asRecord(reverseSelectedProperties?.continuous);
+  const reverseDispersed = asRecord(reverseSelectedProperties?.dispersed);
+  const reverseSignedBuoyancy = asRecord(reverseDiagnostics?.signedBuoyancy);
+  const reverseMapping = asRecord(reverseDiagnostics?.countercurrentMapping);
   const rpmValues = trials.map((trial) => Number(trial.rpm)).filter(Number.isFinite);
   const rpmRange = rpmValues.length ? `${Math.min(...rpmValues)}–${Math.max(...rpmValues)} rpm` : "—";
   const finalRpm = run.finalOperatingRpm;
@@ -213,7 +229,7 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-950">Automatic geometry resolver</h3>
           <p className="mt-0.5 text-[10px] text-blue-800">
-            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · only calculated-in-range results shown
+            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · {reverseDiagnostics ? "only calculated-in-range results selected; preliminary reverse diagnostics remain visible" : "only calculated-in-range results shown"}
           </p>
         </div>
         <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-amber-900">
@@ -222,8 +238,108 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
       </div>
       {hiddenExtrapolatedCount > 0 && (
         <p className="rounded border border-amber-200 bg-amber-50 p-2 text-[10px] font-medium text-amber-900">
-          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from display and diagnostic selection.
+          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from the hydraulic envelope and diagnostic selection{reverseDiagnostics ? "; preliminary reverse diagnostics remain visible below." : "."}
         </p>
+      )}
+      {reverseDiagnostics && (
+        <div
+          data-testid="kuhni-reverse-orientation-diagnostics"
+          className="space-y-2 rounded border border-amber-300 bg-amber-50/80 p-3 text-[10px] text-amber-950"
+        >
+          <div>
+            <strong>RRBO-continuous reverse-orientation preliminary diagnostics</strong>
+            <p className="mt-1 leading-4">
+              These trials use the selected RRBO continuous / wet-NMP dispersed properties and retain the signed
+              force-balance direction. They are <strong>CALCULATED_EXTRAPOLATED</strong> diagnostics only:
+              no reverse trial, diameter, RPM, or Stage-3 geometry is admitted or presented as governed.
+            </p>
+          </div>
+          <div className="grid gap-2 rounded border border-amber-200 bg-white/70 p-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Signed Δρ = ρC − ρD</span><br /><strong className="font-mono">{kuNumber(reverseSignedBuoyancy?.deltaRhoKgM3)} kg/m³</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Buoyancy direction</span><br /><strong>{String(reverseSignedBuoyancy?.direction ?? "—")}</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Trial count / excluded</span><br /><strong className="font-mono">{String(reverseDiagnostics.trialCount ?? reverseTrials.length)} / {reverseDiagnostics.excludedFromHydraulicEnvelope ? "YES" : "—"}</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Governed diameter</span><br /><strong>NONE</strong></div>
+          </div>
+          {(reverseContinuous || reverseDispersed) && (
+            <div className="grid gap-2 rounded border border-amber-200 bg-white/70 p-2 sm:grid-cols-2">
+              <div>
+                <span className="text-[9px] uppercase tracking-wide text-amber-700">Selected continuous phase</span>
+                <p className="mt-0.5 font-semibold">{String(reverseContinuous?.identity ?? "—")}</p>
+                <p className="font-mono text-[9px]">Q {kuNumber(reverseContinuous?.flowM3S, 6)} m³/s · ρ {kuNumber(reverseContinuous?.densityKgM3)} kg/m³ · μ {kuNumber(reverseContinuous?.dynamicViscosityPaS, 6)} Pa·s</p>
+              </div>
+              <div>
+                <span className="text-[9px] uppercase tracking-wide text-amber-700">Selected dispersed phase</span>
+                <p className="mt-0.5 font-semibold">{String(reverseDispersed?.identity ?? "—")}</p>
+                <p className="font-mono text-[9px]">Q {kuNumber(reverseDispersed?.flowM3S, 6)} m³/s · ρ {kuNumber(reverseDispersed?.densityKgM3)} kg/m³ · μ {kuNumber(reverseDispersed?.dynamicViscosityPaS, 6)} Pa·s</p>
+              </div>
+            </div>
+          )}
+          <p className="rounded border border-amber-200 bg-white/70 p-2 font-mono leading-4">
+            {String(reverseSignedBuoyancy?.equation ?? "0=(ρC−ρD)Vg−0.5ρC Cd Ap |w|w; sign(w)=sign(ρC−ρD)")}
+          </p>
+          {reverseMapping && (
+            <p className="rounded border border-amber-200 bg-white/70 p-2 leading-4">
+              Proposed countercurrent mapping only: {String(reverseMapping.continuousPhase ?? "RRBO")} continuous
+              {" "}{String(reverseMapping.continuousDirection ?? "UPWARD")} ({String(reverseMapping.continuousInlet ?? "BOTTOM")} → {String(reverseMapping.continuousOutlet ?? "TOP")});
+              {" "}{String(reverseMapping.dispersedPhase ?? "NMP")} dispersed
+              {" "}{String(reverseMapping.dispersedDirection ?? "DOWNWARD")} ({String(reverseMapping.dispersedInlet ?? "TOP")} → {String(reverseMapping.dispersedOutlet ?? "BOTTOM")}).
+            </p>
+          )}
+          {reverseTrials.length > 0 && (
+            <div className="overflow-x-auto rounded border border-amber-200 bg-white">
+              <table className="w-full min-w-[920px] text-left text-[10px]">
+                <thead className="bg-amber-100/70 text-[9px] uppercase tracking-wide text-amber-800">
+                  <tr>{["RPM", "Diagnostic D", "d32", "Δρ", "Signed w", "Flood φ", "Loading", "Applicability", "Admission"].map((label) => <th key={label} className="px-2 py-2">{label}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-amber-100">
+                  {reverseTrials.map((trial, index) => {
+                    const terminal = asRecord(trial.terminal);
+                    const applicability = asRecord(trial.applicability);
+                    return (
+                      <tr key={`${String(trial.rpm)}-${index}`}>
+                        <td className="px-2 py-2 font-mono font-semibold">{kuNumber(trial.rpm, 1)}</td>
+                        <td className="px-2 py-2 font-mono">{kuNumber(trial.columnDiameterM)} m</td>
+                        <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.d32M) * 1000)} mm</td>
+                        <td className="px-2 py-2 font-mono">{kuNumber(terminal?.deltaRhoKgM3)} kg/m³</td>
+                        <td className="px-2 py-2 font-mono">{kuNumber(terminal?.relativeVelocityMS)} m/s</td>
+                        <td className="px-2 py-2 font-mono">{kuNumber(trial.floodHoldup)}</td>
+                        <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.actualLoading) * 100, 1)}%</td>
+                        <td className="max-w-[280px] px-2 py-2 font-mono text-[9px] leading-3">
+                          {Array.isArray(applicability?.codes)
+                            ? (applicability.codes as unknown[]).slice(0, 3).map(String).join(" · ")
+                            : String(applicability?.status ?? "CALCULATED_EXTRAPOLATED")}
+                        </td>
+                        <td className="px-2 py-2 font-semibold text-red-800">EXCLUDED</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {reverseTrials.length === 0 && (
+            <p className="rounded border border-red-200 bg-red-50 p-2 text-red-900">
+              No reverse numerical trial was evaluable; no fallback or stale diameter was retained.
+            </p>
+          )}
+          {reverseRejectedTrials.length > 0 && (
+            <div className="rounded border border-red-200 bg-red-50/70 p-2 text-red-900">
+              <strong>{reverseRejectedTrials.length} reverse RPM trial{reverseRejectedTrials.length === 1 ? "" : "s"} had no numerical diagnostic</strong>
+              <ul className="mt-1 grid gap-1 sm:grid-cols-2">
+                {reverseRejectedTrials.map((trial, index) => (
+                  <li key={`${String(trial.rpm)}-${index}`} className="font-mono">
+                    {kuNumber(trial.rpm, 1)} rpm · {String(trial.reason ?? "UNRESOLVED")} · {String(trial.message ?? "No fallback retained.")}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="leading-4 text-amber-900">
+            Unsupported empirical closure evidence is retained in the immutable diagnostic record. A signed force
+            balance does not qualify Myint drag/shape, Garthe characteristic velocity, swarm holdup, flooding, or
+            phase-control behavior for RRBO/NMP reverse service.
+          </p>
+        </div>
       )}
       <div
         data-testid="kuhni-stage-disposition"

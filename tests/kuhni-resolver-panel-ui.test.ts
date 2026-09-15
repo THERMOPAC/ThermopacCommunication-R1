@@ -270,6 +270,72 @@ describe("Kuhni Stage 3 rejected-envelope panel", () => {
     expect(text).not.toContain("9.876 m");
   });
 
+  it("exposes reverse preliminary trials without presenting a stale or governed diameter", () => {
+    const markup = renderPanel(runFixture({
+      engine: {
+        id: "kuhni_geometry_resolver",
+        version: "KUHNI_GEOMETRY_RESOLVER_V1.4.0",
+        implementationHash: "reverse-engine-hash",
+      },
+      status: "PRELIMINARY_REVERSE_ORIENTATION_DIAGNOSTICS",
+      hydraulicPrerequisite: {
+        code: "REVERSE_ORIENTATION_PRELIMINARY_ONLY",
+        message: "Signed reverse diagnostics only; no governed closure.",
+      },
+      hydraulicResolvedColumnDiameterM: null,
+      hydraulicDiagnosticPoint: null,
+      excludedExtrapolatedTrialCount: 1,
+      reverseOrientationDiagnostics: {
+        status: "PRELIMINARY_EXTRAPOLATION_ONLY",
+        trialCount: 1,
+        excludedFromHydraulicEnvelope: true,
+        noGovernedDiameter: true,
+        signedBuoyancy: {
+          deltaRhoKgM3: -150,
+          magnitudeKgM3: 150,
+          direction: "DISPERSED_DOWNWARD",
+          equation: "0=(rhoC-rhoD)Vg-0.5*rhoC*Cd*Ap*|w|w",
+        },
+        countercurrentMapping: {
+          continuousPhase: "RRBO",
+          continuousDirection: "UPWARD",
+          continuousInlet: "BOTTOM",
+          continuousOutlet: "TOP",
+          dispersedPhase: "NMP",
+          dispersedDirection: "DOWNWARD",
+          dispersedInlet: "TOP",
+          dispersedOutlet: "BOTTOM",
+        },
+        trials: [{
+          rpm: 20,
+          columnDiameterM: 0.8,
+          d32M: 0.001,
+          floodHoldup: 0.3,
+          actualLoading: 0.7,
+          terminal: { deltaRhoKgM3: -150, relativeVelocityMS: -0.02 },
+          applicability: {
+            status: "CALCULATED_EXTRAPOLATED",
+            codes: ["REVERSE_ORIENTATION_FLOODING_CLOSURE_UNQUALIFIED"],
+          },
+        }],
+      },
+    }));
+    const text = visibleText(markup);
+
+    expect(markup).toContain('data-testid="kuhni-reverse-orientation-diagnostics"');
+    expect(text).toContain("RRBO-continuous reverse-orientation preliminary diagnostics");
+    expect(text).toContain("preliminary reverse diagnostics remain visible below");
+    expect(text).not.toContain("excluded from display and diagnostic selection");
+    expect(text).toContain("CALCULATED_EXTRAPOLATED");
+    expect(text).toContain("DISPERSED_DOWNWARD");
+    expect(text).toContain("RRBO continuous UPWARD (BOTTOM");
+    expect(text).toContain("NMP dispersed DOWNWARD (TOP");
+    expect(text).toContain("Governed diameter NONE");
+    expect(text).toContain("REVERSE_ORIENTATION_FLOODING_CLOSURE_UNQUALIFIED");
+    expect(text).toContain("0.800 m");
+    expect(text).toContain("No in-range result");
+  });
+
   it("infers only from known frozen phase metadata and does not mutate it", () => {
     const basis = processBasis();
     const rejected = [{ rpm: 5, reason: "NO_DIAMETER_ROOT_WITHIN_PHYSICAL_BOUNDS" }];

@@ -11,11 +11,15 @@ column literature explicitly permits dispersion of either phase. What remains
 unqualified is the complete phase-specific RRBO/NMP Kühni chain from drop
 generation through terminal motion, swarm holdup, flooding and diameter.
 
-No application equations, resolver hashes, inputs, database records, Stage-2
-equilibrium calculations or Job-C runs were changed. V1.2.0 remains the active
-unsupported-orientation contract; V1.0.0, V1.0.1 and V1.1.0 are untouched.
-No new resolver version is justified because no new executable route is admitted.
-Successful Stage-2 equilibrium still does not establish hydraulic applicability.
+No Stage-2 equilibrium calculations, Job-C runs, or scientific database inputs
+were changed. V1.0.0, V1.0.1, V1.1.0, V1.2.0 and V1.3.0 remain immutable
+replay artifacts. V1.4.0 now provides a separate, hashable preliminary
+diagnostic route: it preserves the signed force balance and proposed
+countercurrent mapping, and evaluates the existing empirical expressions only
+as explicitly `CALCULATED_EXTRAPOLATED` reverse trials. Those trials are
+excluded from the hydraulic envelope and never provide a governed diameter,
+RPM, or Stage-3 geometry. Successful Stage-2 equilibrium still does not
+establish hydraulic applicability.
 
 ## Source retrieval and evidence boundaries
 
@@ -129,9 +133,15 @@ the missing physical closure. Do not produce an “illustrative diameter” from
 No measured RRBO/NMP data are asserted to be mandatory for every preliminary
 prediction: independently validated physics with disclosed extrapolation could
 qualify a future route. Merely completing the algebra does not meet that bar.
-If subsequently admitted, implement an immutable new resolver version with
-explicit gates and source lineage, leaving every historical implementation and
-snapshot replay intact. Any Stage-2/Job-C run or input change needs separate
+The current V1.4.0 implementation therefore reports the analytical signed
+balance and a transparent empirical extrapolation for comparison only; it does
+not assert that the extrapolated root is a complete reverse hydraulic closure.
+This remains a partial diagnostic with no admitted hydraulic diameter, RPM, or
+Stage-3 geometry; reverse extrapolation must never be promoted by a finite
+numerical root alone.
+Any future admission still requires an immutable resolver version with explicit
+gates and source lineage, leaving every historical implementation and snapshot
+replay intact. Any Stage-2/Job-C run or input change needs separate
 authorization.
 
 ## Verification

@@ -9,6 +9,13 @@ fluid-sphere drag, Kühni characteristic velocity, swarm/holdup, and a
 turning-point capacity solve. Every result remains `CALCULATED_EXTRAPOLATED`
 unless the complete chain is independently qualified.
 
+The RRBO-continuous / downward-NMP V1.4.0 route is a partial diagnostic only:
+its signed buoyancy balance and proposed countercurrent mapping are useful
+physics, while reverse Myint/Garthe drag, swarm, holdup, flooding, and
+phase-control expressions remain unsupported extrapolations. Never promote
+those records to `CALCULATED_IN_RANGE`, a hydraulic envelope, or an admitted
+diameter/RPM; a finite reverse root is not a qualified closure.
+
 Geometrically similar diameter iteration must use a declared scale-up law.
 Constant compartment `P/V` is admissible and requires `N ∝ D^(-2/3)`. Holding
 RPM constant while scaling rotor diameter is physically invalid because
@@ -38,3 +45,6 @@ false missing-radical diagnosis until checked against the rendered source.
 **How to apply:** Implement only in a new immutable pre-pilot kernel. Preserve
 `KUHNI_PHASE1_V1.0.3` byte-for-byte, expose scale-up and flood-fraction
 scenarios, and keep validation status separate from calculability.
+For every capacity diagnostic, retain the dimensional invariant
+`actualLoading = (Qc + Qd) / (A_column * floodTotalSuperficialVelocityMS)`;
+holdup is not a substitute for the capacity velocity.

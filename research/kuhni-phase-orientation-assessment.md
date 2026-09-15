@@ -106,3 +106,13 @@ The existing CALCULATED_IN_RANGE admission rule, Stage-1 snapshot hash,
 Stage-2 theoretical-stage authority and parent hydrodynamic lineage remain
 unchanged.  V1.0.0, V1.0.1 and V1.1.0 remain replayable under their original
 versions and implementation hashes.
+
+V1.4.0 adds a separate preliminary reverse diagnostic route without changing
+that admission rule. It retains the selected RRBO-continuous and wet-NMP
+dispersed properties, the signed force-balance direction, and the proposed
+bottom-to-top RRBO / top-to-bottom NMP countercurrent mapping. Existing
+Myint/Garthe expressions are marked `CALCULATED_EXTRAPOLATED`; reverse trials
+are persisted only under excluded diagnostics, never under the hydraulic
+envelope or a diameter root. The reverse route therefore remains
+`PRELIMINARY_EXTRAPOLATION_ONLY`, not a governed applicability decision; it is
+partial and admits no hydraulic diameter, RPM, or Stage-3 geometry.

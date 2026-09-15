@@ -12,15 +12,18 @@ Stage-2 equilibrium admission must support both canonical continuous/dispersed o
 Do not enable denser downward NMP drops in continuous RRBO by taking an
 absolute density difference or swapping phase properties. The currently
 assessed Kühni source chain supports heavy-continuous downward flow and
-light-dispersed upward flow; reverse-orientation applicability remains unproven.
+light-dispersed upward flow; reverse-orientation admission remains unproven.
+V1.4.0 may expose a partial signed-balance/extrapolation diagnostic, but it
+does not admit a reverse diameter or hydraulic result.
 
 **Why:** A buoyancy magnitude alone does not establish the countercurrent
 inlet/outlet mapping, swarm/holdup and flooding closure, or phase-specific
 interface limits needed to calculate a defensible hydraulic diameter.
 
-**How to apply:** Keep reverse hydraulics explicitly unsupported until that
+**How to apply:** Keep reverse hydraulics explicitly non-governing until that
 complete chain is qualified. Explain the hydraulic prerequisite separately
-from successful equilibrium and preserve historical scientific replay.
+from successful equilibrium and preserve historical scientific replay; never
+promote a finite reverse extrapolation root to design authority.
 
 Do not describe this boundary as physical impossibility: general agitated-column
 literature permits either heavy- or light-phase dispersion. A signed force balance
