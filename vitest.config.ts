@@ -7,11 +7,10 @@ export default defineConfig({
     name: 'stage4-ui-test-tsx-transform',
     enforce: 'pre',
     transform(code, id) {
-      if (!id.endsWith('/ecr-pre-pilot-design-stage-4-page.tsx')
-        && !id.endsWith('/components/ecr-pre-pilot/predictive-nt-progress.tsx')
-        && !id.endsWith('/components/ecr-pre-pilot/stage4-pre-pilot-sizing-panel.tsx')
-        && !id.endsWith('/components/ecr-pre-pilot/stage4-interface-failure-diagnostics.tsx')
-        && !id.endsWith('/components/ecr-pre-pilot/stage4-trial-progress.tsx')) return;
+      // Vitest's Rolldown path does not apply the app's React plugin to every
+      // transitive TSX import.  Keep the focused UI transform broad enough for
+      // panels' local UI dependencies (Button, Card, and their peers).
+      if (!id.includes('/client/src/') || !id.endsWith('.tsx')) return;
       return ts.transpileModule(code, {
         compilerOptions: {
           jsx: ts.JsxEmit.ReactJSX,

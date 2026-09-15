@@ -1,9 +1,9 @@
 import type { Express, Request, Response } from "express";
 import {
-  KUHNI_GEOMETRY_RESOLVER_HASH,
-  KUHNI_GEOMETRY_RESOLVER_VERSION,
-  resolveKuhniGeometry,
-} from "./kuhni-geometry-resolver";
+  KUHNI_GEOMETRY_RESOLVER_V120_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
+  resolveKuhniGeometryV120,
+} from "./kuhni-geometry-resolver-v120";
 import type { HydrodynamicProcessBasis } from "./kuhni-hydrodynamics";
 
 const PROJECT_236_VERIFICATION_BASIS: HydrodynamicProcessBasis = {
@@ -74,7 +74,7 @@ function renderPreviewPage(): string {
   <section class="hero">
     <h1>Kühni Automatic Geometry Resolver</h1>
     <p class="subtitle">Direct development verification surface for the real server-side hydraulic kernel</p>
-    <span class="tag">${KUHNI_GEOMETRY_RESOLVER_VERSION} · PRE-PILOT PREDICTIVE</span>
+    <span class="tag">${KUHNI_GEOMETRY_RESOLVER_V120_VERSION} · PRE-PILOT PREDICTIVE</span>
   </section>
   <div class="notice"><strong>Verification basis only.</strong> This page executes the production resolver with a fixed Project‑236 test basis. It does not read or write an ERP design record. Final RPM, physical compartments and active height remain dependency-blocked pending the approved mass-transfer/efficiency model.</div>
   <div class="toolbar">
@@ -139,7 +139,7 @@ export function setupKuhniResolverPreview(app: Express): void {
 
   app.get("/api/ecr-pre-pilot/kuhni-geometry-resolver/verification", (_req: Request, res: Response) => {
     try {
-      const result = resolveKuhniGeometry(PROJECT_236_VERIFICATION_BASIS, VERIFICATION_STAGE_AUTHORITY);
+      const result = resolveKuhniGeometryV120(PROJECT_236_VERIFICATION_BASIS, VERIFICATION_STAGE_AUTHORITY);
       if (result.status === "NOT_CALCULABLE" || result.hydraulicRpmEnvelope.length === 0) {
         return res.status(422).json({
           error: "Verification basis produced no admissible hydraulic RPM trials.",
@@ -152,8 +152,8 @@ export function setupKuhniResolverPreview(app: Express): void {
           status: "PASSED",
           basis: "PROJECT_236_FIXED_DEVELOPMENT_VERIFICATION",
           businessDataWritten: false,
-          resolverVersion: KUHNI_GEOMETRY_RESOLVER_VERSION,
-          implementationHash: KUHNI_GEOMETRY_RESOLVER_HASH,
+          resolverVersion: KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
+          implementationHash: KUHNI_GEOMETRY_RESOLVER_V120_HASH,
         },
       });
     } catch (error: unknown) {

@@ -21,10 +21,14 @@ import {
   type TheoreticalStageAuthority,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver";
 import {
-  KUHNI_GEOMETRY_RESOLVER_V110_HASH,
   KUHNI_GEOMETRY_RESOLVER_V110_VERSION,
   resolveKuhniGeometryV110,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver-v110";
+import {
+  KUHNI_GEOMETRY_RESOLVER_V120_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
+  resolveKuhniGeometryV120,
+} from "./ecr-pre-pilot/kuhni-geometry-resolver-v120";
 import {
   JOB_A_COMPONENT_ORDER,
   JOB_A_MOLECULAR_DATA,
@@ -386,7 +390,7 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
     [designId, userId],
   );
   const parentRun = parent.rows[0] ?? null;
-  const result = resolveKuhniGeometryV110(basis, theoreticalStages);
+  const result = resolveKuhniGeometryV120(basis, theoreticalStages);
   const immutableHash = kuhniRunHash({
     basis,
     theoreticalStages,
@@ -404,7 +408,7 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
       designId, userId, stage1.immutableHash,
       theoreticalStages.stage2JobId, theoreticalStages.stage2ResultHash,
       parentRun?.id ?? null, parentRun?.immutable_hash ?? null,
-      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_V110_HASH, immutableHash,
+      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_V120_HASH, immutableHash,
     ],
   );
   return {
@@ -452,6 +456,8 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
           return resolveKuhniGeometry(row.processBasis, row.theoreticalStages);
         case KUHNI_GEOMETRY_RESOLVER_V110_VERSION:
           return resolveKuhniGeometryV110(row.processBasis, row.theoreticalStages);
+        case KUHNI_GEOMETRY_RESOLVER_V120_VERSION:
+          return resolveKuhniGeometryV120(row.processBasis, row.theoreticalStages);
         default:
           throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_UNKNOWN_ENGINE_VERSION');
       }
@@ -503,9 +509,9 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
   const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
   if (!stage3) throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_VERIFIED_STAGE3_REQUIRED');
   const result = stage3.result as any;
-  if (result?.engine?.version !== KUHNI_GEOMETRY_RESOLVER_V110_VERSION
-    || result?.engine?.implementationHash !== KUHNI_GEOMETRY_RESOLVER_V110_HASH) {
-    throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_STAGE3_V110_REQUIRED');
+  if (result?.engine?.version !== KUHNI_GEOMETRY_RESOLVER_V120_VERSION
+    || result?.engine?.implementationHash !== KUHNI_GEOMETRY_RESOLVER_V120_HASH) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_STAGE3_V120_REQUIRED');
   }
   if (result.processBasis?.stage1SnapshotHash !== stage1.immutableHash) {
     throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE1_STAGE3_HASH_MISMATCH');

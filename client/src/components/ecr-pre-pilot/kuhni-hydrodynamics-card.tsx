@@ -36,28 +36,152 @@ function kuNumber(value: unknown, digits = 3) {
   return Number.isFinite(number) ? number.toFixed(digits) : "—";
 }
 
-function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function textValue(value: unknown): string | undefined {
+  if (typeof value === "string" && value.trim()) return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+type RejectedHydraulicTrial = {
+  rpm: string;
+  reason: string;
+};
+
+function rejectedHydraulicTrials(value: unknown): RejectedHydraulicTrial[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const trial = asRecord(item);
+    if (!trial) {
+      return { rpm: "—", reason: textValue(item) ?? "No reason recorded." };
+    }
+    const rpm = Number(trial.rpm);
+    const code = textValue(trial.code);
+    const reasonCode = textValue(trial.reason) ?? code ?? textValue(trial.error);
+    const reason = [reasonCode, textValue(trial.message)].filter(Boolean).join(": ")
+      || "No reason recorded.";
+    return {
+      rpm: Number.isFinite(rpm) ? kuNumber(rpm, 1) : "—",
+      reason,
+    };
+  });
+}
+
+/**
+ * Older immutable resolver records only persisted the outer
+ * NO_DIAMETER_ROOT_WITHIN_PHYSICAL_BOUNDS error.  When the additive
+ * hydraulicPrerequisite field is absent, this derives the narrower historical
+ * explanation only from the frozen phase orientation and density metadata.
+ *
+ * Unknown phase configurations or incomplete properties deliberately produce no
+ * inference.  In particular, this must not reconstruct a phase orientation or
+ * diameter from a client-side default.
+ */
+export function inferHistoricalHydraulicPrerequisite(
+  processBasis: Record<string, unknown> | undefined,
+  rejectedTrials: readonly unknown[] = [],
+): { code: string; message: string } | null {
+  if (!processBasis) return null;
+  const phaseConfiguration = textValue(processBasis.phaseConfiguration);
+  const rrbo = asRecord(processBasis.rrboFeed);
+  const solvent = asRecord(processBasis.wetSolventPhase);
+  let continuous: Record<string, unknown> | undefined;
+  let dispersed: Record<string, unknown> | undefined;
+  if (phaseConfiguration === "nmp-continuous-rrbo-dispersed") {
+    continuous = solvent;
+    dispersed = rrbo;
+  } else if (phaseConfiguration === "rrbo-continuous-nmp-dispersed") {
+    continuous = rrbo;
+    dispersed = solvent;
+  } else {
+    return null;
+  }
+  if (!continuous || !dispersed) return null;
+  const continuousDensity = Number(continuous.densityKgM3);
+  const dispersedDensity = Number(dispersed.densityKgM3);
+  if (!Number.isFinite(continuousDensity) || !Number.isFinite(dispersedDensity)) return null;
+  if (!(continuousDensity > 0 && dispersedDensity > 0)) return null;
+  if (continuousDensity > dispersedDensity) return null;
+
+  const continuousIdentity = textValue(continuous.identity) ?? "the selected continuous phase";
+  const dispersedIdentity = textValue(dispersed.identity) ?? "the selected dispersed phase";
+  const deltaRho = continuousDensity - dispersedDensity;
+  const hasGenericNoRootReason = rejectedTrials.some((item) => {
+    const trial = asRecord(item);
+    const reason = trial
+      ? [trial.reason, trial.message, trial.code, trial.error].map(textValue).filter(Boolean).join(" ")
+      : textValue(item) ?? "";
+    return reason.includes("NO_DIAMETER_ROOT_WITHIN_PHYSICAL_BOUNDS");
+  });
+  const historicalContext = hasGenericNoRootReason
+    ? "The saved per-RPM no-root records are the outer error; they do not replace this prerequisite diagnosis."
+    : "No diameter is recovered from this rejected envelope.";
+  return {
+    code: "CONTINUOUS_PHASE_MUST_BE_HEAVIER",
+    message: `Frozen Stage-1 phase metadata identifies ${continuousIdentity} as continuous (${kuNumber(continuousDensity)} kg/m³) and ${dispersedIdentity} as dispersed (${kuNumber(dispersedDensity)} kg/m³). The frozen hydraulic closure requires positive Δρ = ρcontinuous − ρdispersed, but Δρ = ${kuNumber(deltaRho)} kg/m³ (the continuous phase is not heavier). ${historicalContext}`,
+  };
+}
+
+export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
   const authority = run.theoreticalStagesUsed as Record<string, unknown> | undefined;
   const engine = run.engine as Record<string, unknown> | undefined;
   const coupled = run.coupledSelection as Record<string, unknown> | undefined;
-  const recordedTrials = (run.hydraulicRpmEnvelope ?? []) as Array<Record<string, unknown>>;
+  const recordedTrials = Array.isArray(run.hydraulicRpmEnvelope)
+    ? run.hydraulicRpmEnvelope
+      .map(asRecord)
+      .filter((trial): trial is Record<string, unknown> => Boolean(trial))
+    : [];
   const trials = recordedTrials.filter((trial) => trial.status === "CALCULATED_IN_RANGE");
+  const rejectedTrials = rejectedHydraulicTrials(run.rejectedRpmTrials);
+  const explicitPrerequisite = asRecord(run.hydraulicPrerequisite);
+  const explicitPrerequisiteCode = textValue(explicitPrerequisite?.code);
+  const explicitPrerequisiteMessage = textValue(explicitPrerequisite?.message);
+  const explicitPrerequisiteIsSupported = explicitPrerequisiteCode === "SUPPORTED_DENSITY_ORIENTATION";
+  const hasExplicitPrerequisite = Boolean(explicitPrerequisiteCode || explicitPrerequisiteMessage);
+  const persistedRootFailure = asRecord(run.rootFailureReason);
+  const persistedRootFailureCode = textValue(persistedRootFailure?.code);
+  const persistedRootFailureMessage = textValue(persistedRootFailure?.message);
+  const hasPersistedRootFailure = Boolean(persistedRootFailureCode || persistedRootFailureMessage);
+  const inferredPrerequisite = hasExplicitPrerequisite || trials.length > 0
+    ? null
+    : inferHistoricalHydraulicPrerequisite(run.processBasis, Array.isArray(run.rejectedRpmTrials) ? run.rejectedRpmTrials : []);
+  const prerequisiteCode = explicitPrerequisiteCode ?? inferredPrerequisite?.code
+    ?? (explicitPrerequisiteMessage ? "HYDRAULIC_PREREQUISITE_FAILED" : undefined);
+  const prerequisiteMessage = explicitPrerequisiteMessage ?? inferredPrerequisite?.message;
+  const failedPrerequisiteCode = explicitPrerequisiteIsSupported ? undefined : prerequisiteCode;
+  const failedPrerequisiteMessage = explicitPrerequisiteIsSupported ? undefined : prerequisiteMessage;
+  const extrapolatedTrialCount = recordedTrials.filter((trial) => trial.status === "CALCULATED_EXTRAPOLATED").length;
   const point = [...trials].sort((a, b) =>
     Number(a.columnDiameterM) - Number(b.columnDiameterM) || Number(a.rpm) - Number(b.rpm)
   )[0];
-  const hiddenExtrapolatedCount = recordedTrials.length - trials.length
+  const hiddenExtrapolatedCount = extrapolatedTrialCount
     + Number(run.excludedExtrapolatedTrialCount ?? 0);
   const rpmValues = trials.map((trial) => Number(trial.rpm)).filter(Number.isFinite);
   const rpmRange = rpmValues.length ? `${Math.min(...rpmValues)}–${Math.max(...rpmValues)} rpm` : "—";
   const finalRpm = run.finalOperatingRpm;
+  const stage2Accepted = authority?.provenance === "STAGE_2_CALCULATED_NT";
   const stageLabel = authority?.provenance === "PRE_PILOT_DESIGN_DEFAULT"
     ? "PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)"
     : String(authority?.label ?? "—");
+  const stage3Disposition = trials.length
+    ? "Accepted calculated-in-range hydraulic envelope"
+    : explicitPrerequisiteIsSupported
+      ? "Supported orientation — no admitted hydraulic root"
+      : failedPrerequisiteCode
+        ? "Unsupported orientation — no calculated-in-range hydraulic trial"
+        : hasPersistedRootFailure
+          ? "No admitted hydraulic root"
+          : "No calculated-in-range hydraulic trial";
   const summary: Array<[string, string]> = [
     ["Calculated in-range hydraulic diameter", point ? `${kuNumber(point.columnDiameterM)} m` : "No in-range result"],
     ["Rotor diameter", `${kuNumber(point?.rotorDiameterM)} m`],
     ["Rotor / column", point ? kuNumber(Number(point.rotorDiameterM) / Number(point.columnDiameterM)) : "—"],
-    ["Final operating RPM", finalRpm == null ? "Pending coupled mass-transfer duty" : `${kuNumber(finalRpm, 1)} rpm`],
+    ["Final operating RPM", !point || finalRpm == null ? "Pending coupled mass-transfer duty" : `${kuNumber(finalRpm, 1)} rpm`],
     ["Minimum in-range hydraulic RPM", point ? `${kuNumber(point.rpm, 1)} rpm` : "—"],
     ["Hydraulic RPM range", rpmRange],
     ["d32 at diagnostic", `${kuNumber(Number(point?.d32M) * 1000)} mm`],
@@ -66,8 +190,8 @@ function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number
     ["Tip speed", `${kuNumber(point?.tipSpeedMS)} m/s`],
     ["P/V", `${kuNumber(point?.powerVolumeWM3, 1)} W/m³`],
     ["Theoretical stages used", `${authority?.value ?? "—"} — ${stageLabel}`],
-    ["Physical compartments", run.physicalCompartments == null ? "Pending compartment-efficiency model" : String(run.physicalCompartments)],
-    ["Active column height", run.activeHeightM == null ? "Pending compartment-efficiency model" : `${kuNumber(run.activeHeightM)} m`],
+    ["Physical compartments", !point || run.physicalCompartments == null ? "Pending compartment-efficiency model" : String(run.physicalCompartments)],
+    ["Active column height", !point || run.activeHeightM == null ? "Pending compartment-efficiency model" : `${kuNumber(run.activeHeightM)} m`],
   ];
   return (
     <section className="space-y-3 rounded-md border border-blue-200 bg-blue-50/30 p-3">
@@ -86,6 +210,57 @@ function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number
         <p className="rounded border border-amber-200 bg-amber-50 p-2 text-[10px] font-medium text-amber-900">
           {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from display and diagnostic selection.
         </p>
+      )}
+      <div
+        data-testid="kuhni-stage-disposition"
+        className="grid gap-2 rounded border border-slate-200 bg-white p-3 text-[10px] sm:grid-cols-2"
+      >
+        <div>
+          <span className="text-[9px] uppercase tracking-wide text-slate-500">Stage 2 authority</span>
+          <p className={`mt-0.5 font-semibold ${stage2Accepted ? "text-emerald-800" : "text-amber-800"}`}>
+            {stage2Accepted
+              ? `Accepted N_T ${String(authority?.value ?? "—")}`
+              : `Accepted N_T unavailable · ${stageLabel}`}
+          </p>
+          <p className="mt-1 text-slate-600">This read-only thermodynamic authority is separate from the Stage 3 hydraulic admission decision.</p>
+        </div>
+        <div>
+          <span className="text-[9px] uppercase tracking-wide text-slate-500">Stage 3 hydraulic disposition</span>
+           <p className={`mt-0.5 font-semibold ${
+             trials.length
+               ? "text-emerald-800"
+               : explicitPrerequisiteIsSupported
+                 ? "text-amber-800"
+                 : "text-red-800"
+           }`}>
+            {stage3Disposition}
+          </p>
+          <p className="mt-1 text-slate-600">Rejected or empty envelopes do not nominate a diameter, RPM, or Stage 3 geometry.</p>
+        </div>
+      </div>
+      {failedPrerequisiteCode && (
+        <div
+          data-testid="kuhni-hydraulic-prerequisite"
+          className="rounded border border-red-200 bg-red-50 p-3 text-[10px] text-red-950"
+        >
+          <strong>Hydraulic prerequisite not satisfied</strong>
+          <p className="mt-1 font-mono font-semibold">{failedPrerequisiteCode}</p>
+          {failedPrerequisiteMessage && <p className="mt-1 leading-4">{failedPrerequisiteMessage}</p>}
+        </div>
+      )}
+      {!trials.length && hasPersistedRootFailure && (
+        <div
+          data-testid="kuhni-root-failure-reason"
+          className={`rounded border p-3 text-[10px] ${
+            explicitPrerequisiteIsSupported
+              ? "border-amber-200 bg-amber-50 text-amber-950"
+              : "border-red-200 bg-red-50 text-red-950"
+          }`}
+        >
+          <strong>Hydraulic root admission result</strong>
+          {persistedRootFailureCode && <p className="mt-1 font-mono font-semibold">{persistedRootFailureCode}</p>}
+          {persistedRootFailureMessage && <p className="mt-1 leading-4">{persistedRootFailureMessage}</p>}
+        </div>
       )}
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {summary.map(([label, value]) => (
@@ -118,6 +293,35 @@ function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number
           </tbody>
         </table>
       </div>
+      {trials.length === 0 && (
+        <p className="rounded border border-red-200 bg-red-50/60 p-2 text-[10px] text-red-900">
+          No calculated-in-range hydraulic trial was accepted. The table above intentionally contains no fallback diameter.
+        </p>
+      )}
+      {rejectedTrials.length > 0 && (
+        <div
+          data-testid="kuhni-rejected-rpm-trials"
+          className="overflow-x-auto rounded border border-red-200 bg-red-50/40"
+        >
+          <div className="border-b border-red-200 px-3 py-2 text-[10px] text-red-950">
+            <strong>Rejected hydraulic RPM trials</strong>
+            <p className="mt-0.5 text-red-800">Saved resolver reasons are shown verbatim and are not admitted as hydraulic-envelope results.</p>
+          </div>
+          <table className="w-full min-w-[460px] text-left text-[10px]">
+            <thead className="bg-red-50 text-[9px] uppercase tracking-wide text-red-800">
+              <tr><th className="px-2 py-2">RPM</th><th className="px-2 py-2">Saved rejection reason</th></tr>
+            </thead>
+            <tbody className="divide-y divide-red-100">
+              {rejectedTrials.map((trial, index) => (
+                <tr key={`${trial.rpm}-${index}`}>
+                  <td className="px-2 py-2 font-mono font-semibold">{trial.rpm}</td>
+                  <td className="px-2 py-2 font-mono break-words text-red-900">{trial.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="grid gap-2 lg:grid-cols-2">
         <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-[10px] text-emerald-950">
           <strong>System-owned authority</strong>
@@ -436,7 +640,7 @@ export function KuhniHydrodynamicsCard({
               Read-only Stage 2 thermodynamic dependency
             </h3>
             <span className={`text-[10px] font-semibold ${thermodynamicDependencyReady ? "text-emerald-700" : "text-amber-800"}`}>
-              {thermodynamicDependencyReady ? "Stage-2 NT will be used" : "NT = 7 fallback will be used"}
+              {thermodynamicDependencyReady ? "Stage 2 accepted N_T will be used" : "Stage 2 accepted N_T unavailable · N_T = 7 fallback"}
             </span>
           </div>
           {thermodynamicDependencyError ? (
