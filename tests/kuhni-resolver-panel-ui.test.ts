@@ -99,6 +99,28 @@ describe("Kuhni Stage 3 rejected-envelope panel", () => {
     expect(text).not.toContain("extrapolated hydraulic trial");
   });
 
+  it("reports fixed Stage-3 geometry N_T separately from accepted Stage-2 N_T", () => {
+    const markup = renderPanel(runFixture({
+      theoreticalStagesUsed: {
+        value: 7,
+        provenance: "STAGE3_GEOMETRY_DESIGN_NT",
+        label: "FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)",
+        stage3GeometryDesignNt: 7,
+        stage2AcceptedPredictiveNt: 4,
+        stage2AcceptedPredictiveNtProvenance: "STAGE_2_CALCULATED_NT",
+        stage2AcceptedPredictiveNtLabel: "STAGE-2 ACCEPTED PREDICTIVE N_T",
+        stage2JobId: "stage-2-4",
+        stage2ResultHash: "stage-2-result-hash",
+      },
+    }));
+    const text = visibleText(markup);
+
+    expect(text).toContain("Stage 3 geometry design N_T 7");
+    expect(text).toContain("Stage 2 accepted Predictive N_T 4");
+    expect(text).toContain("never changes the Stage 3 geometry basis");
+    expect(text).not.toContain("Stage 2 accepted N_T will be used");
+  });
+
   it("renders a valid empty/rejected envelope with the actual prerequisite explanation", () => {
     const rejectedRpmTrials = [
       { rpm: 5, reason: "NO_DIAMETER_ROOT_WITHIN_PHYSICAL_BOUNDS" },

@@ -1,9 +1,9 @@
 import type { Express, Request, Response } from "express";
 import {
-  KUHNI_GEOMETRY_RESOLVER_V120_HASH,
-  KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
-  resolveKuhniGeometryV120,
-} from "./kuhni-geometry-resolver-v120";
+  KUHNI_GEOMETRY_RESOLVER_V130_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V130_VERSION,
+  resolveKuhniGeometryV130,
+} from "./kuhni-geometry-resolver-v130";
 import type { HydrodynamicProcessBasis } from "./kuhni-hydrodynamics";
 
 const PROJECT_236_VERIFICATION_BASIS: HydrodynamicProcessBasis = {
@@ -39,8 +39,14 @@ const PROJECT_236_VERIFICATION_BASIS: HydrodynamicProcessBasis = {
 
 const VERIFICATION_STAGE_AUTHORITY = {
   value: 7,
-  provenance: "PRE_PILOT_DESIGN_DEFAULT" as const,
-  label: "PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)",
+  provenance: "STAGE3_GEOMETRY_DESIGN_NT" as const,
+  label: "FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)" as const,
+  stage3GeometryDesignNt: 7,
+  stage2AcceptedPredictiveNtName: "STAGE2_ACCEPTED_PREDICTIVE_NT" as const,
+  stage2AcceptedPredictiveNt: null,
+  stage2AcceptedPredictiveNtProvenance: "STAGE_2_ACCEPTED_PREDICTIVE_NT_UNAVAILABLE" as const,
+  stage2AcceptedPredictiveNtLabel: "STAGE-2 ACCEPTED PREDICTIVE N_T UNAVAILABLE",
+  reason: "Verification surface has no persisted Stage-2 job.",
   stage2JobId: null,
   stage2ResultHash: null,
 };
@@ -74,7 +80,7 @@ function renderPreviewPage(): string {
   <section class="hero">
     <h1>Kühni Automatic Geometry Resolver</h1>
     <p class="subtitle">Direct development verification surface for the real server-side hydraulic kernel</p>
-    <span class="tag">${KUHNI_GEOMETRY_RESOLVER_V120_VERSION} · PRE-PILOT PREDICTIVE</span>
+    <span class="tag">${KUHNI_GEOMETRY_RESOLVER_V130_VERSION} · PRE-PILOT PREDICTIVE</span>
   </section>
   <div class="notice"><strong>Verification basis only.</strong> This page executes the production resolver with a fixed Project‑236 test basis. It does not read or write an ERP design record. Final RPM, physical compartments and active height remain dependency-blocked pending the approved mass-transfer/efficiency model.</div>
   <div class="toolbar">
@@ -94,7 +100,7 @@ function renderPreviewPage(): string {
   const addCell=(row,value)=>{const cell=document.createElement("td");cell.textContent=value;row.appendChild(cell)};
   function renderMetric(label,value){const card=document.createElement("div");card.className="card";const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=value;card.append(l,v);metrics.appendChild(card)}
   function render(result){
-    const point=result.hydraulicDiagnosticPoint||{},authority=result.theoreticalStagesUsed||{},envelope=result.hydraulicRpmEnvelope||[];
+     const point=result.hydraulicDiagnosticPoint||{},authority=result.theoreticalStagesUsed||{},stage2=result.stage2AcceptedPredictiveNt||{},envelope=result.hydraulicRpmEnvelope||[];
     const rpm=envelope.map(x=>Number(x.rpm)).filter(Number.isFinite);
     metrics.replaceChildren();
     [
@@ -107,7 +113,8 @@ function renderPreviewPage(): string {
       ["Calculated flooding load",number(Number(point.actualLoading)*100,1)+"%"],
       ["Tip speed",number(point.tipSpeedMS)+" m/s"],
       ["P/V",number(point.powerVolumeWM3,1)+" W/m³"],
-      ["Theoretical stages",String(authority.value??"—")+" — "+String(authority.label??"—")],
+       ["Stage 3 geometry design N_T",String(authority.value??"—")+" — "+String(authority.label??"—")],
+       ["Stage 2 accepted Predictive N_T",stage2.value==null?"Unavailable":String(stage2.value)+" — "+String(stage2.label??"")],
       ["Final operating RPM",result.finalOperatingRpm==null?"PENDING COUPLED MASS-TRANSFER DUTY":number(result.finalOperatingRpm,1)+" rpm"],
       ["Physical compartments / height",result.physicalCompartments==null?"DEPENDENCY BLOCKED":String(result.physicalCompartments)+" / "+number(result.activeHeightM)+" m"],
       ["Calculation hash",String(result.calculationHash??"—")],
@@ -139,7 +146,7 @@ export function setupKuhniResolverPreview(app: Express): void {
 
   app.get("/api/ecr-pre-pilot/kuhni-geometry-resolver/verification", (_req: Request, res: Response) => {
     try {
-      const result = resolveKuhniGeometryV120(PROJECT_236_VERIFICATION_BASIS, VERIFICATION_STAGE_AUTHORITY);
+      const result = resolveKuhniGeometryV130(PROJECT_236_VERIFICATION_BASIS, VERIFICATION_STAGE_AUTHORITY);
       if (result.status === "NOT_CALCULABLE" || result.hydraulicRpmEnvelope.length === 0) {
         return res.status(422).json({
           error: "Verification basis produced no admissible hydraulic RPM trials.",
@@ -152,8 +159,8 @@ export function setupKuhniResolverPreview(app: Express): void {
           status: "PASSED",
           basis: "PROJECT_236_FIXED_DEVELOPMENT_VERIFICATION",
           businessDataWritten: false,
-          resolverVersion: KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
-          implementationHash: KUHNI_GEOMETRY_RESOLVER_V120_HASH,
+          resolverVersion: KUHNI_GEOMETRY_RESOLVER_V130_VERSION,
+          implementationHash: KUHNI_GEOMETRY_RESOLVER_V130_HASH,
         },
       });
     } catch (error: unknown) {

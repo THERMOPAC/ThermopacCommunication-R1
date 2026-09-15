@@ -16,8 +16,11 @@ import {
   KUHNI_GEOMETRY_RESOLVER_V100_VERSION,
   KUHNI_GEOMETRY_RESOLVER_VERSION,
   PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
+  STAGE2_ACCEPTED_PREDICTIVE_NT,
+  STAGE3_GEOMETRY_DESIGN_NT,
   resolveKuhniGeometry,
   resolveKuhniGeometryV100,
+  type Stage3GeometryStageAuthority,
   type TheoreticalStageAuthority,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver";
 import {
@@ -29,6 +32,11 @@ import {
   KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
   resolveKuhniGeometryV120,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver-v120";
+import {
+  KUHNI_GEOMETRY_RESOLVER_V130_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V130_VERSION,
+  resolveKuhniGeometryV130,
+} from "./ecr-pre-pilot/kuhni-geometry-resolver-v130";
 import {
   JOB_A_COMPONENT_ORDER,
   JOB_A_MOLECULAR_DATA,
@@ -328,10 +336,10 @@ const USABLE_THERMODYNAMIC_EXECUTION_STATUSES = new Set([
   'COMPLETED_PRE_PILOT_MULTISTAGE_MATRIX',
 ]);
 
-function resolveTheoreticalStageAuthority(
+export function resolveTheoreticalStageAuthority(
   stage1Hash: string,
   job: { id: string; status: string; result_snapshot: any } | undefined,
-): TheoreticalStageAuthority {
+): Stage3GeometryStageAuthority {
   const result = job?.result_snapshot;
   const candidate = Number(result?.establishedTheoreticalStages ?? result?.predictiveNt);
   const valid = job?.status === 'completed'
@@ -341,21 +349,29 @@ function resolveTheoreticalStageAuthority(
     && result.stage1TargetGovernance?.stage1SnapshotHash === stage1Hash
     && Number.isInteger(candidate)
     && candidate > 0;
-  if (valid) {
-    return {
-      value: candidate,
-      provenance: 'STAGE_2_CALCULATED_NT',
-      label: 'STAGE-2 CALCULATED THEORETICAL STAGES',
-      stage2JobId: job!.id,
-      stage2ResultHash: kuhniRunHash(result),
-    };
-  }
+  const stage2ResultHash = valid ? kuhniRunHash(result) : null;
+  const stage2AcceptedPredictiveNt = valid ? candidate : null;
+  const reason = valid
+    ? null
+    : job?.status === 'completed'
+      ? 'STAGE_2_ACCEPTED_PREDICTIVE_NT_UNAVAILABLE_OR_INVALID_FOR_CURRENT_STAGE1'
+      : 'VALID_CALCULATED_STAGE_2_NT_UNAVAILABLE';
   return {
-    value: PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
-    provenance: 'PRE_PILOT_DESIGN_DEFAULT',
-    label: 'PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)',
-    stage2JobId: null,
-    stage2ResultHash: null,
+    value: STAGE3_GEOMETRY_DESIGN_NT,
+    provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+    label: 'FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)',
+    stage3GeometryDesignNt: STAGE3_GEOMETRY_DESIGN_NT,
+    stage2AcceptedPredictiveNtName: STAGE2_ACCEPTED_PREDICTIVE_NT,
+    stage2AcceptedPredictiveNt,
+    stage2AcceptedPredictiveNtProvenance: valid
+      ? 'STAGE_2_CALCULATED_NT'
+      : 'STAGE_2_ACCEPTED_PREDICTIVE_NT_UNAVAILABLE',
+    stage2AcceptedPredictiveNtLabel: valid
+      ? 'STAGE-2 ACCEPTED PREDICTIVE N_T'
+      : 'STAGE-2 ACCEPTED PREDICTIVE N_T UNAVAILABLE',
+    reason,
+    stage2JobId: valid ? job!.id : null,
+    stage2ResultHash,
   };
 }
 
@@ -390,7 +406,7 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
     [designId, userId],
   );
   const parentRun = parent.rows[0] ?? null;
-  const result = resolveKuhniGeometryV120(basis, theoreticalStages);
+  const result = resolveKuhniGeometryV130(basis, theoreticalStages);
   const immutableHash = kuhniRunHash({
     basis,
     theoreticalStages,
@@ -408,7 +424,7 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
       designId, userId, stage1.immutableHash,
       theoreticalStages.stage2JobId, theoreticalStages.stage2ResultHash,
       parentRun?.id ?? null, parentRun?.immutable_hash ?? null,
-      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_V120_HASH, immutableHash,
+      basis, theoreticalStages, result, KUHNI_GEOMETRY_RESOLVER_V130_HASH, immutableHash,
     ],
   );
   return {
@@ -458,6 +474,8 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
           return resolveKuhniGeometryV110(row.processBasis, row.theoreticalStages);
         case KUHNI_GEOMETRY_RESOLVER_V120_VERSION:
           return resolveKuhniGeometryV120(row.processBasis, row.theoreticalStages);
+        case KUHNI_GEOMETRY_RESOLVER_V130_VERSION:
+          return resolveKuhniGeometryV130(row.processBasis, row.theoreticalStages);
         default:
           throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_UNKNOWN_ENGINE_VERSION');
       }
@@ -509,20 +527,48 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
   const stage3 = await getKuhniGeometryResolverRuns(userId, designId, true);
   if (!stage3) throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_VERIFIED_STAGE3_REQUIRED');
   const result = stage3.result as any;
-  if (result?.engine?.version !== KUHNI_GEOMETRY_RESOLVER_V120_VERSION
-    || result?.engine?.implementationHash !== KUHNI_GEOMETRY_RESOLVER_V120_HASH) {
-    throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_STAGE3_V120_REQUIRED');
+  const activeV130 = result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V130_VERSION
+    && result?.engine?.implementationHash === KUHNI_GEOMETRY_RESOLVER_V130_HASH;
+  const historicalV120 = result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V120_VERSION
+    && result?.engine?.implementationHash === KUHNI_GEOMETRY_RESOLVER_V120_HASH;
+  if (!activeV130 && !historicalV120) {
+    throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_STAGE3_V130_REQUIRED');
   }
   if (result.processBasis?.stage1SnapshotHash !== stage1.immutableHash) {
     throw new Error('JOB_A_DEPENDENCY_BLOCKED:STAGE1_STAGE3_HASH_MISMATCH');
   }
-  const stage2Authority = result.theoreticalStagesUsed as TheoreticalStageAuthority | undefined;
-  if (!stage2Authority || !Number.isInteger(stage2Authority.value)
-    || stage2Authority.value < 1
-    || !['STAGE_2_CALCULATED_NT', 'PRE_PILOT_DESIGN_DEFAULT']
-      .includes(stage2Authority.provenance)) {
+  const geometryAuthority = result.theoreticalStagesUsed as TheoreticalStageAuthority | undefined;
+  if (!geometryAuthority || !Number.isInteger(geometryAuthority.value) || geometryAuthority.value < 1
+    || (activeV130
+      && (geometryAuthority.provenance !== 'STAGE3_GEOMETRY_DESIGN_NT'
+        || geometryAuthority.value !== STAGE3_GEOMETRY_DESIGN_NT
+        || geometryAuthority.stage3GeometryDesignNt !== STAGE3_GEOMETRY_DESIGN_NT))
+    || (historicalV120
+      && !['STAGE_2_CALCULATED_NT', 'PRE_PILOT_DESIGN_DEFAULT'].includes(geometryAuthority.provenance))) {
     throw new Error('JOB_A_DEPENDENCY_BLOCKED:INVALID_THEORETICAL_STAGE_AUTHORITY');
   }
+  // Stage 4 Job-A keeps its scientific authority on the actual accepted
+  // Stage-2 value.  It must never consume the fixed Stage-3 geometry value
+  // when Stage 2 calculated 4, 7, or 10 stages.
+  const stage2Authority: TheoreticalStageAuthority = historicalV120
+    ? geometryAuthority
+    : Number.isInteger(geometryAuthority.stage2AcceptedPredictiveNt)
+      && (geometryAuthority.stage2AcceptedPredictiveNt as number) > 0
+      && geometryAuthority.stage2AcceptedPredictiveNtProvenance === 'STAGE_2_CALCULATED_NT'
+      ? {
+        value: geometryAuthority.stage2AcceptedPredictiveNt as number,
+        provenance: 'STAGE_2_CALCULATED_NT',
+        label: geometryAuthority.stage2AcceptedPredictiveNtLabel ?? 'STAGE-2 ACCEPTED PREDICTIVE N_T',
+        stage2JobId: geometryAuthority.stage2JobId,
+        stage2ResultHash: geometryAuthority.stage2ResultHash,
+      }
+      : {
+        value: STAGE3_GEOMETRY_DESIGN_NT,
+        provenance: 'PRE_PILOT_DESIGN_DEFAULT',
+        label: 'STAGE-2 ACCEPTED PREDICTIVE N_T UNAVAILABLE (Job-A pre-pilot default only)',
+        stage2JobId: null,
+        stage2ResultHash: null,
+      };
   let verifiedStage2: Awaited<ReturnType<
     typeof import('./ecr-pre-pilot/predictive-nt-job-service')['loadValidatedCompletedSevenComponentNtForStage4']
   >> | null = null;

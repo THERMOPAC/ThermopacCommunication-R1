@@ -164,10 +164,23 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
   const rpmValues = trials.map((trial) => Number(trial.rpm)).filter(Number.isFinite);
   const rpmRange = rpmValues.length ? `${Math.min(...rpmValues)}–${Math.max(...rpmValues)} rpm` : "—";
   const finalRpm = run.finalOperatingRpm;
-  const stage2Accepted = authority?.provenance === "STAGE_2_CALCULATED_NT";
-  const stageLabel = authority?.provenance === "PRE_PILOT_DESIGN_DEFAULT"
+  const fixedGeometryAuthority = authority?.provenance === "STAGE3_GEOMETRY_DESIGN_NT";
+  const stage2Accepted = fixedGeometryAuthority
+    ? authority?.stage2AcceptedPredictiveNtProvenance === "STAGE_2_CALCULATED_NT"
+      && Number.isInteger(authority.stage2AcceptedPredictiveNt)
+    : authority?.provenance === "STAGE_2_CALCULATED_NT";
+  const stage2AcceptedNt = fixedGeometryAuthority
+    ? authority?.stage2AcceptedPredictiveNt
+    : authority?.provenance === "STAGE_2_CALCULATED_NT" ? authority?.value : null;
+  const stage2Label = fixedGeometryAuthority
+    ? String(authority?.stage2AcceptedPredictiveNtLabel
+      ?? (stage2Accepted ? "STAGE-2 ACCEPTED PREDICTIVE N_T" : "STAGE-2 ACCEPTED PREDICTIVE N_T UNAVAILABLE"))
+    : authority?.provenance === "PRE_PILOT_DESIGN_DEFAULT"
     ? "PRE-PILOT DESIGN DEFAULT (Stage-2 calculated NT unavailable)"
     : String(authority?.label ?? "—");
+  const geometryLabel = fixedGeometryAuthority
+    ? String(authority?.label ?? "FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)")
+    : "Historical resolver authority";
   const stage3Disposition = trials.length
     ? "Accepted calculated-in-range hydraulic envelope"
     : explicitPrerequisiteIsSupported
@@ -189,7 +202,8 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
     ["Calculated flooding load", `${kuNumber(Number(point?.actualLoading) * 100, 1)}%`],
     ["Tip speed", `${kuNumber(point?.tipSpeedMS)} m/s`],
     ["P/V", `${kuNumber(point?.powerVolumeWM3, 1)} W/m³`],
-    ["Theoretical stages used", `${authority?.value ?? "—"} — ${stageLabel}`],
+    [fixedGeometryAuthority ? "Stage 3 geometry design N_T" : "Theoretical stages used", `${authority?.value ?? "—"} — ${geometryLabel}`],
+    ["Stage 2 accepted Predictive N_T", stage2AcceptedNt == null ? "Unavailable" : `${stage2AcceptedNt} — ${stage2Label}`],
     ["Physical compartments", !point || run.physicalCompartments == null ? "Pending compartment-efficiency model" : String(run.physicalCompartments)],
     ["Active column height", !point || run.activeHeightM == null ? "Pending compartment-efficiency model" : `${kuNumber(run.activeHeightM)} m`],
   ];
@@ -216,23 +230,44 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
         className="grid gap-2 rounded border border-slate-200 bg-white p-3 text-[10px] sm:grid-cols-2"
       >
         <div>
-          <span className="text-[9px] uppercase tracking-wide text-slate-500">Stage 2 authority</span>
-          <p className={`mt-0.5 font-semibold ${stage2Accepted ? "text-emerald-800" : "text-amber-800"}`}>
-            {stage2Accepted
-              ? `Accepted N_T ${String(authority?.value ?? "—")}`
-              : `Accepted N_T unavailable · ${stageLabel}`}
+          <span className="text-[9px] uppercase tracking-wide text-slate-500">Stage 3 geometry design basis</span>
+          <p className="mt-0.5 font-semibold text-blue-900">
+            {fixedGeometryAuthority
+              ? `Fixed N_T ${String(authority?.value ?? "—")} · ${geometryLabel}`
+              : `Historical N_T ${String(authority?.value ?? "—")} · ${geometryLabel}`}
           </p>
-          <p className="mt-1 text-slate-600">This read-only thermodynamic authority is separate from the Stage 3 hydraulic admission decision.</p>
+          <p className="mt-1 text-slate-600">
+            {fixedGeometryAuthority
+              ? "Stage 3 automatic Kühni geometry always uses the fixed pre-pilot design basis N_T=7."
+              : "Historical immutable resolver record; the persisted geometry authority is shown without reinterpretation."}
+          </p>
         </div>
         <div>
+          <span className="text-[9px] uppercase tracking-wide text-slate-500">
+            {fixedGeometryAuthority ? "Stage 2 scientific authority" : "Stage 2 authority"}
+          </span>
+          <p className={`mt-0.5 font-semibold ${stage2Accepted ? "text-emerald-800" : "text-amber-800"}`}>
+            {stage2Accepted
+              ? fixedGeometryAuthority
+                ? `Accepted Predictive N_T ${String(stage2AcceptedNt)}`
+                : `Accepted N_T ${String(stage2AcceptedNt)}`
+              : fixedGeometryAuthority ? "Accepted Predictive N_T unavailable" : "Accepted N_T unavailable"}
+          </p>
+          <p className="mt-1 text-slate-600">
+            {fixedGeometryAuthority
+              ? "Retained separately for scientific reporting and downstream Stage 4; it never changes the Stage 3 geometry basis."
+              : "Read-only thermodynamic authority is separate from the Stage 3 hydraulic admission decision."}
+          </p>
+        </div>
+        <div className="sm:col-span-2">
           <span className="text-[9px] uppercase tracking-wide text-slate-500">Stage 3 hydraulic disposition</span>
-           <p className={`mt-0.5 font-semibold ${
-             trials.length
-               ? "text-emerald-800"
-               : explicitPrerequisiteIsSupported
-                 ? "text-amber-800"
-                 : "text-red-800"
-           }`}>
+          <p className={`mt-0.5 font-semibold ${
+            trials.length
+              ? "text-emerald-800"
+              : explicitPrerequisiteIsSupported
+                ? "text-amber-800"
+                : "text-red-800"
+          }`}>
             {stage3Disposition}
           </p>
           <p className="mt-1 text-slate-600">Rejected or empty envelopes do not nominate a diameter, RPM, or Stage 3 geometry.</p>
@@ -618,7 +653,7 @@ export function KuhniHydrodynamicsCard({
             <div>
               <CardTitle className="text-[15px] text-slate-900">Stage 3 · Automatic Kuhni geometry resolution</CardTitle>
               <CardDescription className="mt-0.5 max-w-2xl text-[11px] leading-4">
-                Server-owned geometry and RPM resolution from immutable Stage 1, with Stage-2 theoretical stages or the explicit pre-pilot default.
+                 Server-owned geometry and RPM resolution from immutable Stage 1 using the fixed Stage-3 pre-pilot design basis N_T=7. Any accepted Stage-2 Predictive N_T remains separate scientific evidence.
               </CardDescription>
             </div>
           </div>
@@ -640,7 +675,7 @@ export function KuhniHydrodynamicsCard({
               Read-only Stage 2 thermodynamic dependency
             </h3>
             <span className={`text-[10px] font-semibold ${thermodynamicDependencyReady ? "text-emerald-700" : "text-amber-800"}`}>
-              {thermodynamicDependencyReady ? "Stage 2 accepted N_T will be used" : "Stage 2 accepted N_T unavailable · N_T = 7 fallback"}
+              {thermodynamicDependencyReady ? "Stage 2 accepted N_T retained separately" : "Stage 2 accepted N_T unavailable · geometry remains N_T = 7"}
             </span>
           </div>
           {thermodynamicDependencyError ? (
@@ -670,7 +705,7 @@ export function KuhniHydrodynamicsCard({
             <p className="mt-2 text-[11px] text-amber-900">No persisted Stage 2 Predictive N_T job exists for this saved design.</p>
           )}
           <p className="mt-2 border-t border-current/10 pt-2 text-[10px] text-slate-600">
-            Read-only persisted job data. If no valid calculated \(N_T\) is available, this run remains enabled and records \(N_T=7\) as PRE-PILOT DESIGN DEFAULT.
+             Read-only persisted job data. Stage 3 always records STAGE3_GEOMETRY_DESIGN_NT=7 as its fixed geometry basis; a valid Stage-2 accepted Predictive N_T is retained separately and is never relabelled as 7.
           </p>
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-4 text-amber-950">
@@ -682,7 +717,7 @@ export function KuhniHydrodynamicsCard({
             <span className="font-mono text-[10px] text-slate-400">POST /kuhni-geometry-resolver/runs · empty body</span>
           </div>
           <p className="mt-2 text-[11px] leading-4 text-slate-600">
-            Geometry, RPM, flooding design fraction and \(N_T\) are not user inputs. Every run snapshots the current Stage‑1 process basis and either the newest valid Stage‑2 calculated \(N_T\) or the explicit immutable \(N_T=7\) fallback.
+             Geometry, RPM and flooding design fraction are not user inputs. Every run snapshots the current Stage‑1 process basis and uses the immutable STAGE3_GEOMETRY_DESIGN_NT=7 basis while retaining any newest valid Stage‑2 accepted Predictive N_T as separate scientific reporting.
           </p>
         </div>
         <div className="border-t border-slate-200 pt-3">

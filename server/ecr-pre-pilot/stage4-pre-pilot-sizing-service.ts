@@ -73,7 +73,19 @@ export function deriveStage4PrePilotSizing(input: {
   if (!Number.isInteger(input.calculatedNt) || input.calculatedNt <= 0) {
     fail('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
   }
-  const authority = input.stage3.result.theoreticalStagesUsed;
+  const persistedAuthority = input.stage3.result.theoreticalStagesUsed;
+  // New Stage-3 runs carry a fixed geometry design basis (N_T=7) and retain
+  // the actual accepted Stage-2 Predictive N_T separately.  Stage 4 sizing
+  // remains governed by the latter; it must not accidentally consume the
+  // geometry basis when Stage 2 calculated 4, 7, or 10.
+  const authority = persistedAuthority?.provenance === 'STAGE3_GEOMETRY_DESIGN_NT'
+    ? {
+      value: persistedAuthority.stage2AcceptedPredictiveNt,
+      provenance: persistedAuthority.stage2AcceptedPredictiveNtProvenance,
+      stage2JobId: persistedAuthority.stage2JobId,
+      stage2ResultHash: persistedAuthority.stage2ResultHash,
+    }
+    : persistedAuthority;
   if (authority?.provenance !== 'STAGE_2_CALCULATED_NT'
     || authority?.stage2JobId !== input.stage2JobId
     || authority?.stage2ResultHash !== input.stage2ResultHash

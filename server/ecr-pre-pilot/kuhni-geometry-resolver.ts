@@ -6,6 +6,33 @@ export const KUHNI_GEOMETRY_RESOLVER_V100_VERSION = 'KUHNI_GEOMETRY_RESOLVER_V1.
 export const KUHNI_GEOMETRY_RESOLVER_VERSION = 'KUHNI_GEOMETRY_RESOLVER_V1.0.1';
 export const KUHNI_DRAG_MODEL_VERSION = 'MYINT_GARTHE_PREPILOT_CLOSURE_V1.0.0';
 export const PRE_PILOT_DEFAULT_THEORETICAL_STAGES = 7;
+/**
+ * Stage 3 is a pre-pilot geometry design-basis calculation, not a
+ * thermodynamic stage-count selection.  Keep this named separately from the
+ * Stage-2 accepted Predictive N_T so a calculated Stage-2 value can never be
+ * silently relabelled as the geometry basis.
+ */
+export const STAGE3_GEOMETRY_DESIGN_NT = 7 as const;
+export const STAGE2_ACCEPTED_PREDICTIVE_NT = 'STAGE2_ACCEPTED_PREDICTIVE_NT' as const;
+
+export type Stage2AcceptedPredictiveNtProvenance =
+  | 'STAGE_2_CALCULATED_NT'
+  | 'STAGE_2_ACCEPTED_PREDICTIVE_NT_UNAVAILABLE';
+
+export type Stage3GeometryStageAuthority = {
+  value: typeof STAGE3_GEOMETRY_DESIGN_NT;
+  provenance: 'STAGE3_GEOMETRY_DESIGN_NT';
+  label: 'FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)';
+  stage3GeometryDesignNt: typeof STAGE3_GEOMETRY_DESIGN_NT;
+  /** The actual accepted Stage-2 value, retained for scientific reporting. */
+  stage2AcceptedPredictiveNtName: typeof STAGE2_ACCEPTED_PREDICTIVE_NT;
+  stage2AcceptedPredictiveNt: number | null;
+  stage2AcceptedPredictiveNtProvenance: Stage2AcceptedPredictiveNtProvenance;
+  stage2AcceptedPredictiveNtLabel: string;
+  reason: string | null;
+  stage2JobId: string | null;
+  stage2ResultHash: string | null;
+};
 
 const G = 9.80665;
 const PI = Math.PI;
@@ -46,10 +73,16 @@ export const KUHNI_GEOMETRY_RESOLVER_HASH = implementationHash(
 
 export type TheoreticalStageAuthority = {
   value: number;
-  provenance: 'STAGE_2_CALCULATED_NT' | 'PRE_PILOT_DESIGN_DEFAULT';
-  label: string;
+  provenance: 'STAGE_2_CALCULATED_NT' | 'PRE_PILOT_DESIGN_DEFAULT' | 'STAGE3_GEOMETRY_DESIGN_NT';
+  label?: string;
   stage2JobId: string | null;
   stage2ResultHash: string | null;
+  reason?: string | null;
+  stage3GeometryDesignNt?: typeof STAGE3_GEOMETRY_DESIGN_NT;
+  stage2AcceptedPredictiveNtName?: typeof STAGE2_ACCEPTED_PREDICTIVE_NT;
+  stage2AcceptedPredictiveNt?: number | null;
+  stage2AcceptedPredictiveNtProvenance?: Stage2AcceptedPredictiveNtProvenance;
+  stage2AcceptedPredictiveNtLabel?: string;
 };
 
 function bisect(fn: (x: number) => number, low: number, high: number, iterations = 50) {

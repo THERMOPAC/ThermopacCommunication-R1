@@ -17,6 +17,10 @@ import {
   KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
   resolveKuhniGeometryV120,
 } from '../server/ecr-pre-pilot/kuhni-geometry-resolver-v120';
+import {
+  KUHNI_GEOMETRY_RESOLVER_V130_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V130_VERSION,
+} from '../server/ecr-pre-pilot/kuhni-geometry-resolver-v130';
 import { kuhniRunHash } from '../server/ecr-pre-pilot/kuhni-hydrodynamics';
 
 const state = vi.hoisted(() => ({
@@ -194,8 +198,8 @@ describe('Kühni V1.2.0 service persistence and dependency boundaries', () => {
   it('persists the V1.2.0 hash and the current Stage-1 snapshot lineage', async () => {
     const created = await createKuhniGeometryResolverRun(7, 209);
 
-    expect(created.engine.version).toBe(KUHNI_GEOMETRY_RESOLVER_V120_VERSION);
-    expect(created.engine.implementationHash).toBe(KUHNI_GEOMETRY_RESOLVER_V120_HASH);
+    expect(created.engine.version).toBe(KUHNI_GEOMETRY_RESOLVER_V130_VERSION);
+    expect(created.engine.implementationHash).toBe(KUHNI_GEOMETRY_RESOLVER_V130_HASH);
     expect(created.processBasis.stage1SnapshotHash).toBe(currentSnapshot.immutableHash);
     expect(state.insertParams).not.toBeNull();
     expect(state.insertParams?.[2]).toBe(currentSnapshot.immutableHash);
@@ -204,17 +208,19 @@ describe('Kühni V1.2.0 service persistence and dependency boundaries', () => {
     });
     expect(state.insertParams?.[8]).toMatchObject({
       value: PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
-      provenance: 'PRE_PILOT_DESIGN_DEFAULT',
+      provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+      stage3GeometryDesignNt: PRE_PILOT_DEFAULT_THEORETICAL_STAGES,
+      stage2AcceptedPredictiveNt: null,
     });
     expect(state.insertParams?.[5]).toBe('hydro-parent-1');
     expect(state.insertParams?.[6]).toBe('p'.repeat(64));
     expect(state.insertParams?.[9]).toMatchObject({
       engine: {
-        version: KUHNI_GEOMETRY_RESOLVER_V120_VERSION,
-        implementationHash: KUHNI_GEOMETRY_RESOLVER_V120_HASH,
+        version: KUHNI_GEOMETRY_RESOLVER_V130_VERSION,
+        implementationHash: KUHNI_GEOMETRY_RESOLVER_V130_HASH,
       },
     });
-    expect(state.insertParams?.[10]).toBe(KUHNI_GEOMETRY_RESOLVER_V120_HASH);
+    expect(state.insertParams?.[10]).toBe(KUHNI_GEOMETRY_RESOLVER_V130_HASH);
     expect(state.insertParams?.[11]).toBe(created.immutableHash);
     expect(created.integrityStatus).toBe('VERIFIED');
   });

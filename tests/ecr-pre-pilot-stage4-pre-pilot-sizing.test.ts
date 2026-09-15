@@ -46,6 +46,37 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(result.mainOutputs.installedActiveHeightM).toBe(5.3581715);
   });
 
+  it('keeps Stage-4 sizing on accepted Stage-2 N_T when Stage-3 geometry is fixed at 7', () => {
+    const fixedGeometryStage3 = {
+      ...stage3(),
+      result: {
+        ...stage3().result,
+        theoreticalStagesUsed: {
+          value: 7,
+          provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+          label: 'FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)',
+          stage3GeometryDesignNt: 7,
+          stage2AcceptedPredictiveNt: 4,
+          stage2AcceptedPredictiveNtProvenance: 'STAGE_2_CALCULATED_NT',
+          stage2AcceptedPredictiveNtLabel: 'STAGE-2 ACCEPTED PREDICTIVE N_T',
+          stage2JobId: 'stage-2-job',
+          stage2ResultHash: 'c'.repeat(64),
+          reason: null,
+        },
+      },
+    };
+    const result = deriveStage4PrePilotSizing({
+      calculatedNt: 4,
+      stage2JobId: 'stage-2-job',
+      stage2ResultHash: 'c'.repeat(64),
+      stage3: fixedGeometryStage3,
+    });
+
+    expect(result.calculatedNt.value).toBe(4);
+    expect(result.hetsSizing.stage2TheoreticalStages).toBe(4);
+    expect(result.hetsSizing.requiredActiveHeightM).toBe(4);
+  });
+
   it('does not let client-like manual values alter the authorized HETS calculation', () => {
     const result = deriveStage4PrePilotSizing({
       ...input(),
