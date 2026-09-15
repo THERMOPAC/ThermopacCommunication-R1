@@ -124,6 +124,43 @@ type PredictiveNtJob = {
   error: string | null;
 };
 
+const PREDICTIVE_NT_JOB_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The design table, rather than a saved filename or Stage-1 display field, is
+ * the authority for a report's project number.  Keep this narrow validation
+ * here because this value is used in a Content-Disposition filename.
+ */
+export function authoritativePredictiveNtProjectNumber(row: {
+  project_number?: unknown;
+}): number {
+  const rawProjectNumber = row.project_number;
+  if (
+    (typeof rawProjectNumber !== 'number'
+      && typeof rawProjectNumber !== 'string'
+      && typeof rawProjectNumber !== 'bigint')
+  ) {
+    throw new Error('PREDICTIVE_NT_REPORT_PROJECT_NUMBER_INVALID');
+  }
+  const projectNumber = Number(rawProjectNumber);
+  if (!Number.isSafeInteger(projectNumber) || projectNumber < 1) {
+    throw new Error('PREDICTIVE_NT_REPORT_PROJECT_NUMBER_INVALID');
+  }
+  return projectNumber;
+}
+
+export function predictiveNtReportFilenameForOwnedJob(row: {
+  id?: unknown;
+  project_number?: unknown;
+}): string {
+  const projectNumber = authoritativePredictiveNtProjectNumber(row);
+  if (typeof row.id !== 'string' || !PREDICTIVE_NT_JOB_ID_PATTERN.test(row.id)) {
+    throw new Error('PREDICTIVE_NT_REPORT_JOB_ID_INVALID');
+  }
+  return `Project-${projectNumber}-Predictive-NT-Run-${row.id}.pdf`;
+}
+
 const MAX_QUEUED_JOBS = 10;
 const MAX_ACTIVE_JOBS_PER_USER = 2;
 const JOB_TIMEOUT_MS = 4 * 60 * 60 * 1000;
@@ -2055,7 +2092,7 @@ export function deriveSixComponentCosmoSacRemoval(
   };
 }
 
-function mapJob(row: any): PredictiveNtJob {
+export function mapPredictiveNtJobRow(row: any): PredictiveNtJob {
   const persistedResult = row.result_snapshot;
   const result = (
     persistedResult
@@ -2066,6 +2103,10 @@ function mapJob(row: any): PredictiveNtJob {
       ...persistedResult,
       researchOnlyReplacementModel: PREDICTIVE_NT_RESEARCH_CANDIDATE,
     } : persistedResult;
+  const reportAvailable = Boolean(row.report_generated_at && row.report_pdf);
+  const reportFilename = reportAvailable
+    ? predictiveNtReportFilenameForOwnedJob(row)
+    : null;
   return {
     id: row.id,
     designId: Number(row.design_id),
@@ -2084,19 +2125,23 @@ function mapJob(row: any): PredictiveNtJob {
     internalProgress: internalProgressForJobRow(row),
     result,
     report: {
-      available: Boolean(row.report_generated_at && row.report_filename),
-      filename: row.report_filename ?? null,
+      available: reportAvailable,
+      // Do not trust a legacy persisted filename: some completed rows were
+      // finalized after their joined design column had been dropped.
+      filename: reportFilename,
       sha256: row.report_sha256 ?? null,
       generatedAt: row.report_generated_at
         ? new Date(row.report_generated_at).toISOString()
         : null,
-      downloadUrl: row.report_generated_at
+      downloadUrl: reportAvailable
         ? `/api/ecr-pre-pilot/designs/${Number(row.design_id)}/predictive-nt/jobs/${row.id}/report`
         : null,
     },
     error: row.error,
   };
 }
+
+const mapJob = mapPredictiveNtJobRow;
 
 export function internalProgressForJobRow(row: any): PredictiveNtJob['internalProgress'] {
   const ntTest = Number(row?.input_snapshot?.ntTest);
@@ -2536,8 +2581,12 @@ async function finishJob(
   try {
     await client.query('BEGIN');
     const locked = await client.query(
-      `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
-        WHERE id = $1 AND status = 'running' AND claim_token = $2
+      `SELECT job.*, design.project_number
+         FROM ecr_pre_pilot_predictive_nt_jobs AS job
+         JOIN ecr_pre_pilot_designs AS design
+           ON design.id = job.design_id
+          AND design.created_by = job.created_by
+        WHERE job.id = $1 AND job.status = 'running' AND job.claim_token = $2
         FOR UPDATE`,
       [jobId, claimToken],
     );
@@ -2640,16 +2689,18 @@ async function finishJob(
         ) {
           throw new Error('PREDICTIVE_NT_TEST_FORCED_REPORT_GENERATION_FAILURE');
         }
+        const projectNumber = authoritativePredictiveNtProjectNumber(current);
+        const filename = predictiveNtReportFilenameForOwnedJob(current);
         reportPdf = await generatePredictiveNtReport({
           id: current.id,
-          projectNumber: Number(current.project_number),
+          projectNumber,
           modelHash: current.model_hash,
           engineHash: current.engine_hash,
           completedAt: terminalCompletedAt,
           input: current.input_snapshot,
           result: finalResult,
         });
-        reportFilename = `Project-${Number(current.project_number)}-Predictive-NT-Run-${current.id}.pdf`;
+        reportFilename = filename;
         reportSha256 = createHash('sha256').update(reportPdf).digest('hex');
       } catch (reportError) {
         finalStatus = 'failed';
@@ -3111,8 +3162,12 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
 
 export async function getPredictiveNtJob(jobId: string, userId: number, designId: number) {
   const found = await pool.query(
-    `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
-      WHERE id = $1 AND created_by = $2 AND design_id = $3`,
+    `SELECT job.*, design.project_number
+       FROM ecr_pre_pilot_predictive_nt_jobs AS job
+       JOIN ecr_pre_pilot_designs AS design
+         ON design.id = job.design_id
+        AND design.created_by = job.created_by
+      WHERE job.id = $1 AND job.created_by = $2 AND job.design_id = $3`,
     [jobId, userId, designId],
   );
   return found.rows[0] ? mapJob(found.rows[0]) : null;
@@ -3120,9 +3175,13 @@ export async function getPredictiveNtJob(jobId: string, userId: number, designId
 
 export async function getLatestPredictiveNtJob(userId: number, designId: number) {
   const found = await pool.query(
-    `SELECT * FROM ecr_pre_pilot_predictive_nt_jobs
-      WHERE created_by = $1 AND design_id = $2
-      ORDER BY created_at DESC
+    `SELECT job.*, design.project_number
+       FROM ecr_pre_pilot_predictive_nt_jobs AS job
+       JOIN ecr_pre_pilot_designs AS design
+         ON design.id = job.design_id
+        AND design.created_by = job.created_by
+      WHERE job.created_by = $1 AND job.design_id = $2
+      ORDER BY job.created_at DESC
       LIMIT 1`,
     [userId, designId],
   );
@@ -3135,9 +3194,12 @@ export async function stopPredictiveNtJob(jobId: string, userId: number, designI
   try {
     await client.query('BEGIN');
     const found = await client.query(
-      `SELECT *
-         FROM ecr_pre_pilot_predictive_nt_jobs
-        WHERE id = $1 AND created_by = $2 AND design_id = $3
+      `SELECT job.*, design.project_number
+         FROM ecr_pre_pilot_predictive_nt_jobs AS job
+         JOIN ecr_pre_pilot_designs AS design
+           ON design.id = job.design_id
+          AND design.created_by = job.created_by
+        WHERE job.id = $1 AND job.created_by = $2 AND job.design_id = $3
         FOR UPDATE`,
       [jobId, userId, designId],
     );
@@ -3165,7 +3227,9 @@ export async function stopPredictiveNtJob(jobId: string, userId: number, designI
     );
     await recordHistory(client, updated.rows[0], { event: 'stopped_by_user' });
     await client.query('COMMIT');
-    stopped = mapJob(updated.rows[0]);
+    // RETURNING cannot carry the design join, so retain the authoritative
+    // projection from the locked owned-design row for the response mapping.
+    stopped = mapJob({ ...updated.rows[0], project_number: row.project_number });
   } catch (error) {
     await client.query('ROLLBACK');
     throw error;
@@ -3190,16 +3254,19 @@ export async function getPredictiveNtJobReport(
   designId: number,
 ) {
   const found = await pool.query(
-    `SELECT report_pdf, report_filename, report_sha256
-       FROM ecr_pre_pilot_predictive_nt_jobs
-      WHERE id = $1 AND created_by = $2 AND design_id = $3
-        AND status = 'completed' AND report_generated_at IS NOT NULL`,
+    `SELECT job.id, job.report_pdf, job.report_sha256, design.project_number
+       FROM ecr_pre_pilot_predictive_nt_jobs AS job
+       JOIN ecr_pre_pilot_designs AS design
+         ON design.id = job.design_id
+        AND design.created_by = job.created_by
+      WHERE job.id = $1 AND job.created_by = $2 AND job.design_id = $3
+        AND job.status = 'completed' AND job.report_generated_at IS NOT NULL`,
     [jobId, userId, designId],
   );
   if (!found.rows[0]?.report_pdf) return null;
   return {
     pdf: Buffer.from(found.rows[0].report_pdf),
-    filename: String(found.rows[0].report_filename),
+    filename: predictiveNtReportFilenameForOwnedJob(found.rows[0]),
     sha256: String(found.rows[0].report_sha256),
   };
 }

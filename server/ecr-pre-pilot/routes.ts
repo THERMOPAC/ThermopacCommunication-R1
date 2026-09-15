@@ -850,6 +850,13 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         return res.send(report.pdf);
       } catch (error) {
         console.error('[ECR Pre-Pilot] Predictive N_T report download failed:', error);
+        const errorCode = error instanceof Error ? error.message : '';
+        if (
+          errorCode === 'PREDICTIVE_NT_REPORT_PROJECT_NUMBER_INVALID'
+          || errorCode === 'PREDICTIVE_NT_REPORT_JOB_ID_INVALID'
+        ) {
+          return res.status(422).json({ error: errorCode });
+        }
         return res.status(500).json({ error: 'Predictive N_T report download failed' });
       }
     },
