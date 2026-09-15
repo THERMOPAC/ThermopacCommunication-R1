@@ -1,0 +1,177 @@
+{
+  "audit": "STAGE3_ONLY_NUMERICAL_AUDIT",
+  "source": {
+    "databaseTarget": "replit_database",
+    "environment": "development",
+    "readOnly": true,
+    "table": "ecr_pre_pilot_kuhni_geometry_resolver_runs",
+    "runId": 15,
+    "designId": 269,
+    "projectNumber": 236,
+    "createdAt": "2026-09-15T10:46:14.491Z"
+  },
+  "lineage": {
+    "currentStage1Hash": "e4137f46b51c7eb17e0ec7bb7077fb5dd24cb93acedce531d40420b53bb4f8af",
+    "runStage1SnapshotHash": "e4137f46b51c7eb17e0ec7bb7077fb5dd24cb93acedce531d40420b53bb4f8af",
+    "stage1HashMatches": true,
+    "runImplementationHash": "26df76278f021c010f6057991c03b72362f003a1a6320fbb01a74fca2cbd3637",
+    "runImmutableHash": "4cc3e2d3e99598fc5f01a13a0f397c2f5d00a4149ff6ce01a497a469d838b5d6",
+    "resultCalculationHash": "7e5999836fdeb7ffe6365eb8e4f72ddded266ec2a3b208e0b27445a8c7a04cf6",
+    "engineVersion": "KUHNI_GEOMETRY_RESOLVER_V1.5.0",
+    "parentHydrodynamicRunId": 9,
+    "parentHydrodynamicRunHash": "d089a80918c6657c3d291046ec049d7a488d64f0f601f646f34a3ac0e2e26c27"
+  },
+  "currentStage1Authority": {
+    "updatedAt": "2026-09-15T10:46:02.278Z",
+    "schemaVersion": "ECR_PRE_PILOT_STAGE_1_V1",
+    "temperatureK": 313.15,
+    "temperatureC": 40,
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "interfacialTensionNPerM": 0.011,
+    "rrboContinuous": {
+      "identity": "RRBO_FEED",
+      "flowM3S": 0.0011111111111111111,
+      "flowLPerH": 4000,
+      "densityKgM3": 869,
+      "dynamicViscosityPaS": 0.0598,
+      "dynamicViscosityCentiPoise": 59.8
+    },
+    "wetNmpDispersed": {
+      "identity": "WET_NMP_SOLVENT_PHASE",
+      "flowM3S": 0.0005707717569786535,
+      "densityKgM3": 1015,
+      "dynamicViscosityPaS": 0.001416,
+      "dynamicViscosityCentiPoise": 1.416,
+      "solventOilMassRatio": 0.6,
+      "waterWtPct": 0.5
+    }
+  },
+  "freshDerivedBasis": {
+    "viscosityRatioLambdaMuDispersedOverContinuous": 0.023678929765886286,
+    "persistedTerminalKappa": 0.023678929765886286,
+    "myintDragThirdArgumentLambda": 0,
+    "deltaRhoKgM3": -146,
+    "totalFlowM3S": 0.0016818828680897646,
+    "wetNmpFlowFormula": "Q_RRBO * rho_RRBO * (S/O) / rho_wetNMP"
+  },
+  "persistedV150Root": {
+    "status": "CALCULATED_EXTRAPOLATED",
+    "rpm": 25,
+    "columnDiameterM": 0.6930996970569214,
+    "rotorDiameterM": 0.3465498485284607,
+    "compartmentHeightM": 0.3465498485284607,
+    "d32M": 0.004745712291978037,
+    "powerW": 0.3770473251484636,
+    "psiWPerKg": 0.0033184025996587617,
+    "tipSpeedMPerS": 0.45363269093319497,
+    "rotorReynolds": 727.174728543904,
+    "terminal": {
+      "re": 2.40451506518235,
+      "dragCoefficient": 8.575883812936443,
+      "kappa": 0.023678929765886286,
+      "deltaRhoKgM3": -146,
+      "eotvos": 2.931457873237061,
+      "morton": 0.01821632051018739,
+      "taylor": 0.9570474137453387,
+      "aspectRatio": 0.9269211321132751,
+      "relativeVelocityMPerS": -0.034866431799366854,
+      "relativeVelocityMagnitudeMPerS": 0.034866431799366854,
+      "signedBuoyancyForceN": -0.0000801265365026745,
+      "signedDragForceN": -0.00008012653650267452,
+      "buoyancyForceMagnitudeN": 0.0000801265365026745,
+      "dragForceMagnitudeN": 0.00008012653650267452,
+      "forceBalanceResidualN": 1.3552527156068805e-20
+    },
+    "sourcePowerNumber": 1.4988184048290152,
+    "characteristicFactor": 1.0833890328451616,
+    "characteristicRe": 2.6050252509295273,
+    "characteristicVelocityMPerS": -0.03777390982587785,
+    "swarmRe": 1.3690365640430835,
+    "swarmVelocityAtFloodMPerS": -0.019851578674732806,
+    "countercurrentAtFlood": {
+      "continuousVelocityMPerS": 0.00344326941501665,
+      "dispersedVelocityMPerS": -0.010452835657296312,
+      "relativeVelocityMPerS": -0.013896105072312962
+    },
+    "floodHoldup": 0.1447261647352734,
+    "floodTotalSuperficialVelocityMPerS": 0.00636819579102804,
+    "dispersedSuperficialVelocityMPerS": -0.0015127988152886056,
+    "continuousSuperficialVelocityMPerS": 0.002944938238431022,
+    "massFluxKgPerM2S": 4.0946421267144935,
+    "actualLoading": 0.7,
+    "hydraulicPass": false
+  },
+  "independentReproduction": {
+    "method": "Stage-3 v1.5 reverse diagnostic equations; JavaScript Math, bisection, and golden-section maximization only",
+    "rootRpm": 25,
+    "rootColumnDiameterM": 0.693099697056925,
+    "rootD32M": 0.004745712291978018,
+    "terminalRe": 2.4045150651823217,
+    "terminalEotvos": 2.9314578732370373,
+    "terminalMorton": 0.01821632051018739,
+    "characteristicRe": 2.6050252509294918,
+    "characteristicVelocityMPerS": -0.03777390982587748,
+    "swarmRe": 1.3690365640430635,
+    "swarmVelocityAtFloodMPerS": -0.019851578674732594,
+    "floodHoldup": 0.1447261647352734,
+    "floodTotalSuperficialVelocityMPerS": 0.006368195791027972,
+    "actualLoading": 0.7000000000000002,
+    "signedForceBalanceResidualN": -1.0842021724855044e-19,
+    "checks": {
+      "diameterAbsDifferenceM": 1.1102230246251565e-16,
+      "d32AbsDifferenceM": 1.9081958235744878e-17,
+      "terminalReAbsDifference": 2.842170943040401e-14,
+      "terminalEotvosAbsDifference": 2.375e-14,
+      "characteristicVelocityAbsDifferenceMPerS": 3.677613769070831e-16,
+      "floodVelocityAbsDifferenceMPerS": 6.765421556309548e-17,
+      "loadingResidualFromTarget": 2.220446049250313e-16
+    }
+  },
+  "fixedQDiameterComparison": {
+    "f": 0.7,
+    "QTotalM3S": 0.0016818828680897646,
+    "UfMPerS": 0.00636819579102804,
+    "formula": "D = sqrt(4*Qtotal/(pi*f*Uf))",
+    "diameterM": 0.6930996970569214,
+    "algebraicSensitivityOnly": true,
+    "sensitivity": [
+      {
+        "deltaUfPct": -50,
+        "UfMPerS": 0.00318409789551402,
+        "diameterM": 0.9801909916545818
+      },
+      {
+        "deltaUfPct": -20,
+        "UfMPerS": 0.0050945566328224326,
+        "diameterM": 0.7749090189018937
+      },
+      {
+        "deltaUfPct": -10,
+        "UfMPerS": 0.005731376211925236,
+        "diameterM": 0.7305912294241914
+      },
+      {
+        "deltaUfPct": 10,
+        "UfMPerS": 0.007005015370130844,
+        "diameterM": 0.6608446317612279
+      },
+      {
+        "deltaUfPct": 20,
+        "UfMPerS": 0.0076418349492336475,
+        "diameterM": 0.6327105644634549
+      },
+      {
+        "deltaUfPct": 50,
+        "UfMPerS": 0.00955229368654206,
+        "diameterM": 0.5659135328890191
+      }
+    ]
+  },
+  "admission": {
+    "hydraulicRpmEnvelopeLength": 0,
+    "hydraulicDiagnosticPoint": null,
+    "stage4Admission": "BLOCKED_REQUIRES_CALCULATED_IN_RANGE_STAGE3_TRIAL",
+    "physicalFeasibility": "NOT_ESTABLISHED",
+    "interpretation": "The 0.693099697 m value is an illustrative extrapolated v1.5 root, not a governed Stage-3 diameter."
+  }
+}

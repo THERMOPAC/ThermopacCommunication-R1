@@ -38,3 +38,16 @@ viscosity ratio and can put an otherwise usable drop correlation out of range.
 Use `research/kuhni-reverse-orientation-qualification.md` for the source-access
 limits and analytical boundary; never treat a successful equilibrium or finite
 terminal root as validation of the missing swarm/flooding closure.
+
+Audit alternative low-viscosity-ratio terminal models separately from the
+agitated-column population-slip model. Barry–Parlange provides a conditional
+spherical-drop candidate; qualifying that candidate alone cannot qualify
+the available swarm slip as a function of holdup, diameter and agitation.
+
+**Why:** A valid isolated-drop terminal speed is not the limiting countercurrent
+throughput. The missing closure must be identified precisely rather than
+attributed to reverse orientation in general or to lack of exact-fluid data.
+
+**How to apply:** Use persisted operating-temperature Stage-1 properties and
+check shape/interface assumptions as well as viscosity ratio. Consult
+`research/rrbo-low-kappa-terminal-audit.md` for candidate equations and source limits.

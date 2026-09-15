@@ -45,6 +45,48 @@ thesis”, “Myint Hosokawa Tomiyama terminal velocity single drops”, and
 Other column types (Karr, packed, pulsed, raining-bucket) were not admitted as
 Kühni flooding evidence merely because they use a characteristic velocity.
 
+### Refined Barry decision and exact missing closure
+
+Barry--Parlange Eq. (10) is admitted to the research model set as a
+**conditional generic spherical terminal closure**, not merely as a
+sensitivity equation. Its all-viscosity-ratio formulation and comparisons to
+approximately \(Re=200\) make it a defensible zero-fit candidate when the
+local drop is a steady, spherical, non-wobbling fluid sphere and the actual
+\(X=\mu_D/\mu_C\) and \(P=\rho_D/\rho_C\) are used. This is a conditional
+model admission, not an admission of the current RRBO/NMP state: the present
+falling low-\(\kappa\) drop has no source-backed spherical/interface gate.
+Barry is therefore `CALCULATED_EXTRAPOLATED` for the current record. If the
+spherical gate is established, the equation can be used as the generic
+terminal \(C_D(Re)\) route and then checked at characteristic and each swarm
+Reynolds number; terminal agreement alone does not qualify those nonterminal
+states.
+
+The qualification gap is consequently narrow and modular, not a blanket
+requirement for exact RRBO/NMP measurements:
+
+1. **Falling low-\(\kappa\) drop state:** establish a defensible interface and
+   shape state, or select a qualified deformation-aware liquid-drop route.
+   Myint's finite-\(Re\) evidence begins at \(\kappa=0.1\) and uses rising
+   drops; its clean continuation is an extrapolated sensitivity here.
+2. **Population-to-slip conversion:** qualify how the Sauter mean \(d_{32}\)
+   represents the drop population for hydraulic slip, including breakup,
+   coalescence and geometry transfer. A \(d_{32}\) root is not automatically
+   a population-level terminal velocity.
+3. **Nonterminal Kühni closure:** provide a \(C_D(Re)\) that remains applicable
+   at forced characteristic and swarm slip, or a separately qualified
+   characteristic/slip relation. Reusing a terminal drag function at those
+   states is not self-justifying.
+4. **Reverse holdup and flooding:** qualify the reverse-orientation stable
+   branch, holdup, flooding/entrainment, phase inversion and port/control
+   behavior. The interior maximum of an assumed capacity function is a model
+   limit, not a measured reverse flooding point.
+
+Thus an exact RRBO/NMP experiment is one possible way to close the first and
+fourth items, but it is not imposed as a universal prerequisite if a
+source-backed generic route passes the stated gates with disclosed
+extrapolation. The persisted root has not passed those gates and remains an
+illustrative diagnostic only.
+
 ## Independently checkable physics — necessary, not a sizing closure
 
 Take upward as positive z, gravity vector −g, and retain physical labels
