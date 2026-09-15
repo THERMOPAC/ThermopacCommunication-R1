@@ -336,6 +336,54 @@ describe("Kuhni Stage 3 rejected-envelope panel", () => {
     expect(text).toContain("No in-range result");
   });
 
+  it("labels the V1.5.0 root as illustrative extrapolation and keeps it outside governed selection", () => {
+    const markup = renderPanel(runFixture({
+      engine: {
+        id: "kuhni_geometry_resolver",
+        version: "KUHNI_GEOMETRY_RESOLVER_V1.5.0",
+        implementationHash: "v150-engine-hash",
+      },
+      illustrativeModelRootSelection: {
+        status: "EXTRAPOLATED_MODEL_ROOT_SELECTED_FOR_ILLUSTRATION",
+        sourceQualification: "CALCULATED_EXTRAPOLATED",
+      },
+      illustrativeExtrapolatedModelRoot: {
+        rpm: 25,
+        columnDiameterM: 0.387833,
+        d32M: 0.007907,
+        floodHoldup: 0.1496,
+        massFluxKgM2S: 12.3869,
+      },
+      reverseOrientationDiagnostics: {
+        status: "PRELIMINARY_EXTRAPOLATION_WITH_ASSUMPTION_POINT",
+        trialCount: 1,
+        excludedFromHydraulicEnvelope: true,
+        noGovernedDiameter: true,
+        signedBuoyancy: { deltaRhoKgM3: -150, direction: "DISPERSED_DOWNWARD" },
+        trials: [{
+          rpm: 25,
+          columnDiameterM: 0.387833,
+          d32M: 0.007907,
+          floodHoldup: 0.1496,
+          actualLoading: 0.7,
+          terminal: { deltaRhoKgM3: -150, relativeVelocityMS: -0.0786 },
+          applicability: { status: "CALCULATED_EXTRAPOLATED", codes: ["UNQUALIFIED"] },
+          modelRootAssessment: { status: "EXTRAPOLATED_MODEL_ROOT" },
+        }],
+      },
+    }));
+    const text = visibleText(markup);
+
+    expect(markup).toContain('data-testid="kuhni-illustrative-model-root"');
+    expect(text).toContain("Illustrative extrapolated model root");
+    expect(text).toContain("not a design diameter");
+    expect(text).toContain("CALCULATED_EXTRAPOLATED");
+    expect(text).toContain("0.388 m");
+    expect(text).toContain("ILLUSTRATIVE ROOT");
+    expect(text).toContain("Governed diameter NONE");
+    expect(text).toContain("No in-range result");
+  });
+
   it("infers only from known frozen phase metadata and does not mutate it", () => {
     const basis = processBasis();
     const rejected = [{ rpm: 5, reason: "NO_DIAMETER_ROOT_WITHIN_PHYSICAL_BOUNDS" }];

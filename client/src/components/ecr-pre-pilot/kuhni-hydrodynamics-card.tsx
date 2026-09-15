@@ -130,6 +130,7 @@ export function inferHistoricalHydraulicPrerequisite(
 export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount: number }) {
   const authority = run.theoreticalStagesUsed as Record<string, unknown> | undefined;
   const engine = run.engine as Record<string, unknown> | undefined;
+  const isV150 = String(engine?.version ?? "").includes("V1.5.0");
   const coupled = run.coupledSelection as Record<string, unknown> | undefined;
   const recordedTrials = Array.isArray(run.hydraulicRpmEnvelope)
     ? run.hydraulicRpmEnvelope
@@ -177,6 +178,20 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
   const reverseDispersed = asRecord(reverseSelectedProperties?.dispersed);
   const reverseSignedBuoyancy = asRecord(reverseDiagnostics?.signedBuoyancy);
   const reverseMapping = asRecord(reverseDiagnostics?.countercurrentMapping);
+  const illustrativeModelRoot = asRecord(run.illustrativeExtrapolatedModelRoot);
+  const illustrativeModelRootSelection = asRecord(
+    run.illustrativeModelRootSelection ?? reverseDiagnostics?.illustrativeModelRootSelection,
+  );
+  const illustrativeAssumptions = Array.isArray(illustrativeModelRootSelection?.assumptions)
+    ? illustrativeModelRootSelection.assumptions.map(String)
+    : [];
+  const illustrativeSourceWarnings = Array.isArray(illustrativeModelRootSelection?.sourceRangeWarnings)
+    ? illustrativeModelRootSelection.sourceRangeWarnings.map(String)
+    : [];
+  const hasIllustrativeModelRoot = Boolean(
+    illustrativeModelRoot
+    && textValue(illustrativeModelRootSelection?.status)?.includes("EXTRAPOLATED_MODEL_ROOT_SELECTED"),
+  );
   const rpmValues = trials.map((trial) => Number(trial.rpm)).filter(Number.isFinite);
   const rpmRange = rpmValues.length ? `${Math.min(...rpmValues)}–${Math.max(...rpmValues)} rpm` : "—";
   const finalRpm = run.finalOperatingRpm;
@@ -229,7 +244,7 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-950">Automatic geometry resolver</h3>
           <p className="mt-0.5 text-[10px] text-blue-800">
-            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · {reverseDiagnostics ? "only calculated-in-range results selected; preliminary reverse diagnostics remain visible" : "only calculated-in-range results shown"}
+            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · {reverseDiagnostics ? `only calculated-in-range results selected; ${isV150 ? "extrapolated model-root diagnostics" : "preliminary reverse diagnostics"} remain visible` : "only calculated-in-range results shown"}
           </p>
         </div>
         <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-amber-900">
@@ -238,7 +253,7 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
       </div>
       {hiddenExtrapolatedCount > 0 && (
         <p className="rounded border border-amber-200 bg-amber-50 p-2 text-[10px] font-medium text-amber-900">
-          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from the hydraulic envelope and diagnostic selection{reverseDiagnostics ? "; preliminary reverse diagnostics remain visible below." : "."}
+          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from the hydraulic envelope and diagnostic selection{reverseDiagnostics ? `; ${isV150 ? "extrapolated model-root diagnostics" : "preliminary reverse diagnostics"} remain visible below.` : "."}
         </p>
       )}
       {reverseDiagnostics && (
@@ -247,11 +262,14 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
           className="space-y-2 rounded border border-amber-300 bg-amber-50/80 p-3 text-[10px] text-amber-950"
         >
           <div>
-            <strong>RRBO-continuous reverse-orientation preliminary diagnostics</strong>
+            <strong>RRBO-continuous reverse-orientation {isV150 ? "extrapolated model-root" : "preliminary"} diagnostics</strong>
             <p className="mt-1 leading-4">
               These trials use the selected RRBO continuous / wet-NMP dispersed properties and retain the signed
               force-balance direction. They are <strong>CALCULATED_EXTRAPOLATED</strong> diagnostics only:
               no reverse trial, diameter, RPM, or Stage-3 geometry is admitted or presented as governed.
+              V1.5.0 may expose one separately labelled extrapolated model root for illustration after
+              invariant checks; it does not establish physical feasibility or a design diameter and
+              remains outside the hydraulic envelope and Stage-4 governed input.
             </p>
           </div>
           <div className="grid gap-2 rounded border border-amber-200 bg-white/70 p-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -260,6 +278,39 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
             <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Trial count / excluded</span><br /><strong className="font-mono">{String(reverseDiagnostics.trialCount ?? reverseTrials.length)} / {reverseDiagnostics.excludedFromHydraulicEnvelope ? "YES" : "—"}</strong></div>
             <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Governed diameter</span><br /><strong>NONE</strong></div>
           </div>
+          {hasIllustrativeModelRoot && (
+            <div
+              data-testid="kuhni-illustrative-model-root"
+              className="rounded border border-orange-300 bg-orange-100/80 p-2 text-orange-950"
+            >
+              <strong>Illustrative extrapolated model root · not a design diameter</strong>
+              <p className="mt-1 leading-4">
+                {String(illustrativeModelRootSelection?.sourceQualification ?? "CALCULATED_EXTRAPOLATED")} only;
+                source-range and reverse-orientation warnings remain visible. This model root does not
+                establish physical feasibility, is not a CALCULATED_IN_RANGE result, and cannot be used by Stage 4.
+              </p>
+              {illustrativeSourceWarnings.length > 0 && (
+                <p className="mt-1 font-mono text-[9px] leading-4 text-orange-900">
+                  Source/applicability warnings: {illustrativeSourceWarnings.join(" · ")}
+                </p>
+              )}
+              <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                <div><span className="text-[9px] uppercase tracking-wide text-orange-700">RPM</span><br /><strong className="font-mono">{kuNumber(illustrativeModelRoot?.rpm, 1)}</strong></div>
+                <div><span className="text-[9px] uppercase tracking-wide text-orange-700">Model root D</span><br /><strong className="font-mono">{kuNumber(illustrativeModelRoot?.columnDiameterM)} m</strong></div>
+                <div><span className="text-[9px] uppercase tracking-wide text-orange-700">d32</span><br /><strong className="font-mono">{kuNumber(Number(illustrativeModelRoot?.d32M) * 1000)} mm</strong></div>
+                <div><span className="text-[9px] uppercase tracking-wide text-orange-700">Flood φ</span><br /><strong className="font-mono">{kuNumber(illustrativeModelRoot?.floodHoldup)}</strong></div>
+                <div><span className="text-[9px] uppercase tracking-wide text-orange-700">Mass flux</span><br /><strong className="font-mono">{kuNumber(illustrativeModelRoot?.massFluxKgM2S)} kg/m²·s</strong></div>
+              </div>
+              {illustrativeAssumptions.length > 0 && (
+                <details className="mt-2 rounded border border-orange-200 bg-white/70 p-2">
+                  <summary className="cursor-pointer font-semibold">Explicit extrapolation assumptions</summary>
+                  <ul className="mt-1 list-disc space-y-1 pl-4 leading-4">
+                    {illustrativeAssumptions.map((assumption, index) => <li key={index}>{assumption}</li>)}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
           {(reverseContinuous || reverseDispersed) && (
             <div className="grid gap-2 rounded border border-amber-200 bg-white/70 p-2 sm:grid-cols-2">
               <div>
@@ -295,6 +346,8 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
                   {reverseTrials.map((trial, index) => {
                     const terminal = asRecord(trial.terminal);
                     const applicability = asRecord(trial.applicability);
+                     const modelRootAssessment = asRecord(trial.modelRootAssessment);
+                     const modelRootStatus = textValue(modelRootAssessment?.status);
                     return (
                       <tr key={`${String(trial.rpm)}-${index}`}>
                         <td className="px-2 py-2 font-mono font-semibold">{kuNumber(trial.rpm, 1)}</td>
@@ -309,7 +362,9 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
                             ? (applicability.codes as unknown[]).slice(0, 3).map(String).join(" · ")
                             : String(applicability?.status ?? "CALCULATED_EXTRAPOLATED")}
                         </td>
-                        <td className="px-2 py-2 font-semibold text-red-800">EXCLUDED</td>
+                        <td className={`px-2 py-2 font-semibold ${modelRootStatus === "EXTRAPOLATED_MODEL_ROOT" ? "text-orange-800" : "text-red-800"}`}>
+                          {modelRootStatus === "EXTRAPOLATED_MODEL_ROOT" ? "ILLUSTRATIVE ROOT" : "EXCLUDED"}
+                        </td>
                       </tr>
                     );
                   })}

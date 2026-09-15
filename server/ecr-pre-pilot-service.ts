@@ -43,6 +43,11 @@ import {
   resolveKuhniGeometryV140,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver-v140";
 import {
+  KUHNI_GEOMETRY_RESOLVER_V150_HASH,
+  KUHNI_GEOMETRY_RESOLVER_V150_VERSION,
+  resolveKuhniGeometryV150,
+} from "./ecr-pre-pilot/kuhni-geometry-resolver-v150";
+import {
   JOB_A_COMPONENT_ORDER,
   JOB_A_MOLECULAR_DATA,
   JOB_A_STAGE2_ENGINE_ID,
@@ -411,11 +416,11 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
     [designId, userId],
   );
   const parentRun = parent.rows[0] ?? null;
-  // Keep the governed heavy-continuous route on V1.3.0. V1.4.0 is selected
-  // only for RRBO-continuous/downward-NMP so its explicitly preliminary
-  // diagnostics cannot alter historical supported-orientation artifacts.
+  // Keep the governed heavy-continuous route on V1.3.0. V1.5.0 is selected
+  // only for RRBO-continuous/downward-NMP. Its assumption-based preliminary
+  // point is a separate payload and cannot alter the governed envelope.
   const result = basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed"
-    ? resolveKuhniGeometryV140(basis, theoreticalStages)
+    ? resolveKuhniGeometryV150(basis, theoreticalStages)
     : resolveKuhniGeometryV130(basis, theoreticalStages);
   const immutableHash = kuhniRunHash({
     basis,
@@ -488,6 +493,8 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
           return resolveKuhniGeometryV130(row.processBasis, row.theoreticalStages);
         case KUHNI_GEOMETRY_RESOLVER_V140_VERSION:
           return resolveKuhniGeometryV140(row.processBasis, row.theoreticalStages);
+        case KUHNI_GEOMETRY_RESOLVER_V150_VERSION:
+          return resolveKuhniGeometryV150(row.processBasis, row.theoreticalStages);
         default:
           throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_UNKNOWN_ENGINE_VERSION');
       }
@@ -543,9 +550,11 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
     && result?.engine?.implementationHash === KUHNI_GEOMETRY_RESOLVER_V130_HASH;
   const activeV140 = result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V140_VERSION
     && result?.engine?.implementationHash === KUHNI_GEOMETRY_RESOLVER_V140_HASH;
+  const activeV150 = result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V150_VERSION
+    && result?.engine?.implementationHash === KUHNI_GEOMETRY_RESOLVER_V150_HASH;
   const historicalV120 = result?.engine?.version === KUHNI_GEOMETRY_RESOLVER_V120_VERSION
     && result?.engine?.implementationHash === KUHNI_GEOMETRY_RESOLVER_V120_HASH;
-  if (!activeV130 && !activeV140 && !historicalV120) {
+  if (!activeV130 && !activeV140 && !activeV150 && !historicalV120) {
     throw new Error('JOB_A_DEPENDENCY_BLOCKED:LATEST_STAGE3_V130_REQUIRED');
   }
   if (result.processBasis?.stage1SnapshotHash !== stage1.immutableHash) {
@@ -553,7 +562,7 @@ export async function evaluateEcrPrePilotJobA(userId: number, designId: number) 
   }
   const geometryAuthority = result.theoreticalStagesUsed as TheoreticalStageAuthority | undefined;
   if (!geometryAuthority || !Number.isInteger(geometryAuthority.value) || geometryAuthority.value < 1
-    || ((activeV130 || activeV140)
+    || ((activeV130 || activeV140 || activeV150)
       && (geometryAuthority.provenance !== 'STAGE3_GEOMETRY_DESIGN_NT'
         || geometryAuthority.value !== STAGE3_GEOMETRY_DESIGN_NT
         || geometryAuthority.stage3GeometryDesignNt !== STAGE3_GEOMETRY_DESIGN_NT))

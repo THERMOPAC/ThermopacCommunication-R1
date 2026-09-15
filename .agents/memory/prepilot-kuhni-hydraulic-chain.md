@@ -16,6 +16,15 @@ phase-control expressions remain unsupported extrapolations. Never promote
 those records to `CALCULATED_IN_RANGE`, a hydraulic envelope, or an admitted
 diameter/RPM; a finite reverse root is not a qualified closure.
 
+V1.5.0 may retain one deterministic `EXTRAPOLATED_MODEL_ROOT` as an
+illustrative model root after independently recomputing primitive-basis
+density/sign, force, flow/area, holdup, and loading invariants. This status
+does not establish physical feasibility, a design diameter, or a governed
+Stage-3/Stage-4 input. The root must remain `CALCULATED_EXTRAPOLATED` with
+mandatory reverse-orientation warnings and status checks; loss of either
+warning or status fails closed. This is a relabelling/qualification-boundary
+change only and adds no new experimental or source evidence.
+
 Geometrically similar diameter iteration must use a declared scale-up law.
 Constant compartment `P/V` is admissible and requires `N ∝ D^(-2/3)`. Holding
 RPM constant while scaling rotor diameter is physically invalid because
