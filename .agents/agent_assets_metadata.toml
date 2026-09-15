@@ -1115,3 +1115,17 @@ mtime_ms = 1789377207341
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/5c111911-35e6-4095-ae15-85f51744eebb/2887e022-4b2c-491a-82c0-636de9926803"
 storage_version_token = "1789377299080032"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "cxlzbKaUYQ9HQ2NuT-AWa"
+uri = "file://research/rrbo-stage3-kuhni-scale-up-qualification.html"
+type = "text"
+title = "Stage-3 Kühni Industrial Scale-Up Qualification"
+description = "Read-only engineering report: authoritative scale-up guidance, both operating bases, equivalent pilot points, coupled compartment-height sensitivity, equations, sources and qualification matrix."
+logical_id = "f1b63b8f-7512-4905-9157-517207403f72"
+content_hash = "sha256:a196d0a0f8c213fc297b173a185a7689220d14c4a7bcb596fb8fb7831bef5a59"
+size = 27300
+mtime_ms = 1789476470475
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f1b63b8f-7512-4905-9157-517207403f72/7a3bf77f-0a84-4b65-922e-54760a00b5ff"
+storage_version_token = "1789476517281478"
+content_type = "text/html"

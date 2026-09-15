@@ -1,0 +1,203 @@
+{
+  "researchTitle": "Kuhni ECR industrial and pilot scale-up audit",
+  "scope": [
+    "industrial and pilot diameter evidence",
+    "geometry and scale-up criteria",
+    "separation of observed data, explicit limits, and recommendations"
+  ],
+  "decision": {
+    "targetDiameterM": 0.693099697,
+    "classification": "B",
+    "label": "major scale-up extrapolation, not invalid",
+    "basis": [
+      "target is 4.56 times the largest 152 mm apparatus located in the cited records",
+      "current compartment-height ratio is 0.50, outside the cited 0.20-0.30 Kühni recommendation",
+      "Perry recommends a 60 mm pilot for specifying columns up to 1 m, so the target is not prohibited",
+      "Sulzer lists industrial ECR diameters through 3.5 m, but that is a product envelope rather than a correlation-validity limit"
+    ]
+  },
+  "modelInputsAudited": {
+    "sourcePath": "server/ecr-pre-pilot/kuhni-geometry-resolver.ts",
+    "targetDiameterM": 0.693099697,
+    "alternativeDiameterM": 0.974212919,
+    "rotorToColumn": 0.5,
+    "compartmentToColumn": 0.5,
+    "statorFreeAreaFraction": 0.35,
+    "powerNumber": 1.2,
+    "directTurbulenceCoefficient": 0.42
+  },
+  "geometryCalculations": {
+    "target": {
+      "rotorDiameterM": 0.3465498485,
+      "compartmentHeightM": 0.3465498485,
+      "recommendedRotorDiameterRangeM": [
+        0.22872290001,
+        0.3465498485
+      ],
+      "recommendedCompartmentHeightRangeM": [
+        0.1386199394,
+        0.2079299091
+      ],
+      "targetTo152mmRatio": 4.5598664276
+    },
+    "alternative": {
+      "rotorDiameterM": 0.4871064595,
+      "compartmentHeightM": 0.4871064595,
+      "recommendedRotorDiameterRangeM": [
+        0.32149026327,
+        0.4871064595
+      ],
+      "recommendedCompartmentHeightRangeM": [
+        0.1948425838,
+        0.2922638757
+      ],
+      "alternativeTo152mmRatio": 6.4092955197
+    }
+  },
+  "sources": [
+    {
+      "id": "sulzer-product-page",
+      "type": "manufacturer-product-page",
+      "title": "Kühni agitated columns (ECR)",
+      "url": "https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr",
+      "evidence": [
+        "diameter 30 mm-3.5 m",
+        "typical industrial speed 10-100 rpm",
+        "geometry can be adapted for changing hydrodynamic conditions",
+        "reliable scale-up is a product characteristic"
+      ],
+      "classification": "product envelope and vendor practice",
+      "limitations": "Not a universal correlation-validity range, hard maximum, or target-specific pilot validation."
+    },
+    {
+      "id": "sulzer-e10556-2025",
+      "type": "manufacturer-brochure",
+      "title": "OptimEXT: Advanced solutions for extraction and solvent recovery, E10556 en 5.2025",
+      "url": "https://www.sulzer.com/en/-/media/files/products/separation-technology/brochures/english/liquid_liquid_extraction_technology_e10556_en_web.pdf",
+      "pages": [
+        4,
+        8,
+        9
+      ],
+      "evidence": [
+        "p. 4: ECR diameter 30 mm-3.5 m; typical industrial speed 10-70 rpm",
+        "p. 4: turbine diameter, turbine height, partition-plate open area, and compartment height are adjustable geometry parameters",
+        "p. 8: agitated pilot columns 32, 60, and 150 mm",
+        "p. 8: pilot trials precede scale-up and design",
+        "p. 9: simple empirical methods normally fail; hydrodynamics and mass transfer support scale-up"
+      ],
+      "classification": "manufacturer apparatus and process evidence",
+      "limitations": "Vendor brochure; pilot sizes are available equipment, not commercial diameter limits."
+    },
+    {
+      "id": "perry-8e-section-15",
+      "type": "handbook",
+      "title": "Perry's Chemical Engineers' Handbook, 8th ed., Section 15, Agitated Extraction Columns",
+      "publisherRecord": "https://www.mheducation.com/highered/mhp/product/perry-s-chemical-engineers-handbook-eighth-edition.html",
+      "citation": "McGraw-Hill, 2008, printed p. 15-83; generic stirred-vessel scale-up discussion p. 15-88 and following",
+      "evidence": [
+        "Di/Dt 0.33-0.50",
+        "compartment height 0.20-0.30 Dt",
+        "stator fractional free area 0.20-0.40",
+        "60 mm pilot for specifying columns up to 1 m",
+        "150 mm pilot for specifying larger-diameter columns",
+        "some pilot testing recommended for final commercial design",
+        "free area trade-off: throughput versus axial mixing and mass-transfer performance",
+        "individual stage geometry and free area may be tailored"
+      ],
+      "classification": "explicit published recommendation and design guidance",
+      "limitations": "Copyrighted handbook; the 60/150 mm mapping is a recommendation, not an observed limit or guarantee. Generic p. 15-88 power/tip criteria are not Kühni-specific."
+    },
+    {
+      "id": "dongaonkar-pratt-stevens-1991",
+      "type": "primary-peer-reviewed-experiment",
+      "title": "Mass transfer and axial dispersion in a Kühni extraction column",
+      "url": "https://doi.org/10.1002/aic.690370508",
+      "citation": "AIChE Journal 37 (1991) 694-704",
+      "evidence": [
+        "72.45 mm diameter",
+        "25 stages",
+        "MIBK-water-acetic acid",
+        "concentration profiles, backmixing, and mass transfer"
+      ],
+      "classification": "observed experimental apparatus and results",
+      "limitations": "The apparatus diameter is not a maximum-validity statement."
+    },
+    {
+      "id": "kentish-stevens-pratt-1997",
+      "type": "primary-peer-reviewed-experiment",
+      "title": "Measurement of Drop Rise Velocities within a Kühni Extraction Column",
+      "url": "https://doi.org/10.1021/ie9702690",
+      "publisherRecord": "https://pubs.acs.org/iecred/article/36/11/4928/1291275/Measurement-of-Drop-Rise-Velocities-within-a-Kuhni",
+      "citation": "Industrial & Engineering Chemistry Research 36 (1997) 4928-4933",
+      "evidence": [
+        "25-stage 72.45 mm precision-bore glass column",
+        "50 mm stator plate spacing"
+      ],
+      "classification": "observed experimental apparatus",
+      "limitations": "Publisher abstract/metadata is accessible; full article is paywalled. No universal diameter or speed limit is inferred."
+    },
+    {
+      "id": "weber-meyer-jupke-2019",
+      "type": "open-access-secondary-report",
+      "title": "Performance Map for the Design of Liquid-Liquid Extraction Columns",
+      "url": "https://doi.org/10.1002/cite.201900057",
+      "citation": "Chemie Ingenieur Technik 91 (2019) 1674-1680, Section 2.1/Table 1 and Section 3.4",
+      "evidence": [
+        "Garthe DN80 Kühni column",
+        "column height 2.95 m",
+        "compartment height 50 mm",
+        "rotor diameter 45 mm",
+        "stator free cross section 40%",
+        "150 and 200 rpm operation points"
+      ],
+      "classification": "secondary report of pilot experiment and model comparison",
+      "limitations": "It documents one DN80 apparatus and selected speeds, not the complete Garthe thesis apparatus inventory."
+    },
+    {
+      "id": "hlawitschka-et-al-2020",
+      "type": "open-access-review",
+      "title": "Digital Extraction Column: Measurement and Modeling Techniques",
+      "url": "https://doi.org/10.1002/cite.202000043",
+      "citation": "Chemie Ingenieur Technik 92 (2020) 914-925",
+      "evidence": [
+        "review table includes Kühni D=152 mm turbine-agitator studies",
+        "review table also includes D=32 mm Kühni studies"
+      ],
+      "classification": "secondary literature survey",
+      "limitations": "Reported apparatus sizes are not upper limits or scale-up guarantees."
+    },
+    {
+      "id": "garthe-2006-thesis",
+      "type": "inspected-primary-local-pdf",
+      "title": "Fluiddynamics and Mass Transfer of Single Particles and Swarms of Particles in Extraction Columns",
+      "citation": "Daniel Garthe, PhD thesis, Technische Universität München, accepted 2006-04-03; cited as reference 5 by Weber et al. (2019)",
+      "localPath": "attached_assets/Paper_1788587264307.pdf",
+      "sha256": "39a39035d63f0b84bc74957ccf17b7a8c67ec456e73e4277491bc2cbb2bd53fc",
+      "evidence": [
+        "Printed p. 86 Eq. 5.6: Kühni characteristic-velocity correlation with geometry, drop-size, free-area, and power-number terms",
+        "Printed p. 86 Eq. 5.7: N_P = 1.08 + 10.94/Re_R^0.5 + 257.37/Re_R^1.5",
+        "Printed p. 126 Eq. 8.3: v_s/v_o = sqrt(C_D,o(Re_o)/C_D,o(Re_s)*(1-h_d)^4.65)",
+        "Rendered screenshots .agents/outputs/garthe-eq83-correct/pdf-page-138-printed-126.png and eq83-radical-crop.png confirm the radical spans the complete product, including the holdup factor",
+        "Printed Figure 5.20: 143 Kühni points, 10.7% relative error, and listed ranges D_C=72-152 mm, d_A=41-85 mm, d_s=47.5-83.2 mm, n_R=50-250 rpm, d=0.9-6.4 mm",
+        "Printed p. 86 discussion: compartment height and stator design should be separately investigated"
+      ],
+      "classification": "inspected primary source; local extraction and page rendering",
+      "limitations": "Printed Figure 5.20 ranges are a correlation/data envelope, not a commercial maximum or universal scale-up rule. Rendered Eq. 8.3 matches the current resolver's inside-radical swarm closure."
+    }
+  ],
+  "unverifiedClaims": [
+    {
+      "claim": "Garthe experimental D=72-152 mm and RPM=50-250",
+      "status": "verified as the ranges listed with Figure 5.20 in the inspected local primary PDF",
+      "safeTreatment": "Report as a printed Garthe correlation/data envelope, not as a commercial maximum or universal validity boundary; distinguish it from the selected DN80/150-200 rpm secondary report."
+    }
+  ],
+  "scaleUpInvariants": {
+    "geometryRatios": "Explicit recommended Kühni ranges are available.",
+    "statorFreeArea": "Not a demonstrated invariant; free area is adjustable and stage-specific tailoring is reported.",
+    "powerPerVolume": "Generic agitated-vessel criterion in Perry, not an explicit Kühni-specific invariant in the cited passage.",
+    "tipSpeed": "Generic agitated-vessel criterion in Perry, not an explicit Kühni-specific invariant in the cited passage.",
+    "characteristicVelocity": "Cited primary, handbook, and Sulzer sources publish correlations and geometry guidance, but no explicit fixed characteristic-velocity scale-up invariant was located."
+  }
+}

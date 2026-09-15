@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RRBO/NMP Kühni Stage-3 Scale-Up Qualification</title>
+  <style>
+    :root { color-scheme: light; --ink:#18212b; --muted:#536170; --line:#cbd5df;
+      --blue:#0b4f71; --blue-pale:#eaf4f8; --amber:#fff5d7; --red:#fff0ef; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:#f5f7f9; font:15px/1.48 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1500px; margin:0 auto; padding:32px 42px 64px; background:#fff; }
+    h1 { color:var(--blue); margin:0 0 4px; font-size:30px; }
+    h2 { color:var(--blue); border-bottom:2px solid #dbe8ef; padding-bottom:5px; margin-top:30px; }
+    h3 { color:#24465a; margin-top:24px; }
+    p, li { max-width:1200px; }
+    .meta { color:var(--muted); margin:0 0 22px; }
+    .callout { border-left:6px solid var(--blue); background:var(--blue-pale); padding:14px 18px; margin:18px 0; }
+    .warning { border-left-color:#c98a00; background:var(--amber); }
+    .danger { border-left-color:#a33232; background:var(--red); }
+    table { border-collapse:collapse; width:100%; margin:12px 0 20px; font-size:13px; }
+    th { background:#e8f0f4; color:#153d52; text-align:left; }
+    th, td { border:1px solid var(--line); padding:6px 8px; vertical-align:top; }
+    td.num, th.num { text-align:right; white-space:nowrap; }
+    code, pre { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+    code { background:#f1f4f6; padding:1px 3px; }
+    pre { background:#f4f6f8; border:1px solid var(--line); border-radius:4px; padding:12px; overflow:auto; }
+    .small { color:var(--muted); font-size:13px; }
+    a { color:#075a87; }
+    .tag { display:inline-block; border:1px solid #9bb7c7; border-radius:4px; padding:2px 7px; font-weight:650; background:#eef7fb; }
+    @media print { body { background:#fff; } main { max-width:none; padding:0; } table { font-size:10px; } .callout { break-inside:avoid; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>RRBO/NMP Stage-3 Kühni hydraulic scale-up qualification</h1>
+    <p class="meta">Engineering qualification report · diagnostic and pre-pilot basis · 2026-09-15</p>
+  </header>
+
+  <div class="callout warning">
+    <h2>Final decision</h2>
+    <p><strong>Case B industrial scale-up status, 0.693099697 m:
+      <span class="tag">B — major scale-up extrapolation, but not an invalid design</span>.</strong>
+      This is a pre-pilot estimate: the current 70%-loading root of the illustrative
+      reverse-orientation hydraulic model. It is not a proof of physical feasibility
+      or a governed commercial diameter. Perry's explicit
+      recommendation maps a 60 mm pilot to columns up to 1 m, so the target is not
+      prohibited; the model remains a major extrapolation because its compartment
+      ratio is outside the published recommendation, its reverse orientation is
+      unresolved, and its viscosity ratio is below the reviewed Myint data gate.</p>
+    <p>Case A, 0.974212919 m, has the same category B. It is also a pre-pilot
+      estimate below Perry's 1 m boundary for the 60 mm pilot mapping, but is
+      beyond individual apparatus evidence and is not a proof of physical
+      feasibility; it uses the same out-of-range <code>h<sub>c</sub>/D=0.50</code>.</p>
+    <p>A pilot is <strong>not required to produce the present pre-pilot prediction</strong>
+      and no fixed pilot flow is assumed in the pilot invariant rows. Pilot/vendor
+      evidence is required to upgrade the category to a defensible commercial design
+      status; a pilot is not a prerequisite merely to produce this prediction.</p>
+  </div>
+
+  <h2>Scope and frozen-record guard</h2>
+  <p>Case A is NMP-continuous/RRBO-dispersed at 60 °C, historical
+    <code>D=0.9742129194 m</code>, 30 rpm. Case B is RRBO-continuous/wet-NMP-dispersed
+    at 40 °C, current <code>D=0.6930996971 m</code>, 25 rpm. This report is
+    read-only and does not change production code, persisted Stage-1/Stage-3
+    results, or historical hashes.</p>
+  <p>Case-B Stage-3 run 15 remains engine <code>KUHNI_GEOMETRY_RESOLVER_V1.5.0</code>,
+    run implementation hash
+    <code>26df76278f021c010f6057991c03b72362f003a1a6320fbb01a74fca2cbd3637</code>,
+    immutable hash <code>4cc3e2d3e99598fc5f01a13a0f397c2f5d00a4149ff6ce01a497a469d838b5d6</code>,
+    result hash <code>7e5999836fdeb7ffe6365eb8e4f72ddded266ec2a3b208e0b27445a8c7a04cf6</code>,
+    and Stage-1 snapshot hash
+    <code>e4137f46b51c7eb17e0ec7bb7077fb5dd24cb93acedce531d40420b53bb4f8af</code>.
+    Case A's lineage remains in the frozen diagnostic JSON.</p>
+
+  <h2>Equations and model basis</h2>
+  <p>The independent reproduction uses <code>D<sub>R</sub>/D=0.5</code>,
+    <code>h<sub>c</sub>/D=0.5</code>, stator free area <code>φ<sub>s</sub>=0.35</code>,
+    fixed engineering <code>N<sub>P</sub>=1.2</code>, and
+    <code>d<sub>32</sub>=0.42(σ/ρ<sub>C</sub>)<sup>0.6</sup>ψ<sup>−0.4</sup></code>.
+    Perry recommends <code>D<sub>R</sub>/D=0.33–0.50</code>,
+    <code>h<sub>c</sub>/D=0.20–0.30</code>, and stator free area
+    <code>0.20–0.40</code>; therefore the current compartment ratio is explicitly
+    out of range while rotor and free area are within the recommendation.</p>
+  <pre>n = rpm/60                         A = πD²/4
+P = Np ρC n³ DR⁵                    ψ = P/(ρC A hc)
+d32 = 0.42(σ/ρC)^0.6 ψ^-0.4        Vd = πd32³/6, Ap = πd32²/4
+0 = (ρC−ρD)gVd − 0.5ρC Cd Ap |wt|wt
+Ar_s = ρC(ρC−ρD)g d32³/μC²         Cd |Re_s| Re_s = 4Ar_s/3
+Cd = 8(2+3κ+3λ)/(Re(1+κ+λ))(1+0.15Re^0.687), λ=0
+Re_t = ρC |wt|d32/μC               Eo = |Δρ|g d32²/σ
+Mo = g μC⁴ |Δρ|/(ρC²σ³)             We_t = ρC |wt|²d32/σ
+We_R = ρC u_tip²DR/σ                Ta = Re_t Mo^0.23
+f = (QC+QD)/(A Uf), with Uf the interior maximum of the current swarm-capacity function</pre>
+  <p>The inspected local Garthe PDF
+    <code>attached_assets/Paper_1788587264307.pdf</code> (SHA-256
+    <code>39a39035d63f0b84bc74957ccf17b7a8c67ec456e73e4277491bc2cbb2bd53fc</code>,
+    accepted 3 April 2006) confirms printed p. 86 Eqs. 5.6–5.7:</p>
+  <pre>v_char/v_o = 1 − 1.669 NP^−3.945 − 2.807[d/(DC−dA)]^1.336
+              − 1.159(hC/DC)^2.049 + 2.1φs^1.032
+NP = 1.08 + 10.94/ReR^0.5 + 257.37/ReR^1.5</pre>
+  <p>Printed p. 126 Eq. 8.3 is the source square-root swarm relation. The
+    rendered primary page (rather than text extraction) shows the radical bar
+    spanning the complete product, including the holdup factor; the
+    multiplication dot is inside that bar. Rendered evidence:
+    <a href="../.agents/outputs/garthe-eq83-correct/eq83-radical-crop.png">focused p. 126 equation screenshot</a>
+    (full page: <a href="../.agents/outputs/garthe-eq83-correct/pdf-page-138-printed-126.png">PDF-page render</a>).</p>
+  <pre>v_s/v_o = sqrt[CD,o(Reo)/CD,o(Res) · (1−hd)^4.65]</pre>
+  <p>The frozen current resolver is reproduced without changing production
+    behavior as:</p>
+  <pre>v_swarm/v_char = sqrt[(CD,char/CD,swarm) (1−h)^4.65]</pre>
+  <p>The source equation therefore matches the frozen resolver and no
+    equation correction is required. Current
+    values remain pre-pilot diagnostics because of the stated scale-up,
+    geometry, phase-orientation, and fluid-property limitations. Signs are
+    retained for terminal force checks; current characteristic/swarm groups are
+    magnitude closures.</p>
+
+  <h2>Table 1 — Published Kühni scale-up guidance</h2>
+  <table>
+    <thead><tr><th>Source / evidence class</th><th>Verified guidance or observation</th><th>Qualification</th></tr></thead>
+    <tbody>
+      <tr><td>Perry's Chemical Engineers' Handbook, 8th ed., §15, p. 15-83<br><em>Explicit recommendation</em></td><td>Minimum 60 mm pilot for specifying columns up to 1 m; minimum 150 mm pilot for larger diameter columns.</td><td>Maps both current targets to the 60 mm recommendation. Not a guarantee; no upper limit is stated for the 150 mm mapping.</td></tr>
+      <tr><td>Perry p. 15-83<br><em>Explicit geometry recommendation</em></td><td><code>D<sub>i</sub>/D<sub>t</sub>=0.33–0.50</code>; <code>h<sub>c</sub>/D<sub>t</sub>=0.20–0.30</code>; stator fractional free area <code>0.20–0.40</code>.</td><td>Current rotor 0.50 is at the upper boundary; free area 0.35 is in range; current compartment 0.50 is outside.</td></tr>
+      <tr><td>Sulzer ECR product page<br><em>Vendor product envelope</em></td><td>ECR diameter 30 mm–3.5 m; typical industrial speed 10–100 rpm; adaptable geometry.</td><td>Product envelope and practice, not universal correlation validity or a hard maximum.</td></tr>
+      <tr><td>Sulzer E10556 (5.2025), pp. 4, 8–9<br><em>Vendor apparatus/process guidance</em></td><td>ECR 30 mm–3.5 m; typical speed 10–70 rpm; agitated pilots 32, 60, 150 mm; pilot trials precede scale-up/design; simple empirical methods normally fail.</td><td>Available pilot sizes are not commercial limits. The 10–70/10–100 rpm difference is revision-specific.</td></tr>
+      <tr><td>Dongaonkar et al. 1991; Kentish et al. 1997<br><em>Observed primary experiments</em></td><td>25-stage Kühni apparatus approximately 72.45 mm; Kentish reports 50 mm stator spacing.</td><td>Apparatus observations, not diameter or speed limits.</td></tr>
+      <tr><td>Garthe TU München dissertation, accepted 3 Apr 2006; local SHA-256 <code>39a39035…53fc</code><br><em>Inspected primary source</em></td><td>Printed p. 86 Eqs. 5.6–5.7 give the full Kühni characteristic factor and source power number; rendered printed p. 126 Eq. 8.3 gives the square-root drag ratio with <code>(1−h<sub>d</sub>)<sup>4.65</sup></code> visibly inside the radical. Figure 5.20 lists 143 Kühni points, 10.7% relative error, and <code>D<sub>C</sub>=72–152 mm</code>, <code>n<sub>R</sub>=50–250 rpm</code>, <code>d=0.9–6.4 mm</code>.</td><td>Printed ranges are an evidence envelope, not commercial limits. The rendered Eq. 8.3 matches the frozen inside-radical resolver closure; screenshot linked above.</td></tr>
+      <tr><td>Weber et al. 2019; Hlawitschka et al. 2020<br><em>Accessible secondary evidence</em></td><td>Garthe pilot reproduced as DN80, height 2.95 m, compartment 50 mm, rotor 45 mm, stator free cross section 40%, with 150/200 rpm points; review includes 32 and 152 mm Kühni studies.</td><td>Independent secondary confirmation of selected apparatus records, not a universal validity envelope.</td></tr>
+      <tr><td>Sulzer/Perry combined<br><em>Commercial mapping</em></td><td>Perry maps 60 mm to targets up to 1 m and 150 mm to larger targets; Sulzer lists ECR equipment through 3.5 m.</td><td>Answers the commercial-range question: a 3.5 m product range exists, but is not a universal maximum or correlation-validity limit.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Table 2 — Industrial Case A versus Case B</h2>
+      <p class="small">All values below are frozen/as-coded diagnostic outputs
+        from the source-consistent closure. They remain pre-pilot estimates
+        subject to the stated scale-up, geometry, phase-orientation, and
+        fluid-property limitations.</p>
+  <table>
+    <thead><tr><th>Quantity</th><th>Case A: NMP-C / RRBO-D</th><th>Case B: RRBO-C / wet-NMP-D</th></tr></thead>
+    <tbody>
+      <tr><td>Temperature; speed</td><td>60 °C; 30 rpm</td><td>40 °C; 25 rpm</td></tr>
+      <tr><td>Continuous ρ, μ, Q</td><td>997 kg/m³; 0.001083 Pa·s; 0.0007154797726512872 m³/s</td><td>869 kg/m³; 0.0598 Pa·s; 0.0011111111111111111 m³/s</td></tr>
+      <tr><td>Dispersed ρ, μ, Q</td><td>856 kg/m³; 0.030 Pa·s; 0.0011111111111111111 m³/s</td><td>1015 kg/m³; 0.001416 Pa·s; 0.0005707717569786535 m³/s</td></tr>
+      <tr><td>σ; Δρ; μ<sub>D</sub>/μ<sub>C</sub></td><td>0.0103 N/m; +141 kg/m³; 27.7008310</td><td>0.011 N/m; −146 kg/m³; 0.0236789298</td></tr>
+      <tr><td>D; D<sub>R</sub>; h<sub>c</sub> (m)</td><td>0.9742129194; 0.4871064597; 0.4871064597</td><td>0.6930996971; 0.3465498485; 0.3465498485</td></tr>
+      <tr><td>D<sub>R</sub>/D; h<sub>c</sub>/D; φ<sub>s</sub></td><td>0.500; 0.500; 0.35</td><td>0.500; 0.500; 0.35</td></tr>
+      <tr><td>Tip speed; rotor We</td><td>0.765145 m/s; 27603.83</td><td>0.453633 m/s; 5633.80</td></tr>
+      <tr><td>P; P/V; P/m</td><td>4.101152 W; 11.29495 W/m³; 0.01132894 W/kg</td><td>0.3770473 W; 2.883692 W/m³; 0.003318403 W/kg</td></tr>
+      <tr><td>d<sub>32</sub>; d<sub>32</sub>/D; d<sub>32</sub>/D<sub>R</sub></td><td>2.570744 mm; 0.00263879; 0.00527758</td><td>4.745712 mm; 0.00684708; 0.01369417</td></tr>
+      <tr><td>Re<sub>R</sub>; source N<sub>P</sub></td><td>109215.55; 1.11311</td><td>727.1747; 1.498818</td></tr>
+      <tr><td>Signed terminal direction; w<sub>t</sub>; Re<sub>s</sub></td><td>rise; +0.0754551 m/s; +178.5724</td><td>fall; −0.0348664 m/s; −2.404515</td></tr>
+      <tr><td>Signed Ar<sub>s</sub>; C<sub>D</sub>; buoyancy / drag force</td><td>+19968.9223; 0.834958; +1.230028×10<sup>−5</sup> / −1.230028×10<sup>−5</sup> N</td><td>−37.18734; 8.575884; −8.012654×10<sup>−5</sup> / +8.012654×10<sup>−5</sup> N</td></tr>
+      <tr><td>Force net residual; relative residual</td><td>3.38813×10<sup>−21</sup> N; 2.75×10<sup>−16</sup></td><td>1.35525×10<sup>−20</sup> N; 1.69×10<sup>−16</sup></td></tr>
+      <tr><td>Re<sub>t</sub>; Re<sub>char</sub>; Re<sub>swarm</sub></td><td>178.5724; 59.7308; 29.1604</td><td>2.404515; 2.605025; 1.369037</td></tr>
+      <tr><td>Eo; Mo; We<sub>t</sub>; Ta</td><td>0.88720; 1.7513×10<sup>−9</sup>; 1.41675; 1.72896</td><td>2.93146; 0.0182163; 0.455768; 0.957047</td></tr>
+      <tr><td>Flood holdup; U<sub>flood</sub></td><td>0.200776; 0.003500625 m/s</td><td>0.144726; 0.006368196 m/s</td></tr>
+      <tr><td>Q<sub>C</sub>/A; Q<sub>D</sub>/A; total</td><td>0.000959842; 0.001490596; 0.002450438 m/s</td><td>0.002944938; 0.001512799; 0.004457737 m/s</td></tr>
+      <tr><td>Canonical signed countercurrent (u<sub>C</sub>,u<sub>D</sub>,u<sub>D</sub>−u<sub>C</sub>)</td><td>(−0.000959842,+0.001490596,+0.002450438) m/s; checks pass</td><td>(+0.002944938,−0.001512799,−0.004457737) m/s; checks pass</td></tr>
+      <tr><td>Operating fraction; qualification</td><td>0.7000; category B</td><td>0.7000; <strong>category B</strong></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Table 3 — Equivalent Case-B pilot invariant points</h2>
+  <p class="small">No pilot flow rate is assumed or needed. These rows calculate geometry,
+    speed, power, drop-size closure, and Reynolds/Weber diagnostics only. Capacity,
+    holdup, and flooding are not inferred for the pilot rows.</p>
+  <table>
+    <thead><tr><th>Invariant</th><th>D mm</th><th>D<sub>R</sub>/h<sub>c</sub> mm</th><th>rpm</th><th>Tip m/s</th><th>We<sub>R</sub></th><th>P W</th><th>d<sub>32</sub> mm</th><th>Re<sub>R</sub></th><th>P/V W/m³</th><th>P/m W/kg</th><th>Disposition</th></tr></thead>
+    <tbody>
+      <tr><td>Constant tip</td><td>60</td><td>30/30</td><td>288.7915</td><td>0.453633</td><td>487.7048</td><td>0.00282558</td><td>1.783379</td><td>62.9498</td><td>33.31143</td><td>0.0383331</td><td>Diagnostic only</td></tr>
+      <tr><td>Constant tip</td><td>150</td><td>75/75</td><td>115.5166</td><td>0.453633</td><td>1219.2620</td><td>0.01765985</td><td>2.572881</td><td>157.3745</td><td>13.32457</td><td>0.0153332</td><td>Diagnostic only</td></tr>
+      <tr><td>Constant P/V and P/m</td><td>60</td><td>30/30</td><td>127.7526</td><td>0.200673</td><td>95.4393</td><td>0.000244603</td><td>4.745712</td><td>27.8471</td><td>2.883692</td><td>0.00331840</td><td>d<sub>32</sub> unchanged by implemented closure</td></tr>
+      <tr><td>Constant P/V and P/m</td><td>150</td><td>75/75</td><td>69.3548</td><td>0.272356</td><td>439.5019</td><td>0.00382193</td><td>4.745712</td><td>94.4857</td><td>2.883692</td><td>0.00331840</td><td>d<sub>32</sub> unchanged by implemented closure</td></tr>
+      <tr><td>Constant Re<sub>R</sub></td><td>60</td><td>30/30</td><td>3336.0222</td><td>5.240211</td><td>65079.76</td><td>4.355523</td><td>0.094639</td><td>727.1747</td><td>51348.37</td><td>59.08904</td><td><strong>Exceeds 4.5 m/s screen</strong></td></tr>
+      <tr><td>Constant Re<sub>R</sub></td><td>150</td><td>75/75</td><td>533.7635</td><td>2.096085</td><td>26031.90</td><td>1.742209</td><td>0.409991</td><td>727.1747</td><td>1314.518</td><td>1.512679</td><td>Extreme input extrapolation</td></tr>
+    </tbody>
+  </table>
+  <p>Constant P/V, tip speed, and Re<sub>R</sub> are candidate engineering scenarios,
+    not Kühni-specific published invariants. Perry's generic p. 15-88 discussion
+    must not be silently promoted to Kühni-specific evidence.</p>
+
+  <h2>Table 4 — Case-B h<sub>c</sub>/D sensitivity at 25 rpm</h2>
+  <table>
+    <thead><tr><th>h<sub>c</sub>/D</th><th>Search interval m</th><th>All 70% diameters in bounded domain</th><th>D<sub>R</sub>/h<sub>c</sub> at result/bound m</th><th>d<sub>32</sub> mm</th><th>Tip m/s</th><th>Loading at upper bound</th><th>Flood holdup; U<sub>flood</sub> m/s</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>0.20</td><td>0.250–6.875</td><td>No bounded root</td><td>3.43775 / 1.37510</td><td>0.524709</td><td>4.500</td><td>0.890803</td><td>0.135681; 0.000050853</td><td>UNRESOLVED within bound</td></tr>
+      <tr><td>0.25</td><td>0.200–6.875</td><td>No bounded root</td><td>3.43775 / 1.71887</td><td>0.573697</td><td>4.500</td><td>0.777549</td><td>0.135697; 0.000058260</td><td>UNRESOLVED within bound</td></tr>
+      <tr><td>0.30</td><td>0.1667–6.875</td><td>No bounded root</td><td>3.43775 / 2.06265</td><td>0.617100</td><td>4.500</td><td>0.709968</td><td>0.135709; 0.000063806</td><td>UNRESOLVED; do not round into a root</td></tr>
+      <tr><td>0.50</td><td>0.100–6.875</td><td>0.693100 (selected smallest); 4.958642 (second)</td><td>0.34655/0.34655; 2.479321/2.479321</td><td>4.745712; 0.983213</td><td>0.453633; 3.245424</td><td>—</td><td>0.144726; 0.006368196 (selected)</td><td>Two roots; second is beyond Sulzer's 3.5 m product envelope; neither proves physical feasibility</td></tr>
+    </tbody>
+  </table>
+  <p>The published recommendation is 0.20–0.30, but the current fixed-25-rpm
+    bounded calculation has no root in the searched domain there. This is not a
+    proof of infeasibility outside the 4.5 m/s bound. It is a reason to
+    measure/select actual compartment geometry and rerun—not a reason to
+    silently retain or silently replace the current ratio.</p>
+
+  <h2>Table 5 — Qualification matrix</h2>
+  <table>
+    <thead><tr><th>Item</th><th>Case A</th><th>Case B</th><th>Evidence/disposition</th></tr></thead>
+    <tbody>
+      <tr><td>Commercial diameter</td><td>SCALE_UP_EXTRAPOLATION</td><td>SCALE_UP_EXTRAPOLATION</td><td>Within Perry's 60 mm pilot mapping to 1 m, but beyond individual apparatus evidence; Sulzer product range reaches 3.5 m.</td></tr>
+      <tr><td>30 / 25 rpm</td><td>IN_RANGE for Sulzer's typical 10–70/10–100 rpm industrial practice; target correlation evidence extrapolated</td><td>IN_RANGE for Sulzer's typical industrial practice; target correlation evidence extrapolated</td><td>Not a speed prohibition; vendor practice and pilot correlation evidence are distinct classifications.</td></tr>
+      <tr><td>Pilot mapping</td><td>IN_RANGE recommendation mapping</td><td>IN_RANGE recommendation mapping</td><td>Perry: 60 mm up to 1 m; 150 mm for larger targets. Not a guarantee.</td></tr>
+      <tr><td>h<sub>c</sub>/D=0.50</td><td>CORRELATION_EXTRAPOLATION + PROJECT_ASSUMPTION</td><td>CORRELATION_EXTRAPOLATION + PROJECT_ASSUMPTION</td><td>Perry recommends 0.20–0.30.</td></tr>
+      <tr><td>φ<sub>s</sub>=0.35</td><td>IN_RANGE + PROJECT_ASSUMPTION invariant</td><td>IN_RANGE + PROJECT_ASSUMPTION invariant</td><td>Perry recommends 0.20–0.40; free area is adjustable/stage-specific.</td></tr>
+      <tr><td>Fixed N<sub>P</sub>=1.2</td><td>PROJECT_ASSUMPTION</td><td>PROJECT_ASSUMPTION</td><td>Engineering closure; not a published Kühni invariant.</td></tr>
+      <tr><td>d<sub>32</sub> and characteristic velocity</td><td>CORRELATION_EXTRAPOLATION</td><td>CORRELATION_EXTRAPOLATION</td><td>RRBO/NMP and target-size validation are absent; B also reverses phase orientation. The separate d<sub>32</sub>≈4.5 mm caution is from Garthe RDC evidence, not a Kühni limit.</td></tr>
+      <tr><td>Reverse orientation / κ</td><td>Not applicable</td><td>UNRESOLVED</td><td>κ=0.02368 is below the reviewed Myint lower data boundary 0.1; falling-drop shape, nonterminal slip, reverse swarm, inversion, and entrainment remain unresolved.</td></tr>
+      <tr><td>Flooding</td><td>UNRESOLVED for RRBO/NMP</td><td>UNRESOLVED for reverse RRBO/NMP</td><td>Current value is an interior maximum of an assumed function, not measured flooding.</td></tr>
+      <tr><td>Industrial scale-up category</td><td><strong>B — major scale-up extrapolation, but not an invalid design</strong></td><td><strong>B — major scale-up extrapolation, but not an invalid design</strong></td><td>Pre-pilot estimate; not proof of physical feasibility or a governed Stage-3/Stage-4 input.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Reproducibility</h2>
+  <p>The report's numerical results are generated by an independent script that
+    transcribes the equations above and does not import production resolver code.</p>
+  <pre>node research/rrbo-stage3-kuhni-scale-up/scale-up-calculation.js \
+  --output research/rrbo-stage3-kuhni-scale-up/scale-up-calculation-results.json
+node research/rrbo-stage3-kuhni-scale-up/scale-up-calculation.js --verify</pre>
+  <p><code>checks.allChecksPass=true</code>. This verifies numerical reproduction
+    of the frozen/as-coded closure, consistent with rendered Garthe Eq. 8.3.
+    Explicit Case-A assertions reproduce
+    <code>D=0.9742129194448474 m</code>, <code>d32=2.5707441992382585 mm</code>,
+    <code>Re<sub>t</sub>=178.57240730624966</code>, flood holdup
+    <code>0.20077600313512306</code>, <code>U<sub>flood</sub>=0.0035006250415678046 m/s</code>,
+    tip <code>0.7651450376900494 m/s</code>, and 0.7000 loading; signed force
+    balance and canonical countercurrent checks pass. The verification reproduces the
+    Case-B baseline <code>D=0.6930996970569214 m</code>,
+    <code>d32=4.745712291978037 mm</code>, <code>Re<sub>t</sub>=2.40451506518235</code>,
+    flood holdup 0.1447261647352734, <code>U<sub>flood</sub>=0.00636819579102804 m/s</code>,
+    <code>We<sub>R</sub>=5633.800880473315</code>, and 0.7000 loading. It enumerates
+    both <code>h<sub>c</sub>/D=0.50</code> roots:
+    <code>0.6930996970569214 m</code> (selected smallest) and
+    <code>4.9586421805663115 m</code> (second, beyond the Sulzer 3.5 m product
+    envelope). It verifies no root <em>in the bounded domain</em> at
+    0.20/0.25/0.30; this is not an infeasibility proof. The downloadable
+    artifacts are <a download href="rrbo-stage3-kuhni-scale-up/scale-up-calculation.js">script</a>
+    and <a download href="rrbo-stage3-kuhni-scale-up/scale-up-calculation-results.json">numerical JSON</a>.</p>
+
+  <h2>Required confirmation before commercial design</h2>
+  <ol>
+    <li>Vendor drawing: ID, active height, compartment height, rotor/blade/shroud,
+      shaft, stator type/free area, clearances, ports, seals, torque, power,
+      rpm, and tip-speed limits.</li>
+    <li>Phase orientation and interface control, start-up/shutdown, phase inversion,
+      entrainment, and settler/outlet capacity.</li>
+    <li>Full drop-size distribution, d<sub>32</sub>, breakup/coalescence, daughter
+      populations, and dependence on speed, flow ratio, temperature, σ, and composition.</li>
+    <li>Terminal and compartment/swarm slip in the actual phase pair, including
+      circulation, stator/wall interaction, and holdup.</li>
+    <li>Throughput/speed map for holdup, flooding onset, entrainment,
+      pressure/interface behavior, and hysteresis.</li>
+    <li>A scale-up record stating the selected geometry and the reason for any
+      chosen invariant. No fixed pilot flow is needed for the pre-pilot
+      invariant calculations, but capacity validation requires actual operating data.</li>
+  </ol>
+
+  <h2>Sources</h2>
+  <ul>
+    <li><a href="../server/research/ecr-pre-pilot-kuhni-scale-up/scale-up-audit.md">Source-agent Kühni ECR scale-up audit</a> and
+      <a href="../server/research/ecr-pre-pilot-kuhni-scale-up/provenance-manifest.json">provenance manifest</a>.</li>
+    <li>Perry's Chemical Engineers' Handbook, 8th ed. (2008), §15,
+      “Agitated Extraction Columns,” printed p. 15-83; generic agitated-vessel
+      discussion pp. 15-88 and following.</li>
+    <li><a href="https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr">Sulzer Kühni ECR product page</a>;
+      <a href="https://www.sulzer.com/en/-/media/files/products/separation-technology/brochures/english/liquid_liquid_extraction_technology_e10556_en_web.pdf">Sulzer E10556 brochure</a>,
+      5.2025, pp. 4, 8–9.</li>
+    <li>Garthe, <em>Fluiddynamics and Mass Transfer of Single Particles and
+      Swarms of Particles in Extraction Columns</em>, TU München dissertation,
+      accepted 3 April 2006; local PDF
+      <code>attached_assets/Paper_1788587264307.pdf</code>, SHA-256
+      <code>39a39035d63f0b84bc74957ccf17b7a8c67ec456e73e4277491bc2cbb2bd53fc</code>.
+      Printed p. 86 Eqs. 5.6–5.7 and printed p. 126 Eq. 8.3 were inspected.</li>
+    <li>Dongaonkar, Pratt &amp; Stevens, AIChE Journal 37 (1991) 694–704,
+      <a href="https://doi.org/10.1002/aic.690370508">doi:10.1002/aic.690370508</a>;
+      Kentish, Stevens &amp; Pratt, IEC Res. 36 (1997) 4928–4933,
+      <a href="https://doi.org/10.1021/ie9702690">doi:10.1021/ie9702690</a>.</li>
+    <li>Weber, Meyer &amp; Jupke, Chemie Ingenieur Technik 91 (2019) 1674–1680,
+      <a href="https://doi.org/10.1002/cite.201900057">doi:10.1002/cite.201900057</a>;
+      Hlawitschka et al. 2020, <a href="https://doi.org/10.1002/cite.202000043">doi:10.1002/cite.202000043</a>.</li>
+    <li>Current equation sources:
+      <code>server/ecr-pre-pilot/kuhni-geometry-resolver.ts</code>,
+      <code>kuhni-geometry-resolver-v110.ts</code>, <code>v140.ts</code>, and
+      <code>v150.ts</code>; frozen numerical bases are listed in the companion
+      Markdown report.</li>
+  </ul>
+
+  <div class="callout warning">
+    <h2>Final disposition</h2>
+    <p><strong>Case B industrial scale-up status is
+      <span class="tag">B — major scale-up extrapolation, but not an invalid design</span>.</strong>
+      The current 0.693099697 m value remains an illustrative pre-pilot hydraulic
+      prediction, not proof of physical feasibility. Perry's 60 mm-to-1 m recommendation and Sulzer's 30 mm–3.5 m
+      ECR product evidence remove any claim that the diameter is prohibited,
+      while the published <code>h<sub>c</sub>/D=0.20–0.30</code> recommendation
+      and unresolved reverse RRBO/NMP hydraulics prevent commercial qualification.
+      The independent script and numerical JSON verify the frozen/as-coded
+      baseline and sensitivity; the pilot invariant rows require no fixed
+      pilot flow assumption. Rendered Garthe Eq. 8.3 places the holdup
+      exponent inside the radical, matching the frozen resolver.</p>
+  </div>
+</main>
+</body>
+</html>

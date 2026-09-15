@@ -64,3 +64,15 @@ reverse-orientation rejection overstated the historical result's qualification.
 **How to apply:** Distinguish historical software admission from scientific
 qualification; audit each saved operating-temperature basis independently,
 and retain extrapolation warnings symmetrically without promoting either result.
+
+Experimental apparatus diameter/RPM ranges are not automatic industrial
+scale-up prohibitions. Assess geometric/dimensionless similarity and keep
+pre-pilot prediction separate from final vendor qualification.
+
+**Why:** Perry's Kühni guidance explicitly maps a 60 mm pilot to targets up
+to 1 m; the published industrial equipment envelope includes both historical
+diameters. The source's Garthe Eq. 8.3 radical covers the full product,
+including the holdup factor, as verified visually—not just the drag ratio.
+
+**How to apply:** Consult `research/rrbo-stage3-kuhni-scale-up-qualification.md`.
+Do not claim a source-transcription failure from text extraction of a radical.
