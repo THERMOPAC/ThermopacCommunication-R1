@@ -7,6 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 type KuhniRun = {
   id?: string | number;
   status?: string;
+  integrityStatus?: string;
+  stage1SnapshotHash?: string;
+  implementationHash?: string;
   createdAt?: string;
   processBasis?: Record<string, unknown>;
   records?: Array<Record<string, unknown>>;
@@ -52,6 +55,59 @@ type RejectedHydraulicTrial = {
   rpm: string;
   reason: string;
 };
+
+type KuhniPresentationCandidate = {
+  available?: boolean;
+  status?: string;
+  label?: string;
+  qualification?: string;
+  source?: string;
+  governed?: boolean;
+  stage4Input?: boolean;
+  columnDiameterM?: number;
+  rotorDiameterM?: number | null;
+  compartmentHeightM?: number | null;
+  rpm?: number;
+  d32M?: number | null;
+  floodHoldup?: number | null;
+  actualLoading?: number | null;
+  tipSpeedMS?: number | null;
+  powerVolumeWM3?: number | null;
+  massFluxKgM2S?: number | null;
+  trialStatus?: string;
+  independentCheck?: string;
+};
+
+type KuhniPresentationQualification = {
+  schemaVersion?: string;
+  status?: string;
+  label?: string;
+  candidate?: KuhniPresentationCandidate | null;
+  governedOutput?: Record<string, unknown>;
+  lineage?: Record<string, unknown>;
+  limitations?: Array<{
+    group?: string;
+    title?: string;
+    details?: unknown[];
+  }>;
+  failure?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+const STAGE3_PRESENTATION_CLASSIFICATION =
+  "CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION";
+const STAGE3_PRESENTATION_LABEL =
+  "CALCULATED PRE-PILOT WITH MAJOR SCALE-UP EXTRAPOLATION";
+
+function presentationLabel(value: unknown): string {
+  const text = textValue(value);
+  if (!text || text === STAGE3_PRESENTATION_CLASSIFICATION) {
+    return STAGE3_PRESENTATION_LABEL;
+  }
+  return text;
+}
 
 function rejectedHydraulicTrials(value: unknown): RejectedHydraulicTrial[] {
   if (!Array.isArray(value)) return [];
@@ -182,6 +238,27 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
   const illustrativeModelRootSelection = asRecord(
     run.illustrativeModelRootSelection ?? reverseDiagnostics?.illustrativeModelRootSelection,
   );
+  const presentationQualification = asRecord(run.presentationQualification) as KuhniPresentationQualification | undefined;
+  const presentationCandidate = asRecord(presentationQualification?.candidate) as KuhniPresentationCandidate | undefined;
+  const governedOutput = asRecord(presentationQualification?.governedOutput);
+  const hasPrePilotCandidate = presentationQualification?.status === STAGE3_PRESENTATION_CLASSIFICATION
+    && run.integrityStatus === "VERIFIED"
+    && presentationCandidate?.available === true
+    && presentationCandidate.governed === false
+    && presentationCandidate.stage4Input === false
+    && governedOutput?.candidateIsNotGoverned === true
+    && governedOutput?.stage4Input === false
+    && Number.isFinite(Number(presentationCandidate.columnDiameterM))
+    && Number.isFinite(Number(presentationCandidate.rpm));
+  const presentationLimitations = Array.isArray(presentationQualification?.limitations)
+    ? presentationQualification.limitations
+    : [];
+  const displayedFailedPrerequisiteCode = hasPrePilotCandidate ? undefined : failedPrerequisiteCode;
+  const displayedFailedPrerequisiteMessage = hasPrePilotCandidate ? undefined : failedPrerequisiteMessage;
+  const displayedRootFailure = hasPrePilotCandidate ? false : hasPersistedRootFailure;
+  const prePilotDispositionLabel = presentationLabel(
+    presentationQualification?.label ?? presentationQualification?.status,
+  );
   const illustrativeAssumptions = Array.isArray(illustrativeModelRootSelection?.assumptions)
     ? illustrativeModelRootSelection.assumptions.map(String)
     : [];
@@ -213,7 +290,11 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
     ? String(authority?.label ?? "FIXED PRE-PILOT KUHNI GEOMETRY DESIGN BASIS (STAGE3_GEOMETRY_DESIGN_NT=7)")
     : "Historical resolver authority";
   const stage3Disposition = trials.length
-    ? "Accepted calculated-in-range hydraulic envelope"
+    ? hasPrePilotCandidate
+      ? prePilotDispositionLabel
+      : "Accepted calculated-in-range hydraulic envelope"
+    : hasPrePilotCandidate
+      ? prePilotDispositionLabel
     : explicitPrerequisiteIsSupported
       ? "Supported orientation — no admitted hydraulic root"
       : failedPrerequisiteCode
@@ -222,17 +303,19 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
           ? "No admitted hydraulic root"
           : "No calculated-in-range hydraulic trial";
   const summary: Array<[string, string]> = [
-    ["Calculated in-range hydraulic diameter", point ? `${kuNumber(point.columnDiameterM)} m` : "No in-range result"],
-    ["Rotor diameter", `${kuNumber(point?.rotorDiameterM)} m`],
-    ["Rotor / column", point ? kuNumber(Number(point.rotorDiameterM) / Number(point.columnDiameterM)) : "—"],
+    ["Pre-pilot candidate diameter", hasPrePilotCandidate ? `${kuNumber(presentationCandidate?.columnDiameterM)} m` : point ? `${kuNumber(point.columnDiameterM)} m` : "No in-range result"],
+    ["Rotor diameter", `${kuNumber(hasPrePilotCandidate ? presentationCandidate?.rotorDiameterM : point?.rotorDiameterM)} m`],
+    ["Rotor / column", hasPrePilotCandidate
+      ? kuNumber(Number(presentationCandidate?.rotorDiameterM) / Number(presentationCandidate?.columnDiameterM))
+      : point ? kuNumber(Number(point.rotorDiameterM) / Number(point.columnDiameterM)) : "—"],
     ["Final operating RPM", !point || finalRpm == null ? "Pending coupled mass-transfer duty" : `${kuNumber(finalRpm, 1)} rpm`],
-    ["Minimum in-range hydraulic RPM", point ? `${kuNumber(point.rpm, 1)} rpm` : "—"],
+    ["Candidate RPM", hasPrePilotCandidate ? `${kuNumber(presentationCandidate?.rpm, 1)} rpm` : point ? `${kuNumber(point.rpm, 1)} rpm` : "—"],
     ["Hydraulic RPM range", rpmRange],
-    ["d32 at diagnostic", `${kuNumber(Number(point?.d32M) * 1000)} mm`],
-    ["Flood-point holdup", kuNumber(point?.floodHoldup)],
-    ["Calculated flooding load", `${kuNumber(Number(point?.actualLoading) * 100, 1)}%`],
-    ["Tip speed", `${kuNumber(point?.tipSpeedMS)} m/s`],
-    ["P/V", `${kuNumber(point?.powerVolumeWM3, 1)} W/m³`],
+    ["d32 at diagnostic", `${kuNumber(Number(hasPrePilotCandidate ? presentationCandidate?.d32M : point?.d32M) * 1000)} mm`],
+    ["Flood-point holdup", kuNumber(hasPrePilotCandidate ? presentationCandidate?.floodHoldup : point?.floodHoldup)],
+    ["Calculated flooding load", `${kuNumber(Number(hasPrePilotCandidate ? presentationCandidate?.actualLoading : point?.actualLoading) * 100, 1)}%`],
+    ["Tip speed", `${kuNumber(hasPrePilotCandidate ? presentationCandidate?.tipSpeedMS : point?.tipSpeedMS)} m/s`],
+    ["P/V", `${kuNumber(hasPrePilotCandidate ? presentationCandidate?.powerVolumeWM3 : point?.powerVolumeWM3, 1)} W/m³`],
     [fixedGeometryAuthority ? "Stage 3 geometry design N_T" : "Theoretical stages used", `${authority?.value ?? "—"} — ${geometryLabel}`],
     ["Stage 2 accepted Predictive N_T", stage2AcceptedNt == null ? "Unavailable" : `${stage2AcceptedNt} — ${stage2Label}`],
     ["Physical compartments", !point || run.physicalCompartments == null ? "Pending compartment-efficiency model" : String(run.physicalCompartments)],
@@ -244,7 +327,7 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-950">Automatic geometry resolver</h3>
           <p className="mt-0.5 text-[10px] text-blue-800">
-            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · {reverseDiagnostics ? `only calculated-in-range results selected; ${isV150 ? "extrapolated model-root diagnostics" : "preliminary reverse diagnostics"} remain visible` : "only calculated-in-range results shown"}
+            {String(engine?.version ?? "KUHNI_GEOMETRY_RESOLVER")} · {runCount} immutable resolver run{runCount === 1 ? "" : "s"} · {hasPrePilotCandidate ? "server-qualified pre-pilot candidate shown; governed output remains separate" : reverseDiagnostics ? `only calculated-in-range results selected; ${isV150 ? "extrapolated model-root diagnostics" : "preliminary reverse diagnostics"} remain visible` : "only calculated-in-range results shown"}
           </p>
         </div>
         <span className="rounded-full border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-amber-900">
@@ -253,8 +336,59 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
       </div>
       {hiddenExtrapolatedCount > 0 && (
         <p className="rounded border border-amber-200 bg-amber-50 p-2 text-[10px] font-medium text-amber-900">
-          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from the hydraulic envelope and diagnostic selection{reverseDiagnostics ? `; ${isV150 ? "extrapolated model-root diagnostics" : "preliminary reverse diagnostics"} remain visible below.` : "."}
+          {hiddenExtrapolatedCount} extrapolated hydraulic trial{hiddenExtrapolatedCount === 1 ? "" : "s"} excluded from the hydraulic envelope and diagnostic selection{reverseDiagnostics ? `; ${isV150 ? "extrapolated model-root diagnostics" : "preliminary reverse diagnostics"} remain visible below in the audit details.` : "."}
         </p>
+      )}
+      {hasPrePilotCandidate && (
+        <div
+          data-testid="kuhni-prepilot-candidate"
+          className="space-y-2 rounded border border-amber-300 bg-amber-50/90 p-3 text-[10px] text-amber-950"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <strong className="text-[11px]">{prePilotDispositionLabel}</strong>
+              <p className="mt-1 leading-4">
+                This finite, independently checked candidate is available for pre-pilot review only.
+                It is not a governed hydraulic acceptance, commercial diameter, Stage 4 input, or mass-transfer readiness signal.
+              </p>
+            </div>
+            <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-1 font-semibold uppercase tracking-wide">
+              {String(presentationCandidate?.source ?? "SERVER_QUALIFIED")}
+            </span>
+          </div>
+          <div className="grid gap-2 rounded border border-amber-200 bg-white/70 p-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Candidate D</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.columnDiameterM)} m</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">RPM</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.rpm, 1)}</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Rotor D</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.rotorDiameterM)} m</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Compartment H</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.compartmentHeightM)} m</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">d32</span><br /><strong className="font-mono">{kuNumber(Number(presentationCandidate?.d32M) * 1000)} mm</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Independent check</span><br /><strong>{String(presentationCandidate?.independentCheck ?? "PASSED")}</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Flooding load</span><br /><strong className="font-mono">{kuNumber(Number(presentationCandidate?.actualLoading) * 100, 1)}%</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Tip speed</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.tipSpeedMS)} m/s</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">P/V</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.powerVolumeWM3, 1)} W/m³</strong></div>
+            <div><span className="text-[9px] uppercase tracking-wide text-amber-700">Mass flux</span><br /><strong className="font-mono">{kuNumber(presentationCandidate?.massFluxKgM2S)} kg/m²·s</strong></div>
+          </div>
+          {(textValue(presentationQualification?.lineage?.status) || textValue(run.integrityStatus)) && (
+            <p className="rounded border border-amber-200 bg-white/70 p-2 font-mono text-[9px]">
+              Snapshot lineage: {String(presentationQualification?.lineage?.status ?? "—")} ·
+              integrity: {String(run.integrityStatus ?? "—")}
+            </p>
+          )}
+          {presentationLimitations.length > 0 && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {presentationLimitations.map((limitation, index) => (
+                <div key={`${String(limitation.group ?? "limitation")}-${index}`} className="rounded border border-amber-200 bg-white/70 p-2">
+                  <strong>{String(limitation.title ?? limitation.group ?? "Limitation")}</strong>
+                  {Array.isArray(limitation.details) && (
+                    <ul className="mt-1 list-disc space-y-1 pl-4 leading-4">
+                      {limitation.details.map((detail, detailIndex) => <li key={detailIndex}>{String(detail)}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
       {reverseDiagnostics && (
         <div
@@ -337,40 +471,45 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
             </p>
           )}
           {reverseTrials.length > 0 && (
-            <div className="overflow-x-auto rounded border border-amber-200 bg-white">
-              <table className="w-full min-w-[920px] text-left text-[10px]">
-                <thead className="bg-amber-100/70 text-[9px] uppercase tracking-wide text-amber-800">
-                  <tr>{["RPM", "Diagnostic D", "d32", "Δρ", "Signed w", "Flood φ", "Loading", "Applicability", "Admission"].map((label) => <th key={label} className="px-2 py-2">{label}</th>)}</tr>
-                </thead>
-                <tbody className="divide-y divide-amber-100">
-                  {reverseTrials.map((trial, index) => {
-                    const terminal = asRecord(trial.terminal);
-                    const applicability = asRecord(trial.applicability);
-                     const modelRootAssessment = asRecord(trial.modelRootAssessment);
-                     const modelRootStatus = textValue(modelRootAssessment?.status);
-                    return (
-                      <tr key={`${String(trial.rpm)}-${index}`}>
-                        <td className="px-2 py-2 font-mono font-semibold">{kuNumber(trial.rpm, 1)}</td>
-                        <td className="px-2 py-2 font-mono">{kuNumber(trial.columnDiameterM)} m</td>
-                        <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.d32M) * 1000)} mm</td>
-                        <td className="px-2 py-2 font-mono">{kuNumber(terminal?.deltaRhoKgM3)} kg/m³</td>
-                        <td className="px-2 py-2 font-mono">{kuNumber(terminal?.relativeVelocityMS)} m/s</td>
-                        <td className="px-2 py-2 font-mono">{kuNumber(trial.floodHoldup)}</td>
-                        <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.actualLoading) * 100, 1)}%</td>
-                        <td className="max-w-[280px] px-2 py-2 font-mono text-[9px] leading-3">
-                          {Array.isArray(applicability?.codes)
-                            ? (applicability.codes as unknown[]).slice(0, 3).map(String).join(" · ")
-                            : String(applicability?.status ?? "CALCULATED_EXTRAPOLATED")}
-                        </td>
-                        <td className={`px-2 py-2 font-semibold ${modelRootStatus === "EXTRAPOLATED_MODEL_ROOT" ? "text-orange-800" : "text-red-800"}`}>
-                          {modelRootStatus === "EXTRAPOLATED_MODEL_ROOT" ? "ILLUSTRATIVE ROOT" : "EXCLUDED"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <details className="rounded border border-amber-200 bg-white">
+              <summary className="cursor-pointer px-3 py-2 font-semibold text-amber-900">
+                Audit trial details ({reverseTrials.length} numerical trial{reverseTrials.length === 1 ? "" : "s"})
+              </summary>
+              <div className="overflow-x-auto border-t border-amber-100">
+                <table className="w-full min-w-[920px] text-left text-[10px]">
+                  <thead className="bg-amber-100/70 text-[9px] uppercase tracking-wide text-amber-800">
+                    <tr>{["RPM", "Diagnostic D", "d32", "Δρ", "Signed w", "Flood φ", "Loading", "Applicability", "Admission"].map((label) => <th key={label} className="px-2 py-2">{label}</th>)}</tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-100">
+                    {reverseTrials.map((trial, index) => {
+                      const terminal = asRecord(trial.terminal);
+                      const applicability = asRecord(trial.applicability);
+                      const modelRootAssessment = asRecord(trial.modelRootAssessment);
+                      const modelRootStatus = textValue(modelRootAssessment?.status);
+                      return (
+                        <tr key={`${String(trial.rpm)}-${index}`}>
+                          <td className="px-2 py-2 font-mono font-semibold">{kuNumber(trial.rpm, 1)}</td>
+                          <td className="px-2 py-2 font-mono">{kuNumber(trial.columnDiameterM)} m</td>
+                          <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.d32M) * 1000)} mm</td>
+                          <td className="px-2 py-2 font-mono">{kuNumber(terminal?.deltaRhoKgM3)} kg/m³</td>
+                          <td className="px-2 py-2 font-mono">{kuNumber(terminal?.relativeVelocityMS)} m/s</td>
+                          <td className="px-2 py-2 font-mono">{kuNumber(trial.floodHoldup)}</td>
+                          <td className="px-2 py-2 font-mono">{kuNumber(Number(trial.actualLoading) * 100, 1)}%</td>
+                          <td className="max-w-[280px] px-2 py-2 font-mono text-[9px] leading-3">
+                            {Array.isArray(applicability?.codes)
+                              ? (applicability.codes as unknown[]).slice(0, 3).map(String).join(" · ")
+                              : String(applicability?.status ?? "CALCULATED_EXTRAPOLATED")}
+                          </td>
+                          <td className={`px-2 py-2 font-semibold ${modelRootStatus === "EXTRAPOLATED_MODEL_ROOT" ? "text-orange-800" : "text-red-800"}`}>
+                            {modelRootStatus === "EXTRAPOLATED_MODEL_ROOT" ? "ILLUSTRATIVE ROOT" : "EXCLUDED"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </details>
           )}
           {reverseTrials.length === 0 && (
             <p className="rounded border border-red-200 bg-red-50 p-2 text-red-900">
@@ -378,8 +517,10 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
             </p>
           )}
           {reverseRejectedTrials.length > 0 && (
-            <div className="rounded border border-red-200 bg-red-50/70 p-2 text-red-900">
-              <strong>{reverseRejectedTrials.length} reverse RPM trial{reverseRejectedTrials.length === 1 ? "" : "s"} had no numerical diagnostic</strong>
+            <details className="rounded border border-amber-200 bg-amber-50/70 p-2 text-amber-950">
+              <summary className="cursor-pointer font-semibold">
+                {reverseRejectedTrials.length} reverse RPM trial{reverseRejectedTrials.length === 1 ? "" : "s"} had no numerical diagnostic
+              </summary>
               <ul className="mt-1 grid gap-1 sm:grid-cols-2">
                 {reverseRejectedTrials.map((trial, index) => (
                   <li key={`${String(trial.rpm)}-${index}`} className="font-mono">
@@ -387,7 +528,7 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
                   </li>
                 ))}
               </ul>
-            </div>
+            </details>
           )}
           <p className="leading-4 text-amber-900">
             Unsupported empirical closure evidence is retained in the immutable diagnostic record. A signed force
@@ -433,28 +574,34 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
         <div className="sm:col-span-2">
           <span className="text-[9px] uppercase tracking-wide text-slate-500">Stage 3 hydraulic disposition</span>
           <p className={`mt-0.5 font-semibold ${
-            trials.length
-              ? "text-emerald-800"
+            hasPrePilotCandidate
+              ? "text-amber-800"
+              : trials.length
+                ? "text-emerald-800"
               : explicitPrerequisiteIsSupported
                 ? "text-amber-800"
                 : "text-red-800"
           }`}>
             {stage3Disposition}
           </p>
-          <p className="mt-1 text-slate-600">Rejected or empty envelopes do not nominate a diameter, RPM, or Stage 3 geometry.</p>
+          <p className="mt-1 text-slate-600">
+            {hasPrePilotCandidate
+              ? "The displayed candidate is presentation-only; governed Stage-3 and Stage-4 outputs remain unchanged."
+              : "Rejected or empty envelopes do not nominate a diameter, RPM, or Stage 3 geometry."}
+          </p>
         </div>
       </div>
-      {failedPrerequisiteCode && (
+      {displayedFailedPrerequisiteCode && (
         <div
           data-testid="kuhni-hydraulic-prerequisite"
           className="rounded border border-red-200 bg-red-50 p-3 text-[10px] text-red-950"
         >
           <strong>Hydraulic prerequisite not satisfied</strong>
-          <p className="mt-1 font-mono font-semibold">{failedPrerequisiteCode}</p>
-          {failedPrerequisiteMessage && <p className="mt-1 leading-4">{failedPrerequisiteMessage}</p>}
+          <p className="mt-1 font-mono font-semibold">{displayedFailedPrerequisiteCode}</p>
+          {displayedFailedPrerequisiteMessage && <p className="mt-1 leading-4">{displayedFailedPrerequisiteMessage}</p>}
         </div>
       )}
-      {!trials.length && hasPersistedRootFailure && (
+      {!trials.length && displayedRootFailure && (
         <div
           data-testid="kuhni-root-failure-reason"
           className={`rounded border p-3 text-[10px] ${
@@ -499,34 +646,36 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
           </tbody>
         </table>
       </div>
-      {trials.length === 0 && (
+      {trials.length === 0 && !hasPrePilotCandidate && (
         <p className="rounded border border-red-200 bg-red-50/60 p-2 text-[10px] text-red-900">
           No calculated-in-range hydraulic trial was accepted. The table above intentionally contains no fallback diameter.
         </p>
       )}
       {rejectedTrials.length > 0 && (
-        <div
+        <details
           data-testid="kuhni-rejected-rpm-trials"
           className="overflow-x-auto rounded border border-red-200 bg-red-50/40"
         >
-          <div className="border-b border-red-200 px-3 py-2 text-[10px] text-red-950">
-            <strong>Rejected hydraulic RPM trials</strong>
-            <p className="mt-0.5 text-red-800">Saved resolver reasons are shown verbatim and are not admitted as hydraulic-envelope results.</p>
+          <summary className="cursor-pointer px-3 py-2 text-[10px] font-semibold text-red-950">
+            Rejected hydraulic RPM trials ({rejectedTrials.length}) · audit details
+          </summary>
+          <div className="border-t border-red-200 px-3 py-2 text-[10px] text-red-950">
+            <p className="text-red-800">Saved resolver reasons are shown verbatim and are not admitted as hydraulic-envelope results.</p>
+            <table className="mt-2 w-full min-w-[460px] text-left text-[10px]">
+              <thead className="bg-red-50 text-[9px] uppercase tracking-wide text-red-800">
+                <tr><th className="px-2 py-2">RPM</th><th className="px-2 py-2">Saved rejection reason</th></tr>
+              </thead>
+              <tbody className="divide-y divide-red-100">
+                {rejectedTrials.map((trial, index) => (
+                  <tr key={`${trial.rpm}-${index}`}>
+                    <td className="px-2 py-2 font-mono font-semibold">{trial.rpm}</td>
+                    <td className="px-2 py-2 font-mono break-words text-red-900">{trial.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <table className="w-full min-w-[460px] text-left text-[10px]">
-            <thead className="bg-red-50 text-[9px] uppercase tracking-wide text-red-800">
-              <tr><th className="px-2 py-2">RPM</th><th className="px-2 py-2">Saved rejection reason</th></tr>
-            </thead>
-            <tbody className="divide-y divide-red-100">
-              {rejectedTrials.map((trial, index) => (
-                <tr key={`${trial.rpm}-${index}`}>
-                  <td className="px-2 py-2 font-mono font-semibold">{trial.rpm}</td>
-                  <td className="px-2 py-2 font-mono break-words text-red-900">{trial.reason}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        </details>
       )}
       <div className="grid gap-2 lg:grid-cols-2">
         <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-[10px] text-emerald-950">
@@ -772,9 +921,27 @@ export function KuhniHydrodynamicsCard({
       setLatest(latestResult as KuhniRun | null);
       setRuns((runsPayload?.runs ?? runsPayload ?? []) as KuhniRun[]);
       setResolverLatest(resolverLatestPayload?.result
-        ? { ...resolverLatestPayload.result, id: resolverLatestPayload.id, createdAt: resolverLatestPayload.createdAt, immutableHash: resolverLatestPayload.immutableHash }
+         ? {
+           ...resolverLatestPayload.result,
+           id: resolverLatestPayload.id,
+           createdAt: resolverLatestPayload.createdAt,
+           immutableHash: resolverLatestPayload.immutableHash,
+           integrityStatus: resolverLatestPayload.integrityStatus,
+           stage1SnapshotHash: resolverLatestPayload.stage1SnapshotHash,
+           implementationHash: resolverLatestPayload.implementationHash,
+           presentationQualification: resolverLatestPayload.presentationQualification,
+         }
         : null);
-      setResolverRuns((resolverRunsPayload?.runs ?? resolverRunsPayload ?? []) as KuhniRun[]);
+       setResolverRuns((resolverRunsPayload?.runs ?? resolverRunsPayload ?? []).map((item: KuhniRun & { result?: Record<string, unknown>; presentationQualification?: unknown }) => ({
+         ...(item.result ?? item),
+         id: item.id,
+         createdAt: item.createdAt,
+         immutableHash: item.immutableHash,
+         integrityStatus: item.integrityStatus,
+         stage1SnapshotHash: item.stage1SnapshotHash,
+         implementationHash: item.implementationHash,
+         presentationQualification: item.presentationQualification,
+       })) as KuhniRun[]);
     } catch (error: unknown) {
       setLoadingError(error instanceof Error ? error.message : "Hydrodynamic results could not be loaded.");
     } finally {

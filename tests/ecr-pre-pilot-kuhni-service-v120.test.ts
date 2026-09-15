@@ -223,6 +223,15 @@ describe('Kühni V1.2.0 service persistence and dependency boundaries', () => {
     expect(state.insertParams?.[10]).toBe(KUHNI_GEOMETRY_RESOLVER_V130_HASH);
     expect(state.insertParams?.[11]).toBe(created.immutableHash);
     expect(created.integrityStatus).toBe('VERIFIED');
+    expect(created.stage1SnapshotHash).toBe(currentSnapshot.immutableHash);
+    expect(created.implementationHash).toBe(KUHNI_GEOMETRY_RESOLVER_V130_HASH);
+    expect(created.presentationQualification.status)
+      .toBe('CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION');
+    expect(created.presentationQualification.candidate).toMatchObject({
+      source: 'CALCULATED_IN_RANGE_TRIAL',
+      governed: false,
+      stage4Input: false,
+    });
   });
 
   it('replays and verifies V1.0.0, V1.0.1, V1.1.0, and V1.2.0 rows', async () => {

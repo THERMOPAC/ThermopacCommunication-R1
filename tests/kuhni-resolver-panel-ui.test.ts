@@ -37,6 +37,7 @@ function processBasis(overrides: Record<string, unknown> = {}) {
 function runFixture(overrides: Record<string, unknown> = {}) {
   return {
     status: "NOT_CALCULABLE",
+    integrityStatus: "VERIFIED",
     engine: {
       id: "kuhni_geometry_resolver",
       version: "KUHNI_GEOMETRY_RESOLVER_V1.0.1",
@@ -382,6 +383,85 @@ describe("Kuhni Stage 3 rejected-envelope panel", () => {
     expect(text).toContain("ILLUSTRATIVE ROOT");
     expect(text).toContain("Governed diameter NONE");
     expect(text).toContain("No in-range result");
+  });
+
+  it("shows a server-qualified reverse root as a pre-pilot candidate without red orientation failure", () => {
+    const markup = renderPanel(runFixture({
+      engine: {
+        id: "kuhni_geometry_resolver",
+        version: "KUHNI_GEOMETRY_RESOLVER_V1.5.0",
+        implementationHash: "v150-engine-hash",
+      },
+      hydraulicPrerequisite: {
+        code: "REVERSE_ORIENTATION_EXTRAPOLATED_MODEL_ROOT_ONLY",
+        message: "The persisted V1.5 root is presentation-only.",
+      },
+      rootFailureReason: {
+        code: "REVERSE_ORIENTATION_EXTRAPOLATED_MODEL_ROOT_ONLY",
+        message: "The governed envelope remains empty.",
+      },
+      hydraulicRpmEnvelope: [],
+      presentationQualification: {
+        status: "CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION",
+        label: "CALCULATED PRE-PILOT WITH MAJOR SCALE-UP EXTRAPOLATION",
+        candidate: {
+          available: true,
+          status: "CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION",
+          qualification: "CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION",
+          source: "V150_EXTRAPOLATED_MODEL_ROOT",
+          governed: false,
+          stage4Input: false,
+          columnDiameterM: 0.6930996971,
+          rotorDiameterM: 0.3465498485,
+          rpm: 25,
+          d32M: 0.004745712,
+          independentCheck: "PASSED",
+        },
+        governedOutput: {
+          status: "UNCHANGED_GOVERNED_OUTPUT",
+          candidateIsNotGoverned: true,
+          stage4Input: false,
+        },
+        limitations: [
+          { group: "SCALE_UP", title: "Major scale-up extrapolation", details: ["Pre-pilot only."] },
+          { group: "ORIENTATION_AND_PHASE_CONTROL", title: "Reverse orientation remains unvalidated", details: ["Reverse closure remains open."] },
+        ],
+      },
+    }));
+    const text = visibleText(markup);
+
+    expect(markup).toContain('data-testid="kuhni-prepilot-candidate"');
+    expect(text).toContain("CALCULATED PRE-PILOT WITH MAJOR SCALE-UP EXTRAPOLATION");
+    expect(text).toContain("0.693 m");
+    expect(text).toContain("Major scale-up extrapolation");
+    expect(text).toContain("Reverse orientation remains unvalidated");
+    expect(text).not.toContain("Hydraulic prerequisite not satisfied");
+    expect(text).not.toContain("No calculated-in-range hydraulic trial was accepted");
+  });
+
+  it("fails closed when the candidate response is not verified or remains stage-4 governed", () => {
+    const markup = renderPanel(runFixture({
+      integrityStatus: "UNVERIFIED",
+      presentationQualification: {
+        status: "CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION",
+        candidate: {
+          available: true,
+          governed: true,
+          stage4Input: true,
+          columnDiameterM: 0.6930996971,
+          rpm: 25,
+        },
+        governedOutput: {
+          candidateIsNotGoverned: false,
+          stage4Input: true,
+        },
+      },
+    }));
+    const text = visibleText(markup);
+
+    expect(markup).not.toContain('data-testid="kuhni-prepilot-candidate"');
+    expect(text).not.toContain("CALCULATED PRE-PILOT WITH MAJOR SCALE-UP EXTRAPOLATION");
+    expect(text).toContain("No calculated-in-range hydraulic trial was accepted");
   });
 
   it("infers only from known frozen phase metadata and does not mutate it", () => {

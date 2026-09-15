@@ -76,3 +76,13 @@ including the holdup factor, as verified visually—not just the drag ratio.
 
 **How to apply:** Consult `research/rrbo-stage3-kuhni-scale-up-qualification.md`.
 Do not claim a source-transcription failure from text extraction of a radical.
+
+Pre-pilot display qualification must remain separate from immutable historical
+scientific admission and downstream mass-transfer authority.
+
+**Why:** The scale-up review permits a useful pre-pilot estimate without
+retroactively changing frozen engine results or granting commercial acceptance.
+
+**How to apply:** Show independently checked, current-basis candidates with
+grouped extrapolation limitations; do not convert their availability into
+Stage-4 readiness or hide genuine failed numerical trials.

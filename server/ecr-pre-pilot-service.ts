@@ -48,6 +48,10 @@ import {
   resolveKuhniGeometryV150,
 } from "./ecr-pre-pilot/kuhni-geometry-resolver-v150";
 import {
+  qualifyKuhniStage3Presentation,
+  type KuhniStage3PresentationQualification,
+} from "./ecr-pre-pilot/kuhni-stage3-presentation";
+import {
   JOB_A_COMPONENT_ORDER,
   JOB_A_MOLECULAR_DATA,
   JOB_A_STAGE2_ENGINE_ID,
@@ -442,16 +446,41 @@ export async function createKuhniGeometryResolverRun(userId: number, designId: n
       basis, theoreticalStages, result, result.engine.implementationHash, immutableHash,
     ],
   );
+  const presentationQualification = qualifyKuhniStage3Presentation({
+    result,
+    processBasis: basis,
+    runStage1SnapshotHash: stage1.immutableHash,
+    currentStage1SnapshotHash: stage1.immutableHash,
+    integrityVerified: true,
+  });
   return {
     id: saved.rows[0].id,
     createdAt: saved.rows[0].created_at,
     immutableHash,
     integrityStatus: 'VERIFIED' as const,
+    stage1SnapshotHash: stage1.immutableHash,
+    implementationHash: result.engine.implementationHash,
+    presentationQualification,
     ...result,
   };
 }
 
 export async function getKuhniGeometryResolverRuns(userId: number, designId: number, latest = false) {
+  const currentDesign = await pool.query<{ input_data: unknown }>(
+    `SELECT input_data
+       FROM ecr_pre_pilot_designs
+      WHERE id=$1 AND created_by=$2`,
+    [designId, userId],
+  );
+  let currentStage1SnapshotHash: string | null = null;
+  try {
+    currentStage1SnapshotHash = currentDesign.rows[0]
+      ? validateStage1Snapshot(currentDesign.rows[0].input_data).immutableHash
+      : null;
+  } catch {
+    // An invalid or unsaved current Stage-1 record must fail closed for the
+    // additive presentation candidate; historical replay remains available.
+  }
   const rows = await pool.query(
     `SELECT id::text, created_at AS "createdAt",
             stage1_snapshot_hash AS "stage1SnapshotHash",
@@ -508,9 +537,21 @@ export async function getKuhniGeometryResolverRuns(userId: number, designId: num
     ) {
       throw new Error('ECR_PRE_PILOT_KUHNI_RESOLVER_INTEGRITY_FAILURE');
     }
+    const presentationQualification: KuhniStage3PresentationQualification =
+      qualifyKuhniStage3Presentation({
+        result: row.result,
+        processBasis: row.processBasis,
+        runStage1SnapshotHash: row.stage1SnapshotHash,
+        currentStage1SnapshotHash,
+        integrityVerified: true,
+      });
     return {
       id: row.id, createdAt: row.createdAt, immutableHash: row.immutableHash,
-      integrityStatus: 'VERIFIED' as const, result: row.result,
+      integrityStatus: 'VERIFIED' as const,
+      stage1SnapshotHash: row.stage1SnapshotHash,
+      implementationHash: row.implementationHash,
+      presentationQualification,
+      result: row.result,
     };
   });
   return latest ? verified[0] ?? null : verified;
