@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_stage4_physical_sizing_calculations (
   created_by INTEGER NOT NULL REFERENCES users(id),
   lineage_hash TEXT NOT NULL,
   stage1_snapshot_hash TEXT NOT NULL,
-  stage2_job_id TEXT NOT NULL,
-  stage2_result_hash TEXT NOT NULL,
+  stage2_job_id TEXT,
+  stage2_result_hash TEXT,
   stage3_run_id TEXT NOT NULL,
   stage3_immutable_hash TEXT NOT NULL,
   targets_hash TEXT NOT NULL,
@@ -24,3 +24,10 @@ CREATE TABLE IF NOT EXISTS ecr_pre_pilot_stage4_physical_sizing_calculations (
 
 CREATE INDEX IF NOT EXISTS ecr_pre_pilot_stage4_physical_sizing_calculations_scope_idx
   ON ecr_pre_pilot_stage4_physical_sizing_calculations (created_by, design_id, started_at DESC);
+
+-- Fixed-N_T=7 HETS physical sizing remains available when no accepted Stage-2
+-- result exists. Null represents absent reference evidence; no historical
+-- result is altered or backfilled.
+ALTER TABLE ecr_pre_pilot_stage4_physical_sizing_calculations
+  ALTER COLUMN stage2_job_id DROP NOT NULL,
+  ALTER COLUMN stage2_result_hash DROP NOT NULL;

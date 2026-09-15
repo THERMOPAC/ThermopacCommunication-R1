@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   rows: new Map<string, any>(),
   previous: null as any,
   stage1Hash: 's'.repeat(64),
+  stage2Available: true,
   finiteRateRun: vi.fn(),
   query: vi.fn(),
 }));
@@ -92,17 +93,18 @@ function reset() {
   state.rows.clear();
   state.previous = null;
   state.stage1Hash = 's'.repeat(64);
+  state.stage2Available = true;
   state.finiteRateRun.mockReset();
   state.query.mockReset();
   state.query.mockImplementation(async (sql: string, params: any[] = []) => {
     if (sql.includes('FROM ecr_pre_pilot_designs')) return { rows: [{ input_data: {} }] };
     if (sql.includes('FROM ecr_pre_pilot_predictive_nt_jobs')) {
-      return { rows: [{
+      return { rows: state.stage2Available ? [{
         id: 'stage-2',
         input_snapshot: { stage1Authority: { snapshotHash: state.stage1Hash, source: {} } },
         engine_hash: 'a'.repeat(64),
         result_snapshot: stage2Snapshot(),
-      }] };
+      }] : [] };
     }
     if (sql.includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) return { rows: [stage3Row()] };
     if (sql.includes('lineage_hash<>')) return { rows: state.previous ? [state.previous] : [] };
@@ -149,9 +151,11 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(state.rows.size).toBe(1);
     expect(first.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
     expect(first.hetsSizing).toMatchObject({
-      requiredActiveHeightM: 5,
-      requiredPhysicalCompartments: 11,
-      installedActiveHeightM: 5.3581715,
+      fixedDesignTheoreticalStages: 7,
+      actualStage2TheoreticalStagesReference: 5,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
     });
     expect(state.finiteRateRun).not.toHaveBeenCalled();
   });
@@ -175,10 +179,27 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(changed.mainOutputs.physicalCompartments).toBeNull();
   });
 
-  it('treats a saved result from a different HETS implementation digest as unrun', async () => {
+  it('permits fixed-Nt=7 HETS sizing with a nullable absent Stage-2 reference', async () => {
+    reset();
+    state.stage2Available = false;
+    const result = await calculateStage4PrePilotSizing(8, 269);
+    expect(result.actualStage2NtReference).toMatchObject({
+      value: null,
+      status: 'NOT_AVAILABLE_REFERENCE_ONLY',
+    });
+    expect(result.hetsSizing).toMatchObject({
+      fixedDesignTheoreticalStages: 7,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
+    });
+  });
+
+  it('treats a prior V2 HETS snapshot as historical and unrun until V3 is calculated', async () => {
     reset();
     await calculateStage4PrePilotSizing(8, 269);
     const saved = [...state.rows.values()][0];
+    saved.result_snapshot.implementation.version = 'ECR_STAGE4_HETS_SCREENING_V2';
     saved.result_snapshot.implementation.implementationHash = '0'.repeat(64);
     const result = await getLiveStage4PrePilotSizing(8, 269);
     expect(result.status).toBe('UNRUN');

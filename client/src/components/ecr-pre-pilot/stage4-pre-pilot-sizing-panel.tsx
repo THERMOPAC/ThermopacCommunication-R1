@@ -422,7 +422,11 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   // numerical fields are authoritative for the current design.
   const displayResult = staleLineage ? null : result;
   const outputs = record(displayResult?.mainOutputs);
-  const nt = record(displayResult?.calculatedNt);
+  const designNt = record(displayResult?.designNt);
+  const actualStage2NtReference = record(displayResult?.actualStage2NtReference);
+  // Retained for the non-HETS historical/result branches below; current HETS
+  // cards use the explicit design/reference fields above.
+  const nt = record(displayResult?.calculatedNt ?? displayResult?.actualStage2NtReference);
   const hydraulic = record(displayResult?.selectedStage3Hydraulics);
   const efficiency = record(displayResult?.overallEfficiency);
   const stage2Stage1Compatibility = record(displayResult?.stage2Stage1Compatibility);
@@ -497,7 +501,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const stage4Terminal = STAGE4_TERMINAL_STATES.has(stage4Status);
   const stage4Action = stage4Retryable ? retry : calculate;
   const hetsSizing = record(displayResult?.hetsSizing);
-  const isHetsResult = displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V2"
+  const isHetsResult = displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7"
     && Object.keys(hetsSizing).length > 0;
   const fixed = (value: unknown, digits: number) =>
     isFiniteNumber(value) ? value.toFixed(digits) : "—";
@@ -643,8 +647,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               Stage 4 HETS-Based Pre-Pilot Sizing
             </h2>
             <p className="mt-1 text-[10px] leading-4 text-slate-700">
-              Deterministic HETS screening from the accepted Stage-2 Nₜ and
-               persisted Stage-3 hydraulic screening diameter. An independently
+              Deterministic fixed-Nₜ=7 HETS physical sizing from the persisted
+               Stage-3 hydraulic screening diameter. The actual accepted Stage-2 Nₜ,
+               when available, is displayed only as a separate scientific reference. An independently
                checked Stage-3 pre-pilot root may be admitted only to this HETS route;
                no hydraulic candidate is reselected and no finite-rate solver is started.
             </p>
@@ -739,12 +744,13 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               <thead><tr className="border-b"><th className="p-2">Parameter</th><th className="p-2">Result</th></tr></thead>
               <tbody>
                 {[
-                  ["Stage 2 theoretical stages", fixed(hetsSizing.stage2TheoreticalStages, 0)],
+                  ["Stage 4 fixed design Nₜ (physical sizing basis)", fixed(hetsSizing.fixedDesignTheoreticalStages, 0)],
+                  ["Actual accepted Stage-2 Nₜ (reference only)", fixed(hetsSizing.actualStage2TheoreticalStagesReference, 0)],
                   ["Stage 3 hydraulic column diameter", `${fixed(hetsSizing.stage3HydraulicColumnDiameterM, 3)} m`],
                   ["Compartment height rule", text(hetsSizing.compartmentHeightRule)],
                   ["Physical compartment height", `${fixed(hetsSizing.physicalCompartmentHeightM, 3)} m`],
                   ["Screening HETS", `${fixed(hetsSizing.screeningHetsMPerTheoreticalStage, 3)} m/theoretical stage`],
-                  ["Calculated screening efficiency", isFiniteNumber(hetsSizing.calculatedScreeningCompartmentEfficiency)
+                  ["HETS-implied compartment efficiency hc/HETS (not performance)", isFiniteNumber(hetsSizing.calculatedScreeningCompartmentEfficiency)
                     ? `${(hetsSizing.calculatedScreeningCompartmentEfficiency * 100).toFixed(1)}%` : "—"],
                   ["Required active height", `${fixed(hetsSizing.requiredActiveHeightM, 2)} m`],
                   ["Required physical compartments", fixed(hetsSizing.requiredPhysicalCompartments, 0)],
@@ -761,20 +767,22 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <section className="rounded border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-950">
             <h4 className="text-xs font-semibold">Assumption governance</h4>
             <p className="mt-1">
-              HETS = 1.0 m/theoretical stage is an engineering screening assumption.
+              Fixed Stage-4 design Nₜ = 7 and HETS = 1.0 m/theoretical stage are engineering
+              physical-sizing assumptions for both NMP-continuous/RRBO-dispersed and the reverse orientation.
               Its conservatism for RRBO/NMP is not established. Column diameter, compartment pitch,
               screening efficiency, and active height require pilot and final vendor/mechanical confirmation.
             </p>
             <p className="mt-1">
-              The calculated screening efficiency is hc/HETS only; it is not independently predicted
-              or experimentally validated. Installed active height is not total vessel height. No outlet,
+              The HETS-implied compartment efficiency is hc/HETS only; it is not independently predicted
+               or experimentally validated performance. Installed active height is not total vessel height. No outlet,
               recovery, target-compliance, or final-design claim is made.
             </p>
           </section>
           <section className="rounded border border-slate-200 p-3 text-[10px]">
             <h4 className="text-xs font-semibold">Current accepted upstream lineage</h4>
             <p className="mt-1">
-              Accepted Stage-2 Nₜ: {number(nt.value)} · Stage-3 hydraulic screening diameter:
+              Fixed Stage-4 HETS design Nₜ: {number(designNt.value)} · Actual accepted Stage-2 Nₜ
+              reference only: {number(actualStage2NtReference.value)} · Stage-3 hydraulic screening diameter:
               {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter was recalculated.
             </p>
             {stage3HetsAdmission.status === "INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE" && (
@@ -789,7 +797,8 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               <p className="mt-1">
                 <strong>Stage-2 compatibility audit:</strong> exact equilibrium scientific inputs
                 match the current Stage-1 snapshot; only {text(stage2Stage1Compatibility.excludedScientificInputField)}
-                {" "}is excluded. The actual accepted Stage-2 Nₜ above is retained; no Nₜ=7 default is used.
+                {" "}is excluded. The actual accepted Stage-2 Nₜ above remains a reference and is not relabelled
+                as the fixed Stage-4 Nₜ=7 physical-sizing design basis.
               </p>
             )}
             {stage3HetsLimitations.length > 0 && (
@@ -807,7 +816,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               </details>
             )}
             <p className="mt-1 font-mono">
-              Hrequired = Nt × HETS · Nphysical = ceil(Nt × HETS / hc) · Hinstalled = Nphysical × hc
+              Hrequired = Ndesign(7) × HETS · Nphysical = ceil(Ndesign(7) × HETS / hc) · Hinstalled = Nphysical × hc
             </p>
           </section>
         </div>

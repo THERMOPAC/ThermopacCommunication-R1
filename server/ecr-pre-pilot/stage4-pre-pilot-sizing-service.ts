@@ -20,17 +20,20 @@ const acceptedStage2Statuses = new Set([
   'COMPLETED_PRE_PILOT_MULTISTAGE_MATRIX',
 ]);
 
-export const STAGE4_HETS_IMPLEMENTATION_VERSION = 'ECR_STAGE4_HETS_SCREENING_V2';
+export const STAGE4_HETS_DESIGN_NT = 7;
+export const STAGE4_HETS_IMPLEMENTATION_VERSION = 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7';
 export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_HETS_IMPLEMENTATION_VERSION,
+  fixedPhysicalSizingDesignNt: STAGE4_HETS_DESIGN_NT,
+  actualStage2Nt: 'OPTIONAL_SEPARATELY_LABELLED_REFERENCE_ONLY',
   compartmentHeightRule: 'hc = 0.5D',
   screeningHets: 'HETS = 1.0 m/theoretical stage',
-  physicalCount: 'ceil(Nt * HETS / hc)',
-  requiredHeight: 'Nt * HETS',
+  physicalCount: 'ceil(Ndesign * HETS / hc)',
+  requiredHeight: 'Ndesign * HETS',
   installedHeight: 'Nphysical * hc',
   scope: 'PRE_PILOT_SCREENING_NO_OUTLET_OR_TARGET_CLAIM',
-  stage3Admission: 'CALCULATED_IN_RANGE_OR_INDEPENDENTLY_CHECKED_PREPILOT_HETS_ONLY',
-  stage2Compatibility: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_ONLY_HYDRAULIC_PHASE_ORIENTATION',
+  stage3Admission: 'CURRENT_INTEGRITY_VERIFIED_CALCULATED_IN_RANGE_OR_INDEPENDENTLY_CHECKED_PREPILOT_HETS_ONLY',
+  orientations: 'NMP_CONTINUOUS_RRBO_DISPERSED_OR_RRBO_CONTINUOUS_NMP_DISPERSED',
 })).digest('hex');
 
 function fail(code: string): never {
@@ -208,50 +211,27 @@ function positiveFinite(value: unknown): value is number {
 }
 
 export function deriveStage4PrePilotSizing(input: {
-  calculatedNt: number;
-  stage2JobId: string;
-  stage2ResultHash: string;
+  /** Actual accepted Stage-2 value, retained as reference only when available. */
+  calculatedNt?: number | null;
+  stage2JobId?: string | null;
+  stage2ResultHash?: string | null;
   stage3: Stage3Projection;
   stage2Stage1Compatibility?: Stage2HetsStage1Compatibility;
   stage3PrePilotHetsAdmission?: Stage3PrePilotHetsAdmission | null;
 }) {
-  if (!Number.isInteger(input.calculatedNt) || input.calculatedNt <= 0) {
-    fail('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
-  }
-  const persistedAuthority = input.stage3.result.theoreticalStagesUsed;
-  // New Stage-3 runs carry a fixed geometry design basis (N_T=7) and retain
-  // the actual accepted Stage-2 Predictive N_T separately.  Stage 4 sizing
-  // remains governed by the latter; it must not accidentally consume the
-  // geometry basis when Stage 2 calculated 4, 7, or 10.
-  const authority = persistedAuthority?.provenance === 'STAGE3_GEOMETRY_DESIGN_NT'
-    ? {
-      value: persistedAuthority.stage2AcceptedPredictiveNt,
-      provenance: persistedAuthority.stage2AcceptedPredictiveNtProvenance,
-      stage2JobId: persistedAuthority.stage2JobId,
-      stage2ResultHash: persistedAuthority.stage2ResultHash,
-    }
-    : persistedAuthority;
-  const sameStage2Lineage = authority?.provenance === 'STAGE_2_CALCULATED_NT'
-    && authority?.stage2JobId === input.stage2JobId
-    && authority?.stage2ResultHash === input.stage2ResultHash
-    && authority?.value === input.calculatedNt;
+  const actualStage2Available = input.calculatedNt !== undefined && input.calculatedNt !== null;
+  if (actualStage2Available && (
+    !Number.isInteger(input.calculatedNt) || input.calculatedNt <= 0
+    || typeof input.stage2JobId !== 'string' || !input.stage2JobId
+    || typeof input.stage2ResultHash !== 'string' || !input.stage2ResultHash
+  )) fail('STAGE4_ACTUAL_STAGE2_NT_REFERENCE_INVALID');
+  if (!actualStage2Available && (
+    input.stage2JobId != null || input.stage2ResultHash != null
+  )) fail('STAGE4_ACTUAL_STAGE2_NT_REFERENCE_INVALID');
   const selected = input.stage3.result.hydraulicDiagnosticPoint;
   const inRangeHydraulics = selected?.status === 'CALCULATED_IN_RANGE'
     && positiveFinite(selected.columnDiameterM);
   const prePilotHetsAdmission = input.stage3PrePilotHetsAdmission;
-  const prePilotCrossSnapshotLineage = !sameStage2Lineage
-    && prePilotHetsAdmission?.status === 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE'
-    && input.stage2Stage1Compatibility?.status
-      === 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION'
-    && persistedAuthority?.provenance === 'STAGE3_GEOMETRY_DESIGN_NT'
-    && persistedAuthority?.value === 7
-    && persistedAuthority?.stage3GeometryDesignNt === 7
-    && persistedAuthority?.stage2AcceptedPredictiveNt == null
-    && persistedAuthority?.stage2JobId == null
-    && persistedAuthority?.stage2ResultHash == null;
-  if (!sameStage2Lineage && !prePilotCrossSnapshotLineage) {
-    fail('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
-  }
   if (!inRangeHydraulics && !prePilotHetsAdmission) {
     fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   }
@@ -262,7 +242,7 @@ export function deriveStage4PrePilotSizing(input: {
   const compartmentHeightM = .5 * diameterM;
   const hetsMPerTheoreticalStage = 1;
   const screeningEfficiency = compartmentHeightM / hetsMPerTheoreticalStage;
-  const requiredActiveHeightM = input.calculatedNt * hetsMPerTheoreticalStage;
+  const requiredActiveHeightM = STAGE4_HETS_DESIGN_NT * hetsMPerTheoreticalStage;
   const requiredPhysicalCompartments = Math.ceil(requiredActiveHeightM / compartmentHeightM);
   const installedActiveHeightM = requiredPhysicalCompartments * compartmentHeightM;
   if (!finite(compartmentHeightM) || !finite(screeningEfficiency)
@@ -285,13 +265,17 @@ export function deriveStage4PrePilotSizing(input: {
       requiredActiveHeightM,
       installedActiveHeightM,
     },
-    calculatedNt: {
-      value: input.calculatedNt,
-      provenance: sameStage2Lineage
-        ? 'STAGE_2_CALCULATED_NT_SAME_LINEAGE'
-        : 'STAGE_2_CALCULATED_NT_EXACT_EQUILIBRIUM_COMPATIBLE_STAGE1',
-      stage2JobId: input.stage2JobId,
-      stage2ResultHash: input.stage2ResultHash,
+    designNt: {
+      value: STAGE4_HETS_DESIGN_NT,
+      provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT',
+      label: 'FIXED STAGE-4 HETS PRE-PILOT PHYSICAL SIZING DESIGN BASIS (N_T=7)',
+    },
+    actualStage2NtReference: {
+      value: actualStage2Available ? input.calculatedNt : null,
+      status: actualStage2Available ? 'AVAILABLE_REFERENCE_ONLY' : 'NOT_AVAILABLE_REFERENCE_ONLY',
+      label: 'ACTUAL ACCEPTED STAGE-2 PREDICTIVE N_T — REFERENCE ONLY; NOT THE STAGE-4 HETS SIZING BASIS',
+      stage2JobId: actualStage2Available ? input.stage2JobId : null,
+      stage2ResultHash: actualStage2Available ? input.stage2ResultHash : null,
     },
     selectedStage3Hydraulics: {
       diameterM,
@@ -301,10 +285,9 @@ export function deriveStage4PrePilotSizing(input: {
       stage3RunId: input.stage3.id,
       stage3ImmutableHash: input.stage3.immutableHash,
     },
-    stage2Stage1Compatibility: input.stage2Stage1Compatibility ?? {
-      status: 'EXACT_STAGE1_SNAPSHOT_MATCH',
-      excludedScientificInputField: null,
-    },
+    // Stage-2 is optional reference evidence for this fixed-design screening;
+    // do not fabricate a compatibility finding when it is absent.
+    stage2Stage1Compatibility: input.stage2Stage1Compatibility ?? null,
     stage3HetsAdmission: inRangeHydraulics
       ? {
         status: 'PERSISTED_CALCULATED_IN_RANGE_HYDRAULICS',
@@ -313,12 +296,13 @@ export function deriveStage4PrePilotSizing(input: {
       : prePilotHetsAdmission,
     overallEfficiency: {
       value: screeningEfficiency,
-      status: 'CALCULATED_FROM_HETS_SCREENING_ASSUMPTION',
+      status: 'HETS_IMPLIED_SCREENING_ASSUMPTION_NOT_PERFORMANCE',
       dependency: null,
       closure: null,
     },
     hetsSizing: {
-      stage2TheoreticalStages: input.calculatedNt,
+      fixedDesignTheoreticalStages: STAGE4_HETS_DESIGN_NT,
+      actualStage2TheoreticalStagesReference: actualStage2Available ? input.calculatedNt : null,
       stage3HydraulicColumnDiameterM: diameterM,
       compartmentHeightRule: '0.5D',
       physicalCompartmentHeightM: compartmentHeightM,
@@ -333,8 +317,8 @@ export function deriveStage4PrePilotSizing(input: {
       pitchM: compartmentHeightM,
       pitchAssumption: 'PROVISIONAL PRE-PILOT GEOMETRY — PILOT / VENDOR CONFIRMATION REQUIRED: hc = 0.5D',
       equations: [
-        'hc = 0.5 × D', 'ηscreening = hc / HETS', 'Hrequired = Nt × HETS',
-        'Nphysical = ceil(Nt × HETS / hc)', 'Hinstalled = Nphysical × hc',
+        'hc = 0.5 × D', 'ηHETS-implied = hc / HETS', 'Hrequired = Ndesign(7) × HETS',
+        'Nphysical = ceil(Ndesign(7) × HETS / hc)', 'Hinstalled = Nphysical × hc',
       ],
     },
     assumptions: [
@@ -343,9 +327,10 @@ export function deriveStage4PrePilotSizing(input: {
         'The independently checked Stage-3 pre-pilot candidate supplies diameter only to this HETS screening route; it is not governed hydraulics, finite-rate Stage 4, mass-transfer readiness, or commercial release authority.',
         ...prePilotHetsAdmission.limitations.flatMap(limitation => limitation.details),
       ] : []),
+      'Stage-4 HETS physical sizing deliberately fixes Ndesign = 7 for both NMP-continuous/RRBO-dispersed and RRBO-continuous/NMP-dispersed orientations. Any actual accepted Stage-2 N_T is retained as reference only and does not set this height or compartment count.',
       'HETS = 1.0 m/theoretical stage is an explicit engineering screening assumption; its conservatism for the RRBO/NMP system is not established.',
       'Compartment height hc = 0.5D is provisional pre-pilot geometry requiring pilot and vendor/mechanical confirmation.',
-      'The screening efficiency hc/HETS is not independently predicted or experimentally validated.',
+      'The HETS-implied compartment efficiency hc/HETS is a geometric screening implication, not independently predicted or experimentally validated performance.',
       'Installed active height is not total vessel height. This screening makes no outlet, recovery, target-compliance, or final-design claim.',
     ],
   };
@@ -354,7 +339,7 @@ export function deriveStage4PrePilotSizing(input: {
 export type Stage4PrePilotSizingAuthority = {
   projection: ReturnType<typeof deriveStage4PrePilotSizing>;
   /** Retained only as read-only evidence shape for stopped historical scripts. */
-  solverInput: { calculatedNt: number; stage1SnapshotHash: string; stage2JobId: string; stage2ResultHash: string; stage3RunId: string; stage3ImmutableHash: string; hydraulics: { diameterM: number } };
+  solverInput: { actualStage2Nt: number | null; stage1SnapshotHash: string; stage2JobId: string | null; stage2ResultHash: string | null; stage3RunId: string; stage3ImmutableHash: string; hydraulics: { diameterM: number } };
   lineageHash: string;
 };
 
@@ -386,11 +371,13 @@ export async function loadStage4PrePilotSizingAuthority(
       return false;
     }
   });
-  if (!stage2) {
+  if (!stage2 && stage2Rows.rows.length > 0) {
     fail(rejectedStage2AuthorityCode
-      || 'STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
+      || 'STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
   }
-  const trustedStage2 = validatePersistedStage2HetsAuthority(stage2, stage1);
+  const trustedStage2 = stage2
+    ? validatePersistedStage2HetsAuthority(stage2, stage1)
+    : null;
 
   const stage3Rows = await pool.query<{
     id: string; immutable_hash: string; stage1_snapshot_hash: string;
@@ -436,36 +423,19 @@ export async function loadStage4PrePilotSizingAuthority(
   });
   const stage3PrePilotHetsAdmission =
     admitIndependentlyCheckedStage3PrePilotHetsCandidate(presentationQualification);
-  const strictStage2Stage3Lineage = row.stage2_job_id === stage2.id
-    && row.stage2_result_hash === trustedStage2.resultHash;
-  const compatiblePrePilotStage3Lineage = Boolean(
-    stage3PrePilotHetsAdmission
-    && trustedStage2.stage1Compatibility.status
-      === 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION'
-    && row.theoretical_stage_authority
-    && (row.theoretical_stage_authority as any).provenance === 'STAGE3_GEOMETRY_DESIGN_NT'
-    && (row.theoretical_stage_authority as any).value === 7
-    && (row.theoretical_stage_authority as any).stage3GeometryDesignNt === 7
-    && (row.theoretical_stage_authority as any).stage2AcceptedPredictiveNt == null
-    && row.stage2_job_id == null
-    && row.stage2_result_hash == null,
-  );
-  if (!strictStage2Stage3Lineage && !compatiblePrePilotStage3Lineage) {
-    fail('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
-  }
   const projection = deriveStage4PrePilotSizing({
-    calculatedNt: trustedStage2.theoreticalStages,
-    stage2JobId: stage2.id,
-    stage2ResultHash: trustedStage2.resultHash,
+    calculatedNt: trustedStage2?.theoreticalStages ?? null,
+    stage2JobId: stage2?.id ?? null,
+    stage2ResultHash: trustedStage2?.resultHash ?? null,
     stage3,
-    stage2Stage1Compatibility: trustedStage2.stage1Compatibility,
+    stage2Stage1Compatibility: trustedStage2?.stage1Compatibility,
     stage3PrePilotHetsAdmission,
   });
   const solverInput = {
-    calculatedNt: trustedStage2.theoreticalStages,
+    actualStage2Nt: trustedStage2?.theoreticalStages ?? null,
     stage1SnapshotHash: stage1.immutableHash,
-    stage2JobId: stage2.id,
-    stage2ResultHash: trustedStage2.resultHash,
+    stage2JobId: stage2?.id ?? null,
+    stage2ResultHash: trustedStage2?.resultHash ?? null,
     stage3RunId: String(row.id),
     stage3ImmutableHash: row.immutable_hash,
     hydraulics: { diameterM: projection.mainOutputs.diameterM },
@@ -473,11 +443,11 @@ export async function loadStage4PrePilotSizingAuthority(
   const lineageHash = kuhniRunHash({
     owner: { userId, designId },
     stage1SnapshotHash: stage1.immutableHash,
-    stage2: {
-      jobId: stage2.id, resultHash: trustedStage2.resultHash,
+    stage2ActualReference: trustedStage2 ? {
+      jobId: stage2!.id, resultHash: trustedStage2.resultHash,
       theoreticalStages: trustedStage2.theoreticalStages,
       stage1Compatibility: trustedStage2.stage1Compatibility,
-    },
+    } : null,
     stage3: {
       runId: String(row.id), immutableHash: row.immutable_hash,
       hydraulicDiameterM: projection.mainOutputs.diameterM,
@@ -501,7 +471,8 @@ function resultFor(authority: Stage4PrePilotSizingAuthority, calculation: Stored
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
     mainOutputs: { diameterM: authority.projection.mainOutputs.diameterM, overallEfficiency: null, physicalCompartments: null, activeHeightM: null },
-    calculatedNt: authority.projection.calculatedNt,
+    designNt: authority.projection.designNt,
+    actualStage2NtReference: authority.projection.actualStage2NtReference,
     selectedStage3Hydraulics: authority.projection.selectedStage3Hydraulics,
     assumptions: authority.projection.assumptions,
   };
@@ -574,7 +545,7 @@ export async function calculateStage4PrePilotSizing(userId: number, designId: nu
                '{"phase":"COMPLETE"}'::jsonb,$12,now(),now())
        ON CONFLICT (created_by,design_id,lineage_hash) DO NOTHING`,
       [designId, userId, authority.lineageHash, authority.solverInput.stage1SnapshotHash,
-        authority.solverInput.stage2JobId, authority.solverInput.stage2ResultHash,
+         authority.solverInput.stage2JobId, authority.solverInput.stage2ResultHash,
         authority.solverInput.stage3RunId, authority.solverInput.stage3ImmutableHash,
         authority.solverInput.stage1SnapshotHash, STAGE4_HETS_IMPLEMENTATION_HASH, result, randomUUID()],
     );

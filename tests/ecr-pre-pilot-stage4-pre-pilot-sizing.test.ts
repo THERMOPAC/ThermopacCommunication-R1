@@ -27,26 +27,29 @@ const input = () => ({
 });
 
 describe('Stage 4 HETS pre-pilot sizing projection', () => {
-  it('uses the dynamic accepted Stage-2 Nt and persisted Stage-3 diameter at full calculation precision', () => {
+  it('uses fixed Stage-4 design Nt=7 and retains the actual Stage-2 value as reference', () => {
     const result = deriveStage4PrePilotSizing(input());
 
     expect(result.hetsSizing).toEqual({
-      stage2TheoreticalStages: 5,
+      fixedDesignTheoreticalStages: 7,
+      actualStage2TheoreticalStagesReference: 5,
       stage3HydraulicColumnDiameterM: .974213,
       compartmentHeightRule: '0.5D',
       physicalCompartmentHeightM: .4871065,
       screeningHetsMPerTheoreticalStage: 1,
       calculatedScreeningCompartmentEfficiency: .4871065,
-      requiredActiveHeightM: 5,
-      requiredPhysicalCompartments: 11,
-      installedActiveHeightM: 5.3581715,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
       designStatus: 'PRE-PILOT SCREENING',
     });
-    expect(result.mainOutputs.activeHeightM).toBe(5);
-    expect(result.mainOutputs.installedActiveHeightM).toBe(5.3581715);
+    expect(result.designNt).toMatchObject({ value: 7 });
+    expect(result.actualStage2NtReference).toMatchObject({ value: 5, status: 'AVAILABLE_REFERENCE_ONLY' });
+    expect(result.mainOutputs.activeHeightM).toBe(7);
+    expect(result.mainOutputs.installedActiveHeightM).toBe(7.3065975);
   });
 
-  it('keeps Stage-4 sizing on accepted Stage-2 N_T when Stage-3 geometry is fixed at 7', () => {
+  it('keeps Stage-4 HETS sizing fixed at 7 when Stage-3 geometry is also fixed at 7', () => {
     const fixedGeometryStage3 = {
       ...stage3(),
       result: {
@@ -72,12 +75,46 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       stage3: fixedGeometryStage3,
     });
 
-    expect(result.calculatedNt.value).toBe(4);
-    expect(result.hetsSizing.stage2TheoreticalStages).toBe(4);
-    expect(result.hetsSizing.requiredActiveHeightM).toBe(4);
+    expect(result.actualStage2NtReference.value).toBe(4);
+    expect(result.hetsSizing.fixedDesignTheoreticalStages).toBe(7);
+    expect(result.hetsSizing.actualStage2TheoreticalStagesReference).toBe(4);
+    expect(result.hetsSizing.requiredActiveHeightM).toBe(7);
   });
 
-  it('does not let client-like manual values alter the authorized HETS calculation', () => {
+  it.each([4, 10])('keeps physical sizing at fixed 7 when actual Stage-2 Nt is %i', actualNt => {
+    const result = deriveStage4PrePilotSizing({
+      ...input(),
+      calculatedNt: actualNt,
+    });
+
+    expect(result.actualStage2NtReference.value).toBe(actualNt);
+    expect(result.hetsSizing).toMatchObject({
+      fixedDesignTheoreticalStages: 7,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
+    });
+  });
+
+  it('sizes at fixed 7 when actual Stage-2 evidence is unavailable', () => {
+    const result = deriveStage4PrePilotSizing({
+      stage3: stage3(),
+    });
+
+    expect(result.actualStage2NtReference).toMatchObject({
+      value: null,
+      status: 'NOT_AVAILABLE_REFERENCE_ONLY',
+    });
+    expect(result.hetsSizing).toMatchObject({
+      fixedDesignTheoreticalStages: 7,
+      actualStage2TheoreticalStagesReference: null,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
+    });
+  });
+
+  it('does not let client-like manual values alter the authorized fixed HETS calculation', () => {
     const result = deriveStage4PrePilotSizing({
       ...input(),
       hetsM: .4,
@@ -86,7 +123,7 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
 
     expect(result.hetsSizing.screeningHetsMPerTheoreticalStage).toBe(1);
     expect(result.hetsSizing.calculatedScreeningCompartmentEfficiency).toBe(.4871065);
-    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(11);
+    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(15);
   });
 
   it('does not require retired transport, RPM, d32, or holdup inputs for HETS sizing', () => {
@@ -136,7 +173,13 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       },
     });
 
-    expect(result.calculatedNt.value).toBe(4);
+    expect(result.actualStage2NtReference.value).toBe(4);
+    expect(result.hetsSizing).toMatchObject({
+      fixedDesignTheoreticalStages: 7,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 21,
+      installedActiveHeightM: .6930996970569214 / 2 * 21,
+    });
     expect(result.hetsSizing.stage3HydraulicColumnDiameterM).toBe(.6930996970569214);
     expect(result.selectedStage3Hydraulics.source)
       .toBe('PERSISTED_STAGE3_INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE_NO_STAGE4_RESELECTION');
@@ -146,7 +189,7 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     });
   });
 
-  it('does not permit a pre-pilot root to bypass exact Stage-2 equilibrium compatibility', () => {
+  it('admits the reverse HETS-only root when actual Stage-2 evidence is unavailable', () => {
     const reverseStage3 = {
       ...stage3(),
       result: {
@@ -158,27 +201,59 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
         hydraulicDiagnosticPoint: null,
       },
     };
-    expect(() => deriveStage4PrePilotSizing({
-      calculatedNt: 4, stage2JobId: 'stage-2-equivalent', stage2ResultHash: 'e'.repeat(64),
+    const result = deriveStage4PrePilotSizing({
       stage3: reverseStage3,
       stage3PrePilotHetsAdmission: {
         status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
         source: 'V150_EXTRAPOLATED_MODEL_ROOT', columnDiameterM: .6930996970569214,
         stage3PresentationQualificationHash: 'p'.repeat(64), limitations: [],
       },
-    })).toThrow('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
+    });
+    expect(result.actualStage2NtReference.value).toBeNull();
+    expect(result.hetsSizing.installedActiveHeightM).toBeCloseTo(7.2775468191, 10);
   });
 
-  it('rejects an invalid Stage-2 Nt rather than applying a default', () => {
+  it('keeps reverse-orientation physical sizing at fixed 7 when actual Stage-2 Nt is 10', () => {
+    const reverseStage3 = {
+      ...stage3(),
+      result: {
+        theoreticalStagesUsed: {
+          value: 7, provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+          stage3GeometryDesignNt: 7, stage2AcceptedPredictiveNt: null,
+          stage2JobId: null, stage2ResultHash: null,
+        },
+        hydraulicDiagnosticPoint: null,
+      },
+    };
+    const result = deriveStage4PrePilotSizing({
+      calculatedNt: 10, stage2JobId: 'stage-2-reverse', stage2ResultHash: 'e'.repeat(64),
+      stage3: reverseStage3,
+      stage3PrePilotHetsAdmission: {
+        status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
+        source: 'V150_EXTRAPOLATED_MODEL_ROOT', columnDiameterM: .6930996970569214,
+        stage3PresentationQualificationHash: 'p'.repeat(64), limitations: [],
+      },
+    });
+    expect(result.actualStage2NtReference.value).toBe(10);
+    expect(result.hetsSizing).toMatchObject({
+      fixedDesignTheoreticalStages: 7,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 21,
+      installedActiveHeightM: .6930996970569214 / 2 * 21,
+    });
+  });
+
+  it('rejects malformed supplied Stage-2 reference evidence rather than silently changing it', () => {
     expect(() => deriveStage4PrePilotSizing({ ...input(), calculatedNt: 0 }))
-      .toThrow('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
+      .toThrow('STAGE4_ACTUAL_STAGE2_NT_REFERENCE_INVALID');
   });
 
-  it('rejects stale Stage-3 Stage-2 authority rather than carrying a mismatched diameter forward', () => {
+  it('does not substitute a stale Stage-3 embedded Stage-2 value for the explicit actual reference', () => {
     const stale = input();
     stale.stage3.result.theoreticalStagesUsed.stage2ResultHash = 'd'.repeat(64);
-    expect(() => deriveStage4PrePilotSizing(stale))
-      .toThrow('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
+    const result = deriveStage4PrePilotSizing(stale);
+    expect(result.actualStage2NtReference.value).toBe(5);
+    expect(result.hetsSizing.requiredActiveHeightM).toBe(7);
   });
 
   it('rejects a missing or invalid persisted Stage-3 screening diameter', () => {

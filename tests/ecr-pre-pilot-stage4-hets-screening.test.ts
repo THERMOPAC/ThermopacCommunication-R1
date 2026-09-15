@@ -118,7 +118,7 @@ function resetDb() {
 }
 
 describe('Stage 4 deterministic HETS screening', () => {
-  it('calculates the approved example without intermediate rounding', () => {
+  it('calculates the fixed-Nt=7 HETS example without intermediate rounding', () => {
     const result = deriveStage4PrePilotSizing({
       calculatedNt: 5,
       stage2JobId: 'stage-2',
@@ -129,19 +129,25 @@ describe('Stage 4 deterministic HETS screening', () => {
       physicalCompartmentHeightM: .4871065,
       screeningHetsMPerTheoreticalStage: 1,
       calculatedScreeningCompartmentEfficiency: .4871065,
-      requiredActiveHeightM: 5,
-      requiredPhysicalCompartments: 11,
-      installedActiveHeightM: 5.3581715,
+      fixedDesignTheoreticalStages: 7,
+      actualStage2TheoreticalStagesReference: 5,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
       designStatus: 'PRE-PILOT SCREENING',
     });
   });
 
-  it('fails closed for stale Stage-2/Stage-3 authority', () => {
+  it('fails closed when the Stage-3 hydraulic evidence is absent', () => {
+    const noHydraulics = {
+      ...stage3Result,
+      hydraulicDiagnosticPoint: null,
+    };
     expect(() => deriveStage4PrePilotSizing({
       calculatedNt: 5, stage2JobId: 'other',
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
-      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
-    })).toThrow('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
+      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: noHydraulics },
+    })).toThrow('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   });
 
   it('persists the direct API result without invoking the retired finite-rate solver', async () => {
@@ -149,7 +155,7 @@ describe('Stage 4 deterministic HETS screening', () => {
     const result = await calculateStage4PrePilotSizing(7, 269);
     expect(state.finiteRateRun).not.toHaveBeenCalled();
     expect(result.calculation.status).toBe('CALCULATED');
-    expect(result.hetsSizing.installedActiveHeightM).toBe(5.3581715);
+    expect(result.hetsSizing.installedActiveHeightM).toBe(7.3065975);
   });
 
   it('renders the HETS result card and does not promote outlet or target claims', () => {
@@ -158,14 +164,29 @@ describe('Stage 4 deterministic HETS screening', () => {
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
       stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
     });
-    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V2' }, null, false];
+    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7' }, null, false];
     state.index = 0;
     const html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
     expect(html).toContain('Stage 4 HETS-Based Pre-Pilot Sizing');
     expect(html).toContain('48.7%');
-    expect(html).toContain('5.36 m');
+    expect(html).toContain('7.31 m');
+    expect(html).toContain('fixed-Nₜ=7');
     expect(html).toContain('conservatism for RRBO/NMP is not established');
     expect(html).toContain('No outlet,');
     expect(html).not.toContain('Predicted primary raffinate outlet');
+  });
+
+  it('renders a fixed-Nt=7 result when the actual Stage-2 reference is absent', () => {
+    const result = deriveStage4PrePilotSizing({
+      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
+    });
+    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7' }, null, false];
+    state.index = 0;
+    let html = '';
+    expect(() => {
+      html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
+    }).not.toThrow();
+    expect(html).toContain('Actual accepted Stage-2 Nₜ (reference only)');
+    expect(html).toContain('HETS-implied compartment efficiency hc/HETS (not performance)');
   });
 });

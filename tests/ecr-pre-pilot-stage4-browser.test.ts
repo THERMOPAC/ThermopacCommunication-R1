@@ -13,8 +13,9 @@ function hetsResult() {
     status: 'CALCULATED_HETS_PRE_PILOT_SCREENING',
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
-    calculationModel: 'ECR_STAGE4_HETS_SCREENING_V2',
-    calculatedNt: { value: 5, provenance: 'STAGE_2_CALCULATED_NT_SAME_LINEAGE' },
+    calculationModel: 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7',
+    designNt: { value: 7, provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT' },
+    actualStage2NtReference: { value: 5, status: 'AVAILABLE_REFERENCE_ONLY' },
     selectedStage3Hydraulics: {
       diameterM: .974213,
       source: 'PERSISTED_STAGE3_HYDRAULIC_DIAGNOSTIC_POINT_NO_STAGE4_RESELECTION',
@@ -22,21 +23,22 @@ function hetsResult() {
     mainOutputs: {
       diameterM: .974213,
       overallEfficiency: .4871065,
-      physicalCompartments: 11,
-      activeHeightM: 5,
-      requiredActiveHeightM: 5,
-      installedActiveHeightM: 5.3581715,
+      physicalCompartments: 15,
+      activeHeightM: 7,
+      requiredActiveHeightM: 7,
+      installedActiveHeightM: 7.3065975,
     },
     hetsSizing: {
-      stage2TheoreticalStages: 5,
+      fixedDesignTheoreticalStages: 7,
+      actualStage2TheoreticalStagesReference: 5,
       stage3HydraulicColumnDiameterM: .974213,
       compartmentHeightRule: '0.5D',
       physicalCompartmentHeightM: .4871065,
       screeningHetsMPerTheoreticalStage: 1,
       calculatedScreeningCompartmentEfficiency: .4871065,
-      requiredActiveHeightM: 5,
-      requiredPhysicalCompartments: 11,
-      installedActiveHeightM: 5.3581715,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 15,
+      installedActiveHeightM: 7.3065975,
       designStatus: 'PRE-PILOT SCREENING',
     },
     assumptions: [
@@ -54,7 +56,8 @@ function unrun() {
     mainOutputs: {
       diameterM: .974213, overallEfficiency: null, physicalCompartments: null, activeHeightM: null,
     },
-    calculatedNt: { value: 5, provenance: 'STAGE_2_CALCULATED_NT_SAME_LINEAGE' },
+    designNt: { value: 7, provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT' },
+    actualStage2NtReference: { value: 5, status: 'AVAILABLE_REFERENCE_ONLY' },
     selectedStage3Hydraulics: { diameterM: .974213 },
     calculation: { status: 'UNRUN', progress: { phase: 'NOT_RUN_EXPLICIT_CALCULATION_REQUIRED' } },
   };
@@ -170,14 +173,15 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 30_000 });
       const text = await panelText(page);
       expect(text).toContain('Stage 4 HETS-Based Pre-Pilot Sizing');
-      expect(text).toContain('Stage 2 theoretical stages 5');
+      expect(text).toContain('Stage 4 fixed design Nₜ (physical sizing basis) 7');
+      expect(text).toContain('Actual accepted Stage-2 Nₜ (reference only) 5');
       expect(text).toContain('Stage 3 hydraulic column diameter 0.974 m');
       expect(text).toContain('Physical compartment height 0.487 m');
       expect(text).toContain('Screening HETS 1.000 m/theoretical stage');
-      expect(text).toContain('Calculated screening efficiency 48.7%');
-      expect(text).toContain('Required active height 5.00 m');
-      expect(text).toContain('Required physical compartments 11');
-      expect(text).toContain('Installed active height 5.36 m');
+      expect(text).toContain('HETS-implied compartment efficiency hc/HETS (not performance) 48.7%');
+      expect(text).toContain('Required active height 7.00 m');
+      expect(text).toContain('Required physical compartments 15');
+      expect(text).toContain('Installed active height 7.31 m');
       expect(text).toContain('conservatism for RRBO/NMP is not established');
       expect(text).toContain('No outlet, recovery, target-compliance, or final-design claim is made');
       expect(text).not.toContain('Predicted primary raffinate outlet');
@@ -201,7 +205,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       expect(actionRequests).toEqual([{ path: calculateEndpoint, body: '{}' }]);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 30_000 });
-      expect(await panelText(page)).toContain('Installed active height 5.36 m');
+      expect(await panelText(page)).toContain('Installed active height 7.31 m');
     } finally {
       await page.close();
     }

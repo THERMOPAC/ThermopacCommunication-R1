@@ -46,18 +46,21 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
     });
   });
 
-  it('loads read-only Design 269 authority and reproduces only the pure HETS inputs/results', async () => {
+  it('loads read-only Design 269 authority with fixed-Nt=7 HETS sizing and Stage-2 as reference only', async () => {
     const design = await pool.query<{ created_by: number }>(
       'SELECT created_by FROM ecr_pre_pilot_designs WHERE id=269',
     );
     const authority = await loadStage4PrePilotSizingAuthority(Number(design.rows[0].created_by), 269);
-    expect(authority.projection.calculatedNt.value).toBe(4);
+    expect(authority.projection.designNt.value).toBe(7);
+    expect(authority.projection.actualStage2NtReference.value).toBe(4);
     expect(authority.projection.hetsSizing).toMatchObject({
+      fixedDesignTheoreticalStages: 7,
+      actualStage2TheoreticalStagesReference: 4,
       stage3HydraulicColumnDiameterM: .6930996970569214,
       physicalCompartmentHeightM: .3465498485284607,
-      requiredActiveHeightM: 4,
-      requiredPhysicalCompartments: 12,
-      installedActiveHeightM: 4.158598182341528,
+      requiredActiveHeightM: 7,
+      requiredPhysicalCompartments: 21,
+      installedActiveHeightM: 7.277546819097675,
     });
     expect(authority.projection.stage2Stage1Compatibility).toMatchObject({
       status: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION',

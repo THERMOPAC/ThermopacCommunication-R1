@@ -3,17 +3,17 @@ name: Stage 4 HETS screening boundary
 description: User-approved assumption-based sizing replaces the operational finite-rate calculation without claiming scientific qualification.
 ---
 
-Treat the operational Stage 4 result as HETS-based pre-pilot screening, independently of the unqualified finite-rate/Broyden research route.
+Treat the operational Stage 4 result as fixed-`Ndesign=7` HETS-based pre-pilot physical screening, independently of the unqualified finite-rate/Broyden research route.
 
-**Why:** The user stopped the expensive whole-column qualification and explicitly approved a transparent assumed-HETS conversion of accepted theoretical stages and existing hydraulic geometry. This is a change in engineering scope, not evidence that the stopped solver converged.
+**Why:** The user stopped the expensive whole-column qualification and explicitly approved a transparent assumed-HETS conversion of existing hydraulic geometry using a fixed Stage-4 design basis of seven theoretical stages. The decision expressly applies to both NMP-continuous/RRBO-dispersed and RRBO-continuous/NMP-dispersed orientations. This is a change in engineering scope, not evidence that the stopped solver converged.
 
-**How to apply:** Do not restore finite-rate convergence or transport-property requirements as prerequisites for this screening route. Preserve accepted upstream authority through lightweight persisted-evidence checks without executing scientific-runtime preflight. Do not weaken the upstream scientific acceptance checks to achieve this.
+**How to apply:** Do not restore finite-rate convergence or transport-property requirements as prerequisites for this screening route. Preserve current Stage-1/Stage-3 hydraulic snapshot integrity and Stage-3 HETS admission through lightweight persisted-evidence checks without executing scientific-runtime preflight. Preserve Stage-2 scientific acceptance checks when Stage-2 evidence exists, but do not make an actual Stage-2 value a gate for the fixed-7 assumption-based sizing. Show that actual value as nullable reference-only evidence, never as the fixed sizing value.
 
 The selected HETS is an engineering assumption whose conservatism for RRBO/NMP is not established. Its implied compartment efficiency is not independently predicted or experimentally validated.
 
 **Why:** Integer compartment rounding creates extra installed height but does not demonstrate an adequate allowance for uncertain mass transfer.
 
-**How to apply:** Distinguish required active height, rounded installed active height, and total mechanical vessel height. Distinguish HETS-implied efficiency from required theoretical stages divided by installed compartment count. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
+**How to apply:** Use `Hrequired = 7 × HETS`, `Nphysical = ceil(7 × HETS / hc)`, and `Hinstalled = Nphysical × hc`. Distinguish required active height, rounded installed active height, and total mechanical vessel height. Label `hc/HETS` as a HETS-implied compartment-efficiency implication, not performance. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
 
 For a reduced transport diagnostic, preserve the saved counter-current section boundaries and signed component transfer; a straight path between terminal products cannot substitute for the saved intermediate profile.
 
