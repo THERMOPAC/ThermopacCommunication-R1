@@ -1129,3 +1129,31 @@ mtime_ms = 1789476470475
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f1b63b8f-7512-4905-9157-517207403f72/7a3bf77f-0a84-4b65-922e-54760a00b5ff"
 storage_version_token = "1789476517281478"
 content_type = "text/html"
+
+[[outputs]]
+id = "BfHOgsbI2cmS687I0pw3k"
+uri = "file://research/kuhni-no-abc-height-method-qualification.html"
+type = "text"
+title = "Kühni height-method evidence review"
+description = "Published HETS, efficiency and engineering height methods: findings, access gaps and applicability to RRBO/NMP, excluding Job A/B/C."
+logical_id = "ec1984a3-6757-4d5c-bc49-9a6542cb8b36"
+content_hash = "sha256:32c60d71ff01d5f46fa00e0275aefb4d7b4a7af11e3528bc9478032d7270dbcc"
+size = 8639
+mtime_ms = 1789496369642
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/ec1984a3-6757-4d5c-bc49-9a6542cb8b36/9b94b341-01c3-4a2f-897a-57650c6c6136"
+storage_version_token = "1789496422293313"
+content_type = "text/html"
+
+[[outputs]]
+id = "iFKODMibr7ohh3qfCcLwS"
+uri = "file://research/kuhni-no-abc-hydraulic-admissibility.html"
+type = "text"
+title = "Kühni hydraulic applicability review"
+description = "Current equations, geometry and RPM dependencies, source limitations, and separate pre-pilot versus optimization qualification."
+logical_id = "48865e9e-79c0-4b08-aa1e-7dc208a0f24c"
+content_hash = "sha256:9095b54c618a47a798552dad40a00dbdc3e12914d0cd277b6abb09c6f437d46f"
+size = 17519
+mtime_ms = 1789496235043
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/48865e9e-79c0-4b08-aa1e-7dc208a0f24c/ca52655d-2b2a-4bf3-8764-de069b4a3d0a"
+storage_version_token = "1789496423928268"
+content_type = "text/html"

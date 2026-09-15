@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kühni ECR height-method qualification</title>
+  <style>
+    :root { color-scheme: light; --ink:#152b3c; --muted:#536675; --line:#d8e1e7; --navy:#123c58; --amber:#9b5700; --amber-bg:#fff5df; --blue-bg:#edf6fb; }
+    * { box-sizing: border-box; }
+    body { margin:0; color:var(--ink); background:#f4f7f8; font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    main { max-width:1060px; margin:0 auto; padding:42px 28px 64px; }
+    header { border-bottom:5px solid var(--navy); padding-bottom:24px; }
+    h1 { margin:0 0 8px; font-size:clamp(1.8rem,4vw,2.7rem); line-height:1.15; letter-spacing:-.02em; }
+    h2 { margin:34px 0 12px; font-size:1.35rem; color:var(--navy); }
+    h3 { margin:22px 0 8px; font-size:1.04rem; }
+    p, li { max-width:90ch; }
+    .subtitle, .meta { color:var(--muted); margin:0; }
+    .meta { font-size:.91rem; margin-top:10px; }
+    .decision { margin:26px 0; padding:20px 22px; border-left:6px solid var(--amber); background:var(--amber-bg); }
+    .decision strong { color:#6e3d00; }
+    .guardrail { padding:15px 18px; background:var(--blue-bg); border:1px solid #c9e1ee; }
+    .guardrail strong { color:var(--navy); }
+    table { width:100%; border-collapse:collapse; margin:14px 0 20px; background:#fff; font-size:.92rem; }
+    th, td { padding:11px 12px; text-align:left; vertical-align:top; border:1px solid var(--line); }
+    th { background:#eaf1f5; color:var(--navy); }
+    code { padding:1px 4px; background:#eaf0f3; border-radius:3px; }
+    a { color:#075d92; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:999px; background:#e6eef2; color:#25485f; font-weight:700; font-size:.79rem; }
+    footer { margin-top:38px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; }
+    @media (max-width:720px) { main { padding:26px 16px 48px; } table { display:block; overflow-x:auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="tag">SUBSTANTIVE LITERATURE QUALIFICATION</p>
+      <h1>Kühni ECR height / HETS / efficiency method</h1>
+      <p class="subtitle">RRBO/NMP orientations, requested geometry and 30–70 rpm envelope</p>
+      <p class="meta">Companion to <code>kuhni-no-abc-height-method-qualification.md</code> · Research-only result</p>
+    </header>
+
+    <section class="decision" aria-label="Decision">
+      <strong>Decision — no numerical interval is currently justified.</strong>
+      The reviewed accessible evidence does not provide a directly applicable, visually verified empirical HETS, active-height, overall-efficiency, or Murphree-efficiency method for either RRBO/NMP orientation. This does <em>not</em> prove no such publication exists; Hemmati (2015) is a priority not-yet-verified direct-height lead.
+    </section>
+
+    <section class="guardrail" aria-label="Scope guardrails">
+      <strong>Scope guardrails:</strong> no JobABC; no alternative solver; no assumed HETS; no numerical design calculation; no pilot requirement is asserted merely because a direct evidence gap exists.
+    </section>
+
+    <h2>Fixed cases screened</h2>
+    <table>
+      <thead><tr><th>Case</th><th>Phase orientation</th><th>Bulk properties</th><th>Viscosity ratio</th></tr></thead>
+      <tbody>
+        <tr><td>A, 60 °C</td><td>NMP continuous / RRBO dispersed</td><td>ρ<sub>C</sub>/ρ<sub>D</sub> 997/856 kg m<sup>−3</sup>; μ<sub>C</sub>/μ<sub>D</sub> 0.001083/0.0300 Pa s; σ 0.0103 N m<sup>−1</sup></td><td>μ<sub>D</sub>/μ<sub>C</sub> = 27.7</td></tr>
+        <tr><td>B, 40 °C</td><td>RRBO continuous / NMP dispersed</td><td>ρ<sub>C</sub>/ρ<sub>D</sub> 869/1015 kg m<sup>−3</sup>; μ<sub>C</sub>/μ<sub>D</sub> 0.0598/0.001416 Pa s; σ 0.0110 N m<sup>−1</sup></td><td>μ<sub>D</sub>/μ<sub>C</sub> = 0.0237</td></tr>
+      </tbody>
+    </table>
+    <p>Requested design context: <em>h</em><sub>c</sub>/<em>D</em> = 0.20–0.30, <em>D</em><sub>R</sub>/<em>D</em> = 0.33–0.50, stator free area = 0.20–0.40, and 30–70 rpm.</p>
+
+    <h2>What the evidence supports</h2>
+    <table>
+      <thead><tr><th>Source family</th><th>Supported finding</th><th>Boundary</th></tr></thead>
+      <tbody>
+        <tr><td>Perry; Pratt–Stevens; Mögli–Bühlmann</td><td>The requested rotor ratio, compartment ratio, and free-area ranges are published Kühni geometry guidance.</td><td>Geometry guidance is not an HETS or stage-efficiency equation.</td></tr>
+        <tr><td>Sulzer ECR</td><td>30–70 rpm is within one current vendor typical industrial-speed statement (brochure: 10–70 rpm).</td><td>Vendor equipment context is not a mass-transfer validity envelope.</td></tr>
+        <tr><td>Asadollahzadeh et al. (2017)</td><td>Primary, visually checked acetone/toluene/water axial-dispersion and overall-Sherwood equations; reported fitted-Sherwood error 3.75%.</td><td>Overall <em>Sh</em><sub>oc</sub> is not HETS or Murphree efficiency and the system is not RRBO/NMP.</td></tr>
+        <tr><td>Garthe thesis</td><td>Inspected Eqs. 5.6–5.7 and 8.3 are hydrodynamic/slip/holdup evidence; Figure 5.20 gives 72–152 mm and 50–250 rpm data/correlation context.</td><td>This statement applies to the inspected equations, not to all mass-transfer content in the thesis.</td></tr>
+        <tr><td>Hemmati et al. (2015)</td><td>Publisher record reports a 117-mm, 36-experiment acetone-system study and an enhancement-factor correlation intended for height estimation.</td><td>Governing pages, range, and error are not yet primary-page-verified here; no conclusion is drawn that the full paper fails.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Efficiency and backmixing rule</h2>
+    <p>An overall coefficient (<em>K</em><sub>oc</sub>, <em>K</em><sub>oc</sub><em>a</em>, or <em>Sh</em><sub>oc</sub>) is a rate/resistance quantity, not a Murphree stage efficiency. HETS is active height per theoretical equilibrium stage in a defined model/design basis. Neither may be converted using an arbitrary efficiency factor.</p>
+    <p>Weber et al. is cited only as an excluded complex-model comparison: it explicitly includes continuous-phase backmixing via Breysse–Bühlmann. Therefore, adding a second backmixing/Murphree penalty to an HETS from that configured model would double count. It is not recommended as an alternative solver.</p>
+
+    <h2>Next evidence gate</h2>
+    <ol>
+      <li>Obtain Hemmati et al. (2015) complete primary governing pages: enhancement-factor equation, definitions, calibration range, and error statement.</li>
+      <li>Visually verify those pages and assess the simple empirical height route against both RRBO/NMP orientations, 30–70 rpm, and the fixed geometry envelope.</li>
+      <li>If it does not cover the case, retain the no-numerical-interval result. Do not replace it with a population-balance, CFD, or other solver route.</li>
+    </ol>
+
+    <h2>Source links</h2>
+    <ul>
+      <li><a href="https://doi.org/10.1016/j.cherd.2014.07.011">Hemmati, Torab-Mostaedi &amp; Asadollahzadeh (2015), Chem. Eng. Res. Des. 93, 747–754</a></li>
+      <li><a href="https://ijcce.ac.ir/jufile?ar_sfile=344118">Asadollahzadeh, Torkaman &amp; Torab-Mostaedi (2017), primary PDF</a></li>
+      <li><a href="https://doi.org/10.1205/026387699526359">Kumar &amp; Hartland (1999), Chem. Eng. Res. Des. 77, 372–384</a></li>
+      <li><a href="https://doi.org/10.1002/aic.690370508">Dongaonkar, Pratt &amp; Stevens (1991), AIChE Journal 37, 694–704</a></li>
+      <li><a href="https://doi.org/10.1002/cjce.5450660208">Steiner, Kumar &amp; Hartland (1988), Canadian Journal of Chemical Engineering</a></li>
+      <li><a href="https://doi.org/10.1002/cite.201900057">Weber, Meyer &amp; Jupke (2019), excluded comparison</a></li>
+      <li><a href="https://www.sulzer.com/en/-/media/files/products/separation-technology/brochures/english/liquid_liquid_extraction_technology_e10556_en_web.pdf">Sulzer E10556 brochure</a> and <a href="https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr">ECR product page</a></li>
+      <li><a href="https://www.mheducation.com/highered/mhp/product/perry-s-chemical-engineers-handbook-eighth-edition.html">Perry’s Chemical Engineers’ Handbook, 8th ed.</a>, printed p. 15-83</li>
+    </ul>
+
+    <footer>
+      Readiness: blocked for a numeric HETS/height/efficiency selection; ready only for the Hemmati primary-page evidence gate. The detailed source manifest, equations, and verification notes are in the Markdown companion.
+    </footer>
+  </main>
+</body>
+</html>

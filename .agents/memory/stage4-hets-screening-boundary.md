@@ -11,6 +11,18 @@ Treat the operational Stage 4 result as fixed-`Ndesign=7` HETS-based pre-pilot p
 
 The selected HETS is an engineering assumption whose conservatism for RRBO/NMP is not established. Its implied compartment efficiency is not independently predicted or experimentally validated.
 
+The approved replacement investigation excludes Job A/B/C and alternative
+full-column rate/population-balance solvers. Seek published engineering
+HETS/overall-efficiency/reference scale-up methods first.
+
+**Why:** Requiring the unsuccessful scientific solver again would defeat the
+user's expressly chosen engineering-design route.
+
+**How to apply:** Keep accessible evidence gaps distinct from disproven
+methods. The no-ABC height review identifies Hemmati 2015 governing equation
+pages as an unresolved lead, not an admitted correlation. Do not substitute
+another chemistry's HETS band or promise a separation-qualified optimum.
+
 **Why:** Integer compartment rounding creates extra installed height but does not demonstrate an adequate allowance for uncertain mass transfer.
 
 **How to apply:** Use `Hrequired = 7 × HETS`, `Nphysical = ceil(7 × HETS / hc)`, and `Hinstalled = Nphysical × hc`. Distinguish required active height, rounded installed active height, and total mechanical vessel height. Label `hc/HETS` as a HETS-implied compartment-efficiency implication, not performance. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.

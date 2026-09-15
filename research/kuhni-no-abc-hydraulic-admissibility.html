@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STEP 2 — RRBO/NMP hydraulic and ECR-geometry admissibility</title>
+  <style>
+    :root { color-scheme: light; --ink:#172033; --muted:#536174; --line:#d7dee8; --paper:#fff; --wash:#f4f7fb; --good:#0b6b45; --warn:#8a4b00; --bad:#a12626; --blue:#1f4c8f; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:#eef2f7; color:var(--ink); font:16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width:1200px; margin:28px auto; background:var(--paper); padding:42px 52px 60px; box-shadow:0 3px 18px #24344718; }
+    h1,h2,h3 { color:#111a2b; line-height:1.2; } h1 { font-size:2rem; margin:0 0 8px; } h2 { font-size:1.35rem; margin:36px 0 12px; border-bottom:1px solid var(--line); padding-bottom:7px; } h3 { font-size:1.06rem; margin:24px 0 8px; }
+    p,li { max-width:1020px; } .sub { color:var(--muted); margin:0 0 28px; } .callout { border-left:5px solid var(--blue); background:#edf4ff; padding:16px 18px; margin:18px 0; } .callout strong { color:#153b75; }
+    .gate { border-left-color:var(--warn); background:#fff7eb; } .gate strong { color:#714000; } .ok { color:var(--good); font-weight:700; } .no { color:var(--bad); font-weight:700; } .small { color:var(--muted); font-size:.91rem; }
+    code,pre { font:13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; } pre { overflow:auto; background:#111a2b; color:#eef5ff; padding:17px; border-radius:5px; } code { background:#f0f3f7; padding:1px 4px; border-radius:3px; }
+    table { width:100%; border-collapse:collapse; margin:14px 0 22px; font-size:.92rem; } th,td { border:1px solid var(--line); padding:9px 10px; vertical-align:top; text-align:left; } th { background:var(--wash); } ul,ol { padding-left:24px; } a { color:#174e99; } .tag { display:inline-block; padding:2px 7px; border-radius:99px; font-size:.76rem; font-weight:700; letter-spacing:.02em; white-space:nowrap; } .supported { color:#075d3c; background:#e5f5ed; } .bounded { color:#764000; background:#fff0d9; } .unsupported { color:#8d2020; background:#fde9e9; }
+    @media print { body { background:#fff; } main { box-shadow:none; margin:0; max-width:none; padding:20px; } } @media (max-width:700px) { main { margin:0; padding:25px 18px; } table { font-size:.82rem; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>STEP 2 — RRBO/NMP hydraulic-equation and joint ECR-geometry admissibility</h1>
+  <p class="sub">Read-only qualification • no Job A/B/C • no application, workflow, database, constant, optimizer, or production-code change</p>
+
+  <div class="callout">
+    <strong>Correct gate decision.</strong> The software is <span class="ok">READY</span> for its deliberately narrow deterministic Stage-4 HETS pre-pilot screening admission for <em>both</em> orientations when the current immutable snapshot and independent presentation check pass. It is <span class="no">NOT ESTABLISHED</span> for governed hydraulics, finite-rate Stage 4, correlation-based optimization, safe-throughput/power screening, or commercial release for <em>both</em> orientations. HETS admission carries a qualified presentation candidate's diameter into fixed-<em>N</em><sub>T</sub>=7, fixed-HETS arithmetic; it does not qualify the full hydraulic correlation chain.
+  </div>
+
+  <h2>1. Current service and actual HETS admission</h2>
+  <p>The current save-time dispatch in <code>server/ecr-pre-pilot-service.ts</code> is:</p>
+  <pre>rrbo-continuous-nmp-dispersed  -&gt; resolveKuhniGeometryV150(...)
+all other configured orientations -&gt; resolveKuhniGeometryV130(...)</pre>
+  <table>
+    <thead><tr><th>Route</th><th>Current role</th><th>Correct admission distinction</th></tr></thead>
+    <tbody>
+      <tr><td>Normal: NMP continuous / RRBO dispersed</td><td>V1.3.0</td><td>Retains calculated-in-range trials. A current, integrity-verified presentation candidate can enter the narrow HETS screen.</td></tr>
+      <tr><td>Reverse: RRBO continuous / wet-NMP dispersed</td><td>V1.5.0</td><td>Resolver-level governed hydraulic point and finite-rate input remain null/blocked. Its selected, invariant-checked extrapolated root is independently rechecked and can then enter only the same narrow HETS screen.</td></tr>
+      <tr><td>V1.4.0</td><td>Replay/reverse-diagnostic predecessor</td><td>Not the normal dispatch base. It is retained in V1.5/V1.3 lineage and immutable replay; the legacy base resolver is not used as a new-decision authority.</td></tr>
+    </tbody>
+  </table>
+  <p><code>qualifyKuhniStage3Presentation</code> is an additive read-only qualifier. It accepts either a normal <code>CALCULATED_IN_RANGE_TRIAL</code>, or a V1.5 selected <code>V150_EXTRAPOLATED_MODEL_ROOT</code> after <code>assessReverseExtrapolatedModelRoot</code> returns <code>EXTRAPOLATED_MODEL_ROOT</code>. Both candidates are explicitly <code>governed=false</code>, <code>stage4Input=false</code>, and <code>stage4HetsScreeningInput=true</code>.</p>
+  <p><code>admitIndependentlyCheckedStage3PrePilotHetsCandidate</code> requires current lineage and <code>independentCheck='PASSED'</code>, accepts either candidate source, and returns <code>INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE</code>. <code>deriveStage4PrePilotSizing</code> then accepts either the persisted in-range hydraulic point or this narrow admission.</p>
+  <pre>N_design = 7; HETS = 1.0 m/theoretical stage
+h_c = 0.5D; H_required = 7 m
+N_physical = ceil(H_required / h_c)
+H_installed = N_physical h_c</pre>
+  <p>The resulting V3 classification is <code>CALCULATED_HETS_PRE_PILOT_SCREENING</code>. It is not governed hydraulics, a finite-rate/mass-transfer result, an outlet/target claim, or commercial release.</p>
+
+  <h2>2. Existing equations and exact dimensional dependency</h2>
+  <pre>D_R = 0.5D; h_c = 0.5D; A = pi D²/4; V = A h_c
+P = Np rho_C n³ D_R⁵, with engineering Np = 1.2
+psi = P/(rho_C V)
+d32 = 0.42 (sigma/rho_C)^0.6 psi^-0.4
+
+Cd = [8(2+3kappa+3lambda)/(Re(1+kappa+lambda))][1+0.15Re^0.687], lambda=0
+Np,G = 1.08 + 10.94/Re_R^0.5 + 257.37/Re_R^1.5
+vchar/vt = 1 - 1.669Np,G^-3.945 - 2.807[d32/(D-D_R)]^1.336
+           - 1.159(h_c/D)^2.049 + 2.1phi_s^1.032
+vswarm/vchar = sqrt[(Cd,char/Cd,swarm)(1-h)^4.65]
+Uf = max_h(capacity(h)); loading = (Qc+Qd)/(A Uf)</pre>
+  <p>At fixed ratios and fixed engineering <em>N</em><sub>p</sub>, <strong>P/V ∝ ρ<sub>C</sub>n³D²</strong> and <strong>ψ ∝ n³D²</strong>. A variable-diameter RPM 30–70 screen therefore does not preserve P/V, tip speed, rotor Reynolds number, drop size, capacity, or throughput. No reviewed source selects one as a universal Kühni scale-up invariant.</p>
+  <div class="callout"><strong>Eq. 8.3 is not an error.</strong> The rendered Garthe primary source has already visually verified that the radical spans the complete product, including <code>(1-hd)^4.65</code>. The current closure uses the same inside-radical structure. No equation correction is warranted.</div>
+
+  <h2>3. Current property records and numerical facts</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Properties</th><th>Existing point</th><th>Scientific status</th></tr></thead>
+    <tbody>
+      <tr><td>A</td><td>60 °C; NMP continuous: ρ<sub>C</sub>=997 kg/m³, μ<sub>C</sub>=0.001083 Pa·s; RRBO dispersed: ρ<sub>D</sub>=856 kg/m³, μ<sub>D</sub>=0.030 Pa·s; σ=0.0103 N/m</td><td>D=0.9742129194 m; 30 rpm; κ=27.7008</td><td>Normal source orientation; target geometry, service, and speed remain scale-up/correlation extrapolations.</td></tr>
+      <tr><td>B</td><td>40 °C; RRBO continuous: ρ<sub>C</sub>=869 kg/m³, μ<sub>C</sub>=0.0598 Pa·s; wet-NMP dispersed: ρ<sub>D</sub>=1015 kg/m³, μ<sub>D</sub>=0.001416 Pa·s; σ=0.011 N/m</td><td>D=0.6930996971 m; 25 rpm; κ=0.02367893</td><td>Reverse/falling route; selected V1.5 root is an extrapolated model root and can support HETS-only admission after its prescribed check.</td></tr>
+    </tbody>
+  </table>
+  <p>B's reproduced numerical root has d32=4.7457123 mm, Re<sub>t</sub>=2.4045, flood holdup 0.1447262, and U<sub>f</sub>=0.00636820 m/s. A's as-coded point has d32=2.5707442 mm, Re<sub>t</sub>=178.5724, flood holdup 0.2007760, and U<sub>f</sub>=0.003500625 m/s. These are reproducibility facts, not measured target-scale flooding evidence.</p>
+
+  <h2>4. Joint ECR geometry window — do not conflate evidence types</h2>
+  <table>
+    <thead><tr><th>Evidence</th><th>Published record</th><th>Correct treatment</th></tr></thead>
+    <tbody>
+      <tr><td>Vendor ECR product range</td><td>Sulzer: diameter 30 mm–3.5 m; product features include Δρ&gt;50 kg/m³, viscosity up to 500 mPa·s, and σ&gt;1 mN/m.</td><td>Both property snapshots meet broad product-feature values and both diameters are in the product range. This is not a correlation-validity, capacity, or safety guarantee.</td></tr>
+      <tr><td>Speed</td><td>Sulzer E10556: typical 10–70 rpm; product page: 10–100 rpm.</td><td>Requested 30–70 rpm is a conservative vendor-practice screening band, not a validated setpoint. A is 30 rpm; B's saved 25 rpm must not be relabelled into that band.</td></tr>
+      <tr><td>Garthe Fig. 5.20</td><td>D<sub>C</sub>=72–152 mm; d<sub>A</sub>=41–85 mm; d<sub>s</sub>=47.5–83.2 mm; n<sub>R</sub>=50–250 rpm; d=0.9–6.4 mm.</td><td>Correlation/data envelope, not an apparatus or commercial prohibition. Both targets depart in diameter/internal geometry; the 50–70 overlap does not cure those departures.</td></tr>
+      <tr><td>Rotor ratio</td><td>Perry D<sub>R</sub>/D=0.33–0.50.</td><td>0.50 is at the recommendation boundary. The ratio does not specify blade form, rotor height, shroud, or clearance.</td></tr>
+      <tr><td>Compartment ratio</td><td>Perry h<sub>c</sub>/D=0.20–0.30.</td><td>Current 0.50 is a coupled project assumption/correlation extrapolation, not an installed-height-only choice.</td></tr>
+      <tr><td>Free-area fraction versus shape</td><td>Perry free-area fraction 0.20–0.40; current 0.35.</td><td>The fraction is in the recommendation but is adjustable, not an invariant. It does not identify opening shape, pitch, thickness, plate type, stator diameter, edge effects, or clearance; actual partition shape is unresolved.</td></tr>
+    </tbody>
+  </table>
+  <p>The existing fixed-25-rpm B sensitivity finds no 70%-loading root before its 4.5 m/s tip-speed bound at h<sub>c</sub>/D=0.20, 0.25, or 0.30, and two roots at 0.50. This is a bounded numerical result, not proof that the Perry-ratio geometry is infeasible or that 0.50 is physically correct.</p>
+
+  <h2>5. Admissibility matrix</h2>
+  <p class="small">Scientific admissibility is distinct from the software HETS admission. “Bounded extrapolation” permits disclosed calculation, not full correlation qualification.</p>
+  <table>
+    <thead><tr><th>Link</th><th>A normal</th><th>B reverse</th><th>Required distinction</th></tr></thead>
+    <tbody>
+      <tr><td>Positive properties and signed buoyancy</td><td><span class="tag supported">SUPPORTED</span></td><td><span class="tag supported">SUPPORTED</span></td><td>B's Δρ=−146 correctly implies a falling dispersed phase; correct force sign is not a column qualification.</td></tr>
+      <tr><td>P=Npρ<sub>C</sub>n³D<sub>R</sub>⁵; Np=1.2</td><td><span class="tag bounded">BOUNDED</span></td><td><span class="tag bounded">BOUNDED</span></td><td>Dimensional identity is usable with a declared input; Np=1.2 is not a vendor power curve or Kühni scale-up invariant.</td></tr>
+      <tr><td>ψ and d32 closure</td><td><span class="tag bounded">BOUNDED</span></td><td><span class="tag bounded">BOUNDED</span></td><td>d32 is a Sauter population mean, not automatically the isolated drag drop; breakup/coalescence and target geometry remain open.</td></tr>
+      <tr><td>Myint terminal drag and shape</td><td><span class="tag bounded">BOUNDED</span></td><td><span class="tag unsupported">UNSUPPORTED</span></td><td>B is below κ=0.1 and is falling with unresolved interface/shape. Keep shape separate from drag and free-area fraction.</td></tr>
+      <tr><td>Garthe characteristic and Eq. 8.3 swarm</td><td><span class="tag bounded">BOUNDED</span></td><td><span class="tag unsupported">UNSUPPORTED</span></td><td>Equation transcription is supported; target geometry/service and, for B, reverse orientation do not qualify full-correlation use.</td></tr>
+      <tr><td>Holdup/flood turning point and 70% root</td><td><span class="tag bounded">BOUNDED</span></td><td><span class="tag unsupported">UNSUPPORTED</span></td><td>A model maximum is not observed flooding; B additionally lacks reverse holdup, stable-branch, entrainment, inversion, and control evidence.</td></tr>
+      <tr><td>Presentation → V3 HETS admission</td><td><span class="tag supported">SUPPORTED SOFTWARE PATH</span></td><td><span class="tag supported">SUPPORTED SOFTWARE PATH</span></td><td>Current/integrity-verified candidates enter only the independently checked fixed-N<sub>T</sub>=7 HETS screen. Neither becomes a scientific full-correlation qualification.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6. Missing constraints — intentionally not invented</h2>
+  <ul>
+    <li>Actual allowable shaft/motor power, torque, mechanical stress, shaft/bearing/seal/support/vibration limits, and vendor tip-speed limit.</li>
+    <li>Vendor-specific rotor/stator/partition dimensions and shapes, clearances, measured free area, ports, interface control, and active height.</li>
+    <li>Actual throughput/power map, pressure drop, residence time, turndown for these fluids, and outlet/settler capacity.</li>
+    <li>Drop-size distribution, breakage/coalescence, falling shape, and interfacial mobility.</li>
+    <li>Holdup, flooding onset, entrainment, phase inversion, hysteresis, and stable-control observations at target geometry.</li>
+    <li>A source-backed invariant selecting constant tip speed, P/V, rotor Reynolds number, characteristic velocity, or another scale-up rule.</li>
+  </ul>
+  <div class="callout gate"><strong>Readiness boundary.</strong> Both routes can use their existing independently checked presentation candidate in deterministic HETS pre-pilot arithmetic. Neither route is ready for a safe hydraulic/throughput/power screen or diameter/RPM optimization.</div>
+
+  <h2>7. Gate paths</h2>
+  <h3>Normal route (A)</h3>
+  <ol><li>Use V1.3 and preserve source-range warnings.</li><li>When the current calculated-in-range candidate passes presentation qualification, admit it to V3 HETS screening.</li><li>Do not promote HETS, diameter, flood point, or P/V to governed/optimized status without pilot/vendor geometry, mechanical, population, slip, holdup/flooding, and scale-up evidence.</li></ol>
+  <h3>Reverse route (B)</h3>
+  <ol><li>Use V1.5 only; retain V1.4/V1.3 lineage and extrapolation warnings.</li><li>Keep the 0.6930996971 m, 25 rpm point as an extrapolated root. When its immutable independent check passes, admit it to the same V3 HETS screen.</li><li>Keep governed hydraulics and finite-rate Stage 4 blocked: a falling low-κ drop/interface/shape closure, nonterminal characteristic/swarm relation, and reverse holdup/flooding/inversion/control evidence remain required.</li></ol>
+  <h3>Commercial/pilot path</h3>
+  <p>Perry's 60 mm pilot recommendation for targets up to 1 m and Sulzer's 30 mm–3.5 m product range mean neither target is prohibited. Neither record validates this full hydraulic chain. A representative pilot/vendor program is the route to narrow the uncertainty; it is not needed to retain this diagnostic/HETS screening report.</p>
+
+  <h2>8. Source manifest</h2>
+  <ul>
+    <li><strong>Garthe 2006 local primary:</strong> <em>Fluiddynamics and Mass Transfer of Single Particles and Swarms of Particles in Extraction Columns</em>, TU München, accepted 2006-04-03; local <code>attached_assets/Paper_1788587264307.pdf</code>, SHA-256 <code>39a39035d63f0b84bc74957ccf17b7a8c67ec456e73e4277491bc2cbb2bd53fc</code>; pp. 86 and 126. Equation source and data envelope, not a commercial prohibition.</li>
+    <li><strong>Myint et al. primary web records:</strong> 2006 terminal drag, DOI <a href="https://doi.org/10.1299/jfst.1.72">10.1299/jfst.1.72</a>; 2007 drop shape, DOI <a href="https://doi.org/10.1299/jfst.2.184">10.1299/jfst.2.184</a>. They document rising single drops in infinite stagnant liquids; they do not establish reverse falling RRBO/NMP service.</li>
+    <li><strong>Sulzer ECR:</strong> <a href="https://www.sulzer.com/en/shared/products/kuehni-agitated-columns-ecr">Kühni agitated columns (ECR)</a> and E10556 en 5.2025, pp. 4, 8–9. Vendor product/practice and pilot-apparatus evidence only.</li>
+    <li><strong>Perry 8th ed.:</strong> Section 15, printed p. 15-83; geometry and pilot recommendations, not a performance guarantee.</li>
+    <li><strong>Project records:</strong> <code>server/research/ecr-pre-pilot-kuhni-scale-up/scale-up-audit.md</code>; <code>research/rrbo-stage3-kuhni-scale-up-qualification.md</code>; <code>research/rrbo-stage3-current-basis-audit.md</code>; <code>research/rrbo-low-kappa-terminal-audit.md</code>; and <code>research/kuhni-compartment-height-rule-investigation.md</code>.</li>
+  </ul>
+  <p class="small"><strong>Final:</strong> HETS software gate open conditionally for both current independently checked presentation routes; governed/correlation-optimization and commercial-release gates not established for both. No Job A/B/C result was used or changed.</p>
+</main>
+</body>
+</html>
