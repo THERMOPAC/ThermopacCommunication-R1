@@ -1,6 +1,16 @@
 # THERMOPAC QMS
 An enterprise-grade Quality Management System optimizing operations, enhancing efficiency, and providing data-driven insights for THERMOPAC.
 
+## Accepted ECR pre-pilot hydraulic design basis
+The user explicitly accepted the following on 2026-09-16 as part of the dependable pre-pilot ECR design basis, in the ongoing review of both phase orientations:
+- Kühni hydraulic correlation scale-up to larger column diameter — **ACCEPTED**.
+- Power number `N_P = 1.2` — **ACCEPTED**.
+- Existing mean drop-size `d32` correlation — **ACCEPTED**.
+
+**Why:** These are user-approved engineering design assumptions, resolving their previously open pre-pilot admission status. Do not repeatedly require re-approval of these three items for that scope.
+
+**How to apply:** Retain source and extrapolation disclosures without treating these accepted assumptions as unresolved pre-pilot blockers. Acceptance is not new experimental validation or unrestricted commercial qualification, and does not establish HETS, overall efficiency, or outlet performance. It does not change numerical equations, historical snapshots, or approve an optimizer or production-methodology change. The separate height-method review and exclusion of Job A/B/C and replacement full-column solvers remain in effect.
+
 ## Run & Operate
 - **Run Dev**: `npm run dev`
 - **Build**: `npm run build`
