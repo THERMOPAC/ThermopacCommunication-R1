@@ -5,7 +5,9 @@ import {
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 import {
   loadStage4PrePilotSizingAuthority,
+  validatePersistedStage2HetsAuthority,
 } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
+import { validateStage1Snapshot } from '../server/ecr-pre-pilot/stage1';
 
 type PersistedStage2Row = {
   id: string; design_id: number; created_by: number; input_snapshot: unknown;
@@ -34,9 +36,9 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
   it('accepts the real completed Design 269 Stage-2 scientific record without a runtime preflight', async () => {
     const row = await acceptedDesign269Stage2();
     const accepted = validatePersistedAcceptedSevenComponentNtForStage4(row);
-    expect(accepted.theoreticalStages).toBe(5);
+    expect(accepted.theoreticalStages).toBe(4);
     expect(accepted.selectedTrial).toMatchObject({
-      stageCount: 5,
+      stageCount: 4,
       accepted: true,
       numericalAcceptancePassed: true,
       allCalculableTargetsPass: true,
@@ -49,14 +51,35 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
       'SELECT created_by FROM ecr_pre_pilot_designs WHERE id=269',
     );
     const authority = await loadStage4PrePilotSizingAuthority(Number(design.rows[0].created_by), 269);
-    expect(authority.projection.calculatedNt.value).toBe(5);
+    expect(authority.projection.calculatedNt.value).toBe(4);
     expect(authority.projection.hetsSizing).toMatchObject({
-      stage3HydraulicColumnDiameterM: .9742129194448474,
-      physicalCompartmentHeightM: .4871064597224237,
-      requiredActiveHeightM: 5,
-      requiredPhysicalCompartments: 11,
-      installedActiveHeightM: 5.358171056946661,
+      stage3HydraulicColumnDiameterM: .6930996970569214,
+      physicalCompartmentHeightM: .3465498485284607,
+      requiredActiveHeightM: 4,
+      requiredPhysicalCompartments: 12,
+      installedActiveHeightM: 4.158598182341528,
     });
+    expect(authority.projection.stage2Stage1Compatibility).toMatchObject({
+      status: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION',
+      excludedScientificInputField: 'stage1.phaseConfiguration',
+    });
+    expect(authority.projection.stage3HetsAdmission).toMatchObject({
+      status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
+      source: 'V150_EXTRAPOLATED_MODEL_ROOT',
+      columnDiameterM: .6930996970569214,
+    });
+  });
+
+  it('rejects a Stage-2 result hash that is changed without changing its stored Stage-1 input', async () => {
+    const row = copy(await acceptedDesign269Stage2()) as any;
+    const design = await pool.query<{ input_data: unknown }>(
+      'SELECT input_data FROM ecr_pre_pilot_designs WHERE id=269',
+    );
+    const currentStage1 = validateStage1Snapshot(design.rows[0].input_data);
+    row.result_snapshot.stage1TargetGovernance.stage1SnapshotHash =
+      currentStage1.immutableHash;
+    expect(() => validatePersistedStage2HetsAuthority(row, currentStage1))
+      .toThrow('STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
   });
 
   it.each([
@@ -69,10 +92,10 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
       row.result_snapshot.engine.historicalEngineHashes['7C-1.5.0'] = invented;
     }],
     ['missing trial evidence', (row: any) => { row.result_snapshot.trials = []; }],
-    ['a mismatched selected Nt', (row: any) => { row.result_snapshot.predictiveNt = 4; }],
-    ['a rejected selected trial', (row: any) => { row.result_snapshot.trials.find((trial: any) => trial.stageCount === 5).accepted = false; }],
-    ['a failed target gate', (row: any) => { row.result_snapshot.trials.find((trial: any) => trial.stageCount === 5).allCalculableTargetsPass = false; }],
-    ['a nonphysical LLE classification', (row: any) => { row.result_snapshot.trials.find((trial: any) => trial.stageCount === 5).physicalLleClassification = 'UNRESOLVED'; }],
+    ['a mismatched selected Nt', (row: any) => { row.result_snapshot.predictiveNt = 5; }],
+    ['a rejected selected trial', (row: any) => { row.result_snapshot.trials.find((trial: any) => trial.stageCount === 4).accepted = false; }],
+    ['a failed target gate', (row: any) => { row.result_snapshot.trials.find((trial: any) => trial.stageCount === 4).allCalculableTargetsPass = false; }],
+    ['a nonphysical LLE classification', (row: any) => { row.result_snapshot.trials.find((trial: any) => trial.stageCount === 4).physicalLleClassification = 'UNRESOLVED'; }],
   ])('rejects %s', async (_reason, mutate) => {
     const row = copy(await acceptedDesign269Stage2()) as any;
     mutate(row);

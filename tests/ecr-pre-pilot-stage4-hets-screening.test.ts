@@ -30,6 +30,7 @@ vi.mock('../server/ecr-pre-pilot/stage1', () => ({
       sulfurAllocationPolyPct: 20, sulfurAllocationPaPct: 20,
     },
   }),
+  stage1EquilibriumScientificContentHash: () => 'q'.repeat(64),
   makeStage1HydrodynamicProcessBasis: () => ({ stage1SnapshotHash: 's'.repeat(64) }),
 }));
 vi.mock('../server/ecr-pre-pilot/kuhni-hydrodynamics', () => ({
@@ -79,7 +80,9 @@ function resetDb() {
     if (sql.includes('FROM ecr_pre_pilot_designs')) return { rows: [{ input_data: {} }] };
     if (sql.includes('FROM ecr_pre_pilot_predictive_nt_jobs')) {
       return { rows: [{
-        id: 'stage-2', engine_hash: 'a'.repeat(64), result_snapshot: JSON.parse(
+        id: 'stage-2', input_snapshot: {
+          stage1Authority: { snapshotHash: 's'.repeat(64), source: {} },
+        }, engine_hash: 'a'.repeat(64), result_snapshot: JSON.parse(
           stage3Result.theoreticalStagesUsed.stage2ResultHash,
         ),
       }] };
@@ -155,7 +158,7 @@ describe('Stage 4 deterministic HETS screening', () => {
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
       stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
     });
-    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V1' }, null, false];
+    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V2' }, null, false];
     state.index = 0;
     const html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
     expect(html).toContain('Stage 4 HETS-Based Pre-Pilot Sizing');

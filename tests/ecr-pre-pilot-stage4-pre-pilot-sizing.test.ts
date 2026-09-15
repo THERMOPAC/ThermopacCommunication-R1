@@ -97,6 +97,78 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     }));
   });
 
+  it('admits an independently checked reverse pre-pilot root only through the orientation-compatible HETS route', () => {
+    const reverseStage3 = {
+      ...stage3(),
+      result: {
+        theoreticalStagesUsed: {
+          value: 7,
+          provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+          stage3GeometryDesignNt: 7,
+          stage2AcceptedPredictiveNt: null,
+          stage2JobId: null,
+          stage2ResultHash: null,
+        },
+        hydraulicDiagnosticPoint: null,
+      },
+    };
+    const result = deriveStage4PrePilotSizing({
+      calculatedNt: 4,
+      stage2JobId: 'stage-2-equivalent',
+      stage2ResultHash: 'e'.repeat(64),
+      stage3: reverseStage3,
+      stage2Stage1Compatibility: {
+        status: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION',
+        currentStage1SnapshotHash: 'b'.repeat(64),
+        persistedStage2Stage1SnapshotHash: 'd'.repeat(64),
+        currentEquilibriumScientificInputHash: 'f'.repeat(64),
+        persistedEquilibriumScientificInputHash: 'f'.repeat(64),
+        excludedScientificInputField: 'stage1.phaseConfiguration',
+        currentPhaseConfiguration: 'rrbo-continuous-nmp-dispersed',
+        persistedStage2PhaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+      },
+      stage3PrePilotHetsAdmission: {
+        status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
+        source: 'V150_EXTRAPOLATED_MODEL_ROOT',
+        columnDiameterM: .6930996970569214,
+        stage3PresentationQualificationHash: 'p'.repeat(64),
+        limitations: [],
+      },
+    });
+
+    expect(result.calculatedNt.value).toBe(4);
+    expect(result.hetsSizing.stage3HydraulicColumnDiameterM).toBe(.6930996970569214);
+    expect(result.selectedStage3Hydraulics.source)
+      .toBe('PERSISTED_STAGE3_INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE_NO_STAGE4_RESELECTION');
+    expect(result.stage3HetsAdmission).toMatchObject({
+      status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
+      source: 'V150_EXTRAPOLATED_MODEL_ROOT',
+    });
+  });
+
+  it('does not permit a pre-pilot root to bypass exact Stage-2 equilibrium compatibility', () => {
+    const reverseStage3 = {
+      ...stage3(),
+      result: {
+        theoreticalStagesUsed: {
+          value: 7, provenance: 'STAGE3_GEOMETRY_DESIGN_NT',
+          stage3GeometryDesignNt: 7, stage2AcceptedPredictiveNt: null,
+          stage2JobId: null, stage2ResultHash: null,
+        },
+        hydraulicDiagnosticPoint: null,
+      },
+    };
+    expect(() => deriveStage4PrePilotSizing({
+      calculatedNt: 4, stage2JobId: 'stage-2-equivalent', stage2ResultHash: 'e'.repeat(64),
+      stage3: reverseStage3,
+      stage3PrePilotHetsAdmission: {
+        status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
+        source: 'V150_EXTRAPOLATED_MODEL_ROOT', columnDiameterM: .6930996970569214,
+        stage3PresentationQualificationHash: 'p'.repeat(64), limitations: [],
+      },
+    })).toThrow('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
+  });
+
   it('rejects an invalid Stage-2 Nt rather than applying a default', () => {
     expect(() => deriveStage4PrePilotSizing({ ...input(), calculatedNt: 0 }))
       .toThrow('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');

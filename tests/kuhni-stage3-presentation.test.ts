@@ -70,6 +70,7 @@ describe('Stage-3 additive presentation qualification', () => {
       qualification: 'CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION',
       governed: false,
       stage4Input: false,
+      stage4HetsScreeningInput: true,
       independentCheck: 'PASSED',
     });
     expect(presentation.candidate?.columnDiameterM).toBeCloseTo(
@@ -147,6 +148,7 @@ describe('Stage-3 additive presentation qualification', () => {
       source: 'CALCULATED_IN_RANGE_TRIAL',
       governed: false,
       stage4Input: false,
+      stage4HetsScreeningInput: true,
     });
     expect(presentation.limitations.map((item) => item.group)).toContain('SCALE_UP');
     expect(presentation.limitations.map((item) => item.group)).toContain('DOWNSTREAM_GOVERNANCE');

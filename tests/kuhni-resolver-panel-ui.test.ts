@@ -411,6 +411,7 @@ describe("Kuhni Stage 3 rejected-envelope panel", () => {
           source: "V150_EXTRAPOLATED_MODEL_ROOT",
           governed: false,
           stage4Input: false,
+          stage4HetsScreeningInput: true,
           columnDiameterM: 0.6930996971,
           rotorDiameterM: 0.3465498485,
           rpm: 25,
@@ -421,6 +422,7 @@ describe("Kuhni Stage 3 rejected-envelope panel", () => {
           status: "UNCHANGED_GOVERNED_OUTPUT",
           candidateIsNotGoverned: true,
           stage4Input: false,
+          stage4HetsScreeningInput: true,
         },
         limitations: [
           { group: "SCALE_UP", title: "Major scale-up extrapolation", details: ["Pre-pilot only."] },

@@ -85,4 +85,16 @@ retroactively changing frozen engine results or granting commercial acceptance.
 
 **How to apply:** Show independently checked, current-basis candidates with
 grouped extrapolation limitations; do not convert their availability into
-Stage-4 readiness or hide genuine failed numerical trials.
+finite-rate Stage-4 readiness or hide genuine failed numerical trials.
+
+HETS assumption-based screening may consume an independently checked reverse
+hydraulic candidate, separately from governed hydraulics and Job A/B/C.
+Stage-2 equilibrium can be reused across orientation-only changes when verified
+immutable scientific snapshots otherwise match exactly.
+
+**Why:** Hydraulic continuity does not change the equilibrium problem, and the
+same pre-pilot sizing standard must apply to both phase orientations.
+
+**How to apply:** Retain actual accepted Stage-2 N_T, never geometry default 7;
+audit orientation-only compatibility and reject any other scientific input
+change. Preserve limitations and historical results.

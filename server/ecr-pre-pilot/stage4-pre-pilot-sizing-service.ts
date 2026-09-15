@@ -1,8 +1,16 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { pool } from '../db';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
-import { validateStage1Snapshot } from './stage1';
+import {
+  stage1EquilibriumScientificContentHash,
+  validateStage1Snapshot,
+  type EcrPrePilotStage1Snapshot,
+} from './stage1';
 import { validatePersistedAcceptedSevenComponentNtForStage4 } from './predictive-nt-job-service';
+import {
+  qualifyKuhniStage3Presentation,
+  type KuhniStage3PresentationQualification,
+} from './kuhni-stage3-presentation';
 
 const finite = (value: unknown): value is number =>
   typeof value === 'number' && Number.isFinite(value);
@@ -12,7 +20,7 @@ const acceptedStage2Statuses = new Set([
   'COMPLETED_PRE_PILOT_MULTISTAGE_MATRIX',
 ]);
 
-export const STAGE4_HETS_IMPLEMENTATION_VERSION = 'ECR_STAGE4_HETS_SCREENING_V1';
+export const STAGE4_HETS_IMPLEMENTATION_VERSION = 'ECR_STAGE4_HETS_SCREENING_V2';
 export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_HETS_IMPLEMENTATION_VERSION,
   compartmentHeightRule: 'hc = 0.5D',
@@ -21,6 +29,8 @@ export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.
   requiredHeight: 'Nt * HETS',
   installedHeight: 'Nphysical * hc',
   scope: 'PRE_PILOT_SCREENING_NO_OUTLET_OR_TARGET_CLAIM',
+  stage3Admission: 'CALCULATED_IN_RANGE_OR_INDEPENDENTLY_CHECKED_PREPILOT_HETS_ONLY',
+  stage2Compatibility: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_ONLY_HYDRAULIC_PHASE_ORIENTATION',
 })).digest('hex');
 
 function fail(code: string): never {
@@ -40,6 +50,46 @@ type PersistedStage2 = {
   result_snapshot: Record<string, any>;
 };
 
+export type Stage2HetsStage1Compatibility = {
+  status:
+    | 'EXACT_STAGE1_SNAPSHOT_MATCH'
+    | 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION';
+  currentStage1SnapshotHash: string;
+  persistedStage2Stage1SnapshotHash: string;
+  currentEquilibriumScientificInputHash: string;
+  persistedEquilibriumScientificInputHash: string;
+  excludedScientificInputField: 'stage1.phaseConfiguration' | null;
+  currentPhaseConfiguration: string;
+  persistedStage2PhaseConfiguration: string;
+};
+
+function validatePersistedStage2Stage1Authority(
+  row: PersistedStage2,
+  persistedStage1SnapshotHash: string,
+): EcrPrePilotStage1Snapshot {
+  const stage1Authority = (row.input_snapshot as any)?.stage1Authority;
+  if (
+    !stage1Authority
+    || typeof stage1Authority !== 'object'
+    || typeof stage1Authority.snapshotHash !== 'string'
+  ) {
+    fail('STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
+  }
+  let persistedStage1: EcrPrePilotStage1Snapshot;
+  try {
+    persistedStage1 = validateStage1Snapshot(stage1Authority.source);
+  } catch {
+    fail('STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
+  }
+  if (
+    stage1Authority.snapshotHash !== persistedStage1.immutableHash
+    || persistedStage1.immutableHash !== persistedStage1SnapshotHash
+  ) {
+    fail('STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
+  }
+  return persistedStage1;
+}
+
 /**
  * Verifies Stage-2 evidence already persisted by the accepted Stage-2 worker.
  * It intentionally does not preflight or execute that worker/runtime: HETS
@@ -47,21 +97,114 @@ type PersistedStage2 = {
  */
 export function validatePersistedStage2HetsAuthority(
   row: PersistedStage2,
-  stage1SnapshotHash: string,
+  currentStage1: EcrPrePilotStage1Snapshot,
 ) {
   const result = row?.result_snapshot;
+  const persistedStage1SnapshotHash = result?.stage1TargetGovernance?.stage1SnapshotHash;
   if (
     !result || !acceptedStage2Statuses.has(String(result.executionStatus ?? ''))
-    || result?.stage1TargetGovernance?.stage1SnapshotHash !== stage1SnapshotHash
+    || typeof persistedStage1SnapshotHash !== 'string'
   ) {
     fail('STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
   }
+  const persistedStage1 = validatePersistedStage2Stage1Authority(
+    row,
+    persistedStage1SnapshotHash,
+  );
+  let stage1Compatibility: Stage2HetsStage1Compatibility;
+  if (persistedStage1SnapshotHash === currentStage1.immutableHash) {
+    // Direct immutable-hash matching is already stricter than the
+    // orientation-only compatibility path. The stored Stage-1 source and
+    // its wrapper hash have also been revalidated above, so the result hash
+    // cannot be self-attested independently of the persisted input.
+    const equilibriumHash = stage1EquilibriumScientificContentHash(currentStage1);
+    stage1Compatibility = {
+      status: 'EXACT_STAGE1_SNAPSHOT_MATCH',
+      currentStage1SnapshotHash: currentStage1.immutableHash,
+      persistedStage2Stage1SnapshotHash: persistedStage1SnapshotHash,
+      currentEquilibriumScientificInputHash: equilibriumHash,
+      persistedEquilibriumScientificInputHash:
+        stage1EquilibriumScientificContentHash(persistedStage1),
+      excludedScientificInputField: null,
+      currentPhaseConfiguration: currentStage1.stage1.phaseConfiguration,
+      persistedStage2PhaseConfiguration: persistedStage1.stage1.phaseConfiguration,
+    };
+  } else {
+    const currentEquilibriumScientificInputHash =
+      stage1EquilibriumScientificContentHash(currentStage1);
+    const persistedEquilibriumScientificInputHash =
+      stage1EquilibriumScientificContentHash(persistedStage1);
+    if (currentEquilibriumScientificInputHash !== persistedEquilibriumScientificInputHash) {
+      fail('STAGE4_STAGE2_EQUILIBRIUM_INPUT_MISMATCH_EXCEPT_PHASE_ORIENTATION');
+    }
+    stage1Compatibility = {
+      status: 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION',
+      currentStage1SnapshotHash: currentStage1.immutableHash,
+      persistedStage2Stage1SnapshotHash: persistedStage1SnapshotHash,
+      currentEquilibriumScientificInputHash,
+      persistedEquilibriumScientificInputHash,
+      excludedScientificInputField: 'stage1.phaseConfiguration',
+      currentPhaseConfiguration: currentStage1.stage1.phaseConfiguration,
+      persistedStage2PhaseConfiguration: persistedStage1.stage1.phaseConfiguration,
+    };
+  }
   try {
     const trusted = validatePersistedAcceptedSevenComponentNtForStage4(row);
-    return { theoreticalStages: trusted.theoreticalStages, resultHash: kuhniRunHash(result) };
+    return {
+      theoreticalStages: trusted.theoreticalStages,
+      resultHash: kuhniRunHash(result),
+      stage1Compatibility,
+    };
   } catch (error) {
     fail((error as Error).message || 'STAGE4_PERSISTED_ACCEPTED_STAGE2_INTEGRITY_INVALID');
   }
+}
+
+export type Stage3PrePilotHetsAdmission = {
+  status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE';
+  source: 'CALCULATED_IN_RANGE_TRIAL' | 'V150_EXTRAPOLATED_MODEL_ROOT';
+  columnDiameterM: number;
+  stage3PresentationQualificationHash: string;
+  limitations: KuhniStage3PresentationQualification['limitations'];
+};
+
+/**
+ * This turns the additive Stage-3 qualification into a deliberately narrow
+ * admission record.  The qualifier has already re-evaluated the V1.5 reverse
+ * root from its frozen primitive basis; this function only accepts its exact
+ * HETS-only contract and never treats it as governed hydraulics.
+ */
+export function admitIndependentlyCheckedStage3PrePilotHetsCandidate(
+  qualification: KuhniStage3PresentationQualification,
+): Stage3PrePilotHetsAdmission | null {
+  const candidate = qualification?.candidate;
+  const governed = qualification?.governedOutput;
+  if (
+    qualification?.status !== 'CALCULATED_PRE_PILOT_WITH_MAJOR_SCALE_UP_EXTRAPOLATION'
+    || qualification.lineage?.status !== 'CURRENT'
+    || !candidate
+    || candidate.available !== true
+    || candidate.governed !== false
+    || candidate.stage4Input !== false
+    || candidate.stage4HetsScreeningInput !== true
+    || candidate.independentCheck !== 'PASSED'
+    || !['CALCULATED_IN_RANGE_TRIAL', 'V150_EXTRAPOLATED_MODEL_ROOT'].includes(candidate.source)
+    || !positiveFinite(candidate.columnDiameterM)
+    || governed?.candidateIsNotGoverned !== true
+    || governed?.stage4Input !== false
+    || governed?.stage4HetsScreeningInput !== true
+  ) return null;
+  return {
+    status: 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE',
+    source: candidate.source,
+    columnDiameterM: candidate.columnDiameterM,
+    stage3PresentationQualificationHash: kuhniRunHash(qualification),
+    limitations: qualification.limitations,
+  };
+}
+
+function positiveFinite(value: unknown): value is number {
+  return finite(value) && value > 0;
 }
 
 export function deriveStage4PrePilotSizing(input: {
@@ -69,6 +212,8 @@ export function deriveStage4PrePilotSizing(input: {
   stage2JobId: string;
   stage2ResultHash: string;
   stage3: Stage3Projection;
+  stage2Stage1Compatibility?: Stage2HetsStage1Compatibility;
+  stage3PrePilotHetsAdmission?: Stage3PrePilotHetsAdmission | null;
 }) {
   if (!Number.isInteger(input.calculatedNt) || input.calculatedNt <= 0) {
     fail('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
@@ -86,19 +231,34 @@ export function deriveStage4PrePilotSizing(input: {
       stage2ResultHash: persistedAuthority.stage2ResultHash,
     }
     : persistedAuthority;
-  if (authority?.provenance !== 'STAGE_2_CALCULATED_NT'
-    || authority?.stage2JobId !== input.stage2JobId
-    || authority?.stage2ResultHash !== input.stage2ResultHash
-    || authority?.value !== input.calculatedNt) {
+  const sameStage2Lineage = authority?.provenance === 'STAGE_2_CALCULATED_NT'
+    && authority?.stage2JobId === input.stage2JobId
+    && authority?.stage2ResultHash === input.stage2ResultHash
+    && authority?.value === input.calculatedNt;
+  const selected = input.stage3.result.hydraulicDiagnosticPoint;
+  const inRangeHydraulics = selected?.status === 'CALCULATED_IN_RANGE'
+    && positiveFinite(selected.columnDiameterM);
+  const prePilotHetsAdmission = input.stage3PrePilotHetsAdmission;
+  const prePilotCrossSnapshotLineage = !sameStage2Lineage
+    && prePilotHetsAdmission?.status === 'INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE'
+    && input.stage2Stage1Compatibility?.status
+      === 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION'
+    && persistedAuthority?.provenance === 'STAGE3_GEOMETRY_DESIGN_NT'
+    && persistedAuthority?.value === 7
+    && persistedAuthority?.stage3GeometryDesignNt === 7
+    && persistedAuthority?.stage2AcceptedPredictiveNt == null
+    && persistedAuthority?.stage2JobId == null
+    && persistedAuthority?.stage2ResultHash == null;
+  if (!sameStage2Lineage && !prePilotCrossSnapshotLineage) {
     fail('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
   }
-  const selected = input.stage3.result.hydraulicDiagnosticPoint;
-  if (!selected || selected.status !== 'CALCULATED_IN_RANGE'
-    || !finite(selected.columnDiameterM) || selected.columnDiameterM <= 0) {
+  if (!inRangeHydraulics && !prePilotHetsAdmission) {
     fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   }
 
-  const diameterM = selected.columnDiameterM;
+  const diameterM = inRangeHydraulics
+    ? selected.columnDiameterM
+    : prePilotHetsAdmission!.columnDiameterM;
   const compartmentHeightM = .5 * diameterM;
   const hetsMPerTheoreticalStage = 1;
   const screeningEfficiency = compartmentHeightM / hetsMPerTheoreticalStage;
@@ -127,16 +287,30 @@ export function deriveStage4PrePilotSizing(input: {
     },
     calculatedNt: {
       value: input.calculatedNt,
-      provenance: 'STAGE_2_CALCULATED_NT_SAME_LINEAGE',
+      provenance: sameStage2Lineage
+        ? 'STAGE_2_CALCULATED_NT_SAME_LINEAGE'
+        : 'STAGE_2_CALCULATED_NT_EXACT_EQUILIBRIUM_COMPATIBLE_STAGE1',
       stage2JobId: input.stage2JobId,
       stage2ResultHash: input.stage2ResultHash,
     },
     selectedStage3Hydraulics: {
       diameterM,
-      source: 'PERSISTED_STAGE3_HYDRAULIC_DIAGNOSTIC_POINT_NO_STAGE4_RESELECTION',
+      source: inRangeHydraulics
+        ? 'PERSISTED_STAGE3_HYDRAULIC_DIAGNOSTIC_POINT_NO_STAGE4_RESELECTION'
+        : 'PERSISTED_STAGE3_INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE_NO_STAGE4_RESELECTION',
       stage3RunId: input.stage3.id,
       stage3ImmutableHash: input.stage3.immutableHash,
     },
+    stage2Stage1Compatibility: input.stage2Stage1Compatibility ?? {
+      status: 'EXACT_STAGE1_SNAPSHOT_MATCH',
+      excludedScientificInputField: null,
+    },
+    stage3HetsAdmission: inRangeHydraulics
+      ? {
+        status: 'PERSISTED_CALCULATED_IN_RANGE_HYDRAULICS',
+        source: 'PERSISTED_STAGE3_HYDRAULIC_DIAGNOSTIC_POINT_NO_STAGE4_RESELECTION',
+      }
+      : prePilotHetsAdmission,
     overallEfficiency: {
       value: screeningEfficiency,
       status: 'CALCULATED_FROM_HETS_SCREENING_ASSUMPTION',
@@ -165,6 +339,10 @@ export function deriveStage4PrePilotSizing(input: {
     },
     assumptions: [
       'Stage 4 carries the persisted Stage-3 selected hydraulic point forward and does not recalculate or reselect hydraulic candidates.',
+      ...(prePilotHetsAdmission ? [
+        'The independently checked Stage-3 pre-pilot candidate supplies diameter only to this HETS screening route; it is not governed hydraulics, finite-rate Stage 4, mass-transfer readiness, or commercial release authority.',
+        ...prePilotHetsAdmission.limitations.flatMap(limitation => limitation.details),
+      ] : []),
       'HETS = 1.0 m/theoretical stage is an explicit engineering screening assumption; its conservatism for the RRBO/NMP system is not established.',
       'Compartment height hc = 0.5D is provisional pre-pilot geometry requiring pilot and vendor/mechanical confirmation.',
       'The screening efficiency hc/HETS is not independently predicted or experimentally validated.',
@@ -195,20 +373,24 @@ export async function loadStage4PrePilotSizingAuthority(
       WHERE design_id=$1 AND created_by=$2 AND status='completed'
         AND result_snapshot IS NOT NULL
         AND result_snapshot->>'status' IS DISTINCT FROM 'ENGINE_ERROR'
-        AND result_snapshot#>>'{stage1TargetGovernance,stage1SnapshotHash}'=$3
       ORDER BY created_at DESC,id DESC`,
-    [designId, userId, stage1.immutableHash],
+    [designId, userId],
   );
+  let rejectedStage2AuthorityCode: string | null = null;
   const stage2 = stage2Rows.rows.find(row => {
     try {
-      validatePersistedStage2HetsAuthority(row, stage1.immutableHash);
+      validatePersistedStage2HetsAuthority(row, stage1);
       return true;
-    } catch {
+    } catch (error) {
+      rejectedStage2AuthorityCode = (error as Error).message;
       return false;
     }
   });
-  if (!stage2) fail('STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
-  const trustedStage2 = validatePersistedStage2HetsAuthority(stage2, stage1.immutableHash);
+  if (!stage2) {
+    fail(rejectedStage2AuthorityCode
+      || 'STAGE4_VALID_CALCULATED_STAGE2_NT_REQUIRED_NO_DEFAULT_APPLIED');
+  }
+  const trustedStage2 = validatePersistedStage2HetsAuthority(stage2, stage1);
 
   const stage3Rows = await pool.query<{
     id: string; immutable_hash: string; stage1_snapshot_hash: string;
@@ -235,20 +417,49 @@ export async function loadStage4PrePilotSizingAuthority(
   });
   if (immutableHash !== row.immutable_hash
     || row.stage1_snapshot_hash !== stage1.immutableHash
-    || row.result_snapshot?.processBasis?.stage1SnapshotHash !== stage1.immutableHash
-    || row.stage2_job_id !== stage2.id
-    || row.stage2_result_hash !== trustedStage2.resultHash) {
+    || row.result_snapshot?.processBasis?.stage1SnapshotHash !== stage1.immutableHash) {
     fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   }
   const stage3: Stage3Projection = {
     id: row.id, immutableHash: row.immutable_hash, stage1SnapshotHash: row.stage1_snapshot_hash,
     result: row.result_snapshot,
   };
+  // This is an additive read-only qualification of the already replayed
+  // resolver record. It neither writes presentation data into the immutable
+  // Stage-3 result nor calls the frozen geometry engine.
+  const presentationQualification = qualifyKuhniStage3Presentation({
+    result: row.result_snapshot,
+    processBasis: row.process_basis as any,
+    runStage1SnapshotHash: row.stage1_snapshot_hash,
+    currentStage1SnapshotHash: stage1.immutableHash,
+    integrityVerified: true,
+  });
+  const stage3PrePilotHetsAdmission =
+    admitIndependentlyCheckedStage3PrePilotHetsCandidate(presentationQualification);
+  const strictStage2Stage3Lineage = row.stage2_job_id === stage2.id
+    && row.stage2_result_hash === trustedStage2.resultHash;
+  const compatiblePrePilotStage3Lineage = Boolean(
+    stage3PrePilotHetsAdmission
+    && trustedStage2.stage1Compatibility.status
+      === 'EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION'
+    && row.theoretical_stage_authority
+    && (row.theoretical_stage_authority as any).provenance === 'STAGE3_GEOMETRY_DESIGN_NT'
+    && (row.theoretical_stage_authority as any).value === 7
+    && (row.theoretical_stage_authority as any).stage3GeometryDesignNt === 7
+    && (row.theoretical_stage_authority as any).stage2AcceptedPredictiveNt == null
+    && row.stage2_job_id == null
+    && row.stage2_result_hash == null,
+  );
+  if (!strictStage2Stage3Lineage && !compatiblePrePilotStage3Lineage) {
+    fail('STAGE4_STAGE3_STALE_OR_NOT_SAME_LINEAGE_WITH_CALCULATED_STAGE2_NT');
+  }
   const projection = deriveStage4PrePilotSizing({
     calculatedNt: trustedStage2.theoreticalStages,
     stage2JobId: stage2.id,
     stage2ResultHash: trustedStage2.resultHash,
     stage3,
+    stage2Stage1Compatibility: trustedStage2.stage1Compatibility,
+    stage3PrePilotHetsAdmission,
   });
   const solverInput = {
     calculatedNt: trustedStage2.theoreticalStages,
@@ -262,8 +473,16 @@ export async function loadStage4PrePilotSizingAuthority(
   const lineageHash = kuhniRunHash({
     owner: { userId, designId },
     stage1SnapshotHash: stage1.immutableHash,
-    stage2: { jobId: stage2.id, resultHash: trustedStage2.resultHash, theoreticalStages: trustedStage2.theoreticalStages },
-    stage3: { runId: String(row.id), immutableHash: row.immutable_hash, hydraulicDiameterM: projection.mainOutputs.diameterM },
+    stage2: {
+      jobId: stage2.id, resultHash: trustedStage2.resultHash,
+      theoreticalStages: trustedStage2.theoreticalStages,
+      stage1Compatibility: trustedStage2.stage1Compatibility,
+    },
+    stage3: {
+      runId: String(row.id), immutableHash: row.immutable_hash,
+      hydraulicDiameterM: projection.mainOutputs.diameterM,
+      hetsAdmission: projection.stage3HetsAdmission,
+    },
     implementation: projection.implementation,
   });
   return { projection, solverInput, lineageHash };

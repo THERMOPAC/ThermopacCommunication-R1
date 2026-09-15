@@ -26,6 +26,8 @@ export type KuhniStage3PresentationCandidate = {
   source: 'CALCULATED_IN_RANGE_TRIAL' | 'V150_EXTRAPOLATED_MODEL_ROOT';
   governed: false;
   stage4Input: false;
+  /** Narrow HETS-only admission; never a governed Stage-4/transfer input. */
+  stage4HetsScreeningInput: true;
   columnDiameterM: number;
   rotorDiameterM: number | null;
   compartmentHeightM: number | null;
@@ -51,6 +53,7 @@ export type KuhniStage3PresentationQualification = {
     status: 'UNCHANGED_GOVERNED_OUTPUT';
     candidateIsNotGoverned: true;
     stage4Input: false;
+    stage4HetsScreeningInput: boolean;
     message: string;
   };
   lineage: {
@@ -158,10 +161,10 @@ function baseLimitations(reverse: boolean): KuhniStage3PresentationLimitation[] 
     },
     {
       group: 'DOWNSTREAM_GOVERNANCE',
-      title: 'Not a governed Stage-3 or Stage-4 input',
+      title: 'HETS-only Stage-4 screening admission',
       details: [
-        'This presentation candidate is separate from governed hydraulic acceptance and does not unlock Stage 4 or mass-transfer readiness.',
-        'Final RPM, physical compartments, active height and transfer efficiency remain dependency-blocked until their existing approved model is available.',
+        'This presentation candidate is separate from governed hydraulic acceptance. It may supply diameter only to the deterministic Stage-4 HETS pre-pilot screening route.',
+        'It does not unlock finite-rate Stage 4, mass-transfer readiness, outlet/target claims, or commercial mechanical release.',
       ],
     },
   ];
@@ -183,6 +186,7 @@ function unavailable(
       status: 'UNCHANGED_GOVERNED_OUTPUT',
       candidateIsNotGoverned: true,
       stage4Input: false,
+      stage4HetsScreeningInput: false,
       message: 'No presentation candidate was admitted; existing governed output and dependency gates remain unchanged.',
     },
     lineage,
@@ -227,6 +231,7 @@ function candidateFromTrial(
     source,
     governed: false,
     stage4Input: false,
+    stage4HetsScreeningInput: true,
     columnDiameterM: trial.columnDiameterM,
     rotorDiameterM: finiteOrNull(trial.rotorDiameterM),
     compartmentHeightM: finiteOrNull(trial.compartmentHeightM),
@@ -297,7 +302,8 @@ function validV150ReverseCandidate(
 /**
  * Additive read-only qualification for an already integrity-verified resolver
  * snapshot. This deliberately does not modify the stored result, resolver
- * hash, scientific admission, or Stage-4 dependency checks.
+ * hash, scientific admission, or governed/finite-rate Stage-4 dependency
+ * checks. A separate HETS-only consumer may use this explicit qualification.
  */
 export function qualifyKuhniStage3Presentation(
   input: QualificationInput,
@@ -341,7 +347,8 @@ export function qualifyKuhniStage3Presentation(
       status: 'UNCHANGED_GOVERNED_OUTPUT',
       candidateIsNotGoverned: true,
       stage4Input: false,
-      message: 'Presentation-only pre-pilot candidate; governed hydraulic output, Stage 4 admission, and mass-transfer readiness are unchanged.',
+      stage4HetsScreeningInput: true,
+      message: 'Presentation candidate admitted only to deterministic HETS pre-pilot screening; governed hydraulic output, finite-rate Stage 4, and mass-transfer readiness are unchanged.',
     },
     lineage,
     limitations: baseLimitations(reverse),

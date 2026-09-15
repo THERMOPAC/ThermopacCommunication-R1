@@ -64,6 +64,7 @@ type KuhniPresentationCandidate = {
   source?: string;
   governed?: boolean;
   stage4Input?: boolean;
+  stage4HetsScreeningInput?: boolean;
   columnDiameterM?: number;
   rotorDiameterM?: number | null;
   compartmentHeightM?: number | null;
@@ -246,8 +247,10 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
     && presentationCandidate?.available === true
     && presentationCandidate.governed === false
     && presentationCandidate.stage4Input === false
+    && presentationCandidate.stage4HetsScreeningInput === true
     && governedOutput?.candidateIsNotGoverned === true
     && governedOutput?.stage4Input === false
+    && governedOutput?.stage4HetsScreeningInput === true
     && Number.isFinite(Number(presentationCandidate.columnDiameterM))
     && Number.isFinite(Number(presentationCandidate.rpm));
   const presentationLimitations = Array.isArray(presentationQualification?.limitations)
@@ -349,7 +352,8 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
               <strong className="text-[11px]">{prePilotDispositionLabel}</strong>
               <p className="mt-1 leading-4">
                 This finite, independently checked candidate is available for pre-pilot review only.
-                It is not a governed hydraulic acceptance, commercial diameter, Stage 4 input, or mass-transfer readiness signal.
+                It is not a governed hydraulic acceptance, commercial diameter, finite-rate Stage 4 input,
+                or mass-transfer readiness signal. It is admitted only to deterministic HETS pre-pilot screening.
               </p>
             </div>
             <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-1 font-semibold uppercase tracking-wide">
@@ -586,7 +590,7 @@ export function KuhniResolverPanel({ run, runCount }: { run: KuhniRun; runCount:
           </p>
           <p className="mt-1 text-slate-600">
             {hasPrePilotCandidate
-              ? "The displayed candidate is presentation-only; governed Stage-3 and Stage-4 outputs remain unchanged."
+              ? "The displayed candidate is HETS-screening-only; governed Stage-3, finite-rate Stage-4, and mass-transfer outputs remain unchanged."
               : "Rejected or empty envelopes do not nominate a diameter, RPM, or Stage 3 geometry."}
           </p>
         </div>

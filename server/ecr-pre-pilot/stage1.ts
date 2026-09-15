@@ -385,6 +385,33 @@ export function stage1ScientificContentHash(snapshot: EcrPrePilotStage1Snapshot)
   return createHash('sha256').update(canonicalJson(scientificSnapshot)).digest('hex');
 }
 
+/**
+ * The equilibrium cascade consumes the chemical, operating and target fields,
+ * but not the hydraulic continuous/dispersed assignment.  This deliberately
+ * retains every other scientific Stage-1 field (including the molecular and
+ * COSMO-SAC bindings) so it can be used only to establish an exact
+ * orientation-only compatibility between immutable snapshots.
+ *
+ * `savedAt` and `immutableHash` are snapshot/audit identities rather than
+ * scientific inputs, matching stage1ScientificContentHash.  The sole
+ * substantive Stage-1 field omitted here is `stage1.phaseConfiguration`.
+ */
+export function stage1EquilibriumScientificContentHash(
+  snapshot: EcrPrePilotStage1Snapshot,
+): string {
+  const {
+    immutableHash: _immutableAuditIdentity,
+    savedAt: _savedAtAuditMetadata,
+    ...scientificSnapshot
+  } = snapshot;
+  const { phaseConfiguration: _hydraulicPhaseOrientation, ...equilibriumStage1 } =
+    scientificSnapshot.stage1;
+  return createHash('sha256').update(canonicalJson({
+    ...scientificSnapshot,
+    stage1: equilibriumStage1,
+  })).digest('hex');
+}
+
 export function validateStage1Snapshot(rawSnapshot: unknown): EcrPrePilotStage1Snapshot {
   if (!rawSnapshot || typeof rawSnapshot !== 'object') throw new Error('STAGE1_INPUT_NOT_SAVED');
   const snapshot = rawSnapshot as EcrPrePilotStage1Snapshot;

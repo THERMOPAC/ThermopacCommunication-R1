@@ -425,6 +425,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const nt = record(displayResult?.calculatedNt);
   const hydraulic = record(displayResult?.selectedStage3Hydraulics);
   const efficiency = record(displayResult?.overallEfficiency);
+  const stage2Stage1Compatibility = record(displayResult?.stage2Stage1Compatibility);
+  const stage3HetsAdmission = record(displayResult?.stage3HetsAdmission);
+  const stage3HetsLimitations = list(stage3HetsAdmission.limitations).map(record);
   const geometry = record(displayResult?.physicalGeometry);
   const audit = record(displayResult?.mixingAudit);
   const physicalSizing = record(displayResult?.physicalSizing);
@@ -494,7 +497,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const stage4Terminal = STAGE4_TERMINAL_STATES.has(stage4Status);
   const stage4Action = stage4Retryable ? retry : calculate;
   const hetsSizing = record(displayResult?.hetsSizing);
-  const isHetsResult = displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V1"
+  const isHetsResult = displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V2"
     && Object.keys(hetsSizing).length > 0;
   const fixed = (value: unknown, digits: number) =>
     isFiniteNumber(value) ? value.toFixed(digits) : "—";
@@ -641,8 +644,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
             </h2>
             <p className="mt-1 text-[10px] leading-4 text-slate-700">
               Deterministic HETS screening from the accepted Stage-2 Nₜ and
-              persisted Stage-3 hydraulic screening diameter. No hydraulic
-              candidate is reselected and no finite-rate solver is started.
+               persisted Stage-3 hydraulic screening diameter. An independently
+               checked Stage-3 pre-pilot root may be admitted only to this HETS route;
+               no hydraulic candidate is reselected and no finite-rate solver is started.
             </p>
           </div>
           <button
@@ -773,6 +777,35 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               Accepted Stage-2 Nₜ: {number(nt.value)} · Stage-3 hydraulic screening diameter:
               {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter was recalculated.
             </p>
+            {stage3HetsAdmission.status === "INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE" && (
+              <p className="mt-1">
+                <strong>Stage-3 HETS-only admission:</strong> independently checked{" "}
+                {text(stage3HetsAdmission.source)}. This is not governed hydraulics, finite-rate
+                Stage 4, mass-transfer readiness, or commercial release authority.
+              </p>
+            )}
+            {stage2Stage1Compatibility.status
+              === "EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION" && (
+              <p className="mt-1">
+                <strong>Stage-2 compatibility audit:</strong> exact equilibrium scientific inputs
+                match the current Stage-1 snapshot; only {text(stage2Stage1Compatibility.excludedScientificInputField)}
+                {" "}is excluded. The actual accepted Stage-2 Nₜ above is retained; no Nₜ=7 default is used.
+              </p>
+            )}
+            {stage3HetsLimitations.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer font-semibold">
+                  Persisted Stage-3 pre-pilot limitations ({stage3HetsLimitations.length})
+                </summary>
+                <ul className="mt-1 list-disc space-y-1 pl-4">
+                  {stage3HetsLimitations.flatMap((limitation, index) =>
+                    list(limitation.details).map(detail => (
+                      <li key={`${String(limitation.group)}-${index}-${String(detail)}`}>{text(detail)}</li>
+                    )),
+                  )}
+                </ul>
+              </details>
+            )}
             <p className="mt-1 font-mono">
               Hrequired = Nt × HETS · Nphysical = ceil(Nt × HETS / hc) · Hinstalled = Nphysical × hc
             </p>

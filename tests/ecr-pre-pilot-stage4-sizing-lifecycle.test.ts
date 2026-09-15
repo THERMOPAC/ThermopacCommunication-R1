@@ -29,6 +29,7 @@ vi.mock('../server/ecr-pre-pilot/stage1', () => ({
       sulfurAllocationPolyPct: 20, sulfurAllocationPaPct: 20,
     },
   }),
+  stage1EquilibriumScientificContentHash: () => 'q'.repeat(64),
 }));
 vi.mock('../server/ecr-pre-pilot/kuhni-hydrodynamics', () => ({
   kuhniRunHash: (value: unknown) => JSON.stringify(value),
@@ -96,7 +97,12 @@ function reset() {
   state.query.mockImplementation(async (sql: string, params: any[] = []) => {
     if (sql.includes('FROM ecr_pre_pilot_designs')) return { rows: [{ input_data: {} }] };
     if (sql.includes('FROM ecr_pre_pilot_predictive_nt_jobs')) {
-      return { rows: [{ id: 'stage-2', engine_hash: 'a'.repeat(64), result_snapshot: stage2Snapshot() }] };
+      return { rows: [{
+        id: 'stage-2',
+        input_snapshot: { stage1Authority: { snapshotHash: state.stage1Hash, source: {} } },
+        engine_hash: 'a'.repeat(64),
+        result_snapshot: stage2Snapshot(),
+      }] };
     }
     if (sql.includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) return { rows: [stage3Row()] };
     if (sql.includes('lineage_hash<>')) return { rows: state.previous ? [state.previous] : [] };

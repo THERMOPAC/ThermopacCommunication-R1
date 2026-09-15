@@ -13,7 +13,7 @@ function hetsResult() {
     status: 'CALCULATED_HETS_PRE_PILOT_SCREENING',
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
-    calculationModel: 'ECR_STAGE4_HETS_SCREENING_V1',
+    calculationModel: 'ECR_STAGE4_HETS_SCREENING_V2',
     calculatedNt: { value: 5, provenance: 'STAGE_2_CALCULATED_NT_SAME_LINEAGE' },
     selectedStage3Hydraulics: {
       diameterM: .974213,
