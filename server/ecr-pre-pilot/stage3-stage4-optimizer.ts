@@ -17,6 +17,8 @@ export { evaluateKuhniReverseTrial };
  * historical records and must remain frozen.
  */
 export const ECR_STAGE3_STAGE4_OPTIMIZER_VERSION =
+  'ECR_STAGE3_STAGE4_OPTIMIZER_V1.2.0';
+export const ECR_STAGE3_STAGE4_OPTIMIZER_CONFIGURABLE_VERSION =
   'ECR_STAGE3_STAGE4_OPTIMIZER_V1.1.0';
 /**
  * The pre-correction engine remains named here so immutable rows written by
@@ -46,11 +48,17 @@ const OPTIMIZER_DESCRIPTOR = [
   'accepted-basis:Np=1.2|existing-d32|larger-diameter-scale-up-disclosed',
   'candidate-forward-model:kuhni-phase1-primitives',
   'selection:useful-window-preference-then-smallest-adequate-diameter-then-wider-frontier',
-  'useful-window-preference:configurable-ranking-preference-default-15-rpm-not-hydraulic-limit',
+  'useful-window-preference:fixed-server-owned-20-rpm-not-hydraulic-limit',
   'root-search:bounded-finite-grid-bisection-all-brackets',
 ].join('|');
 export const ECR_STAGE3_STAGE4_OPTIMIZER_HASH = createHash('sha256')
   .update(OPTIMIZER_DESCRIPTOR)
+  .digest('hex');
+const CONFIGURABLE_OPTIMIZER_HASH = createHash('sha256')
+  .update(OPTIMIZER_DESCRIPTOR
+    .replace(ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_CONFIGURABLE_VERSION)
+    .replace('useful-window-preference:fixed-server-owned-20-rpm-not-hydraulic-limit',
+      'useful-window-preference:configurable-ranking-preference-default-15-rpm-not-hydraulic-limit'))
   .digest('hex');
 // Short aliases are kept for callers that refer to this as the Stage-3
 // optimizer while the persisted engine identifier remains unambiguous.
@@ -67,7 +75,7 @@ export const OPTIMIZER_FREE_AREA_GRID = [0.2, 0.3, 0.4] as const;
 export const OPTIMIZER_DEFAULT_DIAMETER_MIN_M = 0.2;
 export const OPTIMIZER_DEFAULT_DIAMETER_MAX_M = 1.5;
 export const OPTIMIZER_DEFAULT_DIAMETER_STEP_M = 0.1;
-export const OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM = 15;
+export const OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM = 20;
 
 type Orientation =
   | 'nmp-continuous-rrbo-dispersed'
@@ -352,6 +360,21 @@ export function canonicalizeStage3Stage4OptimizerControls(
   raw?: unknown,
 ): CanonicalStage3Stage4OptimizerControls {
   const source = raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? raw as Record<string, unknown> : {};
+  for (const key of ['minimumUsefulWindowRpm', 'minimumWindowWidthRpm', 'usefulWindowMinRpm']) {
+    if (source[key] !== undefined && Number(source[key]) !== OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM) {
+      throw new Error('INVALID_STAGE3_STAGE4_OPTIMIZER_USEFUL_WINDOW_PREFERENCE_FIXED_AT_20_RPM');
+    }
+  }
+  return canonicalizeHistoricalOptimizerControls({
+    ...source, minimumUsefulWindowRpm: OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM,
+  });
+}
+
+function canonicalizeHistoricalOptimizerControls(
+  raw?: unknown,
+): CanonicalStage3Stage4OptimizerControls {
+  const source = raw && typeof raw === 'object' && !Array.isArray(raw)
     ? raw as Record<string, unknown>
     : {};
   const numberOr = (key: string, fallback: number) =>
@@ -372,7 +395,7 @@ export function canonicalizeStage3Stage4OptimizerControls(
       : source.minimumWindowWidthRpm
     : source.minimumUsefulWindowRpm;
   const minimumUsefulWindowRpm = preferenceSource === undefined
-    ? OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM
+    ? 15
     : (typeof preferenceSource === 'number'
       || (typeof preferenceSource === 'string' && preferenceSource.trim() !== ''))
       ? Number(preferenceSource)
@@ -1255,8 +1278,11 @@ function optimizeStage3Stage4Internal(
   stage1SnapshotHash: string,
   rawControls: unknown,
   rankingPolicy: 'CORRECTED' | 'LEGACY',
+  configurableReplay = false,
 ): Stage3Stage4OptimizerResult {
-  const controls = canonicalizeStage3Stage4OptimizerControls(rawControls);
+  const controls = configurableReplay || rankingPolicy === 'LEGACY'
+    ? canonicalizeHistoricalOptimizerControls(rawControls)
+    : canonicalizeStage3Stage4OptimizerControls(rawControls);
   const current = optimizeOrientation(basis, controls, rankingPolicy);
   const comparison = controls.compareOrientations
     ? optimizeOrientation(alternativeBasis(basis), controls, rankingPolicy)
@@ -1294,10 +1320,11 @@ function optimizeStage3Stage4Internal(
       id: 'ecr_stage3_stage4_optimizer',
       version: rankingPolicy === 'LEGACY'
         ? ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION
-        : ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+        : configurableReplay ? ECR_STAGE3_STAGE4_OPTIMIZER_CONFIGURABLE_VERSION
+          : ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
       implementationHash: rankingPolicy === 'LEGACY'
         ? ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_HASH
-        : ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+        : configurableReplay ? CONFIGURABLE_OPTIMIZER_HASH : ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
     },
     stage1Authority: {
       snapshotHash: stage1SnapshotHash,
@@ -1343,7 +1370,9 @@ function optimizeStage3Stage4Internal(
         selectedScore: selected?.selectedScore ?? null,
       }
       : {
-        objective: 'Prefer a configurable useful contiguous RPM window, then choose the smallest adequate column; retain the non-dominated wider-window frontier without invented cost or power weights.',
+        objective: configurableReplay
+          ? 'Prefer a configurable useful contiguous RPM window, then choose the smallest adequate column; retain the non-dominated wider-window frontier without invented cost or power weights.'
+          : 'Prefer a fixed 20.0 rpm minimum useful contiguous window, then choose the smallest adequate column; retain the non-dominated wider-window frontier without invented cost or power weights.',
         ordering: [
           'useful-window preference: widthRpm >= minimumUsefulWindowRpm (ranking preference only; not a hydraulic limit)',
           'among candidates meeting the preference: column diameter ascending (smallest adequate diameter)',
@@ -1420,6 +1449,16 @@ export function replayLegacyStage3Stage4(
 ): Stage3Stage4OptimizerResult {
   validateOptimizerAuthority(basis, stage1SnapshotHash);
   return optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'LEGACY');
+}
+
+/** Historical V1.1 replay only; new calculations always enforce the fixed preference. */
+export function replayConfigurableStage3Stage4(
+  basis: HydrodynamicProcessBasis,
+  stage1SnapshotHash: string,
+  rawControls?: unknown,
+): Stage3Stage4OptimizerResult {
+  validateOptimizerAuthority(basis, stage1SnapshotHash);
+  return optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'CORRECTED', true);
 }
 
 export const runStage3Stage4Optimizer = optimizeStage3Stage4;

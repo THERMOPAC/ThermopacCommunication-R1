@@ -14,6 +14,8 @@ The user explicitly accepted the following on 2026-09-16 as part of the dependab
 ### Subsequent scope clarification
 The user subsequently approved proceeding and clarified that the task is optimization of the existing basis, not further literature acquisition or reopening methodology qualification. Use current Stage-1 inputs and calculated properties, fixed design seven, and the existing HETS screening basis for both orientations. Explore variable diameter, compartment/column ratio 0.20–0.30, rotor/column ratio 0.33–0.50, partition free area 0.20–0.40, and 30–70 rpm. The user expressly removed compartment/column ratio 0.50 even as a legacy comparison: exclude it from new optimization and comparison results, while preserving immutable historical records. Seek a useful operating window for fixed hardware rather than automatically choosing minimum diameter or maximum rpm.
 
+The Stage 3/4 useful-window preference is fixed at **20.0 rpm minimum**, with no user-editable input. This is a server-owned ranking preference, not a hydraulic admission limit. Historical configurable results remain immutable and must not be treated as current-methodology sizing.
+
 **Why:** The user explicitly stated that the necessary methods already exist and only optimization is requested. This supersedes the earlier research-first gate for the bounded optimization, not the scientific meaning of the screening results.
 
 **How to apply:** Reuse current calculations, retain transparent assumptions and numerical bounds, and do not introduce Job A/B/C, replacement full-column solvers, or unsupported performance claims. Do not fabricate a free-area effect if the existing equations lack one.

@@ -5,6 +5,7 @@ import {
   OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM,
   canonicalizeStage3Stage4OptimizerControls,
   replayLegacyStage3Stage4,
+  replayConfigurableStage3Stage4,
   rankGeometryGroups,
   type GeometryGroup,
 } from "../server/ecr-pre-pilot/stage3-stage4-optimizer";
@@ -93,11 +94,28 @@ function basis(phaseConfiguration: string): any {
 }
 
 describe("corrected Stage 3 size/window ranking", () => {
+  it("uses 20 rpm by default rather than selecting a smaller 15-rpm window", () => {
+    const narrow = group(0.5, 30, 45);
+    const adequate = group(0.7, 30, 50);
+    expect(rankGeometryGroups([narrow, adequate]).selected).toBe(adequate);
+  });
+
+  it("preserves the configurable historical engine and its original preference", () => {
+    const historical = replayConfigurableStage3Stage4(
+      basis("nmp-continuous-rrbo-dispersed"), "a".repeat(64),
+      { diameterMinM: 0.2, diameterMaxM: 0.4, diameterStepM: 0.2 },
+    );
+    expect(historical.controls.minimumUsefulWindowRpm).toBe(15);
+    expect(historical.engine.version).toBe("ECR_STAGE3_STAGE4_OPTIMIZER_V1.1.0");
+    expect(historical.engine.implementationHash)
+      .toBe("35a2b0900aac2de58877f4699b174441da715ec5b8329232afc2beedbe77dd56");
+  });
+
   it("chooses the true smallest adequate geometry and retains a wider frontier", () => {
     const compact = group(0.7, 30, 45);
     const wide = group(1.2, 30, 50);
     const tooNarrow = group(0.3, 30, 35);
-    const ranked = rankGeometryGroups([wide, tooNarrow, compact]);
+    const ranked = rankGeometryGroups([wide, tooNarrow, compact], 15);
 
     expect(ranked.selected?.geometry.columnDiameterM).toBe(0.7);
     expect(ranked.adequateGeometryCount).toBe(2);
@@ -111,7 +129,7 @@ describe("corrected Stage 3 size/window ranking", () => {
       });
   });
 
-  it("treats the useful-window preference as configurable evidence, not admission", () => {
+  it("fixes public controls at 20 rpm while keeping preference separate from admission", () => {
     const narrow = group(0.3, 30, 35);
     const ranked = rankGeometryGroups([narrow], 15);
     expect(ranked.selected).toBe(narrow);
@@ -125,10 +143,13 @@ describe("corrected Stage 3 size/window ranking", () => {
     expect(ranked.alternatives).toHaveLength(0);
     expect(canonicalizeStage3Stage4OptimizerControls({}).minimumUsefulWindowRpm)
       .toBe(OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM);
-    expect(canonicalizeStage3Stage4OptimizerControls({ usefulWindowMinRpm: 5 }).minimumUsefulWindowRpm)
-      .toBe(5);
-    expect(canonicalizeStage3Stage4OptimizerControls({ minimumWindowWidthRpm: 7 }).minimumUsefulWindowRpm)
-      .toBe(7);
+    expect(OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM).toBe(20);
+    for (const key of ["usefulWindowMinRpm", "minimumWindowWidthRpm", "minimumUsefulWindowRpm"]) {
+      expect(() => canonicalizeStage3Stage4OptimizerControls({ [key]: 15 }))
+        .toThrow("FIXED_AT_20_RPM");
+      expect(canonicalizeStage3Stage4OptimizerControls({ [key]: 20 }).minimumUsefulWindowRpm)
+        .toBe(20);
+    }
     expect(() => canonicalizeStage3Stage4OptimizerControls({ minimumUsefulWindowRpm: null }))
       .toThrow("INVALID_STAGE3_STAGE4_OPTIMIZER_USEFUL_WINDOW_PREFERENCE");
   });
@@ -155,7 +176,7 @@ describe("corrected Stage 3 size/window ranking", () => {
     const next = group(0.6, 30, 45);
     const compact = group(0.7, 30, 45);
     const wide = group(1.2, 30, 50);
-    const ranked = rankGeometryGroups([wide, compact, selected, next]);
+    const ranked = rankGeometryGroups([wide, compact, selected, next], 15);
     expect(ranked.selected).toBe(selected);
     expect(ranked.sizeWindowComparisons.map((item) => item.geometry.columnDiameterM))
       .toEqual([0.5, 0.6, 0.7, 1.2]);

@@ -148,7 +148,6 @@ export function Stage3Stage4OptimizerPanel({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [minimumUsefulWindowRpm, setMinimumUsefulWindowRpm] = useState("15");
   const selectedFreeAreaSensitivity =
     run?.selectedOrientationDiagnostics?.freeAreaSensitivity ?? run?.freeAreaSensitivity;
 
@@ -181,11 +180,6 @@ export function Stage3Stage4OptimizerPanel({
         }
         : payload) as OptimizerRun;
       setRun(loadedRun);
-      const persistedPreference = loadedRun.controls?.minimumUsefulWindowRpm
-        ?? loadedRun.selectionRationale?.usefulWindowPreference?.minimumWindowWidthRpm;
-      if (Number.isFinite(Number(persistedPreference))) {
-        setMinimumUsefulWindowRpm(String(persistedPreference));
-      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Optimizer result could not be loaded.");
     } finally {
@@ -208,11 +202,7 @@ export function Stage3Stage4OptimizerPanel({
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            minimumUsefulWindowRpm.trim() === ""
-              ? {}
-              : { minimumUsefulWindowRpm: Number(minimumUsefulWindowRpm) },
-          ),
+          body: JSON.stringify({}),
         },
       );
       const payload = await response.json().catch(() => ({}));
@@ -242,21 +232,12 @@ export function Stage3Stage4OptimizerPanel({
           </p>
         </div>
         <div className="flex shrink-0 items-end gap-2">
-          <label className="text-[9px] text-indigo-950">
+          <div className="text-[9px] text-indigo-950">
             <span className="block font-semibold">Useful window preference</span>
-            <span className="flex items-center gap-1">
-              <input
-                type="number"
-                min="0"
-                step="5"
-                value={minimumUsefulWindowRpm}
-                onChange={(event) => setMinimumUsefulWindowRpm(event.target.value)}
-                className="h-8 w-16 rounded border border-indigo-300 bg-white px-1.5 text-center font-mono text-[10px] text-slate-800"
-                aria-label="Minimum useful RPM window preference"
-              />
-              <span>rpm</span>
+            <span className="flex h-8 items-center font-mono text-[10px]">
+              20.0 rpm minimum (fixed)
             </span>
-          </label>
+          </div>
           <Button
             type="button"
             onClick={() => void execute()}
