@@ -127,13 +127,33 @@ describe("Stage 3/4 fixed-geometry optimizer", () => {
     expect(adequateNmpGroups?.length).toBeGreaterThan(0);
     expect(nmpContinuous.selectedOperatingWindow?.widthRpm)
       .toBeGreaterThanOrEqual(nmpPreference);
+    const acceptedAdequateDiameters = [...new Set(
+      (adequateNmpGroups ?? []).map((group) => group.geometry.columnDiameterM),
+    )].sort((left, right) => left - right);
+    expect(acceptedAdequateDiameters.length).toBeGreaterThanOrEqual(2);
+    expect(nmpContinuous.selectionRationale.diameterSelection).toMatchObject({
+      rule: "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+      acceptedAdequateDiametersM: acceptedAdequateDiameters,
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: acceptedAdequateDiameters[0],
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: acceptedAdequateDiameters[1],
+      status: "SELECTED",
+    });
     expect(nmpContinuous.selectedGeometry?.columnDiameterM).toBe(
-      Math.min(...(adequateNmpGroups ?? []).map((group) => group.geometry.columnDiameterM)),
+      acceptedAdequateDiameters[1],
     );
     expect(nmpContinuous.selectionRationale.usefulWindowPreference?.selectedMeetsPreference).toBe(true);
     expect(nmpContinuous.orientationComparison).toHaveLength(2);
     expect(nmpContinuous.orientationComparison.every((item) =>
       item.geometryGrid.every((group) => group.geometry.hcToColumn <= 0.3))).toBe(true);
+
+    const selectedNmpGroup = nmpSelection?.geometryGrid.find((group) =>
+      group.geometry.columnDiameterM === nmpContinuous.selectedGeometry?.columnDiameterM
+      && group.geometry.hcToColumn === nmpContinuous.selectedGeometry?.hcToColumn
+      && group.geometry.rotorToColumn === nmpContinuous.selectedGeometry?.rotorToColumn
+      && group.geometry.freeArea === nmpContinuous.selectedGeometry?.freeArea);
+    const selectedNmpGridTrial = selectedNmpGroup?.trials.find((trial) =>
+      trial.rpm === nmpContinuous.selectedRpm);
+    expect(nmpContinuous.selectedTrial).toEqual(selectedNmpGridTrial);
 
     const reverse = optimizeStage3Stage4(
       basis("rrbo-continuous-nmp-dispersed", 869, 1015, 0.0598, 0.001416),
@@ -158,8 +178,8 @@ describe("Stage 3/4 fixed-geometry optimizer", () => {
       expect(reverse.selectedTrial?.buoyancyDirection).toBe("DISPERSED_DOWNWARD");
       expect(Math.abs(reverse.selectedTrial?.signedForceBalanceResidualN ?? Infinity)).toBeLessThan(1e-8);
     } else {
-      expect(reverse.status).toBe("NO_FEASIBLE_ORIENTATION");
-      expect(reverseSelection?.status).toBe("NO_FEASIBLE_WINDOW");
+      expect(reverse.status).toBe("NO_SECOND_ADEQUATE_DIAMETER");
+      expect(reverseSelection?.status).toBe("NO_SECOND_ADEQUATE_DIAMETER");
       expect(reverseSelection?.rejectionReasons.length).toBeGreaterThan(0);
     }
     const normalSelection = nmpContinuous.orientationComparison.find((item) =>
@@ -236,5 +256,46 @@ describe("Stage 3/4 fixed-geometry optimizer", () => {
         result: staleResult,
       },
     })).toThrow("STAGE4_OPTIMIZER_STAGE1_LINEAGE_STALE");
+  });
+
+  it("withholds Stage 4 geometry when no accepted diameter reaches the 20 rpm threshold", () => {
+    const result = optimizeStage3Stage4(
+      basis("nmp-continuous-rrbo-dispersed"),
+      stage1Hash,
+      {
+        diameterMinM: 0.2,
+        diameterMaxM: 0.4,
+        diameterStepM: 0.2,
+        rpmMin: 30,
+        rpmMax: 40,
+        rpmStep: 10,
+        compareOrientations: false,
+      },
+    );
+
+    expect(result.status).toBe("NO_SECOND_ADEQUATE_DIAMETER");
+    expect(result.blockers).toContain("INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS");
+    expect(result.selectionRationale.diameterSelection).toEqual({
+      rule: "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+      acceptedAdequateDiametersM: [],
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: null,
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: null,
+      status: "INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS",
+    });
+    expect(result.selectedGeometry).toBeNull();
+    expect(result.selectedOperatingWindow).toBeNull();
+    expect(result.selectedRpm).toBeNull();
+    expect(result.selectedTrial).toBeNull();
+    expect(result.stage4GeometryInput).toMatchObject({
+      status: "UNAVAILABLE",
+      columnDiameterM: null,
+      compartmentHeightM: null,
+      hcToColumn: null,
+      rotorDiameterM: null,
+      rotorToColumn: null,
+      freeArea: null,
+      rpm: null,
+      optimizerResultHash: null,
+    });
   });
 });

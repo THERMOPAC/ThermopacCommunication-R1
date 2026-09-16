@@ -392,6 +392,7 @@ export function deriveStage4PrePilotSizing(input: {
         ...(optimizedHydraulics ? {
           ranking: {
             objective: input.stage3.result.selectionRationale?.objective ?? null,
+            diameterSelection: input.stage3.result.selectionRationale?.diameterSelection ?? null,
             selectedWindow: input.stage3.result.selectedOperatingWindow ?? null,
             usefulWindowPreference:
               input.stage3.result.selectionRationale?.usefulWindowPreference ?? null,

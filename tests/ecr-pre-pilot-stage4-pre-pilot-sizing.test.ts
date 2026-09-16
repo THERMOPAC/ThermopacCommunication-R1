@@ -40,6 +40,15 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       },
       stage1Authority: { snapshotHash: stage1Hash },
       processBasis: { stage1SnapshotHash: stage1Hash },
+      selectionRationale: {
+        diameterSelection: {
+          rule: 'NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER',
+          acceptedAdequateDiametersM: [0.3, 0.4, 0.5],
+          SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: 0.3,
+          SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: 0.4,
+          status: 'SELECTED',
+        },
+      },
       stage4GeometryInput: {
         status: 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY',
         columnDiameterM: 0.4,
@@ -69,6 +78,8 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       },
     });
     expect(resultSizing.mainOutputs.diameterM).toBe(0.4);
+    expect(resultSizing.selectedStage3Hydraulics.ranking?.diameterSelection)
+      .toEqual(result.selectionRationale.diameterSelection);
     expect(resultSizing.selectedStage3Hydraulics.compartmentHeightM).toBe(0.08);
     expect(resultSizing.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(7 / 0.08));
     expect(resultSizing.implementation.version).not.toContain('LEGACY');

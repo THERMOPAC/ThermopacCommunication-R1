@@ -5,8 +5,10 @@ import {
   OPTIMIZER_DEFAULT_MINIMUM_USEFUL_WINDOW_RPM,
   canonicalizeStage3Stage4OptimizerControls,
   replayLegacyStage3Stage4,
+  replaySmallestStage3Stage4,
   replayConfigurableStage3Stage4,
   rankGeometryGroups,
+  rankSmallestGeometryGroups,
   type GeometryGroup,
 } from "../server/ecr-pre-pilot/stage3-stage4-optimizer";
 
@@ -14,9 +16,17 @@ function group(
   diameterM: number,
   rpmMin: number,
   rpmMax: number,
-  options: { edgeMarginRpm?: number; trialRpms?: number[] } = {},
+  options: {
+    edgeMarginRpm?: number;
+    trialRpms?: number[];
+    noWindow?: boolean;
+    validTrialCount?: number;
+    centerDistanceRpm?: number;
+    tieBreakPowerVolumeWM3?: number;
+  } = {},
 ): GeometryGroup {
   const trialRpms = options.trialRpms ?? [];
+  const widthRpm = rpmMax - rpmMin;
   return {
     geometry: {
       columnDiameterM: diameterM,
@@ -36,19 +46,19 @@ function group(
       d32M: 0.01,
       holdup: 0.1,
     })) as any,
-    operatingWindow: {
+    operatingWindow: options.noWindow ? null : {
       rpmMin,
       rpmMax,
-      widthRpm: rpmMax - rpmMin,
-      validTrialCount: (rpmMax - rpmMin) / 5 + 1,
+      widthRpm,
+      validTrialCount: options.validTrialCount ?? widthRpm / 5 + 1,
       edgeMarginRpm: options.edgeMarginRpm ?? 0,
     },
     score: {
-      windowWidthRpm: rpmMax - rpmMin,
+      windowWidthRpm: options.noWindow ? -1 : widthRpm,
       edgeMarginRpm: options.edgeMarginRpm ?? 0,
-      validTrialCount: (rpmMax - rpmMin) / 5 + 1,
-      centerDistanceRpm: 0,
-      tieBreakPowerVolumeWM3: 1,
+      validTrialCount: options.validTrialCount ?? widthRpm / 5 + 1,
+      centerDistanceRpm: options.centerDistanceRpm ?? 0,
+      tieBreakPowerVolumeWM3: options.tieBreakPowerVolumeWM3 ?? 1,
     },
   };
 }
@@ -93,11 +103,11 @@ function basis(phaseConfiguration: string): any {
   };
 }
 
-describe("corrected Stage 3 size/window ranking", () => {
+describe("historical V1.2 smallest Stage 3 size/window ranking", () => {
   it("uses 20 rpm by default rather than selecting a smaller 15-rpm window", () => {
     const narrow = group(0.5, 30, 45);
     const adequate = group(0.7, 30, 50);
-    expect(rankGeometryGroups([narrow, adequate]).selected).toBe(adequate);
+    expect(rankSmallestGeometryGroups([narrow, adequate]).selected).toBe(adequate);
   });
 
   it("preserves the configurable historical engine and its original preference", () => {
@@ -115,7 +125,7 @@ describe("corrected Stage 3 size/window ranking", () => {
     const compact = group(0.7, 30, 45);
     const wide = group(1.2, 30, 50);
     const tooNarrow = group(0.3, 30, 35);
-    const ranked = rankGeometryGroups([wide, tooNarrow, compact], 15);
+    const ranked = rankSmallestGeometryGroups([wide, tooNarrow, compact], 15);
 
     expect(ranked.selected?.geometry.columnDiameterM).toBe(0.7);
     expect(ranked.adequateGeometryCount).toBe(2);
@@ -131,7 +141,7 @@ describe("corrected Stage 3 size/window ranking", () => {
 
   it("fixes public controls at 20 rpm while keeping preference separate from admission", () => {
     const narrow = group(0.3, 30, 35);
-    const ranked = rankGeometryGroups([narrow], 15);
+    const ranked = rankSmallestGeometryGroups([narrow], 15);
     expect(ranked.selected).toBe(narrow);
     expect(ranked.adequateGeometryCount).toBe(0);
     expect(ranked.sizeWindowComparisons[0]).toMatchObject({
@@ -156,7 +166,7 @@ describe("corrected Stage 3 size/window ranking", () => {
 
   it("keeps corrected representative RPM inside an offset chosen window", () => {
     const offset = group(0.5, 36, 41, { trialRpms: [31, 36, 41, 46] });
-    const ranked = rankGeometryGroups([offset], 5);
+    const ranked = rankSmallestGeometryGroups([offset], 5);
     expect(ranked.sizeWindowComparisons[0].representativeTrial?.rpm).toBe(41);
     expect(ranked.sizeWindowComparisons[0].representativeTrial?.rpm)
       .toBeGreaterThanOrEqual(offset.operatingWindow!.rpmMin);
@@ -167,7 +177,7 @@ describe("corrected Stage 3 size/window ranking", () => {
   it("resolves equal-size equal-window ties by larger edge margin", () => {
     const lowerMargin = group(0.5, 30, 45, { edgeMarginRpm: 2 });
     const higherMargin = group(0.5, 30, 45, { edgeMarginRpm: 8 });
-    const ranked = rankGeometryGroups([lowerMargin, higherMargin], 15);
+    const ranked = rankSmallestGeometryGroups([lowerMargin, higherMargin], 15);
     expect(ranked.selected).toBe(higherMargin);
   });
 
@@ -176,7 +186,7 @@ describe("corrected Stage 3 size/window ranking", () => {
     const next = group(0.6, 30, 45);
     const compact = group(0.7, 30, 45);
     const wide = group(1.2, 30, 50);
-    const ranked = rankGeometryGroups([wide, compact, selected, next], 15);
+    const ranked = rankSmallestGeometryGroups([wide, compact, selected, next], 15);
     expect(ranked.selected).toBe(selected);
     expect(ranked.sizeWindowComparisons.map((item) => item.geometry.columnDiameterM))
       .toEqual([0.5, 0.6, 0.7, 1.2]);
@@ -188,8 +198,8 @@ describe("corrected Stage 3 size/window ranking", () => {
 
   it("is deterministic and version-separates stale width-first snapshots", () => {
     const groups = [group(1.2, 30, 50), group(0.7, 30, 45)];
-    const first = rankGeometryGroups(groups);
-    const second = rankGeometryGroups([...groups].reverse());
+    const first = rankSmallestGeometryGroups(groups);
+    const second = rankSmallestGeometryGroups([...groups].reverse());
     expect(second.selected?.geometry).toEqual(first.selected?.geometry);
     expect(second.alternatives).toEqual(first.alternatives);
     expect(ECR_STAGE3_STAGE4_OPTIMIZER_VERSION)
@@ -206,5 +216,127 @@ describe("corrected Stage 3 size/window ranking", () => {
     expect(legacy.controls).not.toHaveProperty("minimumUsefulWindowRpm");
     expect(legacy.selectionRationale).not.toHaveProperty("usefulWindowPreference");
     expect(legacy.orientationComparison.every((item) => !item.rankingEvidence)).toBe(true);
+  });
+
+  it("replays the historical V1.2 smallest-diameter selector", () => {
+    const historical = replaySmallestStage3Stage4(
+      basis("nmp-continuous-rrbo-dispersed"),
+      "a".repeat(64),
+      { diameterMinM: 0.2, diameterMaxM: 0.4, diameterStepM: 0.2 },
+    );
+
+    expect(historical.engine.version).toBe("ECR_STAGE3_STAGE4_OPTIMIZER_V1.2.0");
+    expect(historical.selectionRationale.objective)
+      .toContain("smallest adequate");
+  });
+});
+
+describe("current Stage 3 next-smallest accepted-diameter ranking", () => {
+  it("selects the second-smallest distinct adequate diameter, not a geometry-grid row", () => {
+    const smallest = group(0.5, 30, 50, { edgeMarginRpm: 2 });
+    const smallestVariant = group(0.5, 35, 55, { edgeMarginRpm: 8 });
+    const secondLowerMargin = group(0.9, 30, 50, { edgeMarginRpm: 2 });
+    const secondHigherMargin = group(0.9, 30, 50, { edgeMarginRpm: 8 });
+    const largest = group(1.4, 30, 55);
+
+    const ranked = rankGeometryGroups([
+      largest,
+      secondLowerMargin,
+      smallestVariant,
+      secondHigherMargin,
+      smallest,
+    ]);
+
+    expect(ranked.selected).toBe(secondHigherMargin);
+    expect(ranked.diameterSelection).toEqual({
+      rule: "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+      acceptedAdequateDiametersM: [0.5, 0.9, 1.4],
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: 0.5,
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: 0.9,
+      status: "SELECTED",
+    });
+  });
+
+  it("uses distinct accepted diameters across gaps rather than arithmetic D plus one step", () => {
+    const ranked = rankGeometryGroups([
+      group(1.4, 30, 55),
+      group(0.5, 30, 50),
+      group(0.9, 30, 50),
+    ]);
+
+    expect(ranked.selected?.geometry.columnDiameterM).toBe(0.9);
+    expect(ranked.diameterSelection.acceptedAdequateDiametersM)
+      .toEqual([0.5, 0.9, 1.4]);
+    expect(ranked.diameterSelection.SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER)
+      .toBe(0.9);
+  });
+
+  it("keeps narrow and missing windows out of the accepted diameter set", () => {
+    const ranked = rankGeometryGroups([
+      group(0.3, 30, 35),
+      group(0.5, 30, 50, { noWindow: true }),
+      group(0.9, 30, 55),
+      group(1.4, 30, 60),
+    ]);
+
+    expect(ranked.selected?.geometry.columnDiameterM).toBe(1.4);
+    expect(ranked.diameterSelection).toMatchObject({
+      acceptedAdequateDiametersM: [0.9, 1.4],
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: 0.9,
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: 1.4,
+      status: "SELECTED",
+    });
+  });
+
+  it("reports insufficient selection for zero adequate diameters, including duplicate variants", () => {
+    const ranked = rankGeometryGroups([
+      group(0.5, 30, 35),
+      group(0.5, 40, 45),
+      group(0.9, 30, 35, { noWindow: true }),
+    ]);
+
+    expect(ranked.selected).toBeNull();
+    expect(ranked.diameterSelection).toEqual({
+      rule: "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+      acceptedAdequateDiametersM: [],
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: null,
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: null,
+      status: "INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS",
+    });
+  });
+
+  it("reports insufficient selection for one distinct adequate diameter despite duplicate geometry variants", () => {
+    const first = group(0.5, 30, 50, { edgeMarginRpm: 2 });
+    const preferredVariant = group(0.5, 30, 50, { edgeMarginRpm: 8 });
+    const narrow = group(0.9, 30, 35);
+
+    const ranked = rankGeometryGroups([narrow, preferredVariant, first]);
+
+    expect(ranked.selected).toBeNull();
+    expect(ranked.diameterSelection).toMatchObject({
+      acceptedAdequateDiametersM: [0.5],
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER: 0.5,
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER: null,
+      status: "INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS",
+    });
+  });
+
+  it("is deterministic for reversed input and resolves ties within the selected diameter", () => {
+    const selectedLowMargin = group(0.9, 30, 50, { edgeMarginRpm: 2 });
+    const selectedHighMargin = group(0.9, 30, 50, { edgeMarginRpm: 8 });
+    const groups = [
+      group(1.4, 30, 55),
+      selectedLowMargin,
+      group(0.5, 30, 50),
+      selectedHighMargin,
+    ];
+
+    const first = rankGeometryGroups(groups);
+    const second = rankGeometryGroups([...groups].reverse());
+
+    expect(first.selected).toBe(selectedHighMargin);
+    expect(second.selected?.geometry).toEqual(first.selected?.geometry);
+    expect(second.diameterSelection).toEqual(first.diameterSelection);
+    expect(second.alternatives).toEqual(first.alternatives);
   });
 });

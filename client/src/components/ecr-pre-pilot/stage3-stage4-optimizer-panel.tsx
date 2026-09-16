@@ -52,6 +52,12 @@ type OptimizerRun = {
     powerVolumeWM3?: number | null;
   } | null;
   selectionRationale?: {
+    diameterSelection?: {
+      acceptedAdequateDiametersM?: number[];
+      SMALLEST_ACCEPTED_ADEQUATE_DIAMETER?: number | null;
+      SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER?: number | null;
+      status?: string;
+    };
     objective?: string;
     ordering?: string[];
     usefulWindowPreference?: {
@@ -129,6 +135,7 @@ type OptimizerRun = {
 };
 
 function value(value: unknown, digits = 3) {
+  if (value === null || value === undefined || value === "") return "—";
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric.toFixed(digits) : "—";
 }
@@ -227,8 +234,8 @@ export function Stage3Stage4OptimizerPanel({
           <p className="mt-1 max-w-3xl text-[10px] leading-4 text-indigo-900">
             New governed search uses only hc/D = 0.20–0.30, rotor/D = 0.33–0.50,
             free area = 0.20–0.40 and 30–70 rpm. The visible RPM value is a
-            ranking preference (not a hydraulic limit): the smallest adequate
-            fixed geometry is selected and wider frontier alternatives are retained.
+            ranking preference (not a hydraulic limit): the second-smallest distinct
+            accepted adequate diameter is selected for a one-grid-step pre-pilot design margin.
           </p>
         </div>
         <div className="flex shrink-0 items-end gap-2">
@@ -307,11 +314,27 @@ export function Stage3Stage4OptimizerPanel({
               <span className="font-mono">
                 {run.selectionRationale?.usefulWindowPreference?.adequateGeometryCount ?? "—"}
               </span>
-              {" "}· selected candidate{" "}
-              {run.selectionRationale?.usefulWindowPreference?.selectedMeetsPreference === false
-                ? "does not meet the preference; best available window is shown"
-                : "meets the preference; smallest adequate diameter is shown"}.
+              {" "}·{" "}
+              {run.selectionRationale?.diameterSelection?.status === "INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS"
+                ? "No selection: fewer than two distinct accepted adequate diameters. No fallback to the smallest diameter."
+                : "The second-smallest distinct accepted adequate diameter is selected for the pre-pilot margin."}
             </p>
+            {run.selectionRationale?.diameterSelection && (
+              <dl className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div className="rounded bg-white p-2">
+                  <dt>Smallest accepted adequate diameter</dt>
+                  <dd className="font-mono font-semibold">
+                    {value(run.selectionRationale.diameterSelection.SMALLEST_ACCEPTED_ADEQUATE_DIAMETER, 3)} m
+                  </dd>
+                </div>
+                <div className="rounded bg-white p-2">
+                  <dt>Selected next-smallest accepted diameter</dt>
+                  <dd className="font-mono font-semibold">
+                    {value(run.selectionRationale.diameterSelection.SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER, 3)} m
+                  </dd>
+                </div>
+              </dl>
+            )}
             {Array.isArray(run.selectionRationale?.alternatives)
               && run.selectionRationale!.alternatives!.length > 0 && (
               <div className="mt-2 space-y-1 border-t border-indigo-200 pt-2">

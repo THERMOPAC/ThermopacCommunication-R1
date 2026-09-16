@@ -16,6 +16,8 @@ The user subsequently approved proceeding and clarified that the task is optimiz
 
 The Stage 3/4 useful-window preference is fixed at **20.0 rpm minimum**, with no user-editable input. This is a server-owned ranking preference, not a hydraulic admission limit. Historical configurable results remain immutable and must not be treated as current-methodology sizing.
 
+Among hydraulically accepted geometries meeting that window preference, sort **distinct** adequate diameters ascending. Retain the smallest as `SMALLEST_ACCEPTED_ADEQUATE_DIAMETER`; select the second as `SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER`. This is the user's deliberate one-grid-step pre-pilot design-margin rule, not a change to hydraulic equations or validated separation performance. If fewer than two distinct adequate diameters exist, leave selection unavailable; do not fall back to the smallest or simply add a grid increment to it.
+
 **Why:** The user explicitly stated that the necessary methods already exist and only optimization is requested. This supersedes the earlier research-first gate for the bounded optimization, not the scientific meaning of the screening results.
 
 **How to apply:** Reuse current calculations, retain transparent assumptions and numerical bounds, and do not introduce Job A/B/C, replacement full-column solvers, or unsupported performance claims. Do not fabricate a free-area effect if the existing equations lack one.

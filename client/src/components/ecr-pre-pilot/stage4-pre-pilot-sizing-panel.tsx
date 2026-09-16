@@ -890,6 +890,10 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                 <dl className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                   {[
                     ["Selected D", number(hydraulic.diameterM, "m")],
+                    ["Smallest accepted adequate D",
+                      number(record(optimizerRanking.diameterSelection).SMALLEST_ACCEPTED_ADEQUATE_DIAMETER, "m")],
+                    ["Selected next-smallest accepted D",
+                      number(record(optimizerRanking.diameterSelection).SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER, "m")],
                     ["Selected hc/D", number(hydraulic.hcToColumn)],
                     ["Selected RPM", number(hydraulic.selectedRpm)],
                     ["Selected useful window",
