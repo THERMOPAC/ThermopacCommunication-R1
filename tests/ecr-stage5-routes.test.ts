@@ -55,4 +55,19 @@ describe('Stage 5 HTTP boundary', () => {
     expect((await request('/export.svg', 'get', { query: { view: '../x' } })).statusCode).toBe(400);
     expect(calls.revisions).not.toHaveBeenCalled();
   });
+  it('rejects manual geometry and upstream overrides for preview and save', async () => {
+    for (const body of [{ inputs: {} }, { basis: {} }, { shaftDiameterM: .1 }, { geometry: {} }]) {
+      expect((await request('/preview', 'post', { body })).statusCode).toBe(400);
+      expect((await request('/revisions', 'post', { body })).statusCode).toBe(400);
+    }
+    expect(calls.preview).not.toHaveBeenCalled();
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+  it('passes no engineering inputs for automatic preview and source-bound save', async () => {
+    calls.preview.mockResolvedValue({ complete: true });
+    await request('/preview', 'post', { body: {} });
+    expect(calls.preview).toHaveBeenCalledWith(12, 23);
+    await request('/revisions', 'post', { body: { expectedSourceHash: 'hash' } });
+    expect(calls.save).toHaveBeenCalledWith(12, 23, undefined, 'hash', undefined);
+  });
 });

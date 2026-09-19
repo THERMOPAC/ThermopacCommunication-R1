@@ -23,6 +23,12 @@ Geometry-basis/applicability reporting is advisory, not a new scientific accepta
 
 Do not declare the Kühni shaft-blockage convention proven by either the K&H rotating-disc parenthetical or rounding of Garthe's nominal free area.
 
+For the approved R1 physical geometry, use gross central-opening area divided by gross column area: opening diameter = D × sqrt(phi_s). Report shaft-blocked area separately, without feeding either physical calculation back into Stage 3.
+
+**Why:** On 2026-09-19 the user explicitly approved this R1 engineering interpretation and superseded any linear D × phi_s relationship. This selects the construction convention; it does not prove the empirical correlation convention.
+
+**How to apply:** Preserve frozen Stage-3/4 authority and keep the generated engineering proportions Class C. Normal users receive generated geometry rather than construction-input prompts. Incompatible geometry must fail explicitly, not alter upstream sizing. All drawing views must consume the same frozen structured geometry; historical revisions must not be reinterpreted under later rules.
+
 **Why:** K&H1995 p.3937 explicitly attaches (Ds/Dc)^2 to rotating-disc columns. Garthe calls phi_s relative free stator area without an explicit shaft formula. Weber/Jupke's nominal 80-mm column, 50-mm opening and 10-mm shaft imply gross/gross 0.390625 versus shaft-subtracted/gross 0.375; closeness to nominal 0.40 favours gross/gross but rounding alone cannot uniquely establish the convention.
 
 **How to apply:** Report gross geometric opening, shaft-blocked physical opening and empirical correlation input separately until the exact mapping is approved. Record remaining ambiguity rather than silently subtracting shaft area.

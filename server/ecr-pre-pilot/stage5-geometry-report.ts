@@ -18,7 +18,7 @@ export async function createStage5Pdf(record: {
     doc.on('error', reject);
     doc.on('pageAdded', () => {
       doc.fontSize(7).text(`STAGE 5 | Revision ${record.revision} | ${record.currentness} | ${record.status}`, 30, 15);
-      doc.text(`PRELIMINARY / NOT FOR FABRICATION | Source ${record.sourceHash}`, 30, 27);
+      doc.text(`${record.geometry.watermark} | Source ${record.sourceHash}`, 30, 27);
       doc.fontSize(9);
       doc.y = 48;
     });
@@ -54,7 +54,7 @@ export async function createStage5Pdf(record: {
       section('Preliminary nozzle / connection schedule');
       if (!record.geometry.nozzles.length) text('No process connections defined — TBD.');
       for (const n of record.geometry.nozzles)
-        text(`${n.id} | ${n.service} | ${n.region} | elevation ${n.elevationM ?? 'TBD'} m | bore ${n.boreM ?? 'TBD'} m | azimuth ${n.azimuthDeg ?? 'TBD'} deg | ${n.classification} | ${n.note}`);
+        text(`${n.id} | ${n.service} | ${n.region} | elevation ${n.elevationM ?? 'TBD'} m | bore ${n.boreM ?? 'TBD'} m | azimuth ${n.azimuthDeg ?? (n.axis === 'down' ? 'N/A axial' : 'TBD')} deg | ${n.classification} | ${n.note}${n.axis ? ` | axis ${n.axis}; OD ${n.outsideDiameterM} m; projection ${n.projectionM} m; radial offset ${n.radialOffsetM} m` : ''}`);
       section('Validation, assumptions and unresolved items');
       for (const check of record.geometry.checks) text(`${check.status.toUpperCase()}: ${check.message}`);
       for (const assumption of record.geometry.assumptions) text(`ASSUMPTION: ${assumption}`);

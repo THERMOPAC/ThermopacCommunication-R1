@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildStage3GeometryReport } from "../shared/ecr-stage3-geometry-report";
+import { buildStage5R1Geometry } from "../shared/ecr-stage5-r1";
+import { renderStage5Svg } from "../shared/ecr-stage5-drawings";
 import { optimizeStage3Stage4 } from "../server/ecr-pre-pilot/stage3-stage4-optimizer";
 import { deriveStage4PrePilotSizing } from "../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service";
 
@@ -177,6 +179,29 @@ describe("Stage 3 reporting-only geometry evidence", () => {
     expect(first.selectedGeometry?.hcToColumn).toBe(0.3);
     expect(first.controls.hcToColumn).toEqual([0.2, 0.25, 0.3]);
 
+    // Exercise the entire approved R1 generation and all drawing consumers
+    // against frozen actual optimizer/Stage4 outputs, not a mocked geometry.
+    const selected = first.selectedGeometry!;
+    const window = first.selectedOperatingWindow!;
+    const r1 = buildStage5R1Geometry({
+      stage3ResultId: "3", stage4ResultId: "4", sourcesCurrent: true, sourcesCompatible: true,
+      columnDiameterM: selected.columnDiameterM, rotorDiameterM: selected.rotorDiameterM,
+      rotorDiameterRatio: selected.rotorToColumn, compartmentHeightM: selected.compartmentHeightM,
+      statorFreeAreaRatio: selected.freeArea, selectedRpm: first.selectedRpm,
+      rpmMin: window.rpmMin, rpmMax: window.rpmMax,
+      phaseConfiguration: processBasis.phaseConfiguration,
+      compartmentCount: firstStage4.mainOutputs.physicalCompartments,
+      requiredActiveHeightM: firstStage4.mainOutputs.requiredActiveHeightM,
+      installedActiveHeightM: firstStage4.mainOutputs.installedActiveHeightM,
+      designNt: 7, hetsM: 1,
+    });
+    expect(r1.complete).toBe(true);
+    for (const view of ["ga", "section", "compartment", "rotor", "stator"] as const)
+      expect(renderStage5Svg(r1, view)).toContain("GEOMETRICALLY COMPLETE");
+    expect(JSON.stringify(first)).toBe(optimizerBeforeReport);
+    expect(JSON.stringify(firstStage4)).toBe(stage4BeforeReport);
+    expect(JSON.stringify(processBasis)).toBe(basisBeforeReport);
+
     const replay = optimizeStage3Stage4(basis(), stage1Hash, controls);
     const replayStage4 = deriveStage4PrePilotSizing({
       stage3: {
@@ -192,6 +217,7 @@ describe("Stage 3 reporting-only geometry evidence", () => {
     expect(replay.calculationHash)
       .toBe("8fc82aed669a1a27297a23daa7d9f25cb2504f004a71f7bb0813083942270a35");
     expect(replay.selectedGeometry?.columnDiameterM).toBe(0.8);
+    expect(replay.selectedRpm).toBe(50);
     expect(replay.stage4GeometryInput.optimizerResultHash)
       .toBe("9bb60fde91874d412e01d17203e17f185e9c9a10d1824462dc0f34794e1626e1");
     expect(replayStage4.mainOutputs).toEqual({

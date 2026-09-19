@@ -1,5 +1,5 @@
 /** Stage 5 API contract. All lengths are metres, areas m², elevations from vessel bottom. */
-export type Stage5Classification = "Inherited" | "Calculated" | "Engineer-entered" | "Assumed" | "TBD";
+export type Stage5Classification = "Inherited" | "Calculated" | "Engineer-entered" | "Assumed" | "TBD" | "System-generated";
 export interface Stage5Basis {
   stage3ResultId: number | string;
   stage4ResultId: number | string;
@@ -22,7 +22,7 @@ export interface Stage5Basis {
 }
 export interface Stage5InputValue {
   value: number | null;
-  classification: "Engineer-entered" | "Assumed";
+  classification: "Engineer-entered" | "Assumed" | "System-generated";
   note: string;
 }
 export type Stage5InputKey = "shaftDiameterM" | "rotorThicknessM" | "statorThicknessM" |
@@ -31,17 +31,23 @@ export type Stage5InputKey = "shaftDiameterM" | "rotorThicknessM" | "statorThick
   "driveHeightM" | "lowerShaftSupportM" | "upperShaftSupportM" |
   "bladeCount" | "bladeHeightM" | "bladeRadialLengthM" | "bladeThicknessM" | "hubDiameterM" | "hubHeightM";
 export interface Stage5NozzleInput {
-  id: string; service: string; region: "bottom" | "active" | "top";
+  id: string; service: string; region: "bottom" | "active" | "top" | "bottom-head" | "top-head";
   elevationM: number | null; boreM: number | null; azimuthDeg: number | null;
-  classification: "Engineer-entered" | "Assumed"; note: string;
+  classification: "Engineer-entered" | "Assumed" | "System-generated"; note: string;
+  axis?: "radial" | "up" | "down";
+  radialOffsetM?: number;
+  outsideDiameterM?: number;
+  projectionM?: number;
+  surfaceEdgeElevationMinM?: number;
+  surfaceEdgeElevationMaxM?: number;
 }
 export interface Stage5Inputs {
   values: Record<Stage5InputKey, Stage5InputValue>;
   /** Explicit proposal, not a source-qualified hydraulic construction. Missing means TBD. */
-  rotorConstruction?: "flat-blade-turbine" | "flat-disc" | null;
+  rotorConstruction?: "flat-blade-turbine" | "flat-disc" | "r1-stepped-rotor" | null;
   statorConstruction?: "annular-single-opening" | null;
   flowArrangement?: "nmp-down-rrbo-up" | "nmp-up-rrbo-down" | null;
-  flowClassification?: "Engineer-entered" | "Assumed";
+  flowClassification?: "Engineer-entered" | "Assumed" | "System-generated";
   flowNote?: string;
   topHeadProfile?: "elliptical-envelope" | "flat-envelope" | null;
   bottomHeadProfile?: "elliptical-envelope" | "flat-envelope" | null;
@@ -51,9 +57,33 @@ export interface Stage5Inputs {
 export interface Stage5Parameter {
   key: string; label: string; value: number | string | null; unit: string;
   classification: Stage5Classification; note: string;
+  evidenceClass?: "A" | "B" | "C";
 }
 export interface Stage5Check { id: string; status: "pass" | "fail" | "tbd"; message: string }
+export interface Stage5R1Model {
+  bladeAzimuthsDeg: number[];
+  supportAzimuthsDeg: number[];
+  rotor: {
+    /** Actual stepped radial/axial polygon (x,z), centered on rotor datum. */
+    profileM: [number, number][];
+    oppositeProfileM: [number, number][];
+    blades: { azimuthDeg: number; footprintM: [number, number][]; verticesM: [number, number, number][] }[];
+    hub: { diameterM: number; heightM: number };
+    sweptDiameterM: number;
+    shaftDiameterM: number;
+  };
+  heads: { end: "top" | "bottom"; tangentM: number; radialSemiaxisM: number; axialSemiaxisM: number; poleM: number }[];
+  supports: { elevationM: number; housingDiameterM: number; housingHeightM: number;
+    arms: { azimuthDeg: number; footprintM: [number, number][]; bottomM: number; topM: number }[] }[];
+  envelopes: { id: string; diameterM: number; bottomM: number; topM: number }[];
+  skirtAccess: { widthM: number; heightM: number; elevationM: number; azimuthDeg: number };
+  connections: { id: string; axis: string; centreM: [number, number, number]; endM: [number, number, number];
+    outsideDiameterM: number; surfaceBoundaryM: [number, number, number][] }[];
+}
 export interface Stage5Geometry {
+  ruleset?: string;
+  completionStatement?: string;
+  r1Model?: Stage5R1Model;
   basis: Stage5Basis; inputs: Stage5Inputs;
   parameters: Stage5Parameter[];
   dimensions: Record<string, number | null>;

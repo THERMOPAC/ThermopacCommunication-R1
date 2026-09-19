@@ -1,4 +1,5 @@
 import type { Stage5Geometry } from "./ecr-stage5-geometry";
+import { renderStage5R1Svg } from "./ecr-stage5-r1-drawings";
 
 export type Stage5DrawingView = "ga" | "section" | "compartment" | "rotor" | "stator";
 const escape = (v: unknown) => String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);
@@ -7,6 +8,7 @@ const fmt = (v: number | null | undefined) => typeof v === "number" && Number.is
 /** Self-contained vector export; unknown dimensions never acquire physical defaults. */
 export function renderStage5Svg(g: Stage5Geometry, view: Stage5DrawingView): string {
   if (!["ga", "section", "compartment", "rotor", "stator"].includes(view)) throw new Error("Unknown Stage-5 drawing view");
+  if (g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1") return renderStage5R1Svg(g, view);
   const d = g.dimensions;
   const parts: string[] = [];
   const text = (x: number, y: number, value: unknown, size = 12) => parts.push(`<text x="${x}" y="${y}" font-size="${size}">${escape(value)}</text>`);

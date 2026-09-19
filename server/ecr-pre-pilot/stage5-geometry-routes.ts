@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
 import { getStage5Basis, getStage5Revisions, previewStage5, saveStage5Revision, Stage5Error, STAGE5_VIEWS } from './stage5-geometry-service';
 import { createStage5Pdf } from './stage5-geometry-report';
+import { R1GeometryError } from '../../shared/ecr-stage5-r1';
 
 export function setupStage5GeometryRoutes(app: Express) {
   const base = '/api/ecr-pre-pilot/designs/:id/stage5';
@@ -16,7 +17,7 @@ export function setupStage5GeometryRoutes(app: Express) {
         res.setHeader('Cache-Control', 'private, no-store');
         return await action(req, res, user, design);
       } catch (error: any) {
-        const known = error instanceof Stage5Error || /^(STAGE4_|STAGE1_|ECR_PRE_PILOT_)/.test(error?.message ?? '');
+        const known = error instanceof Stage5Error || error instanceof R1GeometryError || /^(STAGE4_|STAGE1_|ECR_PRE_PILOT_)/.test(error?.message ?? '');
         return res.status(error instanceof Stage5Error ? error.status : known ? 409 : 500)
           .json({ error: known ? error.message : 'STAGE5_REQUEST_FAILED' });
       }
@@ -25,9 +26,19 @@ export function setupStage5GeometryRoutes(app: Express) {
   app.get(`${base}/revisions`, ensureAuthenticated, handle(async (_q, r, u, d) => r.json(await getStage5Revisions(u, d))));
   app.get(`${base}/revisions/:revisionId`, ensureAuthenticated, handle(async (q, r, u, d) =>
     r.json((await getStage5Revisions(u, d, String(q.params.revisionId)))[0])));
-  app.post(`${base}/preview`, ensureAuthenticated, handle(async (q, r, u, d) => r.json(await previewStage5(u, d, q.body?.inputs))));
-  app.post(`${base}/revisions`, ensureAuthenticated, handle(async (q, r, u, d) =>
-    r.status(201).json(await saveStage5Revision(u, d, q.body?.inputs, q.body?.expectedSourceHash, q.body?.notes))));
+  const requireAutomaticBody = (body: any, allowed: string[]) => {
+    if (body != null && (typeof body !== 'object' || Array.isArray(body) ||
+      Object.keys(body).some(key => !allowed.includes(key))))
+      throw new Stage5Error('STAGE5_R1_CONSTRUCTION_OVERRIDES_FORBIDDEN', 400);
+  };
+  app.post(`${base}/preview`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    requireAutomaticBody(q.body, []);
+    return r.json(await previewStage5(u, d));
+  }));
+  app.post(`${base}/revisions`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    requireAutomaticBody(q.body, ['expectedSourceHash', 'notes']);
+    return r.status(201).json(await saveStage5Revision(u, d, undefined, q.body?.expectedSourceHash, q.body?.notes));
+  }));
   app.get(`${base}/revisions/:revisionId/export.svg`, ensureAuthenticated, handle(async (q, r, u, d) => {
     const view = String(q.query.view ?? 'ga');
     if (!STAGE5_VIEWS.includes(view as any)) throw new Stage5Error('INVALID_DRAWING_VIEW', 400);

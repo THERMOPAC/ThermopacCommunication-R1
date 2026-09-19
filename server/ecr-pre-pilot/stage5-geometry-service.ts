@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import { pool } from '../db';
 import { loadStage4PrePilotSizingAuthority } from './stage4-pre-pilot-sizing-service';
-import { buildStage5Geometry, STAGE5_INPUT_FIELDS, type Stage5Basis, type Stage5Inputs } from '../../shared/ecr-stage5-geometry';
+import { STAGE5_INPUT_FIELDS, type Stage5Basis, type Stage5Inputs } from '../../shared/ecr-stage5-geometry';
+import { buildStage5R1Geometry, R1_RULES_MANIFEST } from '../../shared/ecr-stage5-r1';
 import { renderStage5Svg, type Stage5DrawingView } from '../../shared/ecr-stage5-drawings';
 
 export const STAGE5_VIEWS: Stage5DrawingView[] = ['ga', 'section', 'compartment', 'rotor', 'stator'];
@@ -133,13 +134,25 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
   return { basis, sourceStage3, sourceStage4, sourceHash };
 }
 export const getStage5Basis = (u: number, d: number) => scoped(u, d, c => loadStage5Basis(c, u, d));
-export const previewStage5 = (u: number, d: number, input: unknown) => scoped(u, d, async c =>
-  buildStage5Geometry((await loadStage5Basis(c, u, d)).basis, validateStage5Inputs(input)));
+export function rejectStage5ConstructionOverrides(input: unknown) {
+  if (input !== undefined) throw new Stage5Error('STAGE5_R1_CONSTRUCTION_OVERRIDES_FORBIDDEN', 400);
+}
+export const previewStage5 = (u: number, d: number, input?: unknown) => {
+  rejectStage5ConstructionOverrides(input);
+  return scoped(u, d, async c => buildStage5R1Geometry((await loadStage5Basis(c, u, d)).basis));
+};
 
 export function verifyStage5Snapshot(row: any) {
   if (stage5Hash(row.snapshot) !== row.immutable_hash || row.snapshot.sourceHash !== row.source_hash
     || stage5Hash({ sourceStage3: row.snapshot.sourceStage3, sourceStage4: row.snapshot.sourceStage4 }) !== row.source_hash)
     throw new Stage5Error('STAGE5_IMMUTABLE_SNAPSHOT_INTEGRITY_FAILURE');
+  if (row.snapshot.ruleset || row.snapshot.geometry?.ruleset) {
+    if (row.snapshot.ruleset !== row.snapshot.geometry?.ruleset
+      || row.snapshot.geometryHash !== stage5Hash(row.snapshot.geometry)
+      || !row.snapshot.rulesManifest || row.snapshot.rulesManifest.id !== row.snapshot.ruleset
+      || row.snapshot.rulesManifestHash !== stage5Hash(row.snapshot.rulesManifest))
+      throw new Stage5Error('STAGE5_R1_DATASET_MANIFEST_INTEGRITY_FAILURE');
+  }
   return row.snapshot;
 }
 export function stage5Currentness(sourceHash: string, currentHash: string | null, revision: number, latest: number) {
@@ -153,14 +166,16 @@ function record(row: any, currentHash: string | null, latest: number) {
 export async function saveStage5Revision(u: number, d: number, input: unknown, expectedSourceHash: unknown, notes = '') {
   if (typeof expectedSourceHash !== 'string' || !expectedSourceHash) throw new Stage5Error('STAGE5_EXPECTED_SOURCE_HASH_REQUIRED', 400);
   if (typeof notes !== 'string' || notes.length > 10000) throw new Stage5Error('STAGE5_INVALID_NOTES', 400);
-  const inputs = validateStage5Inputs(input);
+  rejectStage5ConstructionOverrides(input);
   return scoped(u, d, async c => {
     const source = await loadStage5Basis(c, u, d);
     if (expectedSourceHash !== source.sourceHash) throw new Stage5Error('STAGE5_SOURCE_CHANGED');
-    const geometry = buildStage5Geometry(source.basis, inputs);
-    const snapshot = JSON.parse(JSON.stringify({ inputs, geometry, sourceStage3: source.sourceStage3,
+    const geometry = buildStage5R1Geometry(source.basis);
+    const snapshot = JSON.parse(JSON.stringify({ inputs: geometry.inputs, geometry, ruleset: geometry.ruleset,
+      rulesManifest: R1_RULES_MANIFEST, rulesManifestHash: stage5Hash(R1_RULES_MANIFEST),
+      geometryHash: stage5Hash(geometry), sourceStage3: source.sourceStage3,
       sourceStage4: source.sourceStage4, sourceHash: source.sourceHash, notes,
-      status: geometry.complete ? 'PRELIMINARY_DEFINED' : 'INCOMPLETE',
+      status: geometry.completionStatement,
       drawings: Object.fromEntries(STAGE5_VIEWS.map(view => [view, renderStage5Svg(geometry, view)])) }));
     const inserted = await c.query(`INSERT INTO ecr_pre_pilot_stage5_geometry_revisions
       (design_id,created_by,revision,source_hash,immutable_hash,snapshot)
