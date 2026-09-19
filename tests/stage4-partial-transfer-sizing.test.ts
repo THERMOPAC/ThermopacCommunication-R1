@@ -144,7 +144,7 @@ describe('frozen strict-anchor partial-transfer coefficients', () => {
     expect(latest).toContain('job_b_engine_hash');
     expect(latest).toContain('PARTIAL_TRANSFER_PHYSICAL_SIZING_SAVED_STAGE3_LINEAGE_MISMATCH');
     expect(latest).toContain('PARTIAL_TRANSFER_PHYSICAL_SIZING_CURRENT_STAGE3_LINEAGE_CHANGED');
-    expect(latest).toContain('getKuhniGeometryResolverRuns(userId, designId, true)');
+    expect(latest).toContain('getKuhniGeometryResolverRuns(userId, designId, true, true)');
   });
 });
 

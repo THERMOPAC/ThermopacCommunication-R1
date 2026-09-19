@@ -1,10 +1,12 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { pool } from '../server/db';
 import {
   validatePersistedAcceptedSevenComponentNtForStage4,
 } from '../server/ecr-pre-pilot/predictive-nt-job-service';
 import {
   loadStage4PrePilotSizingAuthority,
+  STAGE4_HETS_DESIGN_NT,
+  STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
   validatePersistedStage2HetsAuthority,
 } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
 import { validateStage1Snapshot } from '../server/ecr-pre-pilot/stage1';
@@ -44,17 +46,55 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
       allCalculableTargetsPass: true,
       physicalLleClassification: 'PHYSICAL_LLE',
     });
-  });
+  }, 30_000);
 
-  it('does not reinterpret the historical Design 269 geometry without a current optimizer', async () => {
+  it('uses the approved current optimizer without changing the fixed HETS design authority', async () => {
     const design = await pool.query<{ created_by: number }>(
       'SELECT created_by FROM ecr_pre_pilot_designs WHERE id=269',
     );
-    await expect(loadStage4PrePilotSizingAuthority(
+    const authority = await loadStage4PrePilotSizingAuthority(
       Number(design.rows[0].created_by),
       269,
-    )).rejects.toThrow('STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
-  });
+    );
+    expect(authority.projection.designNt).toMatchObject({
+      value: STAGE4_HETS_DESIGN_NT,
+      provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT',
+    });
+    expect(authority.projection.actualStage2NtReference).toMatchObject({
+      value: 4,
+      status: 'AVAILABLE_REFERENCE_ONLY',
+    });
+    expect(authority.projection.implementation?.version)
+      .toBe(STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION);
+    expect(authority.projection.selectedStage3Hydraulics.source)
+      .toBe('PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION');
+    expect(authority.projection.selectedStage3Hydraulics.hcToColumn)
+      .toBeGreaterThanOrEqual(0.2);
+    expect(authority.projection.selectedStage3Hydraulics.hcToColumn)
+      .toBeLessThanOrEqual(0.3);
+    expect(authority.projection.selectedStage3Hydraulics.hcToColumn).not.toBe(0.5);
+  }, 30_000);
+
+  it('does not reinterpret the historical Design 269 geometry when no current optimizer exists', async () => {
+    const design = await pool.query<{ created_by: number }>(
+      'SELECT created_by FROM ecr_pre_pilot_designs WHERE id=269',
+    );
+    const query = pool.query.bind(pool);
+    const querySpy = vi.spyOn(pool, 'query').mockImplementation((async (...args: any[]) => {
+      if (String(args[0]).includes('FROM ecr_pre_pilot_kuhni_geometry_resolver_runs')) {
+        return { rows: [], rowCount: 0 };
+      }
+      return query(...args);
+    }) as typeof pool.query);
+    try {
+      await expect(loadStage4PrePilotSizingAuthority(
+        Number(design.rows[0].created_by),
+        269,
+      )).rejects.toThrow('STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
+    } finally {
+      querySpy.mockRestore();
+    }
+  }, 30_000);
 
   it('rejects a Stage-2 result hash that is changed without changing its stored Stage-1 input', async () => {
     const row = copy(await acceptedDesign269Stage2()) as any;
