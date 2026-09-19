@@ -137,3 +137,4 @@
 - [Pre-pilot phase orientation](prepilot-equilibrium-phase-orientation.md) — Stage-2 extract/raffinate equilibrium is independent of hydraulic continuity; downstream applicability remains separate.
 - [ECR Pre-Pilot job retirement](ecr-prepilot-job-retirement.md) — Job A/B/C execution is retired; preserve scientific code and read-only history without restoring dependencies on HETS sizing.
 - [Stage 5 definition boundary](ecr-stage5-definition-boundary.md) — inherited sizing stays read-only; explicit internals define preliminary geometry, not mechanical adequacy; historical drawings stay frozen.
+- [ECR R1 construction evidence](ecr-r1-construction-evidence.md) — ring/perforated stators are not interchangeable; source-specific stepped blades, shaft-area ambiguity and terminal-count limits.
