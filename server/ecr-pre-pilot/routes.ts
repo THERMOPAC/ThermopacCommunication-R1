@@ -9,12 +9,7 @@ import {
   getKuhniGeometryResolverRuns,
   createStage3Stage4OptimizerRun,
   getStage3Stage4OptimizerRuns,
-  evaluateEcrPrePilotJobA,
-  evaluateEcrPrePilotJobB,
-  evaluateEcrPrePilotJobC,
-  evaluateCompletedJobCPhysicalSizing,
   getLatestCompletedJobCPhysicalSizing,
-  evaluatePartialTransferPhysicalSizing,
   getLatestPartialTransferPhysicalSizing,
 } from '../ecr-pre-pilot-service';
 import {
@@ -34,17 +29,14 @@ import {
 import { setupKuhniResolverPreview } from './kuhni-resolver-preview';
 import {
   cancelJobC,
-  enqueueJobC,
   getJobC,
-  getLatestCompletedScientificJobC,
   getLatestJobC,
   startJobCWorker,
 } from './job-c-job-service';
 import {
   cancelSinglePartialTransferQualification,
   getSinglePartialTransferQualification,
-  markInterruptedSinglePartialTransferQualifications,
-  startSinglePartialTransferQualification,
+  startPartialTransferQualificationRetirementCleanup,
 } from './partial-transfer-qualification-service';
 import {
   calculateStage4PrePilotSizing,
@@ -53,15 +45,21 @@ import {
   stopStage4PrePilotSizing,
 } from './stage4-pre-pilot-sizing-service';
 
+export function retiredEcrPrePilotResponse(res: Response, capability: string) {
+  return res.status(410).json({
+    error: 'ECR_PRE_PILOT_JOB_RETIRED',
+    capability,
+    message: 'ECR Pre-Pilot Jobs A/B/C and partial-transfer qualification are retired. Historical owned results remain read-only.',
+  });
+}
+
 export function setupEcrPrePilotRoutes(app: Express): void {
   startPredictiveNtWorker();
-  // Resume explicit user-enqueued work after a process restart. This polls
-  // only persisted queue entries; route registration itself never creates a
-  // new Job-C request.
+  // Job C is retired. Startup performs an idempotent terminalization pass
+  // instead of resuming or claiming historical queue entries.
   startJobCWorker();
-  // Recovery is intentionally terminal only.  This never starts or resumes a
-  // scientific child after a crash; the user must click the explicit control.
-  void markInterruptedSinglePartialTransferQualifications().catch(() => undefined);
+  // Recovery is terminal only and also retires work left by an older process.
+  startPartialTransferQualificationRetirementCleanup();
   setupKuhniResolverPreview(app);
   app.get('/api/ecr-pre-pilot/predictive-nt/basis', ensureAuthenticated, (_req: Request, res: Response) => {
     return res.json({
@@ -276,22 +274,12 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     if (!Number.isInteger(designId) || designId <= 0) {
       return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
     }
-    if (req.method === 'POST' && req.body && Object.keys(req.body).length) {
-      return res.status(400).json({ error: 'JOB_A_CLIENT_PHYSICAL_INPUT_PROHIBITED' });
-    }
-    try {
-      return res.json(await evaluateEcrPrePilotJobA(
-        Number((req.user as any).id),
-        designId,
-      ));
-    } catch (error: any) {
-      const message = error?.message ?? 'JOB_A_EVALUATION_FAILED';
-      const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-        : message.startsWith('JOB_A_DEPENDENCY_BLOCKED:') ? 409
-        : message === 'ECR_PRE_PILOT_KUHNI_RESOLVER_INTEGRITY_FAILURE' ? 409
-        : 422;
-      return res.status(status).json({ error: message });
-    }
+    // Job A was recomputed on demand and has no persisted result row. In
+    // particular, the legacy "latest" GET must not restart that runtime.
+    return retiredEcrPrePilotResponse(
+      res,
+      req.method === 'GET' ? 'JOB_A_HISTORICAL_RESULT_UNAVAILABLE' : 'JOB_A_EVALUATION',
+    );
   };
   app.post(
     '/api/ecr-pre-pilot/designs/:id/job-a/evaluate',
@@ -303,26 +291,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
     if (!Number.isInteger(designId) || designId <= 0) {
       return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
     }
-    if (req.method === 'POST' && req.body && Object.keys(req.body).length) {
-      return res.status(400).json({ error: 'JOB_B_CLIENT_PHYSICAL_INPUT_PROHIBITED' });
-    }
-    try {
-      return res.json(await evaluateEcrPrePilotJobB(
-        Number((req.user as any).id),
-        designId,
-      ));
-    } catch (error: any) {
-      const message = error?.message ?? 'JOB_B_EVALUATION_FAILED';
-      const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-        : message.startsWith('JOB_B_DEPENDENCY_BLOCKED:')
-          || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:')
-          || message.startsWith('JOB_A_DEPENDENCY_BLOCKED:') ? 409 : 422;
-      return res.status(status).json({
-        error: message,
-        ...(error?.details && typeof error.details === 'object'
-          ? { details: error.details } : {}),
-      });
-    }
+    return retiredEcrPrePilotResponse(res, 'JOB_B_EVALUATION');
   };
   app.post(
     '/api/ecr-pre-pilot/designs/:id/job-b/evaluate',
@@ -337,25 +306,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
-      }
-      try {
-        const job = await enqueueJobC(Number((req.user as any).id), designId, {
-          // The UI uses this isolated, server-owned workflow-only permission.
-          // It evaluates one real bounded state; it never accepts a design.
-          workflowTestOnly: true,
-        });
-        res.setHeader('X-Job-C-Reused', job.reuse.reused ? 'true' : 'false');
-        return res.status(202).json(job);
-      } catch (error: any) {
-        const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
-        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-          : message.includes('DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
-        return res.status(status).json({ error: message, ...(error?.details ? { details: error.details } : {}) });
-      }
+      return retiredEcrPrePilotResponse(res, 'JOB_C_DIAGNOSTIC_ENQUEUE');
     },
   );
   // Preserve the earlier strict partial-transfer diagnostic separately.  It
@@ -368,23 +319,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
-      }
-      try {
-        const job = await enqueueJobC(Number((req.user as any).id), designId, {
-          diagnosticOnly: true,
-        });
-        res.setHeader('X-Job-C-Reused', job.reuse.reused ? 'true' : 'false');
-        return res.status(202).json(job);
-      } catch (error: any) {
-        const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
-        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-          : message.includes('DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
-        return res.status(status).json({ error: message, ...(error?.details ? { details: error.details } : {}) });
-      }
+      return retiredEcrPrePilotResponse(res, 'JOB_C_STRICT_DIAGNOSTIC_ENQUEUE');
     },
   );
   // This is an explicit, body-free continuation request.  The server selects
@@ -398,27 +333,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
-      }
-      try {
-        const job = await enqueueJobC(Number((req.user as any).id), designId, {
-          strictContinuationAnchor: true,
-        });
-        res.setHeader('X-Job-C-Reused', job.reuse.reused ? 'true' : 'false');
-        return res.status(202).json(job);
-      } catch (error: any) {
-        const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
-        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-          : message.includes('DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_C_STRICT_CONTINUATION_ANCHOR_')
-            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
-        return res.status(status).json({
-          error: message,
-          ...(error?.details ? { details: error.details } : {}),
-        });
-      }
+      return retiredEcrPrePilotResponse(res, 'JOB_C_STRICT_CONTINUATION_ENQUEUE');
     },
   );
   // The governed Job-C endpoint deliberately remains the lambda=1 scientific
@@ -432,21 +347,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'JOB_C_ENQUEUE_BODY_PROHIBITED' });
-      }
-      try {
-        const job = await enqueueJobC(Number((req.user as any).id), designId);
-        res.setHeader('X-Job-C-Reused', job.reuse.reused ? 'true' : 'false');
-        return res.status(202).json(job);
-      } catch (error: any) {
-        const message = error?.message ?? 'JOB_C_ENQUEUE_FAILED';
-        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-          : message.includes('DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
-        return res.status(status).json({ error: message, ...(error?.details ? { details: error.details } : {}) });
-      }
+      return retiredEcrPrePilotResponse(res, 'JOB_C_ENQUEUE');
     },
   );
   app.post(
@@ -457,30 +358,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'JOB_C_PHYSICAL_SIZING_CLIENT_INPUT_PROHIBITED' });
-      }
-      try {
-        const job = await getLatestCompletedScientificJobC(
-          Number((req.user as any).id), designId,
-        );
-        if (!job) {
-          return res.status(404).json({
-            error: 'JOB_C_ACCEPTED_COMPLETED_RESULT_NOT_FOUND',
-            reason: 'A completed, full-lambda, immutable Job C result is required; this endpoint never starts Job C.',
-          });
-        }
-        const result = await evaluateCompletedJobCPhysicalSizing(
-          Number((req.user as any).id),
-          designId,
-          job as any,
-        );
-        return res.status(result.status === 'DEPENDENCY_BLOCKED' ? 409 : 200).json(result);
-      } catch (error: any) {
-        const message = error?.message ?? 'JOB_C_PHYSICAL_SIZING_EVALUATION_FAILED';
-        return res.status(422).json({ error: message });
-      }
+      return retiredEcrPrePilotResponse(res, 'JOB_C_PHYSICAL_SIZING');
     },
   );
   app.get(
@@ -526,11 +404,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         || Object.keys(req.body).length)) {
         return res.status(400).json({ error: 'PARTIAL_TRANSFER_PHYSICAL_SIZING_CLIENT_INPUT_PROHIBITED' });
       }
-      // A full D/H screen is intentionally paused.  In particular, do not
-      // turn a browser POST/disconnect into background scientific work here.
-      return res.status(409).json({
-        error: 'PARTIAL_TRANSFER_DH_SEARCH_DISABLED_USE_EXPLICIT_SINGLE_QUALIFICATION',
-      });
+      return retiredEcrPrePilotResponse(res, 'PARTIAL_TRANSFER_PHYSICAL_SIZING_SEARCH');
     },
   );
   app.get(
@@ -654,20 +528,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'SINGLE_QUALIFICATION_CLIENT_INPUT_PROHIBITED' });
-      }
-      try {
-        const job = await startSinglePartialTransferQualification(
-          Number((req.user as any).id), designId,
-        );
-        return res.status(job.reused ? 200 : 202).json(job);
-      } catch (error: any) {
-        const message = error?.message ?? 'SINGLE_QUALIFICATION_START_FAILED';
-        return res.status(message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 409)
-          .json({ error: message });
-      }
+      return retiredEcrPrePilotResponse(res, 'PARTIAL_TRANSFER_QUALIFICATION');
     },
   );
   app.get(
@@ -744,27 +605,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       if (!Number.isInteger(designId) || designId <= 0) {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
-      if (req.body && (typeof req.body !== 'object' || Array.isArray(req.body)
-        || Object.keys(req.body).length)) {
-        return res.status(400).json({ error: 'JOB_C_CLIENT_PHYSICAL_INPUT_PROHIBITED' });
-      }
-      try {
-        return res.json(await evaluateEcrPrePilotJobC(
-          Number((req.user as any).id), designId,
-        ));
-      } catch (error: any) {
-        const message = error?.message ?? 'JOB_C_EVALUATION_FAILED';
-        const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404
-          : message.startsWith('JOB_C_DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_A_DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_B_DEPENDENCY_BLOCKED:')
-            || message.startsWith('JOB_B_BOUNDARY_STATE_BLOCKED:') ? 409 : 422;
-        return res.status(status).json({
-          error: message,
-          ...(error?.details && typeof error.details === 'object'
-            ? { details: error.details } : {}),
-        });
-      }
+      return retiredEcrPrePilotResponse(res, 'JOB_C_EVALUATION');
     },
   );
   app.get(

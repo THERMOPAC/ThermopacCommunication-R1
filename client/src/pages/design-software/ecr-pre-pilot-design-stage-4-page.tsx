@@ -814,7 +814,12 @@ function JobBStateAudit({ inputAudit }: { inputAudit: RecordValue }) {
   </section>;
 }
 
-export default function EcrPrePilotDesignStage4Page() {
+/**
+ * Preserved for historical/research review. This component is deliberately no
+ * longer mounted by the active route because mounting it also restores retired
+ * Job A/B/C polling and mutation controls.
+ */
+export function RetiredEcrPrePilotDesignStage4Page() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [design, setDesign] = useState<RecordValue | null>(null);
@@ -1917,6 +1922,204 @@ export default function EcrPrePilotDesignStage4Page() {
               </section>}
               <details className="border-t p-3"><summary className="cursor-pointer text-xs font-semibold">Component balance/conservation diagnostics, input audit &amp; returned record</summary><pre className="mt-2 max-h-96 overflow-auto rounded bg-slate-950 p-3 text-[10px] text-cyan-50">{JSON.stringify({ balanceDiagnostics: read(jobCResult, "balanceDiagnostics", "conservationDiagnostics", "diagnostics"), inputAudit: jobCInputAudit, result: jobCResult }, null, 2)}</pre></details>
             </section>}
+              </div>
+            </details>
+          </div>
+        )}
+      </main>
+    </Layout>
+  );
+}
+
+type RetiredHistoryRecord = {
+  label: string;
+  status: "saved" | "unavailable";
+  value: unknown;
+};
+
+/**
+ * Active Stage 4 route after retirement of the experimental Job A/B/C chain.
+ *
+ * Keep this shell intentionally small: only the current fixed-7 HETS panel is
+ * mounted, so none of the preserved legacy component's effects, queue polling,
+ * readiness gates, or mutation callbacks can execute.
+ */
+export default function EcrPrePilotDesignStage4Page() {
+  const [, navigate] = useLocation();
+  const [design, setDesign] = useState<RecordValue | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [history, setHistory] = useState<RetiredHistoryRecord[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/ecr-pre-pilot/designs/latest-saved", {
+          credentials: "include",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 404) {
+          throw new Error("Save Stage 1 Inputs before opening HETS physical sizing.");
+        }
+        if (!response.ok) {
+          throw new Error(stringValue(
+            read(object(payload), "message", "error"),
+            "The latest saved design could not be loaded.",
+          ));
+        }
+        if (!cancelled) {
+          setDesign(object(payload));
+          setError(null);
+        }
+      } catch (cause: unknown) {
+        if (!cancelled) {
+          setDesign(null);
+          setError(cause instanceof Error ? cause.message : "The latest saved design could not be loaded.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadRetiredHistory = useCallback(async () => {
+    const designId = Number(design?.id);
+    if (!Number.isFinite(designId) || historyLoaded || historyLoading) return;
+    setHistoryLoading(true);
+    const sources = [
+      ["Job A coefficient record", `/api/ecr-pre-pilot/designs/${designId}/job-a/latest`],
+      ["Job C scientific record", `/api/ecr-pre-pilot/designs/${designId}/job-c/jobs/latest`],
+      ["Full finite-rate physical sizing record", `/api/ecr-pre-pilot/designs/${designId}/job-c/physical-sizing/latest`],
+      ["Partial-transfer sizing record", `/api/ecr-pre-pilot/designs/${designId}/partial-transfer-physical-sizing/latest`],
+      ["Partial-transfer qualification record", `/api/ecr-pre-pilot/designs/${designId}/partial-transfer-qualification/jobs/latest`],
+    ] as const;
+    const records = await Promise.all(sources.map(async ([label, endpoint]) => {
+      try {
+        const response = await fetch(endpoint, { credentials: "include" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          return {
+            label,
+            status: "unavailable" as const,
+            value: response.status === 404
+              ? "No saved record"
+              : stringValue(read(object(payload), "message", "error"), `Read failed (${response.status})`),
+          };
+        }
+        return { label, status: "saved" as const, value: payload };
+      } catch (cause: unknown) {
+        return {
+          label,
+          status: "unavailable" as const,
+          value: cause instanceof Error ? cause.message : "Saved record could not be read.",
+        };
+      }
+    }));
+    setHistory([
+      records[0],
+      {
+        label: "Job B local-coupling record",
+        status: records[1].status,
+        value: records[1].status === "saved"
+          ? "Retired Job B evidence, when present, is retained within the saved Job C scientific record below; no standalone Job B execution or latest-result endpoint is exposed."
+          : "No saved Job C scientific record is available to expose its retained Job B evidence.",
+      },
+      ...records.slice(1),
+    ]);
+    setHistoryLoaded(true);
+    setHistoryLoading(false);
+  }, [design?.id, historyLoaded, historyLoading]);
+
+  const designId = Number(design?.id);
+
+  return (
+    <Layout>
+      <main className="mx-auto min-h-full w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
+        <header className="mb-5 flex flex-col gap-4 border-b-2 border-slate-800 pb-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-md border border-cyan-900/30 bg-cyan-950 p-2.5 text-cyan-100">
+              <FlaskConical className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-800">
+                Inputs → Thermodynamics → Hydraulic optimisation → HETS physical sizing
+              </p>
+              <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">
+                HETS physical sizing · Stage 4
+              </h1>
+              <p className="mt-1 text-xs text-slate-600">
+                Current fixed-Nₜ=7, HETS=1 m pre-pilot screening
+                {design?.projectNumber ? ` · ${String(design.projectNumber)}` : ""}
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(STAGE_3_PATH)}
+            className="h-8 gap-1.5 text-xs"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Hydraulic optimisation
+          </Button>
+        </header>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-sm text-slate-500">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading design…
+          </div>
+        ) : error || !Number.isFinite(designId) ? (
+          <section className="rounded-md border border-red-200 bg-red-50 p-5 text-sm text-red-900">
+            <h2 className="font-semibold">Design prerequisite unavailable</h2>
+            <p className="mt-1">{error ?? "The saved design identifier is unavailable."}</p>
+          </section>
+        ) : (
+          <div className="space-y-4">
+            <Stage4PrePilotSizingPanel designId={designId} />
+            <details
+              data-testid="retired-stage4-history"
+              className="rounded-md border border-slate-300 bg-slate-50 p-3"
+              onToggle={(event) => {
+                if (event.currentTarget.open) void loadRetiredHistory();
+              }}
+            >
+              <summary className="cursor-pointer text-xs font-semibold text-slate-800">
+                Retired Job A/B/C and finite-rate history · read-only
+              </summary>
+              <div className="mt-3 space-y-3 text-xs text-slate-700">
+                <div className="rounded border border-amber-300 bg-amber-50 p-3 text-amber-950">
+                  <p className="font-semibold">Retired — historical evidence only</p>
+                  <p className="mt-1">
+                    Job A, Job B, Job C, diagnostics, continuation, full finite-rate,
+                    partial-transfer qualification and associated sizing can no longer be
+                    run, retried, resumed, stopped, or used to gate HETS sizing.
+                  </p>
+                </div>
+                {historyLoading && (
+                  <p role="status" className="flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading saved retired records once…
+                  </p>
+                )}
+                {historyLoaded && history.map((item) => (
+                  <details
+                    key={item.label}
+                    data-testid="retired-history-record"
+                    className="rounded border border-slate-200 bg-white p-2"
+                  >
+                    <summary className="cursor-pointer font-semibold">
+                      {item.label} · {item.status === "saved" ? "Retired" : "Unavailable"}
+                    </summary>
+                    <pre className="mt-2 max-h-72 overflow-auto rounded bg-slate-950 p-3 text-[10px] text-cyan-50">
+                      {typeof item.value === "string" ? item.value : JSON.stringify(item.value, null, 2)}
+                    </pre>
+                  </details>
+                ))}
               </div>
             </details>
           </div>

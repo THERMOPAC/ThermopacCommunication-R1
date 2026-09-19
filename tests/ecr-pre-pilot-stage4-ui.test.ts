@@ -65,8 +65,9 @@ vi.mock("lucide-react", () => {
   };
 });
 
-import EcrPrePilotDesignStage4Page, {
+import {
   PhysicalSizingPanel,
+  RetiredEcrPrePilotDesignStage4Page as EcrPrePilotDesignStage4Page,
 } from "@/pages/design-software/ecr-pre-pilot-design-stage-4-page";
 
 const design = { id: 47, projectNumber: "ECR-UI-47" };

@@ -171,7 +171,10 @@ async function visibleText(page: Awaited<ReturnType<typeof openAuthenticatedStag
   });
 }
 
-describe.sequential("ECR pre-pilot authenticated Job C gate browser regressions", () => {
+// Job C is retained as historical scientific UI code but is no longer mounted
+// by the active Stage 4 route. Its former active-route browser regressions are
+// intentionally retired with that workflow.
+describe.skip("retired ECR pre-pilot authenticated Job C gate browser regressions", () => {
   beforeAll(async () => {
     previousReplId = process.env.REPL_ID;
     delete process.env.REPL_ID;

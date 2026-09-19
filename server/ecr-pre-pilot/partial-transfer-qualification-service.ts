@@ -22,6 +22,8 @@ import { makeStage1HydrodynamicProcessBasis, validateStage1Snapshot } from './st
 export const SINGLE_QUALIFICATION_CONTRACT = 'USER_TRIGGERED_SINGLE_QUALIFICATION_V1' as const;
 export const SINGLE_QUALIFICATION_SOURCE_DIAMETER_M = 1.0287688499748642;
 export const SINGLE_QUALIFICATION_DISPLAY_DIAMETER_M = 1.02876885;
+export const PARTIAL_TRANSFER_QUALIFICATION_RETIRED_ERROR =
+  'ECR_PRE_PILOT_PARTIAL_TRANSFER_QUALIFICATION_RETIRED';
 
 type QualificationRow = {
   id: string; status: string; input_snapshot: any; input_hash: string;
@@ -30,6 +32,7 @@ type QualificationRow = {
 };
 
 const activeControllers = new Map<string, AbortController>();
+let retirementCleanupStarted = false;
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 
 function publicRow(row: QualificationRow) {
@@ -127,6 +130,20 @@ async function executeQualification(rowId: string, userId: number, designId: num
   const controller = new AbortController();
   activeControllers.set(rowId, controller);
   const started = Date.now();
+  // A retiring process may not own this controller. Poll persisted lifecycle
+  // state so an older process also stops after another instance terminalizes it.
+  const cancellationPoll = setInterval(async () => {
+    try {
+      const state = await pool.query(
+        `SELECT status FROM ecr_pre_pilot_partial_transfer_qualification_jobs WHERE id=$1`,
+        [rowId],
+      );
+      if (state.rows[0]?.status !== 'running') controller.abort();
+    } catch {
+      controller.abort();
+    }
+  }, 1_000);
+  cancellationPoll.unref();
   try {
     const claimed = await pool.query(
       `UPDATE ecr_pre_pilot_partial_transfer_qualification_jobs
@@ -198,11 +215,14 @@ async function executeQualification(rowId: string, userId: number, designId: num
         { phase: cancelled ? 'cancelled' : 'failed', elapsedSeconds: Math.max(0, (Date.now() - started) / 1000) }],
     );
   } finally {
+    clearInterval(cancellationPoll);
     activeControllers.delete(rowId);
   }
 }
 
 export async function startSinglePartialTransferQualification(userId: number, designId: number) {
+  throw new Error(PARTIAL_TRANSFER_QUALIFICATION_RETIRED_ERROR);
+  /* c8 ignore start -- retained scientific implementation for historical provenance */
   const prepared = await qualificationPreflight(userId, designId);
   const input = {
     contract: SINGLE_QUALIFICATION_CONTRACT, anchorJobId: prepared.source.sourceJobId,
@@ -240,6 +260,7 @@ export async function startSinglePartialTransferQualification(userId: number, de
     }
     throw error;
   }
+  /* c8 ignore stop */
 }
 
 export async function getSinglePartialTransferQualification(
@@ -272,10 +293,33 @@ export async function cancelSinglePartialTransferQualification(userId: number, d
 
 /** Crash recovery is deliberately terminal, never a hidden restart. */
 export async function markInterruptedSinglePartialTransferQualifications() {
-  await pool.query(
+  const changed = await pool.query<{ id: string }>(
     `UPDATE ecr_pre_pilot_partial_transfer_qualification_jobs
-        SET status='interrupted',error='SINGLE_QUALIFICATION_INTERRUPTED_PROCESS_RESTART_NO_AUTORUN',
+        SET status='cancelled',error='ECR_PRE_PILOT_PARTIAL_TRANSFER_QUALIFICATION_RETIRED',
+            progress=COALESCE(progress,'{}'::jsonb)
+              || jsonb_build_object('retired',true,'phase','cancelled by lifecycle retirement'),
             completed_at=now(),updated_at=now()
-      WHERE status IN ('pending','running')`,
+      WHERE status IN ('pending','running') RETURNING id`,
   );
+  for (const row of changed.rows) activeControllers.get(row.id)?.abort();
+  return changed.rows.length;
+}
+
+/** Retry retirement cleanup until one DB sweep succeeds; never starts work. */
+export function startPartialTransferQualificationRetirementCleanup() {
+  if (retirementCleanupStarted) return;
+  retirementCleanupStarted = true;
+  const sweep = async (delayMs = 1_000): Promise<void> => {
+    try {
+      await markInterruptedSinglePartialTransferQualifications();
+    } catch (error) {
+      console.error('[Partial transfer qualification] Retirement cleanup failed; retrying:', error);
+      const timer = setTimeout(
+        () => void sweep(Math.min(delayMs * 2, 30_000)),
+        delayMs,
+      );
+      timer.unref();
+    }
+  };
+  void sweep();
 }

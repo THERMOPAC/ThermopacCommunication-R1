@@ -136,7 +136,7 @@ export default function EcrPrePilotDesignStage3Page() {
             onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-4")}
             className="h-8 gap-1.5 px-3 text-xs"
           >
-            Stage 4 Job-A
+            HETS physical sizing
             <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         </header>

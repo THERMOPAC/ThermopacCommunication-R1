@@ -24,6 +24,7 @@ const LEASE_MS = Number(process.env.JOB_C_LEASE_MS ?? 30_000);
 let started = false;
 let busy = false;
 const activeControllers = new Map<string, AbortController>();
+export const JOB_C_RETIRED_ERROR = 'ECR_PRE_PILOT_JOB_C_RETIRED';
 
 type EnqueueReuse = {
   reused: boolean;
@@ -521,6 +522,11 @@ export async function enqueueJobC(
     strictContinuationAnchor?: boolean;
   } = {},
 ) {
+  throw new JobCError(JOB_C_RETIRED_ERROR, {
+    status: 410,
+    reason: 'ECR Pre-Pilot Job C execution is retired; historical records remain read-only.',
+  });
+  /* c8 ignore start -- retained scientific implementation for historical provenance */
   // This is the only mutable-state read used to construct the job. The entire
   // server-derived request and its audit/lineage are persisted before returning.
   const diagnosticMode = options.workflowTestOnly ? JOB_C_WORKFLOW_TEST_ONLY_MODE
@@ -739,6 +745,7 @@ export async function enqueueJobC(
   } finally {
     client.release();
   }
+  /* c8 ignore stop */
 }
 
 export async function getJobC(id: string, userId: number, designId: number) {
@@ -845,6 +852,49 @@ async function claim() {
   } catch (error) {
     await client.query('ROLLBACK'); throw error;
   } finally { client.release(); }
+}
+
+/**
+ * Idempotently retires active queue work without touching completed history.
+ * Running owners observe cancel_requested_at through their lease heartbeat;
+ * local owners are also aborted immediately.
+ */
+export async function retireActiveJobCJobs() {
+  const client = await pool.connect();
+  const controllersToAbort: AbortController[] = [];
+  try {
+    await client.query('BEGIN');
+    const changed = await client.query(
+      `UPDATE ecr_pre_pilot_job_c_jobs
+         SET cancel_requested_at=COALESCE(cancel_requested_at,NOW()),
+             status='cancelled',
+             completed_at=COALESCE(completed_at,NOW()),
+             lease_expires_at=NULL,
+             claim_token=NULL,
+             worker_owner=NULL,
+             error=COALESCE(error,'ECR_PRE_PILOT_JOB_C_RETIRED'),
+             updated_at=NOW()
+       WHERE status IN ('pending','running') RETURNING *`,
+    );
+    for (const row of changed.rows) {
+      await history(client, row, {
+        event: 'retired',
+        reason: JOB_C_RETIRED_ERROR,
+        partialRetained: row.partial_result_snapshot != null,
+        diagnosticsRetained: row.progress_snapshot != null,
+      });
+      const controller = activeControllers.get(row.id);
+      if (controller) controllersToAbort.push(controller);
+    }
+    await client.query('COMMIT');
+    for (const controller of controllersToAbort) controller.abort();
+    return changed.rows.length;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 async function guardedUpdate(id: string, token: string, sql: string, values: unknown[]) {
@@ -1034,7 +1084,7 @@ async function execute(row: any, token: string) {
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,
        result_snapshot=CASE WHEN cancel_requested_at IS NULL THEN $4::jsonb ELSE NULL::jsonb END,
        result_hash=CASE WHEN cancel_requested_at IS NULL THEN $5 ELSE NULL END,
-       error=CASE WHEN cancel_requested_at IS NULL THEN NULL ELSE 'JOB_C_CANCELLED' END,
+        error=CASE WHEN cancel_requested_at IS NULL THEN NULL ELSE COALESCE(error,'JOB_C_CANCELLED') END,
        progress_phase='terminal',
        completed_at=NOW(),lease_expires_at=NULL,claim_token=NULL`,
       [blocked ? 'blocked' : 'completed', result, jobCScientificResultHash(result)]);
@@ -1059,7 +1109,7 @@ async function execute(row: any, token: string) {
       } : null;
     const final = await guardedUpdate(row.id, token,
       `status=CASE WHEN cancel_requested_at IS NULL THEN $3 ELSE 'cancelled' END,
-       error=CASE WHEN cancel_requested_at IS NULL THEN $4 ELSE 'JOB_C_CANCELLED' END,
+        error=CASE WHEN cancel_requested_at IS NULL THEN $4 ELSE COALESCE(error,'JOB_C_CANCELLED') END,
          result_snapshot=CASE WHEN cancel_requested_at IS NULL AND ($3='blocked' OR $7)
           THEN $5::jsonb ELSE NULL::jsonb END,
          result_hash=CASE WHEN cancel_requested_at IS NULL AND ($3='blocked' OR $7)
@@ -1101,7 +1151,20 @@ async function poll() {
 export function startJobCWorker() {
   if (started) return;
   started = true;
-  const timer = setInterval(() => void poll(), POLL_MS);
-  timer.unref();
-  void poll();
+  // Deliberately no poll/claim loop: retirement must survive every restart.
+  // Retry transient startup failures until one complete transactional sweep
+  // succeeds; after that, the retired queue has no producer.
+  const retireWithRetry = async (delayMs = POLL_MS): Promise<void> => {
+    try {
+      await retireActiveJobCJobs();
+    } catch (error) {
+      console.error('[Job C] Retirement cleanup failed; retrying:', error);
+      const timer = setTimeout(
+        () => void retireWithRetry(Math.min(delayMs * 2, 30_000)),
+        delayMs,
+      );
+      timer.unref();
+    }
+  };
+  void retireWithRetry();
 }

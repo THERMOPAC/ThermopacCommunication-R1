@@ -68,6 +68,7 @@ let browser: Browser;
 let origin: string;
 let currentStage4: Record<string, unknown>;
 let actionRequests: Array<{ path: string; body: string }> = [];
+let ecrMutationRequests: Array<{ method: string; path: string }> = [];
 let previousReplId: string | undefined;
 
 function chromiumPath(): string {
@@ -79,6 +80,9 @@ async function openStage4() {
   await page.setRequestInterception(true);
   page.on('request', (request: HTTPRequest) => {
     const url = new URL(request.url());
+    if (url.pathname.startsWith('/api/ecr-pre-pilot/') && request.method() !== 'GET') {
+      ecrMutationRequests.push({ method: request.method(), path: url.pathname });
+    }
     const json = (status: number, body: unknown) => void request.respond({
       status, contentType: 'application/json', body: JSON.stringify(body),
     });
@@ -167,6 +171,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
 
   it('renders the approved HETS result card with required and installed heights distinct', async () => {
     actionRequests = [];
+    ecrMutationRequests = [];
     currentStage4 = hetsResult();
     const page = await openStage4();
     try {
@@ -186,6 +191,48 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       expect(text).toContain('No outlet, recovery, target-compliance, or final-design claim is made');
       expect(text).not.toContain('Predicted primary raffinate outlet');
       expect(actionRequests).toHaveLength(0);
+      expect(ecrMutationRequests).toHaveLength(0);
+    } finally {
+      await page.close();
+    }
+  }, 60_000);
+
+  it('keeps retired Job A/B/C history collapsed and read-only without background mutations', async () => {
+    actionRequests = [];
+    ecrMutationRequests = [];
+    currentStage4 = hetsResult();
+    const page = await openStage4();
+    try {
+      const history = await page.$('[data-testid="retired-stage4-history"]');
+      expect(history).not.toBeNull();
+      expect(await page.$eval(
+        '[data-testid="retired-stage4-history"]',
+        element => (element as HTMLDetailsElement).open,
+      )).toBe(false);
+      expect(await page.$eval('body', element => (element as HTMLElement).innerText))
+        .toContain('Retired Job A/B/C and finite-rate history · read-only');
+
+      const retiredExecuteControls = await page.$$eval('button', buttons =>
+        buttons
+          .map(button => button.textContent?.replace(/\s+/g, ' ').trim() ?? '')
+          .filter(text => /Job[- ]?[ABC]|diagnostic|continuation|finite-rate|partial-transfer/i.test(text)),
+      );
+      expect(retiredExecuteControls).toEqual([]);
+      expect(ecrMutationRequests).toEqual([]);
+
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForSelector('[data-testid="stage4-pre-pilot-sizing"]', { visible: true, timeout: 30_000 });
+      expect(ecrMutationRequests).toEqual([]);
+
+      await page.click('[data-testid="retired-stage4-history"] > summary');
+      await page.waitForSelector('[data-testid="retired-history-record"]', { visible: true, timeout: 5_000 });
+      const expandedText = await page.$eval(
+        '[data-testid="retired-stage4-history"]',
+        element => (element as HTMLElement).innerText,
+      );
+      expect(expandedText).toContain('Retired — historical evidence only');
+      expect(expandedText).toContain('can no longer be run, retried, resumed, stopped');
+      expect(ecrMutationRequests).toEqual([]);
     } finally {
       await page.close();
     }
@@ -193,6 +240,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
 
   it('posts one empty synchronous Calculate request and shows the persisted card after reload', async () => {
     actionRequests = [];
+    ecrMutationRequests = [];
     currentStage4 = unrun();
     const page = await openStage4();
     try {
@@ -203,6 +251,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       await page.click('[data-testid="stage4-calculate"]');
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 5_000 });
       expect(actionRequests).toEqual([{ path: calculateEndpoint, body: '{}' }]);
+      expect(ecrMutationRequests).toEqual([{ method: 'POST', path: calculateEndpoint }]);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 30_000 });
       expect(await panelText(page)).toContain('Installed active height 7.31 m');
