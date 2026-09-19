@@ -11,6 +11,12 @@ Stage 5 defines preliminary Kühni geometry from current saved Stage-3 hydraulic
 
 A dimensionally complete preliminary geometry is not proof that its construction reproduces the hydraulic correlation basis, and never establishes pressure-vessel, shaft, bearing/seal, drive or structural adequacy.
 
+The initial controlled rule set is named `ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1`. Establish rotor/stator/compartment construction evidence before coding automatic defaults. Missing or inapplicable rules must produce a SYSTEM RULE-SET DEFICIENCY, not a normal-user geometry prompt.
+
+**Why:** The user explicitly confirmed this engineering-first sequence and zero-input generation boundary in the subsequent specification.
+
+**How to apply:** Reconcile the upstream free-area definition with the generated opening geometry, and explicitly justify the terminal-stator convention. Do not promote a single experimental apparatus dimension or an optimizer search-grid option into a general construction standard.
+
 Frozen revisions must remain readable/exportable when current upstream authority becomes unavailable. Preserve original geometry and drawings, and flag outdated lineage instead of silently regenerating old revisions.
 
 **Why:** The user explicitly requires retained source results, assumptions, unresolved items and revision history.
