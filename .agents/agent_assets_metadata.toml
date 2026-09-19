@@ -1185,3 +1185,17 @@ mtime_ms = 1789832639876
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/da73a7a5-e0df-4210-876e-f2a3d3e89485/566159e3-627b-4c2a-a1ff-bd5a0a4e9385"
 storage_version_token = "1789832681145333"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "FCE0DCD59xcVA18VyY68s"
+uri = "file://deliverables/r1-design-data/fixture-design-data.pdf"
+type = "pdf"
+title = "CAD Design Data PDF — sample"
+description = "Human-readable CAD handoff with full R1 component geometry, coordinates, elevation schedules, provenance and validation. Clearly labelled verification fixture—not your live design."
+logical_id = "6d22b8d5-5d0a-4948-82fd-75297349f84d"
+content_hash = "sha256:bacfa6b361ef84257c5f8704a6e3a8868278e7823e7296e4b995b485fdcd8a1f"
+size = 150381
+mtime_ms = 1789840872331
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/6d22b8d5-5d0a-4948-82fd-75297349f84d/004b1a9b-1462-40a0-8426-05377030391e"
+storage_version_token = "1789840983523587"
+content_type = "application/pdf"

@@ -9,6 +9,7 @@ import { buildStage5R1Geometry, R1_COMPLETE, R1_WATERMARK } from "../shared/ecr-
 import { buildStage5Geometry, emptyStage5Inputs, type Stage5Basis } from "../shared/ecr-stage5-geometry";
 import { renderStage5Svg, type Stage5DrawingView } from "../shared/ecr-stage5-drawings";
 import { createStage5Pdf } from "../server/ecr-pre-pilot/stage5-geometry-report";
+import { createStage5DesignDataPdf } from "../server/ecr-pre-pilot/stage5-design-data-report";
 
 const api = "/api/ecr-pre-pilot/designs/47/stage5";
 const basis: Stage5Basis = {
@@ -37,6 +38,7 @@ let mode: "normal" | "issues" | "incompatible" | "missing" = "normal";
 let requests: { path: string; body: any }[] = [];
 const artifactDir = resolve("deliverables/r1-drawings");
 let fixturePdf: Buffer;
+let designDataPdf: Buffer;
 let failDownload = false;
 const respond = (q: HTTPRequest, status: number, body: unknown) =>
   void q.respond({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -83,6 +85,7 @@ async function open(width = 1440): Promise<Page> {
       return void q.respond({ status: 200, contentType: "image/svg+xml", body: drawings[view] });
     }
     if (path.endsWith("/export.pdf")) return void q.respond({ status: 200, contentType: "application/pdf", body: fixturePdf });
+    if (path.endsWith("/design-data.pdf")) return void q.respond({ status: 200, contentType: "application/pdf", body: designDataPdf });
     if (path.startsWith("/api/")) return respond(q, 200, []);
     void q.continue();
   });
@@ -96,6 +99,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
   beforeAll(async () => {
     mkdirSync(artifactDir, { recursive: true });
     fixturePdf = await createStage5Pdf({ ...revision, notes: "Browser verification fixture" });
+    designDataPdf = await createStage5DesignDataPdf({ ...revision, notes: "VERIFICATION FIXTURE — NOT A LIVE DESIGN" }, 47);
     previousReplId = process.env.REPL_ID;
     delete process.env.REPL_ID;
     if (process.env.STAGE5_BROWSER_ORIGIN) origin = process.env.STAGE5_BROWSER_ORIGIN;
@@ -126,7 +130,8 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(validation).not.toContain("PASS");
       expect(await page.$$eval('[data-testid="stage5-unresolved-items"]', nodes => nodes.length)).toBe(0);
       const register = await page.$eval('[data-testid="stage5-parameter-register"]', el => el.textContent ?? "");
-      expect(register).toContain(`${geometry.parameters.length} governed parameters`);
+      expect(register).toContain("CAD Design Data");
+      expect(register).toContain("Save an immutable revision first");
       expect(register).not.toContain("Gross free-area fraction");
       expect(requests).toEqual([{ path: `${api}/preview`, body: {} }]);
       for (const [label, view] of [
@@ -163,16 +168,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
         await page.screenshot({ path: compactPath, fullPage: false });
         await page.$eval("#stage5-compact-screenshot", element => element.remove());
       }
-      if (width === 1440) {
-        const csv = `${artifactDir}/stage5-preview-dimension-provenance-register.csv`;
-        if (existsSync(csv)) rmSync(csv);
-        await click(page, "Download register CSV");
-        await expect.poll(() => existsSync(csv), { timeout: 10000 }).toBe(true);
-        const content = readFileSync(csv, "utf8");
-        expect(content).toContain('"Key","Parameter","Value","Unit","Classification","Provenance / formula / note"');
-        expect(content).toContain('"statorOpeningDiameterM"');
-        expect(content).toContain("D sqrt(phi_s)");
-      }
+      expect(await page.$$eval("button", buttons => buttons.find(b => b.textContent?.trim() === "Download Design Data PDF")?.disabled)).toBe(true);
     } finally { await page.close(); }
   }, 60000);
   it("saves only the expected source hash and opens immutable drawings", async () => {
@@ -196,11 +192,14 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       await click(page, "PDF package");
       await expect.poll(() => existsSync(pdf), { timeout: 10000 }).toBe(true);
       expect(readFileSync(pdf).subarray(0, 5).toString()).toBe("%PDF-");
-      const csv = `${artifactDir}/stage5-r3-dimension-provenance-register.csv`;
-      if (existsSync(csv)) rmSync(csv);
-      await click(page, "Download register CSV");
-      await expect.poll(() => existsSync(csv), { timeout: 10000 }).toBe(true);
-      expect(readFileSync(csv, "utf8")).toContain('"statorOpeningDiameterM"');
+      const dataPdf = `${artifactDir}/stage5-r3-design-data.pdf`;
+      if (existsSync(dataPdf)) rmSync(dataPdf);
+      await click(page, "Download Design Data PDF");
+      await expect.poll(() => existsSync(dataPdf), { timeout: 10000 }).toBe(true);
+      expect(readFileSync(dataPdf)).toEqual(designDataPdf);
+      mkdirSync(resolve("deliverables/r1-design-data"), { recursive: true });
+      const downloadPanel = await page.$('[data-testid="stage5-parameter-register"]');
+      await downloadPanel!.screenshot({ path: resolve("deliverables/r1-design-data/fixture-saved-design-data-download.png") });
     } finally { await page.close(); }
   }, 60000);
   it("shows an explicit download error rather than downloading an error page", async () => {

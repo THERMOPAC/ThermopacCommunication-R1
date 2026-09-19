@@ -4,6 +4,7 @@ import { getStage5Basis, getStage5Revisions, previewStage5, saveStage5Revision, 
 import { createStage5Pdf } from './stage5-geometry-report';
 import { R1GeometryError } from '../../shared/ecr-stage5-r1';
 import { stage5DrawingPresentation } from './stage5-drawing-presentation';
+import { createStage5DesignDataPdf } from './stage5-design-data-report';
 
 export function setupStage5GeometryRoutes(app: Express) {
   const base = '/api/ecr-pre-pilot/designs/:id/stage5';
@@ -53,6 +54,14 @@ export function setupStage5GeometryRoutes(app: Express) {
     const revision = stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation);
     const pdf = await createStage5Pdf(revision);
     r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-${revision.presentationVersion ?? 'original'}.pdf"`);
+    r.setHeader('X-Stage5-Currentness', revision.currentness);
+    return r.type('application/pdf').send(pdf);
+  }));
+  app.get(`${base}/revisions/:revisionId/design-data.pdf`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    const revision = (await getStage5Revisions(u, d, String(q.params.revisionId)))[0];
+    if (!revision.geometry?.r1Model) throw new Stage5Error('STAGE5_DESIGN_DATA_REQUIRES_SAVED_R1_GEOMETRY', 409);
+    const pdf = await createStage5DesignDataPdf(revision, d);
+    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-design-data.pdf"`);
     r.setHeader('X-Stage5-Currentness', revision.currentness);
     return r.type('application/pdf').send(pdf);
   }));

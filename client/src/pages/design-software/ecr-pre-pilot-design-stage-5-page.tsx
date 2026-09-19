@@ -5,7 +5,6 @@ import Layout from "@/components/layout";
 import { Stage5DrawingViewer, stage5ViewNames, type Stage5View } from "@/components/ecr-pre-pilot/stage5-drawing-viewer";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { stage5ParameterRegisterCsv } from "@/lib/stage5-register-csv";
 import { R1_COMPLETE, R1_RULESET, R1_WATERMARK } from "@shared/ecr-stage5-r1";
 
 type RecordValue = Record<string, unknown>;
@@ -19,34 +18,22 @@ function ValueGrid({ title, data }: { title: string; data: unknown }) {
   return <section className="rounded border border-slate-200 bg-white"><h3 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900">{title}</h3>{rows.length ? <dl className="grid gap-px bg-slate-200 sm:grid-cols-2">{rows.map(([key, value]) => <div key={key} className="bg-white px-3 py-2"><dt className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">{key}</dt><dd className="mt-1 break-words font-mono text-[11px] text-slate-800">{value === undefined || value === null || value === "" ? "TBD" : typeof value === "object" ? JSON.stringify(value) : String(value)}</dd></div>)}</dl> : <p className="p-3 text-xs text-slate-500">No governed values were returned. Return to the upstream stage to complete this basis.</p>}</section>;
 }
 
-function GeometrySchedules({ geometry, registerFileName }: { geometry: unknown; registerFileName: string }) {
+function GeometrySchedules({ geometry, registerFileName }: { geometry: unknown; registerFileName: { download: () => void; available: boolean; busy: boolean; saved: boolean } }) {
   const model = object(geometry);
   const rows = (value: unknown) => Array.isArray(value) ? value.map(object) : [];
   const checkRank = (status: unknown) => status === "fail" ? 0 : status === "tbd" ? 1 : status === "pass" ? 2 : 3;
   const checks = rows(model.checks).sort((a, b) => checkRank(a.status) - checkRank(b.status));
   const issues = checks.filter(check => check.status !== "pass");
-  const parameters = rows(model.parameters);
   const internals = rows(model.internals);
   const nozzles = rows(model.nozzles);
   const assumptions = Array.isArray(model.assumptions) ? model.assumptions : [];
   const tbd = Array.isArray(model.tbd) ? model.tbd : [];
   const reviewRequired = issues.length > 0 || tbd.length > 0 || model.complete !== true;
   const display = (value: unknown) => value === null || value === undefined || value === "" ? "TBD" : String(value);
-  const downloadRegister = () => {
-    const blob = new Blob([stage5ParameterRegisterCsv(geometry)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = registerFileName;
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  };
   return <div data-testid="stage5-geometry-report" className="mt-3 space-y-3">
     <div data-testid="stage5-compact-report" className="space-y-3">
       <section data-testid="stage5-validation-summary" className={`rounded border ${reviewRequired ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50"}`}><h3 className="border-b border-current/10 px-3 py-2 text-xs font-semibold text-slate-900">Validation checks <span className="font-mono text-[10px] font-normal">{reviewRequired ? "INCOMPLETE / REVIEW REQUIRED" : "COMPLETE"}</span></h3><div className="divide-y divide-slate-100">{issues.length ? issues.map((check, index) => <div key={`${String(check.id)}-${index}`} className="flex gap-2 px-3 py-2 text-[11px]"><span className={`h-fit rounded px-1.5 py-0.5 font-mono text-[9px] font-bold ${check.status === "fail" ? "bg-red-100 text-red-900" : "bg-amber-100 text-amber-900"}`}>{String(check.status ?? "unresolved").toUpperCase()}</span><div><span className="font-mono text-[10px] text-slate-600">{String(check.id ?? "check")}</span><p className="text-slate-800">{display(check.message)}</p></div></div>) : reviewRequired ? <p className="px-3 py-2 text-xs font-medium text-red-900">No failed check rows. Unresolved geometry items are listed below.</p> : checks.length ? <p className="px-3 py-2 text-xs font-medium text-emerald-900">All {checks.length} validation checks passed. No failed or unresolved checks.</p> : <p className="p-3 text-xs text-amber-900">No validation results returned.</p>}</div></section>
-      <section data-testid="stage5-parameter-register" className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 p-3"><div><h3 className="text-xs font-semibold text-slate-900">Dimension & provenance register</h3><p className="mt-1 text-[11px] text-slate-600">{parameters.length} governed parameters. Download the complete register with values, units, classifications, provenance, formulas and notes.</p></div><Button type="button" variant="outline" onClick={downloadRegister} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> Download register CSV</Button></section>
+      <section data-testid="stage5-parameter-register" className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 p-3"><div><h3 className="text-xs font-semibold text-slate-900">CAD Design Data</h3><p className="mt-1 text-[11px] text-slate-600">Human-readable modelling inputs: dimensions in mm, component profiles, complete elevation and connection schedules, provenance and validation.</p>{!registerFileName.available && <p className="mt-2 text-xs font-medium text-amber-900">{registerFileName.saved ? "This historical revision has no structured R1 model. Its original drawing exports remain available." : "Save an immutable revision first to download its Design Data PDF."}</p>}</div><Button type="button" variant="outline" disabled={!registerFileName.available || registerFileName.busy} onClick={registerFileName.download} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> Download Design Data PDF</Button></section>
     </div>
     <div className="grid gap-3 lg:grid-cols-2"><section className="rounded border border-slate-200"><h3 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900">Internals schedule</h3><div className="overflow-x-auto"><table className="w-full min-w-[470px] text-left text-[10px]"><thead><tr className="text-slate-500"><th className="px-3 py-2">ID</th><th>Definition</th><th>Qty</th><th>OD / thk [m]</th></tr></thead><tbody className="divide-y divide-slate-100">{internals.map((item, index) => <tr key={`${String(item.id)}-${index}`}><td className="px-3 py-2 font-mono">{display(item.id)}</td><td className="py-2">{display(item.type)}</td><td className="py-2 font-mono">{display(item.count)}</td><td className="py-2 font-mono">{display(item.diameterM)} / {display(item.thicknessM)}</td></tr>)}</tbody></table></div></section><section className="rounded border border-slate-200"><h3 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900">Preliminary nozzle / connection schedule</h3><div className="overflow-x-auto"><table className="w-full min-w-[470px] text-left text-[10px]"><thead><tr className="text-slate-500"><th className="px-3 py-2">Tag</th><th>Service / region</th><th>EL [m]</th><th>Bore [m]</th><th>Provenance</th></tr></thead><tbody className="divide-y divide-slate-100">{nozzles.length ? nozzles.map((item, index) => <tr key={`${String(item.id)}-${index}`}><td className="px-3 py-2 font-mono">{display(item.id)}</td><td className="py-2">{display(item.service)} / {display(item.region)}</td><td className="py-2 font-mono">{display(item.elevationM)}</td><td className="py-2 font-mono">{display(item.boreM)}</td><td className="py-2">{display(item.classification)}</td></tr>) : <tr><td colSpan={5} className="px-3 py-3 text-slate-500">TBD — no connection schedule entered.</td></tr>}</tbody></table></div></section></div>
     <div className="grid gap-3 md:grid-cols-2"><section className="rounded border border-amber-200 bg-amber-50/50 p-3 text-[11px] text-amber-950"><h3 className="font-semibold">Assumptions</h3>{assumptions.length ? <ul className="mt-2 list-disc space-y-1 pl-4">{assumptions.map((item, index) => <li key={index}>{String(item)}</li>)}</ul> : <p className="mt-1">None recorded.</p>}</section>{tbd.length ? <section data-testid="stage5-unresolved-items" className="rounded border border-red-300 bg-red-50 p-3 text-[11px] text-red-950"><h3 className="font-semibold">Unresolved items</h3><ul className="mt-2 list-disc space-y-1 pl-4">{tbd.map((item, index) => <li key={index}>{String(item)}</li>)}</ul></section> : <section className="rounded border border-emerald-200 bg-emerald-50 p-3 text-[11px] text-emerald-950"><h3 className="font-semibold">Geometry closure</h3><p className="mt-1">No unresolved geometry items.</p></section>}</div>
@@ -127,27 +114,27 @@ export default function EcrPrePilotDesignStage5Page() {
     "Fixed design Nₜ": governing.designNt,
     "Assumed HETS (m/stage)": governing.hetsM,
   };
-  const exportRevision = async (format: "svg" | "pdf") => {
+  const exportRevision = async (format: "svg" | "pdf" | "design-data") => {
     if (!selected || !design?.id) return;
     setDownloading(true);
     try {
       const presentation = object(selected.geometry).ruleset === R1_RULESET ? "dimensioned-v2" : "original";
-      const suffix = `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
+      const suffix = format === "design-data" ? "design-data.pdf" : `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
       const response = await fetch(`${base(design.id)}/revisions/${selected.id}/${suffix}`, { credentials: "include" });
       if (!response.ok) {
         const details = await response.json().catch(() => ({}));
         throw new Error(details.error ?? `Drawing download failed (${response.status}).`);
       }
       const blob = await response.blob();
-      const expected = format === "pdf" ? "application/pdf" : "image/svg+xml";
+      const expected = format === "svg" ? "image/svg+xml" : "application/pdf";
       if (!blob.size || !blob.type.includes(expected)) throw new Error("The server did not return a valid drawing file.");
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `stage5-r${selected.revision}-${presentation}${format === "svg" ? `-${view}` : ""}.${format}`;
+      anchor.download = format === "design-data" ? `stage5-r${selected.revision}-design-data.pdf` : `stage5-r${selected.revision}-${presentation}${format === "svg" ? `-${view}` : ""}.${format}`;
       document.body.appendChild(anchor); anchor.click(); anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      toast({ title: "Download ready", description: format === "pdf" ? "The five-view PDF package has been downloaded." : `${stage5ViewNames[view]} SVG has been downloaded.` });
+      toast({ title: "Download ready", description: format === "design-data" ? "The saved revision’s CAD Design Data PDF has been downloaded." : format === "pdf" ? "The five-view PDF package has been downloaded." : `${stage5ViewNames[view]} SVG has been downloaded.` });
     } catch (cause) {
       toast({ title: "Download failed", description: messageOf(cause), variant: "destructive" });
     } finally { setDownloading(false); }
@@ -192,7 +179,7 @@ export default function EcrPrePilotDesignStage5Page() {
   };
   const newRevision = () => { setSelected(null); setPreview(null); void read(); };
   const frozenSvg = selected?.drawings?.[view];
-  const registerFileName = `stage5-${selected ? `r${selected.revision}` : "preview"}-dimension-provenance-register.csv`;
+  const registerFileName = { download: () => void exportRevision("design-data"), available: Boolean(selected && object(selected.geometry).r1Model), busy: downloading, saved: Boolean(selected) };
 
   return <Layout><style>{`@media (max-width: 767px) { body:has([data-testid="stage5-page"]) aside:not([data-stage5-history]) { display: none; } body:has([data-testid="stage5-page"]) main { min-width: 0; width: 100%; } body:has([data-testid="stage5-page"]) main[class*="flex-1"] > div { max-width: 100% !important; width: 100%; } }`}</style><main className="mx-auto min-h-[100dvh] w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8" data-testid="stage5-page">
     <header className="border-b-2 border-slate-800 pb-4">

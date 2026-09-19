@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn() }));
+const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn() }));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: calls.auth }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
   getStage5Basis: calls.basis, getStage5Revisions: calls.revisions, previewStage5: calls.preview,
@@ -7,6 +7,7 @@ vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
   Stage5Error: class extends Error { constructor(message: string, public status = 409) { super(message); } },
 }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-report', () => ({ createStage5Pdf: calls.pdf }));
+vi.mock('../server/ecr-pre-pilot/stage5-design-data-report', () => ({ createStage5DesignDataPdf: calls.dataPdf }));
 import { setupStage5GeometryRoutes } from '../server/ecr-pre-pilot/stage5-geometry-routes';
 import { Stage5Error } from '../server/ecr-pre-pilot/stage5-geometry-service';
 let routes: { method: string; path: string; middleware: any[] }[];
@@ -26,8 +27,8 @@ async function request(suffix: string, method = 'get', overrides: any = {}) {
   return response;
 }
 describe('Stage 5 HTTP boundary', () => {
-  it('protects all seven endpoints and exposes no mutation of existing revisions', () => {
-    expect(routes).toHaveLength(7);
+  it('protects all eight endpoints and exposes no mutation of existing revisions', () => {
+    expect(routes).toHaveLength(8);
     expect(routes.every(r => r.middleware[0] === calls.auth)).toBe(true);
     expect(routes.filter(r => r.method === 'post').map(r => r.path.split('/').at(-1))).toEqual(['preview', 'revisions']);
   });
@@ -40,6 +41,7 @@ describe('Stage 5 HTTP boundary', () => {
     calls.revisions.mockRejectedValue(new Stage5Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND', 404));
     expect((await request('/export.pdf')).statusCode).toBe(404);
     expect((await request('/export.svg')).statusCode).toBe(404);
+    expect((await request('/design-data.pdf')).statusCode).toBe(404);
     expect(calls.revisions).toHaveBeenCalledWith(12, 23, '1');
     expect(calls.pdf).not.toHaveBeenCalled();
   });
@@ -54,6 +56,23 @@ describe('Stage 5 HTTP boundary', () => {
   it('rejects unrecognized SVG view before any read', async () => {
     expect((await request('/export.svg', 'get', { query: { view: '../x' } })).statusCode).toBe(400);
     expect(calls.revisions).not.toHaveBeenCalled();
+  });
+  it('downloads owned saved Design Data with attachment metadata and no regeneration', async () => {
+    const revision = { revision: 4, currentness: 'OUTDATED', geometry: { r1Model: {} } };
+    calls.revisions.mockResolvedValue([revision]);
+    calls.dataPdf.mockResolvedValue(Buffer.from('%PDF-fixture'));
+    const result = await request('/design-data.pdf');
+    expect(result.contentType).toBe('application/pdf');
+    expect(result.headers['Content-Disposition']).toContain('stage5-r4-design-data.pdf');
+    expect(result.headers['X-Stage5-Currentness']).toBe('OUTDATED');
+    expect(calls.dataPdf).toHaveBeenCalledWith(revision, 23);
+    expect(calls.preview).not.toHaveBeenCalled();
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+  it('does not invent R1 geometry for a legacy revision', async () => {
+    calls.revisions.mockResolvedValue([{ geometry: {} }]);
+    expect((await request('/design-data.pdf')).statusCode).toBe(409);
+    expect(calls.dataPdf).not.toHaveBeenCalled();
   });
   it('rejects manual geometry and upstream overrides for preview and save', async () => {
     for (const body of [{ inputs: {} }, { basis: {} }, { shaftDiameterM: .1 }, { geometry: {} }]) {
