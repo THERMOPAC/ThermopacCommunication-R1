@@ -33,7 +33,7 @@ const historical = {
   status: "INCOMPLETE",
 };
 let vite: ViteDevServer, browser: Browser, origin: string, previousReplId: string | undefined;
-let mode: "normal" | "incompatible" | "missing" = "normal";
+let mode: "normal" | "issues" | "incompatible" | "missing" = "normal";
 let requests: { path: string; body: any }[] = [];
 const artifactDir = resolve("deliverables/r1-drawings");
 let fixturePdf: Buffer;
@@ -60,7 +60,19 @@ async function open(width = 1440): Promise<Page> {
     if (path === "/api/usage-tracker/summary") return respond(q, 200, { monthlyTotal: 0, monthlyLimit: 100, monthlyPercent: 0, dailyTotal: 0, dailyLimit: 10, dailyPercent: 0, remainingDaily: 10, lastCumulativeTotal: 0, warningLevel: "none", softBlockEnabled: false, daysInMonth: 30, dayOfMonth: 1 });
     if (path === "/api/ecr-pre-pilot/designs/latest-saved") return respond(q, 200, { id: 47 });
     if (path === `${api}/basis`) return mode === "missing" ? respond(q, 409, { error: "STAGE5_SAVED_CURRENT_STAGE4_REQUIRED" }) : respond(q, 200, { basis, sourceHash: "hash-current" });
-    if (path === `${api}/preview`) return mode === "incompatible" ? respond(q, 409, { error: "R1_GEOMETRY_INCOMPATIBLE: stack: frozen height conflict" }) : respond(q, 200, geometry);
+    if (path === `${api}/preview`) {
+      if (mode === "incompatible") return respond(q, 409, { error: "R1_GEOMETRY_INCOMPATIBLE: stack: frozen height conflict" });
+      if (mode === "issues") return respond(q, 200, {
+        ...geometry, complete: false,
+        checks: [
+          ...geometry.checks.filter(check => check.status === "pass").slice(0, 2),
+          { id: "fixture-failure", status: "fail", message: "Fixture clearance failed." },
+          { id: "fixture-unresolved", status: "tbd", message: "Fixture support remains unresolved." },
+        ],
+        tbd: ["Fixture support detail is unresolved."],
+      });
+      return respond(q, 200, geometry);
+    }
     if (path === `${api}/revisions`) return method === "GET" ? respond(q, 200, [revision, historical]) : respond(q, 201, { ...revision, id: "502", revision: 3 });
     if (path === `${api}/revisions/500`) return respond(q, 200, historical);
     if (path === `${api}/revisions/501`) return respond(q, 200, revision);
@@ -109,6 +121,13 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(await page.$$eval(`${root} input, ${root} select, ${root} textarea`, nodes => nodes.length)).toBe(0);
       expect(await page.$eval(root, el => el.textContent)).toContain(R1_COMPLETE);
       expect(await page.$eval(root, el => el.textContent)).toContain(R1_WATERMARK);
+      const validation = await page.$eval('[data-testid="stage5-validation-summary"]', el => el.textContent ?? "");
+      expect(validation).toContain(`All ${geometry.checks.length} validation checks passed`);
+      expect(validation).not.toContain("PASS");
+      expect(await page.$$eval('[data-testid="stage5-unresolved-items"]', nodes => nodes.length)).toBe(0);
+      const register = await page.$eval('[data-testid="stage5-parameter-register"]', el => el.textContent ?? "");
+      expect(register).toContain(`${geometry.parameters.length} governed parameters`);
+      expect(register).not.toContain("Gross free-area fraction");
       expect(requests).toEqual([{ path: `${api}/preview`, body: {} }]);
       for (const [label, view] of [
         ["General arrangement", "ga"], ["Longitudinal section", "section"], ["Typical compartment", "compartment"],
@@ -126,6 +145,34 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(await page.$eval('[data-testid="stage5-drawing-stator"]', e => e.textContent)).toContain("100%");
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
       await page.screenshot({ path: `/tmp/r1-stage5-${width}.png`, fullPage: false });
+      await page.$eval('[data-testid="stage5-compact-report"]', element => {
+        const top = element.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ left: 0, top: Math.max(0, top - 180), behavior: "instant" });
+      });
+      const compactPath = `/tmp/stage5-compact-report-${width === 1440 ? "desktop" : "mobile"}.png`;
+      if (width === 1440) {
+        const compact = await page.$('[data-testid="stage5-compact-report"]');
+        await compact!.screenshot({ path: compactPath });
+      } else {
+        await page.$eval('[data-testid="stage5-compact-report"]', element => {
+          const copy = element.cloneNode(true) as HTMLElement;
+          copy.id = "stage5-compact-screenshot";
+          copy.style.cssText = "position:fixed;inset:0 auto auto 0;z-index:2147483647;width:100%;background:white;padding:8px";
+          document.body.appendChild(copy);
+        });
+        await page.screenshot({ path: compactPath, fullPage: false });
+        await page.$eval("#stage5-compact-screenshot", element => element.remove());
+      }
+      if (width === 1440) {
+        const csv = `${artifactDir}/stage5-preview-dimension-provenance-register.csv`;
+        if (existsSync(csv)) rmSync(csv);
+        await click(page, "Download register CSV");
+        await expect.poll(() => existsSync(csv), { timeout: 10000 }).toBe(true);
+        const content = readFileSync(csv, "utf8");
+        expect(content).toContain('"Key","Parameter","Value","Unit","Classification","Provenance / formula / note"');
+        expect(content).toContain('"statorOpeningDiameterM"');
+        expect(content).toContain("D sqrt(phi_s)");
+      }
     } finally { await page.close(); }
   }, 60000);
   it("saves only the expected source hash and opens immutable drawings", async () => {
@@ -149,6 +196,11 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       await click(page, "PDF package");
       await expect.poll(() => existsSync(pdf), { timeout: 10000 }).toBe(true);
       expect(readFileSync(pdf).subarray(0, 5).toString()).toBe("%PDF-");
+      const csv = `${artifactDir}/stage5-r3-dimension-provenance-register.csv`;
+      if (existsSync(csv)) rmSync(csv);
+      await click(page, "Download register CSV");
+      await expect.poll(() => existsSync(csv), { timeout: 10000 }).toBe(true);
+      expect(readFileSync(csv, "utf8")).toContain('"statorOpeningDiameterM"');
     } finally { await page.close(); }
   }, 60000);
   it("shows an explicit download error rather than downloading an error page", async () => {
@@ -171,6 +223,18 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(requests).toHaveLength(before);
       expect(await page.$$eval('[data-testid="stage5-page"] input, [data-testid="stage5-page"] select', nodes => nodes.length)).toBe(0);
       expect(await page.$eval('[data-testid="stage5-drawing-ga"]', el => el.textContent)).toContain("Net free area");
+    } finally { await page.close(); }
+  });
+  it("shows only failed and unresolved validation rows and never hides TBD items", async () => {
+    mode = "issues";
+    const page = await open();
+    try {
+      const validation = await page.$eval('[data-testid="stage5-validation-summary"]', el => el.textContent ?? "");
+      expect(validation).toContain("Fixture clearance failed.");
+      expect(validation).toContain("Fixture support remains unresolved.");
+      expect(validation).not.toContain("Frozen sources must be identified");
+      expect(await page.$eval('[data-testid="stage5-unresolved-items"]', el => el.textContent)).toContain("Fixture support detail is unresolved.");
+      expect(await page.$$eval("button", buttons => (buttons.find(b => b.textContent?.includes("Save immutable revision")) as HTMLButtonElement).disabled)).toBe(true);
     } finally { await page.close(); }
   });
   it.each(["incompatible", "missing"] as const)("fails explicitly for %s upstream geometry, keeps history readable", async problem => {
