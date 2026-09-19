@@ -50,6 +50,7 @@ export default function EcrPrePilotDesignStage5Page() {
   const [error, setError] = useState<string | null>(null);
   const [basisError, setBasisError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"preview" | "save" | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const read = useCallback(async () => {
     setLoading(true); setError(null); setBasisError(null);
     try {
@@ -110,15 +111,36 @@ export default function EcrPrePilotDesignStage5Page() {
     "Fixed design Nₜ": governing.designNt,
     "Assumed HETS (m/stage)": governing.hetsM,
   };
-  const exportRevision = (format: "svg" | "pdf") => {
+  const exportRevision = async (format: "svg" | "pdf") => {
     if (!selected || !design?.id) return;
-    const suffix = format === "pdf" ? "export.pdf" : `export.svg?view=${view}`;
-    window.open(`${base(design.id)}/revisions/${selected.id}/${suffix}`, "_blank", "noopener,noreferrer");
+    setDownloading(true);
+    try {
+      const presentation = object(selected.geometry).ruleset === R1_RULESET ? "dimensioned-v2" : "original";
+      const suffix = `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
+      const response = await fetch(`${base(design.id)}/revisions/${selected.id}/${suffix}`, { credentials: "include" });
+      if (!response.ok) {
+        const details = await response.json().catch(() => ({}));
+        throw new Error(details.error ?? `Drawing download failed (${response.status}).`);
+      }
+      const blob = await response.blob();
+      const expected = format === "pdf" ? "application/pdf" : "image/svg+xml";
+      if (!blob.size || !blob.type.includes(expected)) throw new Error("The server did not return a valid drawing file.");
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `stage5-r${selected.revision}-${presentation}${format === "svg" ? `-${view}` : ""}.${format}`;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      toast({ title: "Download ready", description: format === "pdf" ? "The five-view PDF package has been downloaded." : `${stage5ViewNames[view]} SVG has been downloaded.` });
+    } catch (cause) {
+      toast({ title: "Download failed", description: messageOf(cause), variant: "destructive" });
+    } finally { setDownloading(false); }
   };
   const selectRevision = async (summary: Revision) => {
     if (!design?.id) return;
     try {
-      const response = await fetch(`${base(design.id)}/revisions/${summary.id}`, { credentials: "include" });
+      const presentation = object(summary.geometry).ruleset === R1_RULESET ? "?presentation=dimensioned-v2" : "";
+      const response = await fetch(`${base(design.id)}/revisions/${summary.id}${presentation}`, { credentials: "include" });
       if (!response.ok) throw new Error(`Revision ${summary.revision} could not be opened.`);
       setSelected(await response.json() as Revision);
       setPreview(null);
@@ -148,6 +170,7 @@ export default function EcrPrePilotDesignStage5Page() {
       if (!response.ok) throw new Error(String(payload.error ?? "Revision was not saved. Refresh the frozen upstream basis."));
       const record = payload as Revision;
       setRevisions(list => [record, ...list]); setSelected(record); setPreview(null);
+      await selectRevision(record);
       toast({ title: `Revision ${record.revision} saved`, description: "Frozen geometry and drawing package are now traceable to the current upstream source." });
     } catch (cause) { toast({ title: "Save blocked", description: messageOf(cause), variant: "destructive" }); } finally { setBusy(null); }
   };
@@ -156,6 +179,7 @@ export default function EcrPrePilotDesignStage5Page() {
 
   return <Layout><style>{`@media (max-width: 767px) { body:has([data-testid="stage5-page"]) aside:not([data-stage5-history]) { display: none; } body:has([data-testid="stage5-page"]) main { min-width: 0; width: 100%; } body:has([data-testid="stage5-page"]) main[class*="flex-1"] > div { max-width: 100% !important; width: 100%; } }`}</style><main className="mx-auto min-h-[100dvh] w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8" data-testid="stage5-page">
     <header className="border-b-2 border-slate-800 pb-4">
+      <p className="mb-2 text-xs text-slate-700" role="status">{downloading ? "Preparing drawing download…" : "Save or open a revision to download. SVG view downloads the selected drawing; PDF package downloads all five views. R1 downloads use dimensioned-v2 presentation of the same saved geometry; original historical artifacts remain unchanged."}</p>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div className="flex gap-3"><div className="rounded-md border border-cyan-900/30 bg-cyan-950 p-2.5 text-cyan-100"><FilePlus2 className="h-5 w-5" /></div><div><p className="font-mono text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-800">Frozen hydraulic geometry → HETS sizing → automatic R1 construction</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">Kühni geometry & drawings <span className="font-mono text-sm text-cyan-800">/ Stage 5</span></h1><p className="mt-1 text-xs text-slate-600">System-generated pre-pilot layout — inherited authority and approved engineering rules remain distinct.</p></div></div><Button type="button" variant="outline" onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-4")} className="h-8 gap-1.5 text-xs"><ArrowLeft className="h-3.5 w-3.5" /> HETS physical sizing</Button></div>
       <div className="mt-4 border border-amber-500 bg-amber-50 px-3 py-2 font-mono text-[10px] font-bold tracking-wide text-amber-950">{R1_WATERMARK}</div>
     </header>

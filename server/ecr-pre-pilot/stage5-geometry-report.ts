@@ -10,9 +10,11 @@ export async function createStage5Pdf(record: {
   drawings: Record<string, string>;
 }): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 30, autoFirstPage: false,
+    const doc = new PDFDocument({ size: 'A3', layout: 'landscape', margin: 30, autoFirstPage: false,
       info: { Title: `Stage 5 preliminary drawing package — revision ${record.revision}`, Subject: record.sourceHash } });
     const chunks: Buffer[] = [];
+    doc.registerFont('Stage5Drawing', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+    doc.font('Stage5Drawing');
     doc.on('data', chunk => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
@@ -32,15 +34,19 @@ export async function createStage5Pdf(record: {
         if (!record.drawings[view]) throw new Error('STAGE5_FROZEN_DRAWING_MISSING');
         doc.addPage();
         doc.fontSize(9).text(`Revision ${record.revision} | ${record.currentness} | ${record.status} | ${new Date(record.createdAt).toISOString()}`);
-        // The shared SVG includes a long register below y=610. Crop only its
-        // viewport, not its geometry; the same frozen register is paginated below.
-        const drawingSheet = record.drawings[view].replace(/<svg\b[^>]*>/,
-          '<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="590" viewBox="0 0 1100 590" overflow="hidden">');
-        const drawingHeight = 790 * 590 / 1100;
-        doc.save().rect(25, 60, 790, drawingHeight).clip();
-        SVGtoPDF(doc, drawingSheet, 25, 60, { width: 790, height: drawingHeight, preserveAspectRatio: 'xMidYMid meet' });
-        doc.restore();
-        doc.fontSize(7).text(`Source SHA-256: ${record.sourceHash}`, 30, 548, { lineBreak: false });
+        // Preserve the complete SVG viewport and title block. Never crop a
+        // dimensioned sheet or replace its viewBox during PDF conversion.
+        // svg-to-pdfkit does not implement CSS paint-order. A white text
+        // halo would paint over the dimension glyphs; remove only that halo
+        // in PDF presentation, retaining all text, geometry and coordinates.
+        const pdfSvg = record.drawings[view].replace(/\.dimension-label\s*\{[^}]*\}/g,
+          '.dimension-label{stroke:none;fill:#172a3b}');
+        SVGtoPDF(doc, pdfSvg, 30, 65, {
+          width: doc.page.width - 60, height: doc.page.height - 105,
+          preserveAspectRatio: 'xMidYMid meet',
+          fontCallback: () => 'Stage5Drawing',
+        });
+        doc.fontSize(7).text(`Source SHA-256: ${record.sourceHash}`, 30, doc.page.height - 25, { lineBreak: false });
       }
       section('Geometry summary — frozen revision dimensions');
       text(record.geometry.watermark);

@@ -3,6 +3,7 @@ import { ensureAuthenticated } from '../auth-middleware';
 import { getStage5Basis, getStage5Revisions, previewStage5, saveStage5Revision, Stage5Error, STAGE5_VIEWS } from './stage5-geometry-service';
 import { createStage5Pdf } from './stage5-geometry-report';
 import { R1GeometryError } from '../../shared/ecr-stage5-r1';
+import { stage5DrawingPresentation } from './stage5-drawing-presentation';
 
 export function setupStage5GeometryRoutes(app: Express) {
   const base = '/api/ecr-pre-pilot/designs/:id/stage5';
@@ -25,7 +26,7 @@ export function setupStage5GeometryRoutes(app: Express) {
   app.get(`${base}/basis`, ensureAuthenticated, handle(async (_q, r, u, d) => r.json(await getStage5Basis(u, d))));
   app.get(`${base}/revisions`, ensureAuthenticated, handle(async (_q, r, u, d) => r.json(await getStage5Revisions(u, d))));
   app.get(`${base}/revisions/:revisionId`, ensureAuthenticated, handle(async (q, r, u, d) =>
-    r.json((await getStage5Revisions(u, d, String(q.params.revisionId)))[0])));
+    r.json(stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation))));
   const requireAutomaticBody = (body: any, allowed: string[]) => {
     if (body != null && (typeof body !== 'object' || Array.isArray(body) ||
       Object.keys(body).some(key => !allowed.includes(key))))
@@ -42,16 +43,16 @@ export function setupStage5GeometryRoutes(app: Express) {
   app.get(`${base}/revisions/:revisionId/export.svg`, ensureAuthenticated, handle(async (q, r, u, d) => {
     const view = String(q.query.view ?? 'ga');
     if (!STAGE5_VIEWS.includes(view as any)) throw new Stage5Error('INVALID_DRAWING_VIEW', 400);
-    const revision = (await getStage5Revisions(u, d, String(q.params.revisionId)))[0];
+    const revision = stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation);
     if (!revision.drawings?.[view]) throw new Stage5Error('STAGE5_FROZEN_DRAWING_MISSING');
-    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-${view}.svg"`);
+    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-${revision.presentationVersion ?? 'original'}-${view}.svg"`);
     r.setHeader('X-Stage5-Currentness', revision.currentness);
     return r.type('image/svg+xml').send(revision.drawings[view]);
   }));
   app.get(`${base}/revisions/:revisionId/export.pdf`, ensureAuthenticated, handle(async (q, r, u, d) => {
-    const revision = (await getStage5Revisions(u, d, String(q.params.revisionId)))[0];
+    const revision = stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation);
     const pdf = await createStage5Pdf(revision);
-    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}.pdf"`);
+    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-${revision.presentationVersion ?? 'original'}.pdf"`);
     r.setHeader('X-Stage5-Currentness', revision.currentness);
     return r.type('application/pdf').send(pdf);
   }));

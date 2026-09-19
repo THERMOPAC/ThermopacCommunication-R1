@@ -29,11 +29,9 @@ export function Stage5DrawingViewer({
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const rawSvg = frozenSvg ?? renderStage5Svg(geometry as never, view);
-  // The renderer appends a deep printable schedule below the drawing. The
-  // workspace intentionally fits the complete drawing sheet (0–600) here;
-  // the same schedules are exposed beside it rather than clipped in a 310px
-  // viewport. Export keeps the untouched, full frozen SVG.
-  const svg = rawSvg.replace(/height="[^"]+"/, 'height="600"').replace(/viewBox="0 0 1100 [^"]+"/, 'viewBox="0 0 1100 600"');
+  const svg = rawSvg;
+  const viewport = rawSvg.match(/viewBox=["']\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)["']/);
+  const aspectRatio = viewport ? `${viewport[1]} / ${viewport[2]}` : "11 / 6";
   const changeZoom = (delta: number) => setScale(current => Math.min(2.2, Math.max(.55, current + delta)));
 
   return (
@@ -44,6 +42,7 @@ export function Stage5DrawingViewer({
         </button>
         {active && (
           <div className="flex items-center gap-1">
+            <span className="flex items-center gap-1 px-1 font-mono text-[10px] text-slate-500"><Move className="h-3 w-3" /> {Math.round(scale * 100)}%</span>
             <Button type="button" variant="ghost" size="icon" aria-label="Zoom out" onClick={() => changeZoom(-.2)} className="h-6 w-6"><Minus className="h-3 w-3" /></Button>
             <Button type="button" variant="ghost" size="icon" aria-label="Reset drawing view" onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }} className="h-6 w-6"><RotateCcw className="h-3 w-3" /></Button>
             <Button type="button" variant="ghost" size="icon" aria-label="Zoom in" onClick={() => changeZoom(.2)} className="h-6 w-6"><Plus className="h-3 w-3" /></Button>
@@ -51,7 +50,8 @@ export function Stage5DrawingViewer({
         )}
       </div>
       <div
-        className={`relative aspect-[11/6] min-h-[210px] overflow-hidden bg-[#f4f5f1] ${active ? "cursor-grab" : ""}`}
+        style={{ aspectRatio }}
+        className={`relative min-h-[210px] overflow-hidden bg-[#f4f5f1] ${active ? "cursor-grab" : ""}`}
         onPointerDown={(event) => {
           if (!active) return;
           const origin = { x: event.clientX - offset.x, y: event.clientY - offset.y };
@@ -61,7 +61,6 @@ export function Stage5DrawingViewer({
           window.addEventListener("pointerup", end);
         }}
       >
-        {active && <span className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded border border-slate-300 bg-white/90 px-1.5 py-1 font-mono text-[9px] text-slate-500"><Move className="h-3 w-3" /> {Math.round(scale * 100)}%</span>}
         <div
           className="[&_svg]:h-full [&_svg]:w-full h-full w-full origin-center transition-transform duration-150"
           style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})` }}

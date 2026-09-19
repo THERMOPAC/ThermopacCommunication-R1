@@ -22,3 +22,9 @@ Frozen revisions must remain readable/exportable when current upstream authority
 **Why:** The user explicitly requires retained source results, assumptions, unresolved items and revision history.
 
 **How to apply:** Build views and exports from a single geometry dataset; use stored drawings for historical revisions. Keep geometry-definition completeness separate from mechanical calculations intentionally outside Stage 5, with the NOT FOR FABRICATION warning on all outputs.
+
+Drawing-only improvements may expose an explicitly versioned new presentation of saved geometry, without replacing the original historical SVGs or altering the geometry snapshot.
+
+**Why:** The user requested dimensioned downloadable sheets while explicitly forbidding changes to the immutable R1 dataset. Presentation revision and scientific revision must remain distinct.
+
+**How to apply:** Preserve original export access, hash-check saved geometry before and after rendering, and distinguish fixture verification downloads from actual user-design exports.

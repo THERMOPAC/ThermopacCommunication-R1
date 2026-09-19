@@ -1,4 +1,6 @@
 import { execSync } from "node:child_process";
+import { mkdirSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { resolve } from "node:path";
 import type { AddressInfo } from "node:net";
 import puppeteer, { type Browser, type HTTPRequest, type Page } from "puppeteer-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -6,18 +8,19 @@ import { createServer, type ViteDevServer } from "vite";
 import { buildStage5R1Geometry, R1_COMPLETE, R1_WATERMARK } from "../shared/ecr-stage5-r1";
 import { buildStage5Geometry, emptyStage5Inputs, type Stage5Basis } from "../shared/ecr-stage5-geometry";
 import { renderStage5Svg, type Stage5DrawingView } from "../shared/ecr-stage5-drawings";
+import { createStage5Pdf } from "../server/ecr-pre-pilot/stage5-geometry-report";
 
 const api = "/api/ecr-pre-pilot/designs/47/stage5";
 const basis: Stage5Basis = {
   stage3ResultId: "3", stage4ResultId: "4", sourcesCurrent: true, sourcesCompatible: true,
-  columnDiameterM: .8, rotorDiameterM: .4, rotorDiameterRatio: .5, compartmentHeightM: .24,
-  compartmentCount: 30, requiredActiveHeightM: 7, installedActiveHeightM: 7.2,
+  columnDiameterM: .6, rotorDiameterM: .3, rotorDiameterRatio: .5, compartmentHeightM: .18,
+  compartmentCount: 39, requiredActiveHeightM: 7, installedActiveHeightM: 7.02,
   designNt: 7, hetsM: 1, statorFreeAreaRatio: .4, selectedRpm: 50, rpmMin: 30, rpmMax: 70,
   phaseConfiguration: "NMP continuous / RRBO dispersed",
 };
 const geometry = buildStage5R1Geometry(basis);
 const views: Stage5DrawingView[] = ["ga", "section", "compartment", "rotor", "stator"];
-const drawings = Object.fromEntries(views.map(view => [view, renderStage5Svg(geometry, view)]));
+const drawings = Object.fromEntries(views.map(view => [view, renderStage5Svg(geometry, view, { designId: 47, revision: 2, date: "2026-09-19", projectName: "VERIFICATION FIXTURE — NOT A LIVE DESIGN" })]));
 const revision = {
   id: "501", revision: 2, createdAt: "2026-09-10T12:00:00.000Z", inputs: geometry.inputs,
   geometry, drawings, sourceHash: "hash-current", currentness: "CURRENT", status: R1_COMPLETE,
@@ -32,10 +35,15 @@ const historical = {
 let vite: ViteDevServer, browser: Browser, origin: string, previousReplId: string | undefined;
 let mode: "normal" | "incompatible" | "missing" = "normal";
 let requests: { path: string; body: any }[] = [];
+const artifactDir = resolve("deliverables/r1-drawings");
+let fixturePdf: Buffer;
+let failDownload = false;
 const respond = (q: HTTPRequest, status: number, body: unknown) =>
   void q.respond({ status, contentType: "application/json", body: JSON.stringify(body) });
 async function open(width = 1440): Promise<Page> {
   const page = await browser.newPage();
+  const cdp = await page.createCDPSession();
+  await cdp.send("Page.setDownloadBehavior", { behavior: "allow", downloadPath: artifactDir });
   await page.setViewport({ width, height: 1000 });
   await page.evaluateOnNewDocument(() => {
     (window as any).__opened = [];
@@ -56,6 +64,13 @@ async function open(width = 1440): Promise<Page> {
     if (path === `${api}/revisions`) return method === "GET" ? respond(q, 200, [revision, historical]) : respond(q, 201, { ...revision, id: "502", revision: 3 });
     if (path === `${api}/revisions/500`) return respond(q, 200, historical);
     if (path === `${api}/revisions/501`) return respond(q, 200, revision);
+    if (path === `${api}/revisions/502`) return respond(q, 200, { ...revision, id: "502", revision: 3 });
+    if (path.endsWith("/export.svg")) {
+      if (failDownload) return respond(q, 409, { error: "STAGE5_FIXTURE_EXPORT_DENIED" });
+      const view = new URL(q.url()).searchParams.get("view") ?? "ga";
+      return void q.respond({ status: 200, contentType: "image/svg+xml", body: drawings[view] });
+    }
+    if (path.endsWith("/export.pdf")) return void q.respond({ status: 200, contentType: "application/pdf", body: fixturePdf });
     if (path.startsWith("/api/")) return respond(q, 200, []);
     void q.continue();
   });
@@ -67,6 +82,8 @@ async function open(width = 1440): Promise<Page> {
 const click = async (page: Page, label: string) => page.$$eval("button", (buttons, text) => buttons.find(b => b.textContent?.trim() === text)?.click(), label);
 describe.sequential("automatic R1 Stage5 browser workflow", () => {
   beforeAll(async () => {
+    mkdirSync(artifactDir, { recursive: true });
+    fixturePdf = await createStage5Pdf({ ...revision, notes: "Browser verification fixture" });
     previousReplId = process.env.REPL_ID;
     delete process.env.REPL_ID;
     if (process.env.STAGE5_BROWSER_ORIGIN) origin = process.env.STAGE5_BROWSER_ORIGIN;
@@ -101,7 +118,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
         await page.waitForSelector(`[data-testid="stage5-drawing-${view}"] svg`, { timeout: 5000 });
         const drawing = await page.$(`[data-testid="stage5-drawing-${view}"]`);
         expect(await drawing!.evaluate(el => el.textContent)).toContain(R1_WATERMARK);
-        await drawing!.screenshot({ path: `/tmp/r1-drawing-${view}-${width}.png` });
+        await drawing!.screenshot({ path: `${artifactDir}/fixture-browser-${view}-${width}.png` });
       }
       await page.click('button[aria-label="Zoom in"]');
       expect(await page.$eval('[data-testid="stage5-drawing-stator"]', e => e.textContent)).toContain("120%");
@@ -118,11 +135,31 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       await click(page, "Save immutable revision");
       await page.waitForFunction(() => document.body.innerText.includes("Frozen revision 3"));
       expect(requests.at(-1)).toEqual({ path: `${api}/revisions`, body: { expectedSourceHash: "hash-current" } });
-      await click(page, "SVG view"); await click(page, "PDF package");
-      expect(await page.evaluate(() => (window as any).__opened)).toEqual([
-        `${api}/revisions/502/export.svg?view=ga`, `${api}/revisions/502/export.pdf`,
-      ]);
+      for (const [label, view] of [["General arrangement","ga"],["Longitudinal section","section"],["Typical compartment","compartment"],["Rotor detail","rotor"],["Stator detail","stator"]]) {
+        const file = `${artifactDir}/stage5-r3-dimensioned-v2-${view}.svg`;
+        if (existsSync(file)) rmSync(file);
+        await click(page, label); await click(page, "SVG view");
+        await expect.poll(() => existsSync(file), { timeout: 10000 }).toBe(true);
+        expect(readFileSync(file, "utf8")).toContain("NOT FOR FABRICATION");
+        const drawing = await page.$(`[data-testid="stage5-drawing-${view}"]`);
+        await drawing!.screenshot({ path: `${artifactDir}/fixture-browser-${view}-saved-desktop.png` });
+      }
+      const pdf = `${artifactDir}/stage5-r3-dimensioned-v2.pdf`;
+      if (existsSync(pdf)) rmSync(pdf);
+      await click(page, "PDF package");
+      await expect.poll(() => existsSync(pdf), { timeout: 10000 }).toBe(true);
+      expect(readFileSync(pdf).subarray(0, 5).toString()).toBe("%PDF-");
     } finally { await page.close(); }
+  }, 60000);
+  it("shows an explicit download error rather than downloading an error page", async () => {
+    mode = "normal"; failDownload = true;
+    const page = await open();
+    try {
+      await page.$$eval("button", buttons => buttons.find(b => b.textContent?.includes("REV 2"))?.click());
+      await page.waitForFunction(() => document.body.innerText.includes("Frozen revision 2"));
+      await click(page, "SVG view");
+      await page.waitForFunction(() => document.body.innerText.includes("STAGE5_FIXTURE_EXPORT_DENIED"));
+    } finally { failDownload = false; await page.close(); }
   });
   it("opens pre-R1 historical snapshot without regeneration and no editing", async () => {
     mode = "normal"; requests = [];

@@ -1,134 +1,198 @@
 import type { Stage5Geometry } from "./ecr-stage5-geometry";
 import type { Stage5DrawingView } from "./ecr-stage5-drawings";
+import { TechnicalSheet, drawingMm as mm, escapeDrawingText as esc, type Stage5DrawingContext } from "./ecr-stage5-technical-drawing";
+export type { Stage5DrawingContext } from "./ecr-stage5-technical-drawing";
 
-/** Rendering only: all physical quantities come from the saved R1 dataset. */
-export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView): string {
-  const d = g.dimensions as Record<string, number>;
-  const model = g.r1Model;
-  if (!model) throw new Error("R1_FROZEN_DRAWING_MODEL_MISSING");
-  const esc = (v: unknown) => String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);
-  const fmt = (v: unknown) => typeof v === "number" ? Number(v.toPrecision(8)).toString() : String(v ?? "N/A");
-  const out: string[] = [];
-  const text = (x: number, y: number, t: unknown, size = 12) => out.push(`<text x="${x}" y="${y}" font-size="${size}">${esc(t)}</text>`);
-  const rect = (x: number, y: number, w: number, h: number, tag = "") => out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" data-component="${esc(tag)}"/>`);
-  const line = (x: number, y: number, x2: number, y2: number) => out.push(`<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}"/>`);
-  const circle = (x: number, y: number, r: number) => out.push(`<circle cx="${x}" cy="${y}" r="${r}" fill="none"/>`);
+/** Engineering presentation only: SI values and component profiles are read, never rewritten. */
+export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, context?: Stage5DrawingContext): string {
+  const d = g.dimensions as Record<string, number>, m = g.r1Model;
+  if (!m) throw new Error("R1_FROZEN_DRAWING_MODEL_MISSING");
+  const model = m;
+  const titles = { ga: "GENERAL ARRANGEMENT", section: "LONGITUDINAL SECTION A–A", compartment: "DETAIL B — TYPICAL COMPARTMENT", rotor: "ROTOR — PLAN & ELEVATION", stator: "STATOR — PLAN & SECTION" };
+  const sheet = new TechnicalSheet(titles[view]);
+  const diameter = (key: string) => `Ø${mm(d[key])}`;
   const stepped = (cx: number, cy: number, s: number) => {
-    rect(cx - model.rotor.hub.diameterM * s / 2, cy - model.rotor.hub.heightM * s / 2,
-      model.rotor.hub.diameterM * s, model.rotor.hub.heightM * s, "hub");
-    for (const profile of [model.rotor.profileM,model.rotor.oppositeProfileM]) {
-      const path = profile.map(([x,z],i)=>`${i?"L":"M"}${cx+x*s},${cy-z*s}`).join(" ");
-      out.push(`<path data-component="r1-stepped-blade" d="${path} Z" fill="none"/>`);
-    }
+    sheet.rect(cx - m.rotor.hub.diameterM*s/2, cy - m.rotor.hub.heightM*s/2, m.rotor.hub.diameterM*s, m.rotor.hub.heightM*s, "hub", "url(#section-hatch)");
+    for (const profile of [model.rotor.profileM, model.rotor.oppositeProfileM])
+      sheet.path(profile.map(([x,z],i)=>`${i?"L":"M"}${cx+x*s},${cy-z*s}`).join(" ")+" Z", "r1-stepped-blade", "url(#section-hatch)");
   };
-  text(25, 28, `${g.ruleset} / ${view.toUpperCase()}`, 17);
-  text(25, 50, g.watermark, 13);
-  text(25, 72, g.completionStatement, 12);
-  text(25, 94, `Source Stage 3 ${g.basis.stage3ResultId} / Stage 4 ${g.basis.stage4ResultId}; dimensions m; vessel bottom datum z=0.`);
+  const ring = (cx: number, cy: number, s: number) => {
+    sheet.rect(cx-d.columnDiameterM*s/2, cy-d.statorThicknessM*s/2, d.statorRadialWidthM*s, d.statorThicknessM*s, "stator-section-left", "url(#section-hatch)");
+    sheet.rect(cx+d.statorOpeningDiameterM*s/2, cy-d.statorThicknessM*s/2, d.statorRadialWidthM*s, d.statorThicknessM*s, "stator-section-right", "url(#section-hatch)");
+  };
+
   if (view === "ga" || view === "section") {
-    const s = Math.min(420 / d.overallHeightM, 220 / d.columnDiameterM);
-    const cx = 300, y = (z: number) => 555 - (z + d.supportHeightM) * s;
-    const left = cx - d.columnDiameterM * s / 2, w = d.columnDiameterM * s;
-    line(left, y(d.bottomHeadDepthM), left, y(d.topTangentM));
-    line(left+w, y(d.bottomHeadDepthM), left+w, y(d.topTangentM));
-    for(const head of model.heads) out.push(`<path data-component="${head.end}-head" d="M${cx-head.radialSemiaxisM*s},${y(head.tangentM)} A${head.radialSemiaxisM*s},${head.axialSemiaxisM*s} 0 0 ${head.end==="top"?1:0} ${cx+head.radialSemiaxisM*s},${y(head.tangentM)}" fill="none"/>`);
-    for(const env of model.envelopes.filter(e=>e.id!=="shaft")) rect(cx-env.diameterM*s/2,y(env.topM),env.diameterM*s,(env.topM-env.bottomM)*s,env.id);
-    const access=model.skirtAccess;
-    rect(cx-access.widthM*s/2,y(access.elevationM+access.heightM/2),access.widthM*s,access.heightM*s,"skirt-access");
-    if (view === "section") {
-      const shaft=model.envelopes.find(e=>e.id==="shaft")!;
-      rect(cx-shaft.diameterM*s/2,y(shaft.topM),shaft.diameterM*s,(shaft.topM-shaft.bottomM)*s,"shaft");
-      for (const support of model.supports) {
+    const section = view === "section", count = g.compartments.length;
+    // Compress only the omitted repeated section; end-zone geometry remains uniformly scaled.
+    const cut = section && count > 6;
+    const cutLo = d.activeStartM + 2*d.compartmentHeightM, cutHi = d.activeEndM - 2*d.compartmentHeightM;
+    const removed = cut ? cutHi-cutLo : 0, breakGap = cut ? 55 : 0;
+    const s = (660-breakGap)/(d.overallHeightM-removed), cx = 440;
+    const y = (z: number) => 787-(z+d.supportHeightM-(cut && z>=cutHi?removed:0))*s-(cut && z>=cutHi?breakGap:0);
+    const left=cx-d.columnDiameterM*s/2, right=cx+d.columnDiameterM*s/2;
+    const breakY = cut ? y(cutLo) : 0;
+    const shellLine = (x: number) => {
+      if (cut) { sheet.line(x,y(d.bottomHeadDepthM),x,breakY); sheet.line(x,breakY-breakGap,x,y(d.topTangentM)); }
+      else sheet.line(x,y(d.bottomHeadDepthM),x,y(d.topTangentM));
+    };
+    shellLine(left); shellLine(right); sheet.centerline(cx,100,cx,808);
+    for (const head of m.heads)
+      sheet.path(`M${cx-head.radialSemiaxisM*s},${y(head.tangentM)} A${head.radialSemiaxisM*s},${head.axialSemiaxisM*s} 0 0 ${head.end==="top"?1:0} ${cx+head.radialSemiaxisM*s},${y(head.tangentM)}`, `${head.end}-head`);
+    for (const env of m.envelopes.filter(e=>e.id!=="shaft")) sheet.rect(cx-env.diameterM*s/2,y(env.topM),env.diameterM*s,(env.topM-env.bottomM)*s,env.id);
+    const a=m.skirtAccess;
+    sheet.rect(cx-a.widthM*s/2,y(a.elevationM+a.heightM/2),a.widthM*s,a.heightM*s,"skirt-access");
+    if (section) {
+      const shaft=m.envelopes.find(e=>e.id==="shaft")!;
+      if(cut) {
+        sheet.rect(cx-shaft.diameterM*s/2,breakY,shaft.diameterM*s,y(shaft.bottomM)-breakY,"shaft-lower");
+        sheet.rect(cx-shaft.diameterM*s/2,y(shaft.topM),shaft.diameterM*s,breakY-breakGap-y(shaft.topM),"shaft-upper");
+      } else sheet.rect(cx-shaft.diameterM*s/2,y(shaft.topM),shaft.diameterM*s,y(shaft.bottomM)-y(shaft.topM),"shaft");
+      for(const support of m.supports) {
         for(const arm of support.arms) {
-          const xs=arm.footprintM.map(p=>p[0]),xmin=Math.min(...xs),xmax=Math.max(...xs);
-          rect(cx+xmin*s,y(arm.topM),(xmax-xmin)*s,(arm.topM-arm.bottomM)*s,"support-arm-projected-envelope");
+          const xs=arm.footprintM.map(p=>p[0]);
+          sheet.rect(cx+Math.min(...xs)*s,y(arm.topM),(Math.max(...xs)-Math.min(...xs))*s,(arm.topM-arm.bottomM)*s,"support-arm", "url(#section-hatch)");
         }
-        rect(cx-support.housingDiameterM*s/2,y(support.elevationM+support.housingHeightM/2),
-          support.housingDiameterM*s,support.housingHeightM*s,"support-housing");
+        sheet.rect(cx-support.housingDiameterM*s/2,y(support.elevationM+support.housingHeightM/2),support.housingDiameterM*s,support.housingHeightM*s,"support-housing");
       }
-      for (const c of g.compartments) stepped(cx,y(c.rotorM!),s);
-      for (const z of g.internals.find(i=>i.id==="S")!.elevationsM as number[]) {
-        rect(left,y(z+d.statorThicknessM/2),d.statorRadialWidthM*s,d.statorThicknessM*s,"ring");
-        rect(cx+d.statorOpeningDiameterM*s/2,y(z+d.statorThicknessM/2),d.statorRadialWidthM*s,d.statorThicknessM*s,"ring");
+      for (const c of g.compartments) if(!cut || c.rotorM! <cutLo || c.rotorM! >cutHi) stepped(cx,y(c.rotorM!),s);
+      for (const z of g.internals.find(i=>i.id==="S")!.elevationsM as number[]) if(!cut || z<=cutLo || z>=cutHi) ring(cx,y(z),s);
+      if(cut) {
+        sheet.breakLine(left-14,right+14,breakY); sheet.breakLine(left-14,right+14,breakY-breakGap);
+        sheet.text(cx,(2*breakY-breakGap)/2+5,`${count-4} identical compartments omitted`,14,"middle",'class="dimension-label"');
       }
+      const c=g.compartments[0];
+      sheet.dimensionV(y(c.bottomM!),y(c.topM!),left,Math.max(100,left-70),`hc ${mm(d.compartmentHeightM)}`);
+      sheet.callout(right+35,y(c.rotorM!),"B");
+      sheet.leader(right,y(c.rotorM!),730,670,"DETAIL B • typical compartment");
+      sheet.text(745,695,`${count} × ${mm(d.compartmentHeightM)} = ${mm(d.installedActiveHeightM)} mm`,18);
+      sheet.text(745,721,"Repeated middle shown broken; true elevations retained.",13);
     }
-    for (const n of model.connections) {
-      const x=cx+n.centreM[0]*s, xe=cx+n.endM[0]*s;
-      const z=n.centreM[2], od=n.outsideDiameterM*s;
-      out.push(`<g data-nozzle="${esc(n.id)}" data-axis="${n.axis}" data-elevation="${z}">`);
-      if (n.axis === "radial") {
-        rect(Math.min(x,xe),y(z)-od/2,Math.max(Math.abs(xe-x),.2),od,n.id);
-      } else {
-        rect(x-od/2,Math.min(y(z),y(n.endM[2])),od,Math.abs(y(z)-y(n.endM[2])),n.id);
-        const path=n.surfaceBoundaryM.map(([xx,,zz],i)=>`${i?"L":"M"}${cx+xx*s},${y(zz)}`).join(" ");
-        out.push(`<path data-head-intersection="${n.id}" d="${path} Z" fill="none"/>`);
+    // Nozzle positions are their saved projected positions. Tags are separated by leaders.
+    const connections=[...model.connections].sort((a,b)=>b.centreM[2]-a.centreM[2]);
+    const targets=connections.map(n=>({n,ty:y(n.centreM[2])}));
+    for(let i=1;i<targets.length;i++) targets[i].ty=Math.max(targets[i].ty,targets[i-1].ty+21);
+    for(let i=targets.length-1;i>=0;i--) targets[i].ty=Math.min(targets[i].ty,810-(targets.length-1-i)*21);
+    for(const {n,ty} of targets) {
+      const x=cx+n.centreM[0]*s, xe=cx+n.endM[0]*s, z=n.centreM[2], od=n.outsideDiameterM*s;
+      sheet.parts.push(`<g data-nozzle="${esc(n.id)}" data-axis="${n.axis}" data-elevation="${z}">`);
+      if(n.axis==="radial") sheet.rect(Math.min(x,xe),y(z)-od/2,Math.max(Math.abs(xe-x),.5),od,n.id);
+      else {
+        sheet.rect(x-od/2,Math.min(y(z),y(n.endM[2])),od,Math.abs(y(z)-y(n.endM[2])),n.id);
+        sheet.path(n.surfaceBoundaryM.map(([xx,,zz],i)=>`${i?"L":"M"}${cx+xx*s},${y(zz)}`).join(" ")+" Z",`${n.id}-head-intersection`);
       }
-      out.push("</g>");
+      sheet.leader(xe,y(n.endM[2]),right+70,ty+8,n.id); sheet.parts.push("</g>");
     }
-    text(25,570,"Elevation projection: overlapping azimuths are projected, not relocated. Exact connection coordinates in schedule.");
-    text(25,587,`${g.inputs.flowArrangement}; support arms ${model.supportAzimuthsDeg.join("°, ")}°. Section projects saved envelopes.`);
-    const fields = ["columnDiameterM","rotorDiameterM","compartmentHeightM","compartmentCount","selectedRpm",
-      "activeStartM","activeEndM","installedActiveHeightM","vesselHeightM","overallHeightM",
-      "lowerShaftSupportM","upperShaftSupportM","shaftLengthM","driveHeightM"];
-    fields.forEach((k,i)=>text(580,140+i*23,`${k}: ${fmt(d[k])}`));
-  } else if (view === "compartment") {
-    const s=Math.min(320/d.columnDiameterM,300/d.compartmentHeightM), cx=280, y=(z:number)=>480-z*s;
-    const left=cx-d.columnDiameterM*s/2, w=d.columnDiameterM*s;
-    rect(left,y(d.compartmentHeightM),w,d.compartmentHeightM*s,"compartment");
-    rect(cx-d.shaftDiameterM*s/2,y(d.compartmentHeightM),d.shaftDiameterM*s,d.compartmentHeightM*s,"shaft");
-    stepped(cx,y(d.rotorOffsetM),s);
-    for(const z of [0,d.compartmentHeightM]) {
-      rect(left,y(z+d.statorThicknessM/2),d.statorRadialWidthM*s,d.statorThicknessM*s,"ring");
-      rect(cx+d.statorOpeningDiameterM*s/2,y(z+d.statorThicknessM/2),d.statorRadialWidthM*s,d.statorThicknessM*s,"ring");
+    sheet.dimensionH(left,right,y(d.topTangentM),95,`COLUMN ID ${diameter("columnDiameterM")}`);
+    const chainX=section?Math.max(60,left-145):250;
+    for(const [lo,hi,label] of [
+      [-d.supportHeightM,0,`SUPPORT ${mm(d.supportHeightM)}`],
+      [0,d.bottomHeadDepthM,`HEAD ${mm(d.bottomHeadDepthM)}`],
+      [d.bottomHeadDepthM,d.activeStartM,`LOWER ${mm(d.bottomDisengagementM)}`],
+      [d.activeStartM,d.activeEndM,`ACTIVE HEIGHT ${mm(d.installedActiveHeightM)}`],
+      [d.activeEndM,d.topTangentM,`UPPER ${mm(d.topDisengagementM)}`],
+      [d.topTangentM,d.vesselHeightM,`HEAD ${mm(d.topHeadDepthM)}`],
+      [d.vesselHeightM,d.vesselHeightM+d.driveHeightM,`DRIVE ${mm(d.driveHeightM)}`],
+    ] as [number,number,string][]) sheet.dimensionV(y(lo),y(hi),left,chainX,label);
+    if(!section) {
+      sheet.dimensionV(y(0),y(d.vesselHeightM),left,175,`VESSEL HEIGHT ${mm(d.vesselHeightM)}`);
+      sheet.dimensionV(y(-d.supportHeightM),y(d.vesselHeightM+d.driveHeightM),left,95,`OVERALL ${mm(d.overallHeightM)}`);
     }
-    ["compartmentHeightM","rotorOffsetM","rotorAxialEnvelopeM","statorThicknessM",
-      "rotorLowerClearanceM","rotorUpperClearanceM","rotorWallClearanceM"].forEach((k,i)=>text(580,160+i*30,`${k}: ${fmt(d[k])}`));
-    text(25,560,"Stepped Class-C R1 profile; symmetric about compartment midplane.");
-  } else {
-    const rotor=view==="rotor", diameter=rotor?d.rotorDiameterM:d.columnDiameterM;
-    const s=280/diameter,cx=280,cy=300;
-    circle(cx,cy,140); circle(cx,cy,d.shaftDiameterM*s/2);
-    if(rotor) {
-      circle(cx,cy,d.hubDiameterM*s/2);
-      for(const [i,blade] of model.rotor.blades.entries()) {
-        const points=blade.footprintM.map(([x,y])=>`${cx+x*s},${cy+y*s}`).join(" ");
-        out.push(`<polygon data-blade="${i+1}" data-azimuth="${blade.azimuthDeg}" points="${points}" fill="none"/>`);
+    // Dedicated left-facing elevation lane; connection tags occupy the right lane.
+    const elevationX=155;
+    for(const [z,label] of [[0,"DATUM EL 0"],[d.activeStartM,`EL +${mm(d.activeStartM)}`],[d.activeEndM,`EL +${mm(d.activeEndM)}`]] as [number,string][]) {
+      sheet.line(elevationX,y(z),left,y(z),"extension");
+      sheet.elevation(elevationX,y(z),label,"left");
+    }
+    if(!section) {
+      sheet.text(cx-12,(y(d.activeStartM)+y(d.activeEndM))/2,"ACTIVE EXTRACTION ZONE",16,"middle",`transform="rotate(-90 ${cx-12} ${(y(d.activeStartM)+y(d.activeEndM))/2})"`);
+      // Separate drawing schedule: useful connection names, not a raw property dump.
+      sheet.text(780,105,"CONNECTION SCHEDULE",18);
+      const cols=[780,840,1000,1080,1150];
+      ["TAG","SERVICE","BORE","EL","AZ°"].forEach((t,i)=>sheet.text(cols[i],136,t,12));
+      g.nozzles.forEach((n,i)=>{
+        const yy=163+i*29;
+        sheet.line(775,yy+8,1170,yy+8,"extension");
+        sheet.text(cols[0],yy,n.id,13);
+        const names:Record<string,string>={P01:"RRBO feed",P02:"Extract outlet",P03:"NMP feed",P04:"Raffinate outlet",A01:"Shell flush",A02:"Equalization",S01:"Lower sample",S02:"Upper sample",I01:"Lower instrument",I02:"Upper instrument",D01:"Head drain",V01:"Crown vent"};
+        sheet.text(cols[1],yy,names[n.id]||n.service,12);
+        sheet.text(cols[2],yy,mm(n.boreM!),12); sheet.text(cols[3],yy,mm(n.elevationM!),12);
+        sheet.text(cols[4],yy,n.axis==="down"?"—":n.azimuthDeg??"—",12);
+      });
+      const pcx=955,pcy=680;
+      sheet.circle(pcx,pcy,90); sheet.centerline(pcx-120,pcy,pcx+120,pcy); sheet.centerline(pcx,pcy-120,pcx,pcy+120);
+      sheet.text(pcx,525,"CONNECTION AZIMUTH PLAN",15,"middle");
+      for(const angle of [...new Set(g.nozzles.map(n=>n.azimuthDeg).filter((v):v is number=>typeof v==="number"))]) {
+        const id=g.nozzles.find(n=>n.azimuthDeg===angle)!.id;
+        const point=model.connections.find(n=>n.id===id)!.centreM;
+        const radius=Math.hypot(point[0],point[1]);
+        if(radius===0) continue;
+        const ux=point[0]/radius,uy=point[1]/radius;
+        sheet.line(pcx+90*ux,pcy-90*uy,pcx+108*ux,pcy-108*uy);
+        sheet.text(pcx+128*ux,pcy-128*uy+4,`${angle}°`,12,"middle");
       }
-      stepped(770,475,Math.min(280/d.rotorDiameterM,85/d.rotorAxialEnvelopeM));
-      ["rotorDiameterM","hubDiameterM","hubHeightM","bladeHeightM","bladeThicknessM",
-        "bladeRadialLengthM","bladeInnerSegmentHeightM"].forEach((k,i)=>text(560,145+i*27,`${k}: ${fmt(d[k])}`));
-      text(25,545,`Swept envelope; blade azimuths ${model.bladeAzimuthsDeg.join(", ")}°. Right: saved stepped profile.`);
-      text(25,568,"Reference-inspired engineering approximation, not an exact Garthe rotor reproduction. Attachments excluded.");
+      sheet.text(785,825,"Azimuth projection; hidden/coincident ports retained.",12);
     } else {
-      circle(cx,cy,d.statorOpeningDiameterM*s/2);
-      ["statorOpeningDiameterM","statorThicknessM","statorRadialWidthM","shaftDiameterM",
-        "statorFreeAreaRatio","grossFreeAreaRatio","shaftBlockedFreeAreaRatio"].forEach((k,i)=>text(560,145+i*27,`${k}: ${fmt(d[k])}`));
-      const q=280/d.columnDiameterM;
-      rect(610,440,d.statorRadialWidthM*q,d.statorThicknessM*q,"stator-section-left");
-      rect(610+(d.statorRadialWidthM+d.statorOpeningDiameterM)*q,440,d.statorRadialWidthM*q,d.statorThicknessM*q,"stator-section-right");
-      text(25,545,"do = D sqrt(phi_s); gross fraction = phi_s. Shaft-blocked fraction is separate.");
+      sheet.text(745,115,"A–A  •  AXIAL SECTION",18);
+      sheet.text(745,142,"Section envelopes; wall thickness not specified.",13);
+      sheet.text(745,166,"Hatching identifies cut internal components.",13);
+      sheet.text(745,190,"Projected supports retain saved arm clocking.",13);
+    }
+  } else if(view==="compartment") {
+    const cx=510, s=Math.min(590/d.columnDiameterM,340/d.compartmentHeightM), base=590, y=(z:number)=>base-z*s;
+    const left=cx-d.columnDiameterM*s/2,right=cx+d.columnDiameterM*s/2;
+    sheet.line(left,y(0)-35,left,y(d.compartmentHeightM)+35); sheet.line(right,y(0)-35,right,y(d.compartmentHeightM)+35);
+    sheet.centerline(cx,y(d.compartmentHeightM)-80,cx,base+100);
+    sheet.rect(cx-d.shaftDiameterM*s/2,y(d.compartmentHeightM),d.shaftDiameterM*s,d.compartmentHeightM*s,"shaft","url(#section-hatch)");
+    stepped(cx,y(d.rotorOffsetM),s); ring(cx,y(0),s); ring(cx,y(d.compartmentHeightM),s);
+    sheet.dimensionH(left,right,y(d.compartmentHeightM),y(d.compartmentHeightM)-90,`D ${diameter("columnDiameterM")}`);
+    sheet.dimensionH(cx-d.statorOpeningDiameterM*s/2,cx+d.statorOpeningDiameterM*s/2,y(d.compartmentHeightM),y(d.compartmentHeightM)-40,`do ${diameter("statorOpeningDiameterM")}`);
+    sheet.dimensionH(cx-d.rotorDiameterM*s/2,cx+d.rotorDiameterM*s/2,y(d.rotorOffsetM),base+65,`DR ${diameter("rotorDiameterM")}`);
+    sheet.dimensionH(cx-d.shaftDiameterM*s/2,cx+d.shaftDiameterM*s/2,base,base+110,`ds ${diameter("shaftDiameterM")}`);
+    sheet.dimensionV(y(0),y(d.compartmentHeightM),left,left-80,`hc ${mm(d.compartmentHeightM)}`);
+    sheet.dimensionV(y(d.rotorOffsetM-d.rotorAxialEnvelopeM/2),y(d.rotorOffsetM+d.rotorAxialEnvelopeM/2),cx+d.rotorDiameterM*s/2,right+60,`ROTOR H ${mm(d.rotorAxialEnvelopeM)}`);
+    sheet.dimensionV(y(d.statorThicknessM/2),y(d.rotorOffsetM-d.rotorAxialEnvelopeM/2),right,right+175,`CLEAR ${mm(d.rotorLowerClearanceM)}`);
+    sheet.dimensionV(y(d.rotorOffsetM+d.rotorAxialEnvelopeM/2),y(d.compartmentHeightM-d.statorThicknessM/2),right,right+175,`CLEAR ${mm(d.rotorUpperClearanceM)}`);
+    sheet.leader(left+d.statorRadialWidthM*s/2,base,65,755,`RING WIDTH ${mm(d.statorRadialWidthM)}`);
+    sheet.leader(right,base,900,745,`STATOR t ${mm(d.statorThicknessM)}`);
+    sheet.leader((right+cx+d.rotorDiameterM*s/2)/2,y(d.rotorOffsetM),900,210,`WALL CLEARANCE ${mm(d.rotorWallClearanceM)}`);
+    sheet.text(65,825,"B  •  ONE TYPICAL COMPARTMENT — all dimensions from saved R1 geometry",15);
+  } else {
+    const rotor=view==="rotor",dia=rotor?d.rotorDiameterM:d.columnDiameterM,s=350/dia,cx=300,cy=325,r=175;
+    sheet.text(cx,100,"PLAN",18,"middle"); sheet.circle(cx,cy,r,rotor?"centerline":"object");
+    sheet.circle(cx,cy,d.shaftDiameterM*s/2); sheet.centerline(cx-r-35,cy,cx+r+35,cy); sheet.centerline(cx,cy-r-35,cx,cy+r+35);
+    if(rotor) {
+      sheet.circle(cx,cy,d.hubDiameterM*s/2);
+      for(const [i,b] of m.rotor.blades.entries()) sheet.parts.push(`<polygon class="object" data-blade="${i+1}" data-azimuth="${b.azimuthDeg}" points="${b.footprintM.map(([x,y])=>`${cx+x*s},${cy-y*s}`).join(" ")}" fill="url(#section-hatch)"/>`);
+      sheet.dimensionH(cx-r,cx+r,cy,560,`SWEPT DR ${diameter("rotorDiameterM")}`);
+      sheet.dimensionH(cx-d.hubDiameterM*s/2,cx+d.hubDiameterM*s/2,cy,610,`HUB ${diameter("hubDiameterM")}`);
+      sheet.leader(cx,cy,80,710,`SHAFT ${diameter("shaftDiameterM")}`);
+      sheet.leader(cx+r*.7,cy,405,750,`${m.rotor.blades.length} BLADES • ${m.bladeAzimuthsDeg.join("°, ")}°`);
+      const ex=835,ey=365,es=420/d.rotorDiameterM;
+      sheet.text(ex,130,"ELEVATION / STEPPED PROFILE",18,"middle"); stepped(ex,ey,es); sheet.centerline(ex,210,ex,525);
+      sheet.dimensionV(ey-d.hubHeightM*es/2,ey+d.hubHeightM*es/2,ex,ex-70,`HUB H ${mm(d.hubHeightM)}`);
+      sheet.dimensionV(ey-d.bladeHeightM*es/2,ey+d.bladeHeightM*es/2,ex+d.rotorDiameterM*es/2,1080,`H ${mm(d.bladeHeightM)}`);
+      sheet.dimensionH(ex+d.hubDiameterM*es/2,ex+d.hubDiameterM*es/2+d.bladeRadialLengthM*es,ey,530,`BLADE RADIAL ${mm(d.bladeRadialLengthM)}`);
+      sheet.leader(ex+d.rotorDiameterM*es*.37,ey-d.bladeHeightM*es/2,725,620,`BLADE t ${mm(d.bladeThicknessM)}`);
+      sheet.leader(ex+d.hubDiameterM*es*.7,ey-d.bladeInnerSegmentHeightM*es/2,725,675,`INNER STEP H ${mm(d.bladeInnerSegmentHeightM)}`);
+      sheet.text(55,820,"Class-C reference-inspired stepped profile. Attachment and fabrication design excluded.",15);
+    } else {
+      sheet.circle(cx,cy,d.statorOpeningDiameterM*s/2);
+      sheet.dimensionH(cx-r,cx+r,cy,560,`COLUMN ID ${diameter("columnDiameterM")}`);
+      sheet.dimensionH(cx-d.statorOpeningDiameterM*s/2,cx+d.statorOpeningDiameterM*s/2,cy,610,`OPENING do ${diameter("statorOpeningDiameterM")}`);
+      sheet.leader(cx,cy,75,710,`SHAFT ${diameter("shaftDiameterM")}`);
+      const ex=865,ey=330,es=410/d.columnDiameterM;
+      sheet.text(ex,150,"SECTION A–A",18,"middle"); ring(ex,ey,es); sheet.centerline(ex,230,ex,430);
+      sheet.dimensionH(ex-d.columnDiameterM*es/2,ex-d.statorOpeningDiameterM*es/2,ey,440,`RING WIDTH ${mm(d.statorRadialWidthM)}`);
+      sheet.leader(ex+d.columnDiameterM*es*.42,ey,815,520,`PLATE t ${mm(d.statorThicknessM)}`);
+      sheet.text(680,615,`Empirical φs: ${d.statorFreeAreaRatio.toFixed(6)}`,17);
+      sheet.text(680,645,`Gross opening fraction: ${d.grossFreeAreaRatio.toFixed(6)}`,17);
+      sheet.text(680,675,`Shaft-blocked net fraction: ${d.shaftBlockedFreeAreaRatio.toFixed(6)}`,17);
+      sheet.text(680,720,"do = D √φs  •  gross = (do/D)²",15);
+      sheet.text(680,746,"net = (do² − ds²)/D²",15);
+      sheet.text(55,820,"Gross and shaft-blocked physical areas are reported separately; no feedback to Stage 3.",15);
+      sheet.callout(cx-r-25,cy,"A"); sheet.callout(cx+r+25,cy,"A");
     }
   }
-  let row=655;
-  const wrap=(t:string)=>{
-    let current="";
-    for(const word of t.split(/\s+/)) {
-      if((current+word).length>140){text(25,row,current,11);row+=16;current="";}
-      current+=`${word} `;
-    }
-    if(current){text(25,row,current,11);row+=16;}
-  };
-  wrap(g.freeAreaDefinition); wrap(g.engineeringBoundary);
-  wrap("CONNECTION SCHEDULE — actual ellipsoidal head intersections; full OD/projection envelopes. Bores are geometric allowances, not standard DN.");
-  for(const n of g.nozzles)wrap(`${n.id} ${n.service}; ${n.region}; axis ${n.axis}; z ${fmt(n.elevationM)}; r ${fmt(n.radialOffsetM)}; azimuth ${fmt(n.azimuthDeg)}; bore ${fmt(n.boreM)}; OD ${fmt(n.outsideDiameterM)}; projection ${fmt(n.projectionM)}; head intersection z ${fmt(n.surfaceEdgeElevationMinM)} to ${fmt(n.surfaceEdgeElevationMaxM)}.`);
-  wrap("DIMENSION / EVIDENCE REGISTER — immutable shared R1 dataset");
-  for(const p of g.parameters)wrap(`${p.label}: ${fmt(p.value)} ${p.unit}; Class ${p.evidenceClass}; ${p.note}`);
-  wrap("INTERNALS SCHEDULE");
-  for(const i of g.internals)wrap(`${i.id}: ${i.type}; quantity ${i.count}; diameter ${fmt(i.diameterM)}; axial dimension ${fmt(i.thicknessM)}; elevations ${i.elevationsM.map(fmt).join(", ")}.`);
-  wrap("VALIDATION");
-  for(const c of g.checks)wrap(`${c.status.toUpperCase()} ${c.id}: ${c.message}`);
-  for(const a of g.assumptions)wrap(a);
-  for(const e of g.engineeringExclusions)wrap(`EXCLUDED: ${e}`);
-  wrap(g.watermark);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="${row+25}" viewBox="0 0 1100 ${row+25}" role="img" data-ruleset="${g.ruleset}" data-view="${view}"><title>${esc(`${view} — ${g.watermark}`)}</title><rect width="100%" height="100%" fill="white"/><g stroke="#334155" stroke-width="1" fill="#172033" font-family="Arial,sans-serif"><style>text{stroke:none}</style>${out.join("")}</g></svg>`;
+  return sheet.finish({ ruleset:g.ruleset??"R1",stage3:g.basis.stage3ResultId,stage4:g.basis.stage4ResultId,
+    status:g.completionStatement??"",watermark:g.watermark,context,scale:view==="section"&&g.compartments.length>6?"BROKEN VIEW • repeated central section omitted":"FITTED SHEET • dimensions govern" }).replace("<svg ", `<svg data-view="${view}" `);
 }
