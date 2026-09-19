@@ -7,7 +7,9 @@ Stage 5 defines preliminary Kühni geometry from current saved Stage-3 hydraulic
 
 **Why:** The user approved an engineering-definition and drawing stage, not new hydraulic, mass-transfer or mechanical design calculations.
 
-**How to apply:** Keep upstream values read-only. Require explicit rotor/stator construction, flow routing and head-envelope choices; unknown dimensions remain TBD. A dimensionally complete preliminary geometry is not proof that its construction reproduces the hydraulic correlation basis, and never establishes pressure-vessel, shaft, bearing/seal, drive or structural adequacy.
+**How to apply:** Keep upstream values read-only. The user has superseded the manual-definition workflow: normal users must use Generate → Review → Save Revision → Export, with no geometry or construction inputs. Automatic generation must use a version-controlled ECR Pre-Pilot Geometry Rule Set. Before implementing defaults, classify every existing input as inherited, system-calculable, or requiring an approved default and expose available equations/data. Do not invent defaults or mistake a dimensional constraint for a unique sizing equation.
+
+A dimensionally complete preliminary geometry is not proof that its construction reproduces the hydraulic correlation basis, and never establishes pressure-vessel, shaft, bearing/seal, drive or structural adequacy.
 
 Frozen revisions must remain readable/exportable when current upstream authority becomes unavailable. Preserve original geometry and drawings, and flag outdated lineage instead of silently regenerating old revisions.
 
