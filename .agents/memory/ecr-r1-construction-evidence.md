@@ -11,6 +11,12 @@ The geometry envelopes hc/D=0.20–0.30, Dr/D=0.33–0.50 and stator free area=0
 
 **How to apply:** Separate recommended design/scale-up envelopes from parameter-wise experimental coverage and joint correlation validity. K&H marginal bounds are not a proven rectangular set of jointly tested combinations. Sulzer's public descriptions support adjustable geometry but do not supply these numerical ratio bounds.
 
+Geometry-basis/applicability reporting is advisory, not a new scientific acceptance gate.
+
+**Why:** The user explicitly authorized reporting while requiring identical Stage-3 numerical results, especially selected diameter, and unchanged Stage-4 handoff and Stage-5 geometry.
+
+**How to apply:** Do not turn experimental-envelope warnings or the unresolved free-area mapping into selection constraints without separate authorization. Preserve Perry/Pratt–Stevens as design-envelope evidence, K&H/Garthe as correlation evidence, and Garthe/Weber–Jupke as construction evidence.
+
 **Why:** R1 must define a traceable construction rather than treating optimizer ratios or pooled apparatus dimensions as approved fabrication proportions.
 
 **How to apply:** Garthe (TUM record 601973; repository year 2006), Figs.4.9/5.17 and Table A.1, documents a six-blade ring-stator apparatus. Weber & Jupke (2020), DOI 10.1002/aic.16286, §2.1 and Figs.1–2, provides additional dimensioned geometry attributed to Garthe, including a stepped blade/web rather than an ordinary rectangular blade. Use this as apparatus-specific evidence, not a universal scale-up rule. Root/attachment dimensions require careful figure interpretation.

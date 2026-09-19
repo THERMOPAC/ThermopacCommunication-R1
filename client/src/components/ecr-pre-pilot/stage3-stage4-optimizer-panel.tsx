@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Stage3GeometryBasisReport } from "./stage3-geometry-basis-report";
 
 type OptimizerRun = {
   id?: string | number;
@@ -232,7 +233,7 @@ export function Stage3Stage4OptimizerPanel({
             Stage 3/4 fixed-geometry optimizer
           </h3>
           <p className="mt-1 max-w-3xl text-[10px] leading-4 text-indigo-900">
-            New governed search uses only hc/D = 0.20–0.30, rotor/D = 0.33–0.50,
+            Published design/search envelope uses only hc/D = 0.20–0.30, rotor/D = 0.33–0.50,
             free area = 0.20–0.40 and 30–70 rpm. The visible RPM value is a
             ranking preference (not a hydraulic limit): the second-smallest distinct
             accepted adequate diameter is selected for a one-grid-step pre-pilot design margin.
@@ -256,6 +257,7 @@ export function Stage3Stage4OptimizerPanel({
           </Button>
         </div>
       </div>
+      <Stage3GeometryBasisReport run={run} />
       {error && (
         <div className="mt-3 flex items-center justify-between rounded border border-red-200 bg-red-50 p-2 text-[10px] text-red-800">
           <span>{error}</span>
