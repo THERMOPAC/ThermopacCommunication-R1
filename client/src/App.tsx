@@ -327,6 +327,7 @@ function Router() {
       <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-2" component={() => <DesignSoftware.EcrPrePilotDesignStage2Page />} />
       <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-3" component={() => <DesignSoftware.EcrPrePilotDesignStage3Page />} />
       <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-4" component={() => <DesignSoftware.EcrPrePilotDesignStage4Page />} />
+       <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-5" component={() => <DesignSoftware.EcrPrePilotDesignStage5Page />} />
       <ProtectedRoute path="/design-software/ecr-pre-pilot-design" component={() => <DesignSoftware.EcrPrePilotDesignPage />} />
       <ProtectedRoute path="/design-software/liquid-liquid-extraction" component={() => <DesignSoftware.DesignSoftwareListPage />} />
       <ProtectedRoute path="/design-software/liquid-liquid-extraction/:designId" component={() => <DesignSoftware.DesignSoftwareWorkspacePage />} />

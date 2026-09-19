@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express';
+import { setupStage5GeometryRoutes } from './stage5-geometry-routes';
 import { ensureAuthenticated } from '../auth-middleware';
 import {
   allocateEcrPrePilotDesign,
@@ -54,6 +55,7 @@ export function retiredEcrPrePilotResponse(res: Response, capability: string) {
 }
 
 export function setupEcrPrePilotRoutes(app: Express): void {
+  setupStage5GeometryRoutes(app);
   startPredictiveNtWorker();
   // Job C is retired. Startup performs an idempotent terminalization pass
   // instead of resuming or claiming historical queue entries.

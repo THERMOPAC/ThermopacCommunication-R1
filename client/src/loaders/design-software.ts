@@ -6,6 +6,7 @@ export const EcrPrePilotDesignPage = lazyWithRetry(() => import("@/pages/design-
 export const EcrPrePilotDesignStage2Page = lazyWithRetry(() => import("@/pages/design-software/ecr-pre-pilot-design-stage-2-page"));
 export const EcrPrePilotDesignStage3Page = lazyWithRetry(() => import("@/pages/design-software/ecr-pre-pilot-design-stage-3-page"));
 export const EcrPrePilotDesignStage4Page = lazyWithRetry(() => import("@/pages/design-software/ecr-pre-pilot-design-stage-4-page"));
+export const EcrPrePilotDesignStage5Page = lazyWithRetry(() => import("@/pages/design-software/ecr-pre-pilot-design-stage-5-page"));
 export const CpsKnowledgeEnginePage = lazyWithRetry(() => import("@/pages/design-software/cps-knowledge-engine-page"));
 export const CpsSizingCasesPage = lazyWithRetry(() => import("@/pages/design-software/cps-sizing-cases-page"));
 export const CpsSizingNewCasePage = lazyWithRetry(() => import("@/pages/design-software/cps-sizing-new-case-page"));

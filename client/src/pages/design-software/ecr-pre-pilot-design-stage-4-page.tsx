@@ -2060,14 +2060,23 @@ export default function EcrPrePilotDesignStage4Page() {
               </p>
             </div>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(STAGE_3_PATH)}
-            className="h-8 gap-1.5 text-xs"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" /> Hydraulic optimisation
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(STAGE_3_PATH)}
+              className="h-8 gap-1.5 text-xs"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Hydraulic optimisation
+            </Button>
+            <Button
+              type="button"
+              onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-5")}
+              className="h-8 text-xs"
+            >
+              Continue to Stage 5
+            </Button>
+          </div>
         </header>
 
         {loading ? (
