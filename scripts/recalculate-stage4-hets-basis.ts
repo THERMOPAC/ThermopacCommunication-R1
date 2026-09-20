@@ -23,15 +23,39 @@ async function main() {
       'SELECT * FROM ecr_pre_pilot_kuhni_geometry_resolver_runs WHERE design_id=$1 ORDER BY id', [designId]);
     return createHash('sha256').update(JSON.stringify(rows.rows)).digest('hex');
   };
+  const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  const historic = await pool.query(
+    'SELECT * FROM ecr_pre_pilot_stage4_physical_sizing_calculations WHERE design_id=$1 ORDER BY id', [designId]);
+  const historicalIds = historic.rows.map(row => row.id);
+  const historicalHash = hash(historic.rows);
+  const stage5Before = await pool.query(
+    'SELECT * FROM ecr_pre_pilot_stage5_geometry_revisions WHERE design_id=$1 ORDER BY id', [designId]);
+  const stage2Before = await pool.query(
+    'SELECT * FROM ecr_pre_pilot_predictive_nt_jobs WHERE design_id=$1 ORDER BY id', [designId]);
   const before = await snapshot();
   // Read-only preflight must succeed, ensuring no new Stage-3 optimizer is needed.
   const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
   const sizing = authority.projection.hetsSizing;
-  if (!sizing) throw new Error('Missing HETS sizing');
+  if (!sizing || sizing.sizingMethod !== 'ADOPTED_COMPARTMENT_EFFICIENCY'
+    || sizing.fixedDesignTheoreticalStages !== 7 || sizing.designCompartmentEfficiency !== 0.4
+    || sizing.requiredPhysicalCompartments !== 18) {
+    throw new Error('Expected fixed-seven, adopted-40% compartment sizing');
+  }
   await calculateStage4PrePilotSizing(userId, designId);
   const after = await snapshot();
   if (before !== after) throw new Error('Stage-3 evidence changed during recalculation');
-  console.log(JSON.stringify({ designId, stage3Unchanged: true, stage3EvidenceHash: after, sizing }, null, 2));
+  const historicalAfter = await pool.query(
+    'SELECT * FROM ecr_pre_pilot_stage4_physical_sizing_calculations WHERE design_id=$1 AND id=ANY($2::bigint[]) ORDER BY id',
+    [designId, historicalIds]);
+  const stage5After = await pool.query(
+    'SELECT * FROM ecr_pre_pilot_stage5_geometry_revisions WHERE design_id=$1 ORDER BY id', [designId]);
+  const stage2After = await pool.query(
+    'SELECT * FROM ecr_pre_pilot_predictive_nt_jobs WHERE design_id=$1 ORDER BY id', [designId]);
+  if (historicalHash !== hash(historicalAfter.rows)) throw new Error('Historical Stage-4 rows changed');
+  if (hash(stage5Before.rows) !== hash(stage5After.rows)) throw new Error('Stage-5 history changed');
+  if (hash(stage2Before.rows) !== hash(stage2After.rows)) throw new Error('Stage-2 evidence changed');
+  console.log(JSON.stringify({ designId, stage3Unchanged: true, stage3EvidenceHash: after,
+    stage2Unchanged: true, historicalStage4Unchanged: true, stage5Unchanged: true, sizing }, null, 2));
 }
 
 main().catch(error => { console.error(error.message); process.exitCode = 1; })

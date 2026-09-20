@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { buildStage5R1Geometry, R1_COMPLETE, R1_RULESET, R1_WATERMARK } from "../shared/ecr-stage5-r1";
+import { buildStage5R1Geometry, R1_COMPLETE, R1_RULESET, R1_WATERMARK, R2_RULESET } from "../shared/ecr-stage5-r1";
 import { renderStage5Svg, type Stage5DrawingView } from "../shared/ecr-stage5-drawings";
 import { buildStage5Geometry, emptyStage5Inputs, type Stage5Basis } from "../shared/ecr-stage5-geometry";
 
@@ -56,6 +56,42 @@ describe("approved automatic R1 geometry", () => {
       expect(g.checks.some(c => c.id === "vent-drive-seal-envelope")).toBe(true);
       expect(g.checks.filter(c => c.id.endsWith("-stub-envelope"))).toHaveLength(45);
     }
+  });
+
+  it("hands off adopted 40% efficiency as 18 compartments and 19 plates without changing components", () => {
+    const next = buildStage5R1Geometry({
+      ...basis,
+      compartmentHeightM: .18,
+      compartmentCount: 18,
+      requiredActiveHeightM: 3.24,
+      installedActiveHeightM: 3.24,
+      hetsM: null,
+      sizingMethod: "ADOPTED_COMPARTMENT_EFFICIENCY",
+      designCompartmentEfficiency: .4,
+      impliedInstalledHetsMPerTheoreticalStage: 3.24 / 7,
+    });
+    const historical = buildStage5R1Geometry(basis);
+    expect(next.ruleset).toBe(R2_RULESET);
+    expect(next.compartments).toHaveLength(18);
+    expect(next.internals.find(x => x.id === "S")).toMatchObject({ count: 19 });
+    expect(next.compartments.at(-1)?.topM! - next.compartments[0].bottomM!).toBeCloseTo(3.24);
+    for (const key of ["shaftDiameterM", "statorThicknessM", "bladeHeightM", "hubDiameterM",
+      "bladeThicknessM", "bladeRadialLengthM"]) {
+      expect(next.dimensions[key]).toBe(historical.dimensions[key]);
+    }
+  });
+
+  it.each([[39, .18], [16, .45]])("retains historical legacy HETS stack %s without reinterpretation", (count, pitch) => {
+    const legacy = buildStage5R1Geometry({
+      ...basis,
+      compartmentHeightM: pitch,
+      compartmentCount: count,
+      requiredActiveHeightM: 7,
+      installedActiveHeightM: count * pitch,
+    });
+    expect(legacy.ruleset).toBe(R1_RULESET);
+    expect(legacy.compartments).toHaveLength(count);
+    expect(legacy.internals.find(x => x.id === "S")?.count).toBe(count + 1);
   });
 
   it.each([
@@ -143,13 +179,10 @@ describe("approved automatic R1 geometry", () => {
     expect(page).toContain("expectedSourceHash: sourceHash");
   });
 
-  it("Stage3/4 source hashes equal the captured pre-edit baseline", () => {
-    // Exact source capture made before R1 edits; fail if either scientific module changes.
-    for (const [file, expected] of [
-      ["server/ecr-pre-pilot/stage3-stage4-optimizer.ts", "449ec8a1d32f1ef9ddce9df00268bdcc8d9ba616d627ecc26207dc709370e5d7"],
-      ["server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts", "15927de44f0735d4665a4d21813a9dc40679315bdee73b663534a62295d66c52"],
-    ]) {
-      expect(createHash("sha256").update(readFileSync(file)).digest("hex")).toBe(expected);
-    }
+  it("Stage3 source hash equals the captured pre-edit baseline", () => {
+    // Stage 4 now owns the approved efficiency handoff. Stage 3 remains frozen.
+    expect(createHash("sha256").update(readFileSync(
+      "server/ecr-pre-pilot/stage3-stage4-optimizer.ts",
+    )).digest("hex")).toBe("449ec8a1d32f1ef9ddce9df00268bdcc8d9ba616d627ecc26207dc709370e5d7");
   });
 });

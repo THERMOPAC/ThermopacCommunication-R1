@@ -5,7 +5,7 @@ import Layout from "@/components/layout";
 import { Stage5DrawingViewer, stage5ViewNames, type Stage5View } from "@/components/ecr-pre-pilot/stage5-drawing-viewer";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { R1_COMPLETE, R1_RULESET, R1_WATERMARK } from "@shared/ecr-stage5-r1";
+import { R1_COMPLETE, R1_RULESET, R1_WATERMARK, R2_RULESET } from "@shared/ecr-stage5-r1";
 
 type RecordValue = Record<string, unknown>;
 type Revision = RecordValue & { id: string | number; revision: string | number; createdAt: string; inputs: RecordValue; geometry: unknown; drawings?: Partial<Record<Stage5View, string>>; sourceHash: string; status?: string; currentness?: string; notes?: string | null };
@@ -91,6 +91,7 @@ export default function EcrPrePilotDesignStage5Page() {
   useEffect(() => { void read(); }, [read]);
   const frozen = Boolean(selected);
   const currentGeometry = frozen ? selected?.geometry : preview;
+  const currentRuleset = String(object(currentGeometry).ruleset ?? R2_RULESET);
   const sourceHash = basis?.sourceHash;
   const displayedSourceHash = frozen ? selected?.sourceHash : sourceHash;
   const governing = object(selected ? object(selected.geometry).basis : basis?.basis);
@@ -112,13 +113,17 @@ export default function EcrPrePilotDesignStage5Page() {
     "Required active height (m)": governing.requiredActiveHeightM,
     "Installed active height (m)": governing.installedActiveHeightM,
     "Fixed design Nₜ": governing.designNt,
-    "Assumed HETS (m/stage)": governing.hetsM,
+    "Sizing method": governing.sizingMethod,
+    ...(governing.sizingMethod === "ADOPTED_COMPARTMENT_EFFICIENCY" ? {
+      "Adopted compartment efficiency": governing.designCompartmentEfficiency,
+      "Implied installed HETS (m/stage, diagnostic only)": governing.impliedInstalledHetsMPerTheoreticalStage,
+    } : { "Assumed HETS (m/stage)": governing.hetsM }),
   };
   const exportRevision = async (format: "svg" | "pdf" | "design-data") => {
     if (!selected || !design?.id) return;
     setDownloading(true);
     try {
-      const presentation = object(selected.geometry).ruleset === R1_RULESET ? "dimensioned-v2" : "original";
+      const presentation = [R1_RULESET, R2_RULESET].includes(String(object(selected.geometry).ruleset)) ? "dimensioned-v2" : "original";
       const suffix = format === "design-data" ? "design-data.pdf" : `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
       const response = await fetch(`${base(design.id)}/revisions/${selected.id}/${suffix}`, { credentials: "include" });
       if (!response.ok) {
@@ -142,7 +147,7 @@ export default function EcrPrePilotDesignStage5Page() {
   const selectRevision = async (summary: Revision) => {
     if (!design?.id) return;
     try {
-      const presentation = object(summary.geometry).ruleset === R1_RULESET ? "?presentation=dimensioned-v2" : "";
+      const presentation = [R1_RULESET, R2_RULESET].includes(String(object(summary.geometry).ruleset)) ? "?presentation=dimensioned-v2" : "";
       const response = await fetch(`${base(design.id)}/revisions/${summary.id}${presentation}`, { credentials: "include" });
       if (!response.ok) throw new Error(`Revision ${summary.revision} could not be opened.`);
       setSelected(await response.json() as Revision);
@@ -195,7 +200,7 @@ export default function EcrPrePilotDesignStage5Page() {
         <div className="space-y-5"><section><div className="mb-2 flex flex-wrap items-end justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Authoritative upstream handoff</p><h2 className="text-sm font-semibold text-slate-950">Read-only inherited facts</h2></div><span className="font-mono text-[10px] text-slate-500">Source hash: {String(displayedSourceHash ?? "unavailable")}</span></div><div className="grid gap-3 lg:grid-cols-2"><ValueGrid title="Stage 3 hydraulic & geometry basis" data={governingStage3} /><ValueGrid title="Stage 4 physical sizing basis" data={governingStage4} /></div></section>
           <section data-testid="stage5-automatic-r1" className="rounded border border-slate-200 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 p-3">
-              <div><p className="text-[10px] font-semibold text-cyan-800">{R1_RULESET}</p>
+              <div><p className="text-[10px] font-semibold text-cyan-800">{currentRuleset}</p>
                 <h2 className="text-sm font-semibold text-slate-950">{frozen ? `Frozen revision ${selected?.revision}` : "Automatic construction geometry"}</h2></div>
               <div className="flex flex-wrap gap-2">{frozen
                 ? <Button type="button" onClick={newRevision} disabled={!basis} className="h-8 text-xs">New R1 revision from current basis</Button>

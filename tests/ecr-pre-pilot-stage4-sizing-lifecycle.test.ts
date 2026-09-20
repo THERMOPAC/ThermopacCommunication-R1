@@ -10,7 +10,7 @@ const state = vi.hoisted(() => ({
   previous: null as any,
   stage1Hash: 's'.repeat(64),
   stage2Available: true,
-  currentOptimizer: false,
+  currentOptimizer: true,
   optimizerDiameterM: 0.72,
   optimizerRuns: 0,
   finiteRateRun: vi.fn(),
@@ -177,7 +177,7 @@ function reset() {
   state.previous = null;
   state.stage1Hash = 's'.repeat(64);
   state.stage2Available = true;
-  state.currentOptimizer = false;
+  state.currentOptimizer = true;
   state.optimizerDiameterM = 0.72;
   state.optimizerRuns = 0;
   state.finiteRateRun.mockReset();
@@ -238,16 +238,18 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     ]);
     expect(first.calculation.lineageHash).toBe(second.calculation.lineageHash);
     expect(state.rows.size).toBe(1);
-    expect(state.optimizerRuns).toBe(1);
-    expect(first.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
+    expect(state.optimizerRuns).toBe(0);
+    expect(first.status).toBe('CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING');
     expect(first.hetsSizing).toMatchObject({
+      sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+      designCompartmentEfficiency: .4,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
       physicalCompartmentHeightM: 0.18,
-      requiredActiveHeightM: 2.8,
-      requiredPhysicalCompartments: 16,
-      installedActiveHeightM: 2.88,
+      requiredActiveHeightM: 3.24,
+      requiredPhysicalCompartments: 18,
+      installedActiveHeightM: 3.24,
     });
     expect(first.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
     expect(state.finiteRateRun).not.toHaveBeenCalled();
@@ -257,7 +259,7 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     reset();
     const ownerOne = await calculateStage4PrePilotSizing(8, 269);
     const ownerTwo = await getLiveStage4PrePilotSizing(9, 269);
-    expect(ownerOne.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
+    expect(ownerOne.status).toBe('CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING');
     expect(ownerTwo.status).toBe('UNRUN');
     expect(ownerTwo.calculation.lineageHash).not.toBe(ownerOne.calculation.lineageHash);
   });
@@ -272,8 +274,9 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(changed.mainOutputs.physicalCompartments).toBeNull();
   });
 
-  it('keeps a V1.0 1.2 m record historical, then persists the current .5 m optimizer result', async () => {
+  it('keeps a V1.0 record historical and refuses to create missing Stage-3 authority', async () => {
     reset();
+    state.currentOptimizer = false;
     state.previous = {
       status: 'CALCULATED',
       error_code: null,
@@ -296,17 +299,10 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(stale.mainOutputs.diameterM).toBeNull();
     expect(JSON.stringify(stale)).not.toContain('"diameterM":1.2');
 
-    state.optimizerDiameterM = 0.5;
-    const current = await calculateStage4PrePilotSizing(8, 269);
-    expect(current.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
-    expect(current.currentOptimizer).toMatchObject({
-      version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
-      implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
-    });
-    expect(current.mainOutputs.diameterM).toBe(0.5);
-    expect(current.selectedStage3Hydraulics.compartmentHeightM).toBe(0.125);
-    expect(current.selectedStage3Hydraulics.compartmentHeightM)
-      .not.toBe(current.mainOutputs.diameterM * 0.5);
+    await expect(calculateStage4PrePilotSizing(8, 269))
+      .rejects.toThrow('STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
+    expect(state.optimizerRuns).toBe(0);
+    expect(state.rows.size).toBe(0);
   });
 
   it('permits fixed-Nt=7 HETS sizing with a nullable absent Stage-2 reference', async () => {
@@ -319,9 +315,9 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     });
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
-      requiredActiveHeightM: 2.8,
-      requiredPhysicalCompartments: 16,
-      installedActiveHeightM: 2.88,
+      requiredActiveHeightM: 3.24,
+      requiredPhysicalCompartments: 18,
+      installedActiveHeightM: 3.24,
     });
   });
 
@@ -338,6 +334,7 @@ describe('Stage 4 persisted HETS lifecycle', () => {
 
   it('retains only diagnostic metadata, never legacy scientific outputs, for an old calculation', async () => {
     reset();
+    state.currentOptimizer = false;
     state.previous = {
       status: 'NUMERICAL_FAILURE',
       error_code: 'GLOBAL_STAGE4_WALL_CLOCK_BUDGET_EXHAUSTED',
@@ -365,8 +362,8 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     reset();
     const result = await retryStage4PrePilotSizing(8, 269);
     const stopped = await stopStage4PrePilotSizing(8, 269);
-    expect(result.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
-    expect(stopped.status).toBe('CALCULATED_HETS_PRE_PILOT_SCREENING');
+    expect(result.status).toBe('CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING');
+    expect(stopped.status).toBe('CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING');
     expect(state.finiteRateRun).not.toHaveBeenCalled();
   });
 });
@@ -376,7 +373,7 @@ it('keeps Stage-4 actions empty-body only and documents the HETS endpoint contra
   const service = readFileSync('server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts', 'utf8');
   expect(routes).toContain('/stage4/pre-pilot-sizing/calculate');
   expect(routes).toContain('STAGE4_PRE_PILOT_SIZING_CLIENT_SCIENTIFIC_INPUT_PROHIBITED');
-  expect(routes).toContain('synchronous deterministic HETS screening calculation');
+  expect(routes).toContain('deterministic adopted-efficiency');
   // The persisted validator is side-effect-free; Stage 4 never invokes the
   // Stage-2 Python preflight on GET/calculate/retry.
   expect(service).toContain('validatePersistedAcceptedSevenComponentNtForStage4');

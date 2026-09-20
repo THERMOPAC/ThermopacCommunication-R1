@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { pool } from '../db';
 import { loadStage4PrePilotSizingAuthority } from './stage4-pre-pilot-sizing-service';
 import { STAGE5_INPUT_FIELDS, type Stage5Basis, type Stage5Inputs } from '../../shared/ecr-stage5-geometry';
-import { buildStage5R1Geometry, R1_RULES_MANIFEST } from '../../shared/ecr-stage5-r1';
+import { buildStage5R1Geometry, R1_RULES_MANIFEST, R2_RULES_MANIFEST, R2_RULESET } from '../../shared/ecr-stage5-r1';
 import { renderStage5Svg, type Stage5DrawingView } from '../../shared/ecr-stage5-drawings';
 
 export const STAGE5_VIEWS: Stage5DrawingView[] = ['ga', 'section', 'compartment', 'rotor', 'stator'];
@@ -21,7 +21,7 @@ export function validateStage5Basis(basis: Stage5Basis): void {
   const positiveKeys = [
     'columnDiameterM', 'compartmentHeightM', 'rotorDiameterRatio', 'rotorDiameterM',
     'statorFreeAreaRatio', 'selectedRpm', 'rpmMin', 'rpmMax', 'compartmentCount',
-    'requiredActiveHeightM', 'installedActiveHeightM', 'designNt', 'hetsM',
+    'requiredActiveHeightM', 'installedActiveHeightM', 'designNt',
   ] as const;
   const validId = (id: unknown) => (typeof id === 'string' && /^[1-9]\d*$/.test(id))
     || (typeof id === 'number' && Number.isSafeInteger(id) && id > 0);
@@ -33,8 +33,24 @@ export function validateStage5Basis(basis: Stage5Basis): void {
     || !Number.isSafeInteger(basis.compartmentCount)
     || basis.rotorDiameterRatio! >= 1 || basis.statorFreeAreaRatio! >= 1
     || basis.rpmMin! > basis.selectedRpm! || basis.rpmMax! < basis.selectedRpm!
-    || basis.designNt !== 7 || basis.hetsM !== 1)
+    || basis.designNt !== 7)
     throw new Stage5Error('STAGE5_GOVERNING_BASIS_INVALID');
+  const efficiencySizing = basis.sizingMethod === 'ADOPTED_COMPARTMENT_EFFICIENCY';
+  if (efficiencySizing) {
+    if (basis.designCompartmentEfficiency !== .4
+      || typeof basis.impliedInstalledHetsMPerTheoreticalStage !== 'number'
+      || !Number.isFinite(basis.impliedInstalledHetsMPerTheoreticalStage)
+      || basis.impliedInstalledHetsMPerTheoreticalStage <= 0
+      || basis.compartmentCount !== Math.ceil(basis.designNt! / basis.designCompartmentEfficiency)
+      || Math.abs(basis.requiredActiveHeightM! - basis.installedActiveHeightM!) > 1e-9
+      || Math.abs(basis.installedActiveHeightM! - basis.compartmentCount! * basis.compartmentHeightM!) > 1e-9
+      || Math.abs(basis.impliedInstalledHetsMPerTheoreticalStage
+        - basis.installedActiveHeightM! / basis.designNt!) > 1e-9)
+      throw new Stage5Error('STAGE5_GOVERNING_BASIS_INVALID');
+  } else if ((basis.sizingMethod != null && basis.sizingMethod !== 'LEGACY_HETS_SCREENING')
+    || typeof basis.hetsM !== 'number' || !Number.isFinite(basis.hetsM) || basis.hetsM <= 0) {
+    throw new Stage5Error('STAGE5_GOVERNING_BASIS_INVALID');
+  }
 }
 export function validateStage5Inputs(input: any): Stage5Inputs {
   const fail = () => { throw new Stage5Error('STAGE5_INVALID_INPUTS', 400); };
@@ -120,6 +136,7 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
   const w = stage3.result_snapshot?.selectedOperatingWindow;
   if (!h || typeof h !== 'object' || !s || typeof s !== 'object' || !w || typeof w !== 'object')
     throw new Stage5Error('STAGE5_GOVERNING_BASIS_INVALID');
+  const efficiencySizing = s.sizingMethod === 'ADOPTED_COMPARTMENT_EFFICIENCY';
   const basis: Stage5Basis & { sourceHash: string } = {
     sourceHash, stage3ResultId: stage3.id, stage4ResultId: row.id, sourcesCurrent: true, sourcesCompatible: true,
     columnDiameterM: h.diameterM, compartmentHeightM: h.compartmentHeightM,
@@ -128,7 +145,11 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
     rpmMin: w?.rpmMin ?? null, rpmMax: w?.rpmMax ?? null, phaseConfiguration: h.orientation,
     compartmentCount: s.requiredPhysicalCompartments, requiredActiveHeightM: s.requiredActiveHeightM,
     installedActiveHeightM: s.installedActiveHeightM, designNt: s.fixedDesignTheoreticalStages,
-    hetsM: s.screeningHetsMPerTheoreticalStage,
+    ...(efficiencySizing ? {} : { hetsM: s.screeningHetsMPerTheoreticalStage }),
+    sizingMethod: efficiencySizing ? 'ADOPTED_COMPARTMENT_EFFICIENCY' : 'LEGACY_HETS_SCREENING',
+    designCompartmentEfficiency: efficiencySizing ? s.designCompartmentEfficiency : null,
+    impliedInstalledHetsMPerTheoreticalStage: efficiencySizing
+      ? s.impliedInstalledHetsMPerTheoreticalStage : null,
   };
   validateStage5Basis(basis);
   return { basis, sourceStage3, sourceStage4, sourceHash };
@@ -171,8 +192,9 @@ export async function saveStage5Revision(u: number, d: number, input: unknown, e
     const source = await loadStage5Basis(c, u, d);
     if (expectedSourceHash !== source.sourceHash) throw new Stage5Error('STAGE5_SOURCE_CHANGED');
     const geometry = buildStage5R1Geometry(source.basis);
+    const rulesManifest = geometry.ruleset === R2_RULESET ? R2_RULES_MANIFEST : R1_RULES_MANIFEST;
     const snapshot = JSON.parse(JSON.stringify({ inputs: geometry.inputs, geometry, ruleset: geometry.ruleset,
-      rulesManifest: R1_RULES_MANIFEST, rulesManifestHash: stage5Hash(R1_RULES_MANIFEST),
+      rulesManifest, rulesManifestHash: stage5Hash(rulesManifest),
       geometryHash: stage5Hash(geometry), sourceStage3: source.sourceStage3,
       sourceStage4: source.sourceStage4, sourceHash: source.sourceHash, notes,
       status: geometry.completionStatement,

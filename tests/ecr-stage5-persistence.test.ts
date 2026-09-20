@@ -66,6 +66,32 @@ describe('Stage 5 authoritative immutable persistence', () => {
     expect(mocks.authority).toHaveBeenCalledWith(1, 1, { ensureCurrentOptimizer: false });
     expect(queries.some(q => q.includes('INSERT'))).toBe(false);
   });
+  it('maps the adopted efficiency handoff without treating implied HETS as a sizing input', async () => {
+    const previous = structuredClone(projection.hetsSizing);
+    (projection as any).hetsSizing = {
+      sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+      designCompartmentEfficiency: .4,
+      fixedDesignTheoreticalStages: 7,
+      requiredPhysicalCompartments: 18,
+      requiredActiveHeightM: 3.6,
+      installedActiveHeightM: 3.6,
+      impliedInstalledHetsMPerTheoreticalStage: 3.6 / 7,
+    };
+    try {
+      const { basis } = await getStage5Basis(1, 1);
+      expect(basis).toMatchObject({
+        sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+        designCompartmentEfficiency: .4,
+        compartmentCount: 18,
+        requiredActiveHeightM: 3.6,
+        installedActiveHeightM: 3.6,
+        impliedInstalledHetsMPerTheoreticalStage: 3.6 / 7,
+      });
+      expect(basis).not.toHaveProperty('hetsM');
+    } finally {
+      (projection as any).hetsSizing = previous;
+    }
+  });
   it('requires expected source hash and rejects stale handoff without writing', async () => {
     await expect(saveStage5Revision(1, 1, undefined, undefined)).rejects.toThrow('EXPECTED_SOURCE_HASH_REQUIRED');
     await expect(saveStage5Revision(1, 1, undefined, 'stale')).rejects.toThrow('SOURCE_CHANGED');

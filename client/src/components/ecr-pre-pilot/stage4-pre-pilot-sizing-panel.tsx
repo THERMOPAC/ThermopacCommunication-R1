@@ -31,6 +31,7 @@ const STAGE4_RETRY_STATES = new Set(["NUMERICAL_FAILURE", "INTERRUPTED"]);
 const STAGE4_TERMINAL_STATES = new Set([
   "CALCULATED",
   "CALCULATED_HETS_PRE_PILOT_SCREENING",
+  "CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING",
   "TARGET_FAILURE",
   "NUMERICAL_FAILURE",
   "INTERRUPTED",
@@ -440,9 +441,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const efficiency = record(displayResult?.overallEfficiency);
   const stage2Stage1Compatibility = record(displayResult?.stage2Stage1Compatibility);
   const stage3HetsAdmission = record(displayResult?.stage3HetsAdmission);
-  const optimizedStage3Geometry = text(
-    record(displayResult?.implementation).version,
-  ).includes("OPTIMIZED_GEOMETRY");
+  const optimizedStage3Geometry =
+    hydraulic.source === "PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION"
+    || Object.keys(record(displayResult?.currentOptimizer)).length > 0;
   const optimizerRanking = record(hydraulic.ranking);
   const optimizerAlternatives = list(optimizerRanking.alternatives)
     .map(record)
@@ -539,8 +540,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const historicalCalculationOnly = historicalPayload;
   const hetsSizing = record(displayResult?.hetsSizing);
   const isHetsResult = (
-    displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40"
-    || optimizedStage3Geometry
+    record(displayResult?.hetsSizing).sizingMethod === "ADOPTED_COMPARTMENT_EFFICIENCY"
   )
     && Object.keys(hetsSizing).length > 0;
   const fixed = (value: unknown, digits: number) =>
@@ -684,14 +684,13 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               {SCREENING_NOTICE}
             </p>
             <h2 className="mt-1 text-sm font-semibold text-slate-950">
-              Stage 4 HETS-Based Pre-Pilot Sizing
+              Stage 4 Adopted-Efficiency Pre-Pilot Sizing
             </h2>
             <p className="mt-1 text-[10px] leading-4 text-slate-700">
-              Deterministic fixed-Nₜ=7 HETS physical sizing from the persisted
-               Stage-3 hydraulic screening diameter. The actual accepted Stage-2 Nₜ,
-               when available, is displayed only as a separate scientific reference. An independently
-               checked Stage-3 pre-pilot root may be admitted only to this HETS route;
-               no hydraulic candidate is reselected and no finite-rate solver is started.
+              Deterministic fixed-Nₜ=7 physical sizing using the adopted 40% average
+              physical-compartment efficiency and persisted Stage-3 geometry. The
+              actual accepted Stage-2 Nₜ is reference-only. Stage 4 never creates,
+              reruns, or reselects Stage 3.
             </p>
           </div>
           <button
@@ -709,7 +708,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               ? "Stage 4 running…"
               : stage4Retryable
                 ? "Retry Stage 4"
-                : stage4Status === "CALCULATED" || stage4Status === "CALCULATED_HETS_PRE_PILOT_SCREENING"
+                  : stage4Status === "CALCULATED"
+                    || stage4Status === "CALCULATED_HETS_PRE_PILOT_SCREENING"
+                    || stage4Status === "CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING"
                   ? "Stage 4 calculated"
                   : stage4Status === "TARGET_FAILURE"
                     ? "Target not met"
@@ -738,8 +739,8 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
       )}
       {!loading && !error && !result && !run && designId && (
         <p className="p-3 text-[10px] text-slate-600">
-          No Stage 4 HETS screening has been run for this lineage. Calculate
-          Stage 4 to persist the server-owned deterministic screening result.
+           No Stage 4 adopted-efficiency sizing has been run for this lineage.
+           Calculate Stage 4 to persist the server-owned deterministic result.
         </p>
       )}
       {error && (
@@ -779,7 +780,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <p className="mt-1">
             The prior legacy geometry is retained as immutable history and is not current Stage 4 authority.{" "}
             {currentOptimizerRequired
-              ? "Calculate Stage 4 to run the bounded Stage 3/4 optimizer first, then size from its selected hc/D = 0.20–0.30 geometry."
+              ? "Complete and persist the required Stage-3 authority first; Stage 4 Calculate will not create or rerun it."
               : "Calculate Stage 4 to persist sizing from the current optimizer's selected hc/D = 0.20–0.30 geometry."}{" "}
             No legacy hc = 0.5D value is used for the new calculation.
           </p>
@@ -799,7 +800,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
             PRE-PILOT PREDICTIVE / SCREENING DESIGN
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-slate-950">Stage 4 HETS-Based Pre-Pilot Sizing</h3>
+            <h3 className="text-sm font-semibold text-slate-950">Stage 4 Adopted-Efficiency Pre-Pilot Sizing</h3>
             <span className="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-950">
               PRE-PILOT SCREENING
             </span>
@@ -812,6 +813,9 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                 {[
                   ["Stage 4 fixed design Nₜ (physical sizing basis)", fixed(hetsSizing.fixedDesignTheoreticalStages, 0)],
                   ["Actual accepted Stage-2 Nₜ (reference only)", fixed(hetsSizing.actualStage2TheoreticalStagesReference, 0)],
+                  ["Sizing method", text(hetsSizing.sizingMethod)],
+                  ["Design average physical-compartment efficiency", isFiniteNumber(hetsSizing.designCompartmentEfficiency)
+                    ? `${(hetsSizing.designCompartmentEfficiency * 100).toFixed(0)}%` : "—"],
                   ["Stage 3 hydraulic column diameter", `${fixed(hetsSizing.stage3HydraulicColumnDiameterM, 3)} m`],
                   ["Compartment height rule", text(hetsSizing.compartmentHeightRule)],
                   ...(optimizedStage3Geometry
@@ -825,9 +829,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                     ]
                     : []),
                   ["Physical compartment height", `${fixed(hetsSizing.physicalCompartmentHeightM, 3)} m`],
-                  ["Screening HETS", `${fixed(hetsSizing.screeningHetsMPerTheoreticalStage, 3)} m/theoretical stage`],
-                  ["HETS-implied compartment efficiency hc/HETS (not performance)", isFiniteNumber(hetsSizing.calculatedScreeningCompartmentEfficiency)
-                    ? `${(hetsSizing.calculatedScreeningCompartmentEfficiency * 100).toFixed(1)}%` : "—"],
+                  ["Implied installed HETS (derived diagnostic only)", `${fixed(hetsSizing.impliedInstalledHetsMPerTheoreticalStage, 5)} m/theoretical stage`],
                   ["Required active height", `${fixed(hetsSizing.requiredActiveHeightM, 2)} m`],
                   ["Required physical compartments", fixed(hetsSizing.requiredPhysicalCompartments, 0)],
                   ["Installed active height", `${fixed(hetsSizing.installedActiveHeightM, 2)} m`],
@@ -843,25 +845,23 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <section className="rounded border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-950">
             <h4 className="text-xs font-semibold">Assumption governance</h4>
             <p className="mt-1">
-              Fixed Stage-4 design Nₜ = 7 and HETS = 0.40 m/theoretical stage are the engineering
-              physical-sizing basis for both NMP-continuous/RRBO-dispersed and the reverse orientation.
-              {optimizedStage3Geometry
-                ? " The selected Stage-3 optimizer column diameter and hc are carried forward as immutable geometry; newly generated hc/D is constrained to 0.20–0.30."
-                : " Historical/pre-pilot records retain their original compartment geometry rule."}
-              {" "}The HETS basis&apos;s applicability to RRBO/NMP is not established. Column diameter,
-              compartment pitch, the derived hc/HETS diagnostic, and active height require pilot and
-              final vendor/mechanical confirmation.
+              Design average physical-compartment efficiency = 40% is an adopted
+              pre-pilot engineering assumption, subject to validation/calibration
+              from pilot performance or a validated mass-transfer/backmixing model.
+              It is not a published Kühni constant or a calculated NMP/RRBO efficiency.
+              The selected Stage-3 diameter and compartment height are carried forward
+              unchanged as persisted authoritative geometry.
             </p>
             <p className="mt-1">
-              The HETS-implied compartment efficiency is hc/HETS only; it is not independently predicted
-               or experimentally validated performance. Installed active height is not total vessel height. No outlet,
+              Implied installed HETS is active height divided by fixed Nₜ=7 and is a
+              derived diagnostic only, not a design input. Installed active height is not total vessel height. No outlet,
               recovery, target-compliance, or final-design claim is made.
             </p>
           </section>
           <section className="rounded border border-slate-200 p-3 text-[10px]">
             <h4 className="text-xs font-semibold">Current accepted upstream lineage</h4>
             <p className="mt-1">
-              Fixed Stage-4 HETS design Nₜ: {number(designNt.value)} · Actual accepted Stage-2 Nₜ
+               Fixed Stage-4 design Nₜ: {number(designNt.value)} · Actual accepted Stage-2 Nₜ
               reference only: {number(actualStage2NtReference.value)} · Stage-3 hydraulic screening diameter:
               {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter or selected
               compartment height was recalculated.

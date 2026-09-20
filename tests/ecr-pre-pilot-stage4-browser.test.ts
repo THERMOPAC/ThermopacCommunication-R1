@@ -10,12 +10,12 @@ const calculateEndpoint = '/api/ecr-pre-pilot/designs/47/stage4/pre-pilot-sizing
 
 function hetsResult() {
   return {
-    status: 'CALCULATED_HETS_PRE_PILOT_SCREENING',
+    status: 'CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING',
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
-    calculationModel: 'ECR_STAGE4_HETS_SCREENING_V5_OPTIMIZED_GEOMETRY_NT7_HETS0.40',
+    calculationModel: 'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V1_FIXED_DESIGN_NT7_ETA0.40',
     implementation: {
-      version: 'ECR_STAGE4_HETS_SCREENING_V5_OPTIMIZED_GEOMETRY_NT7_HETS0.40',
+      version: 'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V1_FIXED_DESIGN_NT7_ETA0.40',
     },
     designNt: { value: 7, provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT' },
     actualStage2NtReference: { value: 5, status: 'AVAILABLE_REFERENCE_ONLY' },
@@ -27,27 +27,28 @@ function hetsResult() {
     },
     mainOutputs: {
       diameterM: .72,
-      overallEfficiency: .45,
-      physicalCompartments: 16,
-      activeHeightM: 2.8,
-      requiredActiveHeightM: 2.8,
-      installedActiveHeightM: 2.88,
+      overallEfficiency: .4,
+      physicalCompartments: 18,
+      activeHeightM: 3.24,
+      requiredActiveHeightM: 3.24,
+      installedActiveHeightM: 3.24,
     },
     hetsSizing: {
+      sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+      designCompartmentEfficiency: .4,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
       stage3HydraulicColumnDiameterM: .72,
       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
       physicalCompartmentHeightM: .18,
-      screeningHetsMPerTheoreticalStage: .4,
-      calculatedScreeningCompartmentEfficiency: .45,
-      requiredActiveHeightM: 2.8,
-      requiredPhysicalCompartments: 16,
-      installedActiveHeightM: 2.88,
+      impliedInstalledHetsMPerTheoreticalStage: 3.24 / 7,
+      requiredActiveHeightM: 3.24,
+      requiredPhysicalCompartments: 18,
+      installedActiveHeightM: 3.24,
       designStatus: 'PRE-PILOT SCREENING',
     },
     assumptions: [
-      'HETS = 0.40 m/theoretical stage is the explicit engineering screening basis; its applicability to the RRBO/NMP system is not established.',
+      'Design average physical-compartment efficiency = 40% is an adopted pre-pilot engineering assumption.',
     ],
     calculation: { status: 'CALCULATED', progress: { phase: 'COMPLETE' }, lineageHash: 'hets-lineage' },
   };
@@ -174,7 +175,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
     else process.env.REPL_ID = previousReplId;
   });
 
-  it('renders the approved HETS result card with required and installed heights distinct', async () => {
+  it('renders the approved adopted-efficiency result card', async () => {
     actionRequests = [];
     ecrMutationRequests = [];
     currentStage4 = hetsResult();
@@ -182,17 +183,17 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
     try {
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 30_000 });
       const text = await panelText(page);
-      expect(text).toContain('Stage 4 HETS-Based Pre-Pilot Sizing');
+      expect(text).toContain('Stage 4 Adopted-Efficiency Pre-Pilot Sizing');
       expect(text).toContain('Stage 4 fixed design Nₜ (physical sizing basis) 7');
       expect(text).toContain('Actual accepted Stage-2 Nₜ (reference only) 5');
       expect(text).toContain('Stage 3 hydraulic column diameter 0.720 m');
       expect(text).toContain('Physical compartment height 0.180 m');
-      expect(text).toContain('Screening HETS 0.400 m/theoretical stage');
-      expect(text).toContain('HETS-implied compartment efficiency hc/HETS (not performance) 45.0%');
-      expect(text).toContain('Required active height 2.80 m');
-      expect(text).toContain('Required physical compartments 16');
-      expect(text).toContain('Installed active height 2.88 m');
-      expect(text).toContain('applicability to RRBO/NMP is not established');
+      expect(text).toContain('Design average physical-compartment efficiency 40%');
+      expect(text).toContain('Implied installed HETS (derived diagnostic only) 0.46286 m/theoretical stage');
+      expect(text).toContain('Required active height 3.24 m');
+      expect(text).toContain('Required physical compartments 18');
+      expect(text).toContain('Installed active height 3.24 m');
+      expect(text).toContain('adopted pre-pilot engineering assumption');
       expect(text).toContain('No outlet, recovery, target-compliance, or final-design claim is made');
       expect(text).not.toContain('Predicted primary raffinate outlet');
       expect(actionRequests).toHaveLength(0);
@@ -251,7 +252,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
     try {
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="stage4-pre-pilot-sizing"]')?.textContent?.includes(
-          'No Stage 4 HETS screening has been run',
+          'No Stage 4 adopted-efficiency sizing has been run',
         ) === true, { timeout: 30_000 });
       await page.click('[data-testid="stage4-calculate"]');
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 5_000 });
@@ -259,7 +260,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       expect(ecrMutationRequests).toEqual([{ method: 'POST', path: calculateEndpoint }]);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 30_000 });
-      expect(await panelText(page)).toContain('Installed active height 2.88 m');
+      expect(await panelText(page)).toContain('Installed active height 3.24 m');
     } finally {
       await page.close();
     }

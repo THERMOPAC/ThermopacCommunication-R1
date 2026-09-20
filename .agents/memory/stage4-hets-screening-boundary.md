@@ -5,11 +5,11 @@ description: User-approved assumption-based sizing replaces the operational fini
 
 Treat the operational Stage 4 result as fixed-`Ndesign=7` HETS-based pre-pilot physical screening, independently of the unqualified finite-rate/Broyden research route.
 
-The approved HETS basis is 0.40 m/theoretical stage; do not introduce a separate compartment-efficiency assumption or reoptimize Stage 3 when applying this basis.
+The current approved basis supersedes fixed HETS: fixed Stage-4 Ndesign=7 and adopted average physical-compartment efficiency 0.40. Stage-2 N_T remains reference-only.
 
-**Why:** The user explicitly reduced the assumed HETS while requiring preservation of all existing Stage-3 results.
+**Why:** After auditing diameter scaling, the user explicitly adopted efficiency-based compartment count and reaffirmed the fixed-seven rule rather than using the actual Stage-2 result.
 
-**How to apply:** Consume the persisted Stage-3 compartment height, round physical count upward, and retain old Stage-4/Stage-5 snapshots as historical. Any displayed hc/HETS ratio is a derived diagnostic only, never a second sizing input.
+**How to apply:** Use NC=ceil(7/0.40), active height=NC×persisted Stage-3 hc. Never rerun Stage 3 to create missing authority. Hactive/7 is diagnostic-only implied installed HETS. Preserve old HETS calculations and Stage-5 snapshots under their historical methodology.
 
 New optimized sizing must never fall back to historical fixed-ratio geometry when a current optimizer result is absent.
 
@@ -27,7 +27,7 @@ Ranking changes also invalidate downstream sizing even when Stage-1 inputs are i
 
 **How to apply:** Do not restore finite-rate convergence or transport-property requirements as prerequisites for this screening route. Preserve current Stage-1/Stage-3 hydraulic snapshot integrity and Stage-3 HETS admission through lightweight persisted-evidence checks without executing scientific-runtime preflight. Preserve Stage-2 scientific acceptance checks when Stage-2 evidence exists, but do not make an actual Stage-2 value a gate for the fixed-7 assumption-based sizing. Show that actual value as nullable reference-only evidence, never as the fixed sizing value.
 
-The selected HETS is an engineering assumption whose conservatism for RRBO/NMP is not established. Its implied compartment efficiency is not independently predicted or experimentally validated.
+The adopted 40% efficiency is an engineering assumption, not a published Kühni constant or a calculated/validated RRBO/NMP performance value.
 
 The approved replacement investigation excludes Job A/B/C and alternative
 full-column rate/population-balance solvers. Seek published engineering
@@ -43,7 +43,7 @@ another chemistry's HETS band or promise a separation-qualified optimum.
 
 **Why:** Integer compartment rounding creates extra installed height but does not demonstrate an adequate allowance for uncertain mass transfer.
 
-**How to apply:** Use `Hrequired = 7 × HETS`, `Nphysical = ceil(7 × HETS / hc)`, and `Hinstalled = Nphysical × hc`. Distinguish required active height, rounded installed active height, and total mechanical vessel height. Label `hc/HETS` as a HETS-implied compartment-efficiency implication, not performance. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
+**How to apply:** Round NC upward from 7/0.40, then determine active height from NC×hc. Do not preserve the superseded fixed-HETS formula in current sizing. Distinguish active height from total mechanical vessel height. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
 
 For a reduced transport diagnostic, preserve the saved counter-current section boundaries and signed component transfer; a straight path between terminal products cannot substitute for the saved intermediate profile.
 

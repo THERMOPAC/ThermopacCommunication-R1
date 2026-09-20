@@ -4,6 +4,7 @@ import {
 } from "./ecr-stage5-geometry";
 
 export const R1_RULESET = "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1";
+export const R2_RULESET = "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R2_ADOPTED_COMPARTMENT_EFFICIENCY";
 export const R1_COMPLETE = "SYSTEM-GENERATED PRE-PILOT GEOMETRY — GEOMETRICALLY COMPLETE";
 export const R1_WATERMARK = "PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION";
 /** Frozen approved revision manifest, persisted and hashed alongside each result.
@@ -30,6 +31,16 @@ export const R1_RULES_MANIFEST = {
   },
   exclusions: "Fabrication, structural and shaft-dynamic qualification, hydraulic nozzle sizing and disengagement performance; no user-entered dimensions",
 } as const;
+export const R2_RULES_MANIFEST = {
+  ...R1_RULES_MANIFEST,
+  id: R2_RULESET,
+  revision: 2,
+  authority: "Frozen Stage3 geometry and Stage4 adopted 40% compartment-efficiency sizing unchanged; no recalculation or feedback",
+  rules: {
+    ...R1_RULES_MANIFEST.rules,
+    stack: "N=ceil(7/0.40); HA=N hc; rotor centres z0+(i+.5)hc; stators z0+i hc; z0=1.25D",
+  },
+} as const;
 export class R1GeometryError extends Error {
   readonly status = 409;
   constructor(public checkId: string, detail: string) {
@@ -42,6 +53,8 @@ const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Mat
  * C-class quantities are engineering envelopes, never fabrication/strength qualifications. */
 export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
   const b = { ...source };
+  const efficiencySizing = b.sizingMethod === "ADOPTED_COMPARTMENT_EFFICIENCY";
+  const ruleset = efficiencySizing ? R2_RULESET : R1_RULESET;
   const checks: Stage5Geometry["checks"] = [];
   const check = (id: string, ok: boolean, message: string) => {
     if (!ok) throw new R1GeometryError(id, message);
@@ -50,15 +63,31 @@ export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
   check("authority", b.sourcesCurrent === true && b.sourcesCompatible === true &&
     !!b.stage3ResultId && !!b.stage4ResultId, "Frozen sources must be identified, current and compatible.");
   const keys = ["columnDiameterM", "rotorDiameterM", "rotorDiameterRatio", "compartmentHeightM",
-    "compartmentCount", "installedActiveHeightM", "requiredActiveHeightM", "designNt", "hetsM",
+    "compartmentCount", "installedActiveHeightM", "requiredActiveHeightM", "designNt",
     "selectedRpm", "rpmMin", "rpmMax", "statorFreeAreaRatio"] as const;
   for (const key of keys) check(key, typeof b[key] === "number" && Number.isFinite(b[key]) && b[key]! > 0, `${key} must be finite and positive.`);
   const D = b.columnDiameterM!, Dr = b.rotorDiameterM!, hc = b.compartmentHeightM!;
   const N = b.compartmentCount!, HA = b.installedActiveHeightM!, phi = b.statorFreeAreaRatio!;
   check("count", Number.isSafeInteger(N) && N <= 1000, "Positive integer count; drawing capacity 1000 compartments.");
   check("stack", near(N * hc, HA), "Frozen count × pitch must equal frozen installed height; no repair.");
-  check("height", near(b.requiredActiveHeightM!, b.designNt! * b.hetsM!) && HA >= b.requiredActiveHeightM!,
-    "Frozen required height must agree with Nt × HETS and fit installed height.");
+  if (efficiencySizing) {
+    check("sizing-method", b.designNt === 7 && b.designCompartmentEfficiency === .4,
+      "Frozen adopted sizing basis must be Nt=7 and compartment efficiency=0.40.");
+    check("count-efficiency", N === Math.ceil(b.designNt! / b.designCompartmentEfficiency!),
+      "Frozen count must equal ceil(Nt / adopted compartment efficiency).");
+    check("height", near(b.requiredActiveHeightM!, HA),
+      "Frozen required and installed heights must both equal count × pitch.");
+    check("implied-hets-diagnostic",
+      typeof b.impliedInstalledHetsMPerTheoreticalStage === "number"
+      && Number.isFinite(b.impliedInstalledHetsMPerTheoreticalStage)
+      && near(b.impliedInstalledHetsMPerTheoreticalStage, HA / b.designNt!),
+      "Implied installed HETS must equal installed height / Nt and remains diagnostic only.");
+  } else {
+    check("hetsM", typeof b.hetsM === "number" && Number.isFinite(b.hetsM) && b.hetsM > 0,
+      "Legacy HETS must be finite and positive.");
+    check("height", near(b.requiredActiveHeightM!, b.designNt! * b.hetsM!) && HA >= b.requiredActiveHeightM!,
+      "Frozen required height must agree with Nt × HETS and fit installed height.");
+  }
   check("rotor-ratio", Dr < D && near(Dr / D, b.rotorDiameterRatio!), "Frozen rotor diameter/ratio must agree and fit column.");
   check("rpm", b.rpmMin! <= b.selectedRpm! && b.selectedRpm! <= b.rpmMax!, "Frozen selected RPM must lie inside frozen window.");
   check("phase", typeof b.phaseConfiguration === "string" && !!b.phaseConfiguration.trim(), "Frozen phase continuity is required.");
@@ -81,7 +110,7 @@ export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
     }
     p.push({ key, label: key, value, unit, evidenceClass,
       classification: evidenceClass === "A" ? "Inherited" : "System-generated",
-      note: `${R1_RULESET}; Class ${evidenceClass}. ${note}` });
+       note: `${ruleset}; Class ${evidenceClass}. ${note}` });
   };
   for (const [key, value] of Object.entries(b)) if (typeof value === "number" || typeof value === "string")
     put(key, value, key.endsWith("M") ? "m" : key.toLowerCase().includes("rpm") ? "rpm" : "", "A", "Exact frozen Stage-3/4 authority; scientific status unchanged.");
@@ -161,13 +190,13 @@ export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
   const inputs = emptyStage5Inputs();
   for (const f of STAGE5_INPUT_FIELDS) inputs.values[f.key] = {
     value: d[f.key] ?? null, classification: "System-generated",
-    note: p.find(x => x.key === f.key)?.note ?? R1_RULESET,
+     note: p.find(x => x.key === f.key)?.note ?? ruleset,
   };
   Object.assign(inputs, { rotorConstruction: "r1-stepped-rotor", statorConstruction: "annular-single-opening",
     flowArrangement: "nmp-down-rrbo-up", flowClassification: "System-generated",
     flowNote: "Class C approved NMP-down / RRBO-up layout; not inferred from continuity.",
     topHeadProfile: "elliptical-envelope", bottomHeadProfile: "elliptical-envelope",
-    notes: `${R1_RULESET}; system-generated; no normal-user construction inputs.` });
+     notes: `${ruleset}; system-generated; no normal-user construction inputs.` });
   const nozzles: Stage5NozzleInput[] = [];
   const shell: [string, string, "bottom" | "top", number, number, number][] = [
     ["P01", "RRBO feed", "bottom", .6, 0, 10], ["P02", "NMP-rich extract outlet", "bottom", .4, 180, 10],
@@ -179,15 +208,15 @@ export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
   for (const [id, service, region, f, azimuthDeg, divisor] of shell) nozzles.push({
     id, service, region, elevationM: (region === "bottom" ? D / 4 : z1) + f * D,
     boreM: D / divisor, azimuthDeg, axis: "radial", radialOffsetM: D / 2,
-    classification: "System-generated", note: `${R1_RULESET}; C: bore D/${divisor}; zone fraction ${f}; geometric allowance, not hydraulic/DN sizing.`,
+    classification: "System-generated", note: `${ruleset}; C: bore D/${divisor}; zone fraction ${f}; geometric allowance, not hydraulic/DN sizing.`,
   });
   nozzles.push(
     { id: "D01", service: "Bottom-head drain", region: "bottom-head", elevationM: 0, boreM: D / 25,
       azimuthDeg: null, axis: "down", radialOffsetM: 0, classification: "System-generated",
-      note: `${R1_RULESET}; C: bottom-pole axial drain; azimuth N/A.` },
+      note: `${ruleset}; C: bottom-pole axial drain; azimuth N/A.` },
     { id: "V01", service: "Top-head crown-region vent", region: "top-head", elevationM: zT + .20 * D,
       boreM: D / 25, azimuthDeg: 315, axis: "up", radialOffsetM: .30 * D, classification: "System-generated",
-      note: `${R1_RULESET}; C: r=0.30D, ellipsoidal surface z=zT+0.20D; not absolute-high-point or vent-duty qualification.` },
+      note: `${ruleset}; C: r=0.30D, ellipsoidal surface z=zT+0.20D; not absolute-high-point or vent-duty qualification.` },
   );
   // Exact extremal heights of the cylinder/ellipsoid intersection, not straight-shell bounds.
   const topSurface = (r: number) => zT + D / 4 * Math.sqrt(1 - (2 * r / D) ** 2);
@@ -313,7 +342,7 @@ export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
     }),
   };
   return {
-    ruleset: R1_RULESET, completionStatement: R1_COMPLETE, r1Model, basis: b, inputs,
+    ruleset, completionStatement: R1_COMPLETE, r1Model, basis: b, inputs,
     parameters: p, dimensions: d, checks, complete: true, tbd: [], rotorType, statorType,
     freeAreaDefinition: "Gross opening/gross column: do=D*sqrt(phi_s); phi_gross=(do/D)^2=phi_s. Shaft-blocked=(do²-ds²)/D² is separate; never fed back to Stage 3.",
     compartments, nozzles,

@@ -18,7 +18,12 @@ export interface Stage5Basis {
   requiredActiveHeightM: number | null;
   installedActiveHeightM: number | null;
   designNt: number | null;
-  hetsM: number | null;
+  /** Legacy HETS sizing input. Null for the adopted compartment-efficiency method. */
+  hetsM?: number | null;
+  sizingMethod?: "LEGACY_HETS_SCREENING" | "ADOPTED_COMPARTMENT_EFFICIENCY" | null;
+  designCompartmentEfficiency?: number | null;
+  /** Diagnostic consequence of the installed stack; never a sizing input. */
+  impliedInstalledHetsMPerTheoreticalStage?: number | null;
 }
 export interface Stage5InputValue {
   value: number | null;
@@ -187,10 +192,27 @@ export function buildStage5Geometry(basis: Stage5Basis, inputs: Stage5Inputs): S
   for (const key of ["columnDiameterM", "compartmentHeightM", "rotorDiameterM", "requiredActiveHeightM", "installedActiveHeightM", "selectedRpm", "rpmMin", "rpmMax"]) {
     test(`basis-${key}`, [key], v => v > 0, `${key} must be positive.`);
   }
-  test("fixed-basis", ["designNt", "hetsM"], (n, h) => n === 7 && h === 1, "Fixed inherited design Nt = 7 and HETS = 1 m; no recalculation.");
+  const efficiencySizing = basis.sizingMethod === "ADOPTED_COMPARTMENT_EFFICIENCY";
+  if (efficiencySizing) {
+    test("fixed-basis", ["designNt", "designCompartmentEfficiency"], (n, e) => n === 7 && e === .4,
+      "Fixed inherited design Nt = 7 and adopted compartment efficiency = 0.40; no recalculation.");
+  } else {
+    test("fixed-basis", ["designNt", "hetsM"], (n, h) => n === 7 && h > 0,
+      "Legacy inherited design Nt = 7 and positive HETS are required; no recalculation.");
+  }
   test("count", ["compartmentCount"], n => Number.isInteger(n) && n > 0 && n <= 1000, "Compartment count must be an integer 1–1000 (drawing engine bound).");
   test("stack", ["compartmentCount", "compartmentHeightM", "installedActiveHeightM"], (n, p, h) => near(n * p, h), "Count × pitch must agree with installed active height.");
-  test("required", ["requiredActiveHeightM", "installedActiveHeightM", "designNt", "hetsM"], (r, i, n, h) => near(r, n * h) && i >= r, "Inherited required height must match Nt × HETS and fit installed height.");
+  if (efficiencySizing) {
+    test("efficiency-count", ["compartmentCount", "designNt", "designCompartmentEfficiency"],
+      (c, n, e) => c === Math.ceil(n / e), "Inherited count must equal ceil(Nt / adopted compartment efficiency).");
+    test("required", ["requiredActiveHeightM", "installedActiveHeightM"],
+      (r, i) => near(r, i), "Efficiency-method required and installed active heights must be identical.");
+    test("implied-hets-diagnostic", ["impliedInstalledHetsMPerTheoreticalStage", "installedActiveHeightM", "designNt"],
+      (h, i, n) => near(h, i / n), "Implied installed HETS must equal installed height / Nt and is diagnostic only.");
+  } else {
+    test("required", ["requiredActiveHeightM", "installedActiveHeightM", "designNt", "hetsM"],
+      (r, i, n, h) => near(r, n * h) && i >= r, "Inherited required height must match Nt × HETS and fit installed height.");
+  }
   test("ratio", ["rotorDiameterM", "columnDiameterM", "rotorDiameterRatio"], (r, c, q) => q > 0 && q < 1 && near(r / c, q), "Inherited rotor diameter and ratio must agree.");
   test("rpm", ["selectedRpm", "rpmMin", "rpmMax"], (r, lo, hi) => lo <= r && r <= hi, "Selected RPM must lie in inherited operating window.");
   check("phase", basis.phaseConfiguration ? true : null, "Inherited phase orientation must be specified; flow routing is not inferred.");

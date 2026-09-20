@@ -58,7 +58,7 @@ describe.sequential('Stage 4 persisted Stage-2 authority validator', () => {
     );
     expect(authority.projection.designNt).toMatchObject({
       value: STAGE4_HETS_DESIGN_NT,
-      provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT',
+      provenance: 'STAGE4_FIXED_PRE_PILOT_DESIGN_NT',
     });
     expect(authority.projection.actualStage2NtReference).toMatchObject({
       value: 4,

@@ -8,7 +8,9 @@ const fmt = (v: number | null | undefined) => typeof v === "number" && Number.is
 /** Self-contained vector export; unknown dimensions never acquire physical defaults. */
 export function renderStage5Svg(g: Stage5Geometry, view: Stage5DrawingView, context?: Stage5DrawingContext): string {
   if (!["ga", "section", "compartment", "rotor", "stator"].includes(view)) throw new Error("Unknown Stage-5 drawing view");
-  if (g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1") return renderStage5R1Svg(g, view, context);
+  if (g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1"
+    || g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R2_ADOPTED_COMPARTMENT_EFFICIENCY")
+    return renderStage5R1Svg(g, view, context);
   const d = g.dimensions;
   const parts: string[] = [];
   const text = (x: number, y: number, value: unknown, size = 12) => parts.push(`<text x="${x}" y="${y}" font-size="${size}">${escape(value)}</text>`);

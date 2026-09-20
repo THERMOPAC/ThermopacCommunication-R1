@@ -25,24 +25,25 @@ const acceptedStage2Statuses = new Set([
 ]);
 
 export const STAGE4_HETS_DESIGN_NT = 7;
-export const STAGE4_HETS_M_PER_THEORETICAL_STAGE = 0.4;
+export const STAGE4_DESIGN_COMPARTMENT_EFFICIENCY = 0.4;
 export const STAGE4_HETS_IMPLEMENTATION_VERSION =
-  'ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40';
+  'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V1_FIXED_DESIGN_NT7_ETA0.40';
 export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_HETS_IMPLEMENTATION_VERSION,
   fixedPhysicalSizingDesignNt: STAGE4_HETS_DESIGN_NT,
   actualStage2Nt: 'OPTIONAL_SEPARATELY_LABELLED_REFERENCE_ONLY',
-  compartmentHeightRule: 'hc = 0.5D',
-  screeningHetsMPerTheoreticalStage: STAGE4_HETS_M_PER_THEORETICAL_STAGE,
-  physicalCount: 'ceil(Ndesign * HETS / hc)',
-  requiredHeight: 'Ndesign * HETS',
-  installedHeight: 'Nphysical * hc',
+  sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+  designCompartmentEfficiency: STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
+  selectedCompartmentHeight: 'PERSISTED_STAGE3_SELECTED_hc_REQUIRED',
+  physicalCount: 'ceil(Ndesign / designCompartmentEfficiency)',
+  requiredAndInstalledActiveHeight: 'Nphysical * persisted_stage3_hc',
+  impliedInstalledHets: 'installedActiveHeight / Ndesign (DERIVED_DIAGNOSTIC_ONLY)',
   scope: 'PRE_PILOT_SCREENING_NO_OUTLET_OR_TARGET_CLAIM',
-  stage3Admission: 'CURRENT_INTEGRITY_VERIFIED_CALCULATED_IN_RANGE_OR_INDEPENDENTLY_CHECKED_PREPILOT_HETS_ONLY',
+  stage3Admission: 'CURRENT_PERSISTED_INTEGRITY_VERIFIED_OPTIMIZER_GEOMETRY_ONLY',
   orientations: 'NMP_CONTINUOUS_RRBO_DISPERSED_OR_RRBO_CONTINUOUS_NMP_DISPERSED',
 })).digest('hex');
 export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION =
-  'ECR_STAGE4_HETS_SCREENING_V5_OPTIMIZED_GEOMETRY_NT7_HETS0.40';
+  STAGE4_HETS_IMPLEMENTATION_VERSION;
 export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
   optimizerVersion: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
@@ -50,10 +51,11 @@ export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH = createHash('sha256').up
   fixedDesignPhysicalStages: STAGE4_HETS_DESIGN_NT,
   actualStage2Nt: 'REFERENCE_ONLY',
   selectedCompartmentHeight: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY',
-  screeningHetsMPerTheoreticalStage: STAGE4_HETS_M_PER_THEORETICAL_STAGE,
-  physicalCount: 'ceil(Ndesign * HETS / selected_hc)',
-  requiredHeight: 'Ndesign * HETS',
-  installedHeight: 'Nphysical * selected_hc',
+  sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+  designCompartmentEfficiency: STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
+  physicalCount: 'ceil(Ndesign / designCompartmentEfficiency)',
+  requiredAndInstalledHeight: 'Nphysical * selected_hc',
+  impliedInstalledHets: 'installedHeight / Ndesign',
   noLegacyHalfDGeneration: true,
 })).digest('hex');
 
@@ -67,21 +69,6 @@ type Stage3Projection = {
   stage1SnapshotHash?: string;
   result: Record<string, any>;
 };
-
-type Stage4AuthorityOptions = {
-  /**
-   * GET is deliberately read-only. The explicit Calculate action may opt in
-   * to creating the current bounded optimizer record when one does not yet
-   * exist for the current Stage-1 snapshot.
-   */
-  ensureCurrentOptimizer?: boolean;
-};
-
-// Calculate is synchronous from the caller's perspective, but two browser
-// submissions can still arrive before the first optimizer insert commits.
-// Share that one explicit optimizer action instead of creating duplicate
-// immutable rows for the same current Stage-1 snapshot.
-const optimizerCreationInFlight = new Map<string, Promise<unknown>>();
 
 type PersistedStage2 = {
   id: string; design_id: number; created_by: number; input_snapshot: unknown; model_hash: string; status: string;
@@ -264,7 +251,6 @@ export function deriveStage4PrePilotSizing(input: {
   if (!actualStage2Available && (
     input.stage2JobId != null || input.stage2ResultHash != null
   )) fail('STAGE4_ACTUAL_STAGE2_NT_REFERENCE_INVALID');
-  const selected = input.stage3.result.hydraulicDiagnosticPoint;
   if (input.stage3.result.engine?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION) {
     const resultStage1Hash = input.stage3.result.stage1Authority?.snapshotHash;
     const basisStage1Hash = input.stage3.result.processBasis?.stage1SnapshotHash;
@@ -275,8 +261,6 @@ export function deriveStage4PrePilotSizing(input: {
       fail('STAGE4_OPTIMIZER_STAGE1_LINEAGE_STALE');
     }
   }
-  const inRangeHydraulics = selected?.status === 'CALCULATED_IN_RANGE'
-    && positiveFinite(selected.columnDiameterM);
   const optimizerGeometry = input.stage3.result.engine?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
     && input.stage3.result.engine?.implementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
     ? input.stage3.result.stage4GeometryInput
@@ -303,41 +287,32 @@ export function deriveStage4PrePilotSizing(input: {
     && Math.abs(
       optimizerGeometry.rotorDiameterM - optimizerGeometry.columnDiameterM * optimizerGeometry.rotorToColumn,
     ) <= 1e-9;
-  const prePilotHetsAdmission = input.stage3PrePilotHetsAdmission;
-  if (!inRangeHydraulics && !optimizedHydraulics && !prePilotHetsAdmission) {
+  if (!optimizedHydraulics) {
     fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   }
 
-  const diameterM = optimizedHydraulics
-    ? optimizerGeometry!.columnDiameterM
-    : inRangeHydraulics
-      ? selected.columnDiameterM
-      : prePilotHetsAdmission!.columnDiameterM;
-  const compartmentHeightM = optimizedHydraulics
-    ? optimizerGeometry!.compartmentHeightM
-    : .5 * diameterM;
-  const hetsMPerTheoreticalStage = STAGE4_HETS_M_PER_THEORETICAL_STAGE;
-  const screeningEfficiency = compartmentHeightM / hetsMPerTheoreticalStage;
-  const requiredActiveHeightM = Math.round(
-    STAGE4_HETS_DESIGN_NT * hetsMPerTheoreticalStage * 1e12,
+  const diameterM = optimizerGeometry!.columnDiameterM;
+  const compartmentHeightM = optimizerGeometry!.compartmentHeightM;
+  const requiredPhysicalCompartments = Math.ceil(
+    STAGE4_HETS_DESIGN_NT / STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
+  );
+  const installedActiveHeightM = Math.round(
+    requiredPhysicalCompartments * compartmentHeightM * 1e12,
   ) / 1e12;
-  const requiredPhysicalCompartments = Math.ceil(requiredActiveHeightM / compartmentHeightM);
-  const installedActiveHeightM = requiredPhysicalCompartments * compartmentHeightM;
-  if (!finite(compartmentHeightM) || !finite(screeningEfficiency)
+  const requiredActiveHeightM = installedActiveHeightM;
+  const impliedInstalledHetsMPerTheoreticalStage =
+    installedActiveHeightM / STAGE4_HETS_DESIGN_NT;
+  if (!finite(compartmentHeightM) || !finite(impliedInstalledHetsMPerTheoreticalStage)
     || !Number.isInteger(requiredPhysicalCompartments) || requiredPhysicalCompartments < 1
-    || !finite(installedActiveHeightM)) fail('STAGE4_HETS_SCREENING_CALCULATION_INVALID');
+    || !finite(installedActiveHeightM)) fail('STAGE4_COMPARTMENT_EFFICIENCY_CALCULATION_INVALID');
 
   return {
-    status: 'CALCULATED_HETS_PRE_PILOT_SCREENING',
+    status: 'CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING',
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
      implementation: {
-       version: optimizedHydraulics
-         ? STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION
-         : STAGE4_HETS_IMPLEMENTATION_VERSION,
-       implementationHash: optimizedHydraulics
-         ? STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH
-         : STAGE4_HETS_IMPLEMENTATION_HASH,
+        version: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
+        implementationHash: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH,
     },
      currentOptimizer: optimizedHydraulics ? {
        version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
@@ -346,7 +321,7 @@ export function deriveStage4PrePilotSizing(input: {
      } : null,
     mainOutputs: {
       diameterM,
-      overallEfficiency: screeningEfficiency,
+      overallEfficiency: STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
       physicalCompartments: requiredPhysicalCompartments,
       activeHeightM: requiredActiveHeightM,
       requiredActiveHeightM,
@@ -354,13 +329,13 @@ export function deriveStage4PrePilotSizing(input: {
     },
     designNt: {
       value: STAGE4_HETS_DESIGN_NT,
-      provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT',
-      label: 'FIXED STAGE-4 HETS PRE-PILOT PHYSICAL SIZING DESIGN BASIS (N_T=7)',
+      provenance: 'STAGE4_FIXED_PRE_PILOT_DESIGN_NT',
+      label: 'FIXED STAGE-4 PRE-PILOT PHYSICAL SIZING DESIGN BASIS (N_T=7)',
     },
     actualStage2NtReference: {
       value: actualStage2Available ? input.calculatedNt : null,
       status: actualStage2Available ? 'AVAILABLE_REFERENCE_ONLY' : 'NOT_AVAILABLE_REFERENCE_ONLY',
-      label: 'ACTUAL ACCEPTED STAGE-2 PREDICTIVE N_T — REFERENCE ONLY; NOT THE STAGE-4 HETS SIZING BASIS',
+       label: 'ACTUAL ACCEPTED STAGE-2 PREDICTIVE N_T — REFERENCE ONLY; NOT THE STAGE-4 SIZING BASIS',
       stage2JobId: actualStage2Available ? input.stage2JobId : null,
       stage2ResultHash: actualStage2Available ? input.stage2ResultHash : null,
     },
@@ -379,11 +354,7 @@ export function deriveStage4PrePilotSizing(input: {
             ?? input.stage3.result.stage1Authority?.phaseConfiguration
             ?? null
           : null,
-       source: optimizedHydraulics
-         ? 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION'
-         : inRangeHydraulics
-        ? 'PERSISTED_STAGE3_HYDRAULIC_DIAGNOSTIC_POINT_NO_STAGE4_RESELECTION'
-        : 'PERSISTED_STAGE3_INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE_NO_STAGE4_RESELECTION',
+       source: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION',
       stage3RunId: input.stage3.id,
       stage3ImmutableHash: input.stage3.immutableHash,
        optimizerVersion: optimizedHydraulics ? ECR_STAGE3_STAGE4_OPTIMIZER_VERSION : null,
@@ -415,33 +386,25 @@ export function deriveStage4PrePilotSizing(input: {
     // Stage-2 is optional reference evidence for this fixed-design screening;
     // do not fabricate a compatibility finding when it is absent.
     stage2Stage1Compatibility: input.stage2Stage1Compatibility ?? null,
-     stage3HetsAdmission: optimizedHydraulics
-       ? {
+     stage3HetsAdmission: {
          status: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY',
          source: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION',
-       }
-       : inRangeHydraulics
-      ? {
-        status: 'PERSISTED_CALCULATED_IN_RANGE_HYDRAULICS',
-        source: 'PERSISTED_STAGE3_HYDRAULIC_DIAGNOSTIC_POINT_NO_STAGE4_RESELECTION',
-      }
-      : prePilotHetsAdmission,
+        },
     overallEfficiency: {
-      value: screeningEfficiency,
-      status: 'HETS_IMPLIED_GEOMETRIC_DIAGNOSTIC_NOT_PERFORMANCE',
+       value: STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
+       status: 'ADOPTED_PRE_PILOT_ENGINEERING_ASSUMPTION_NOT_CALCULATED_PERFORMANCE',
       dependency: null,
       closure: null,
     },
     hetsSizing: {
+       sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+       designCompartmentEfficiency: STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
       fixedDesignTheoreticalStages: STAGE4_HETS_DESIGN_NT,
       actualStage2TheoreticalStagesReference: actualStage2Available ? input.calculatedNt : null,
       stage3HydraulicColumnDiameterM: diameterM,
-       compartmentHeightRule: optimizedHydraulics
-         ? 'PERSISTED_STAGE3_SELECTED_hc'
-         : '0.5D',
+       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
       physicalCompartmentHeightM: compartmentHeightM,
-      screeningHetsMPerTheoreticalStage: hetsMPerTheoreticalStage,
-      calculatedScreeningCompartmentEfficiency: screeningEfficiency,
+       impliedInstalledHetsMPerTheoreticalStage,
       requiredActiveHeightM,
       requiredPhysicalCompartments,
       installedActiveHeightM,
@@ -449,36 +412,20 @@ export function deriveStage4PrePilotSizing(input: {
     },
     physicalGeometry: {
       pitchM: compartmentHeightM,
-       pitchAssumption: optimizedHydraulics
-         ? 'PERSISTED STAGE-3 OPTIMIZER GEOMETRY — selected hc/D is immutable lineage; pilot/vendor confirmation required'
-         : 'PROVISIONAL PRE-PILOT GEOMETRY — PILOT / VENDOR CONFIRMATION REQUIRED: hc = 0.5D',
-       equations: optimizedHydraulics
-         ? [
+       pitchAssumption: 'PERSISTED STAGE-3 OPTIMIZER GEOMETRY — selected hc/D is immutable lineage; pilot/vendor confirmation required',
+       equations: [
            'hc = persisted Stage-3 selected compartment height',
-           'ηHETS-implied = hc / HETS', 'Hrequired = Ndesign(7) × HETS',
-           'Nphysical = ceil(Ndesign(7) × HETS / hc)', 'Hinstalled = Nphysical × hc',
-         ]
-         : [
-           'hc = 0.5 × D', 'ηHETS-implied = hc / HETS', 'Hrequired = Ndesign(7) × HETS',
-           'Nphysical = ceil(Ndesign(7) × HETS / hc)', 'Hinstalled = Nphysical × hc',
+            'Nphysical = ceil(Ndesign(7) / ηcomp,design)',
+            'Hrequired = Hinstalled = Nphysical × hc',
+            'HETSimpl,installed = Hinstalled / Ndesign(7) (derived diagnostic only)',
          ],
     },
     assumptions: [
-       optimizedHydraulics
-         ? 'Stage 4 carries the persisted immutable Stage-3 optimizer geometry (D and hc) forward and does not recalculate or reselect hydraulic candidates.'
-         : 'Stage 4 carries the persisted Stage-3 selected hydraulic point forward and does not recalculate or reselect hydraulic candidates.',
-      ...(prePilotHetsAdmission ? [
-        'The independently checked Stage-3 pre-pilot candidate supplies diameter only to this HETS screening route; it is not governed hydraulics, finite-rate Stage 4, mass-transfer readiness, or commercial release authority.',
-        ...prePilotHetsAdmission.limitations.flatMap(limitation => limitation.details),
-      ] : []),
-      'Stage-4 HETS physical sizing deliberately fixes Ndesign = 7 for both NMP-continuous/RRBO-dispersed and RRBO-continuous/NMP-dispersed orientations. Any actual accepted Stage-2 N_T is retained as reference only and does not set this height or compartment count.',
-      'HETS = 0.40 m/theoretical stage is the explicit engineering screening basis; its applicability to the RRBO/NMP system is not established.',
-       ...(optimizedHydraulics
-         ? [
-           'The selected hc/D is constrained to the newly generated 0.20–0.30 optimizer grid; the Stage-3 geometry lineage is immutable.',
-         ]
-         : ['Compartment height hc = 0.5D is provisional pre-pilot geometry requiring pilot and vendor/mechanical confirmation.']),
-      'The HETS-implied compartment efficiency hc/HETS is a geometric screening implication, not independently predicted or experimentally validated performance.',
+       'Stage 4 carries the persisted immutable Stage-3 optimizer geometry (D and hc) forward and does not recalculate or reselect hydraulic candidates.',
+       'Stage-4 physical sizing deliberately fixes Ndesign = 7. Any actual accepted Stage-2 N_T is retained as reference only and does not set height or compartment count.',
+       'Design average physical-compartment efficiency ηcomp,design = 0.40 is an adopted pre-pilot engineering assumption, subject to validation/calibration from pilot performance or a validated mass-transfer/backmixing model; it is not a published Kühni constant or calculated NMP/RRBO efficiency.',
+       'The persisted Stage-3 hc is authoritative. Stage 4 does not select, modify, or infer compartment height.',
+       'Implied installed HETS = installed active height / 7 is a derived reporting diagnostic only, never a design input.',
       'Installed active height is not total vessel height. This screening makes no outlet, recovery, target-compliance, or final-design claim.',
     ],
   };
@@ -528,7 +475,6 @@ function isCurrentStage4Calculation(
 export async function loadStage4PrePilotSizingAuthority(
   userId: number,
   designId: number,
-  options: Stage4AuthorityOptions = {},
 ): Promise<Stage4PrePilotSizingAuthority> {
   const design = await pool.query<{ input_data: unknown }>(
     'SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2',
@@ -582,59 +528,12 @@ export async function loadStage4PrePilotSizingAuthority(
       ORDER BY created_at DESC,id DESC LIMIT 1`,
      [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH],
   );
-  let currentOptimizerRows = optimizerStage3Rows.rows;
-  if (!currentOptimizerRows.length && options.ensureCurrentOptimizer) {
-    // Keep the normal GET path side-effect free. A user-triggered Stage-4
-    // calculation is the explicit boundary at which the existing bounded,
-    // Stage-1-authoritative optimizer may be run and persisted.
-    const optimizerKey = `${userId}:${designId}:${stage1.immutableHash}`;
-    const existingCreation = optimizerCreationInFlight.get(optimizerKey);
-    if (existingCreation) {
-      await existingCreation;
-    } else {
-      const creation = (async () => {
-        const { createStage3Stage4OptimizerRun } = await import('../ecr-pre-pilot-service');
-        return createStage3Stage4OptimizerRun(userId, designId);
-      })();
-      optimizerCreationInFlight.set(optimizerKey, creation);
-      try {
-        await creation;
-      } finally {
-        if (optimizerCreationInFlight.get(optimizerKey) === creation) {
-          optimizerCreationInFlight.delete(optimizerKey);
-        }
-      }
-    }
-    const refreshed = await pool.query<{
-      id: string; immutable_hash: string; stage1_snapshot_hash: string;
-      implementation_hash: string;
-      stage2_job_id: string | null; stage2_result_hash: string | null;
-      parent_hydrodynamic_run_id: string | null; parent_hydrodynamic_run_hash: string | null;
-      process_basis: unknown; theoretical_stage_authority: unknown; result_snapshot: Record<string, any>;
-    }>(
-      `SELECT id::text,immutable_hash,stage1_snapshot_hash,implementation_hash,
-              stage2_job_id::text,stage2_result_hash,
-              parent_hydrodynamic_run_id::text,parent_hydrodynamic_run_hash,process_basis,
-              theoretical_stage_authority,result_snapshot
-         FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
-        WHERE design_id=$1 AND created_by=$2
-          AND stage1_snapshot_hash=$3
-          AND result_snapshot->'engine'->>'version'=$4
-          AND implementation_hash=$5
-          AND result_snapshot->'engine'->>'implementationHash'=$5
-        ORDER BY created_at DESC,id DESC LIMIT 1`,
-       [designId, userId, stage1.immutableHash, ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH],
-    );
-    currentOptimizerRows = refreshed.rows;
-  }
+  const currentOptimizerRows = optimizerStage3Rows.rows;
   // Historical rows remain replayable, but they are never a Stage-4 input.
   // In particular, do not fall back to a V1.x/V1.5 row whose legacy geometry
-  // implies hc=0.5D. The explicit Calculate action above is the only path
-  // allowed to establish the current optimizer authority.
+  // implies hc=0.5D. Stage 4 never creates missing Stage-3 authority.
   if (!currentOptimizerRows.length) {
-    fail(options.ensureCurrentOptimizer
-      ? 'STAGE4_CURRENT_STAGE3_OPTIMIZER_UNAVAILABLE'
-      : 'STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
+    fail('STAGE4_CURRENT_STAGE3_OPTIMIZER_REQUIRED');
   }
   const stage3Rows = { ...optimizerStage3Rows, rows: currentOptimizerRows };
   const row = stage3Rows.rows[0];
@@ -797,13 +696,13 @@ async function currentOptimizerRequiredResult(
     },
     designNt: {
       value: STAGE4_HETS_DESIGN_NT,
-      provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT',
-      label: 'FIXED STAGE-4 HETS PRE-PILOT PHYSICAL SIZING DESIGN BASIS (N_T=7)',
+      provenance: 'STAGE4_FIXED_PRE_PILOT_DESIGN_NT',
+      label: 'FIXED STAGE-4 PRE-PILOT PHYSICAL SIZING DESIGN BASIS (N_T=7)',
     },
     actualStage2NtReference: {
       value: null,
       status: 'NOT_AVAILABLE_REFERENCE_ONLY',
-      label: 'ACTUAL ACCEPTED STAGE-2 PREDICTIVE N_T — REFERENCE ONLY; NOT THE STAGE-4 HETS SIZING BASIS',
+      label: 'ACTUAL ACCEPTED STAGE-2 PREDICTIVE N_T — REFERENCE ONLY; NOT THE STAGE-4 SIZING BASIS',
       stage2JobId: null,
       stage2ResultHash: null,
     },
@@ -820,7 +719,7 @@ async function currentOptimizerRequiredResult(
     assumptions: [
       'A current Stage-3 optimizer record is required before new Stage-4 sizing.',
       'Legacy Stage-3 geometry and hc=0.5D Stage-4 records remain immutable historical evidence only.',
-      'Calculate Stage 4 runs the bounded Stage-1-authoritative optimizer first, then persists fixed-N_T=7 HETS sizing from its selected geometry.',
+      'Stage 4 cannot calculate until the required persisted Stage-3 authority exists; Calculate never creates or reruns Stage 3.',
     ],
     calculation: {
       status: 'UNRUN',
@@ -887,12 +786,9 @@ export async function getLiveStage4PrePilotSizing(userId: number, designId: numb
 }
 
 export async function calculateStage4PrePilotSizing(userId: number, designId: number) {
-  // This is the explicit side-effect boundary: if the current Stage-1
-  // snapshot has no optimizer row, create the existing bounded optimizer now.
-  // No legacy Stage-3 row can satisfy this authority.
-  const authority = await loadStage4PrePilotSizingAuthority(userId, designId, {
-    ensureCurrentOptimizer: true,
-  });
+  // Calculate consumes persisted Stage-3 authority only. It must never create,
+  // rerun, or replace a Stage-3 optimizer record.
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
   const lookup = () => pool.query<StoredCalculation>(
     `SELECT status,result_snapshot,progress_snapshot,error_code,attempt_token,started_at::text,
             deadline_at::text,completed_at::text
@@ -920,20 +816,7 @@ export async function calculateStage4PrePilotSizing(userId: number, designId: nu
          progress_snapshot,attempt_token,deadline_at,completed_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'CALCULATED',$11,
                '{"phase":"COMPLETE"}'::jsonb,$12,now(),now())
-        ON CONFLICT (created_by,design_id,lineage_hash) DO UPDATE SET
-          stage1_snapshot_hash=EXCLUDED.stage1_snapshot_hash,
-          stage2_job_id=EXCLUDED.stage2_job_id,
-          stage2_result_hash=EXCLUDED.stage2_result_hash,
-          stage3_run_id=EXCLUDED.stage3_run_id,
-          stage3_immutable_hash=EXCLUDED.stage3_immutable_hash,
-          targets_hash=EXCLUDED.targets_hash,
-          implementation_hash=EXCLUDED.implementation_hash,
-          status=EXCLUDED.status,
-          result_snapshot=EXCLUDED.result_snapshot,
-          progress_snapshot=EXCLUDED.progress_snapshot,
-          attempt_token=EXCLUDED.attempt_token,
-          deadline_at=EXCLUDED.deadline_at,
-          completed_at=EXCLUDED.completed_at`,
+         ON CONFLICT (created_by,design_id,lineage_hash) DO NOTHING`,
       [designId, userId, authority.lineageHash, authority.solverInput.stage1SnapshotHash,
          authority.solverInput.stage2JobId, authority.solverInput.stage2ResultHash,
         authority.solverInput.stage3RunId, authority.solverInput.stage3ImmutableHash,

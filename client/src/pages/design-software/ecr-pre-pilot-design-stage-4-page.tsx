@@ -1962,7 +1962,7 @@ export default function EcrPrePilotDesignStage4Page() {
         });
         const payload = await response.json().catch(() => ({}));
         if (response.status === 404) {
-          throw new Error("Save Stage 1 Inputs before opening HETS physical sizing.");
+          throw new Error("Save Stage 1 Inputs before opening compartment-efficiency physical sizing.");
         }
         if (!response.ok) {
           throw new Error(stringValue(
@@ -2049,13 +2049,13 @@ export default function EcrPrePilotDesignStage4Page() {
             </div>
             <div>
               <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-800">
-                Inputs → Thermodynamics → Hydraulic optimisation → HETS physical sizing
+                Inputs → Thermodynamics → Hydraulic optimisation → Compartment-efficiency physical sizing
               </p>
               <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">
-                HETS physical sizing · Stage 4
+                Compartment-efficiency physical sizing · Stage 4
               </h1>
               <p className="mt-1 text-xs text-slate-600">
-                Current fixed-Nₜ=7, HETS=0.40 m/theoretical stage pre-pilot screening
+                Fixed Nₜ=7 · Adopted design average compartment efficiency: 40% · Pre-pilot screening
                 {design?.projectNumber ? ` · ${String(design.projectNumber)}` : ""}
               </p>
             </div>

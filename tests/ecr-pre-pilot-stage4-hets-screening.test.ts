@@ -70,6 +70,11 @@ const { deriveStage4PrePilotSizing, calculateStage4PrePilotSizing } =
 const Panel = (await import('../client/src/components/ecr-pre-pilot/stage4-pre-pilot-sizing-panel')).default;
 
 const stage3Result = {
+  engine: {
+    version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+    implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+  },
+  stage1Authority: { snapshotHash: 's'.repeat(64) },
   processBasis: { stage1SnapshotHash: 's'.repeat(64) },
   theoreticalStagesUsed: {
     value: 5, provenance: 'STAGE_2_CALCULATED_NT', stage2JobId: 'stage-2',
@@ -82,6 +87,16 @@ const stage3Result = {
   hydraulicDiagnosticPoint: {
     status: 'CALCULATED_IN_RANGE',
     columnDiameterM: .974213,
+  },
+  stage4GeometryInput: {
+    status: 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY',
+    columnDiameterM: .6,
+    compartmentHeightM: .18,
+    hcToColumn: .3,
+    rotorDiameterM: .24,
+    rotorToColumn: .4,
+    freeArea: .3,
+    rpm: 50,
   },
 };
 
@@ -155,7 +170,7 @@ function optimizedStage3Row() {
 
 function resetDb() {
   state.row = null;
-  state.optimizer = false;
+  state.optimizer = true;
   state.optimizerRuns = 0;
   state.finiteRateRun.mockReset();
   state.query.mockReset();
@@ -188,23 +203,26 @@ function resetDb() {
   });
 }
 
-describe('Stage 4 deterministic HETS screening', () => {
-  it('calculates the fixed-Nt=7 HETS example without intermediate rounding', () => {
+describe('Stage 4 deterministic adopted-efficiency sizing', () => {
+  it('calculates fixed-Nt=7 and eta=.40 without intermediate rounding', () => {
     const result = deriveStage4PrePilotSizing({
       calculatedNt: 5,
       stage2JobId: 'stage-2',
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
-      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
+      stage3: {
+        id: 'stage-3', immutableHash: 'i'.repeat(64),
+        stage1SnapshotHash: 's'.repeat(64), result: stage3Result,
+      },
     });
     expect(result.hetsSizing).toMatchObject({
-      physicalCompartmentHeightM: .4871065,
-      screeningHetsMPerTheoreticalStage: .4,
-      calculatedScreeningCompartmentEfficiency: 1.21776625,
+      sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
+      designCompartmentEfficiency: .4,
+      physicalCompartmentHeightM: .18,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
-      requiredActiveHeightM: 2.8,
-      requiredPhysicalCompartments: 6,
-      installedActiveHeightM: 2.922639,
+      requiredActiveHeightM: 3.24,
+      requiredPhysicalCompartments: 18,
+      installedActiveHeightM: 3.24,
       designStatus: 'PRE-PILOT SCREENING',
     });
   });
@@ -213,11 +231,15 @@ describe('Stage 4 deterministic HETS screening', () => {
     const noHydraulics = {
       ...stage3Result,
       hydraulicDiagnosticPoint: null,
+      stage4GeometryInput: null,
     };
     expect(() => deriveStage4PrePilotSizing({
       calculatedNt: 5, stage2JobId: 'other',
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
-      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: noHydraulics },
+      stage3: {
+        id: 'stage-3', immutableHash: 'i'.repeat(64),
+        stage1SnapshotHash: 's'.repeat(64), result: noHydraulics,
+      },
     })).toThrow('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
   });
 
@@ -226,45 +248,51 @@ describe('Stage 4 deterministic HETS screening', () => {
     const result = await calculateStage4PrePilotSizing(7, 269);
     expect(state.finiteRateRun).not.toHaveBeenCalled();
     expect(result.calculation.status).toBe('CALCULATED');
-    expect(state.optimizerRuns).toBe(1);
+    expect(state.optimizerRuns).toBe(0);
     expect(result.hetsSizing).toMatchObject({
       physicalCompartmentHeightM: .18,
-      requiredActiveHeightM: 2.8,
-      requiredPhysicalCompartments: 16,
-      installedActiveHeightM: 2.88,
+      requiredActiveHeightM: 3.24,
+      requiredPhysicalCompartments: 18,
+      installedActiveHeightM: 3.24,
     });
     expect(result.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
   });
 
-  it('renders the HETS result card and does not promote outlet or target claims', () => {
+  it('renders the adopted-efficiency result card and does not promote outlet or target claims', () => {
     const result = deriveStage4PrePilotSizing({
       calculatedNt: 5, stage2JobId: 'stage-2',
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
-      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
+      stage3: {
+        id: 'stage-3', immutableHash: 'i'.repeat(64),
+        stage1SnapshotHash: 's'.repeat(64), result: stage3Result,
+      },
     });
-    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40' }, null, false];
+    state.values = [{ ...result, calculationModel: result.implementation.version }, null, false];
     state.index = 0;
     const html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
-    expect(html).toContain('Stage 4 HETS-Based Pre-Pilot Sizing');
-    expect(html).toContain('121.8%');
-    expect(html).toContain('2.92 m');
+    expect(html).toContain('Stage 4 Adopted-Efficiency Pre-Pilot Sizing');
+    expect(html).toContain('40%');
+    expect(html).toContain('3.24 m');
     expect(html).toContain('fixed-Nₜ=7');
-    expect(html).toContain('applicability to RRBO/NMP is not established');
+    expect(html).toContain('adopted pre-pilot engineering assumption');
     expect(html).toContain('No outlet,');
     expect(html).not.toContain('Predicted primary raffinate outlet');
   });
 
   it('renders a fixed-Nt=7 result when the actual Stage-2 reference is absent', () => {
     const result = deriveStage4PrePilotSizing({
-      stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
+      stage3: {
+        id: 'stage-3', immutableHash: 'i'.repeat(64),
+        stage1SnapshotHash: 's'.repeat(64), result: stage3Result,
+      },
     });
-    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40' }, null, false];
+    state.values = [{ ...result, calculationModel: result.implementation.version }, null, false];
     state.index = 0;
     let html = '';
     expect(() => {
       html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
     }).not.toThrow();
     expect(html).toContain('Actual accepted Stage-2 Nₜ (reference only)');
-    expect(html).toContain('HETS-implied compartment efficiency hc/HETS (not performance)');
+    expect(html).toContain('Implied installed HETS (derived diagnostic only)');
   });
 });
