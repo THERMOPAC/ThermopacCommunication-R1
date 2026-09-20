@@ -1,0 +1,8 @@
+{
+  "designId": 269,
+  "revision": 3,
+  "ruleset": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_APPROVED_TURBINE_PERFORATED_STATOR",
+  "historicalStage5Unchanged": true,
+  "stages2Through4Unchanged": true,
+  "upstreamHash": "6524163d0a40edf8a0c76365370237ae1d0598cf6f6251c1b27393c53ca5f83f"
+}

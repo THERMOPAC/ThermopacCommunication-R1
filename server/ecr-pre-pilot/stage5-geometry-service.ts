@@ -3,6 +3,9 @@ import { pool } from '../db';
 import { loadStage4PrePilotSizingAuthority } from './stage4-pre-pilot-sizing-service';
 import { STAGE5_INPUT_FIELDS, type Stage5Basis, type Stage5Inputs } from '../../shared/ecr-stage5-geometry';
 import { buildStage5R1Geometry, R1_RULES_MANIFEST, R2_RULES_MANIFEST, R2_RULESET } from '../../shared/ecr-stage5-r1';
+import {
+  APPROVED_COMPONENT_RULES_MANIFEST, APPROVED_COMPONENT_RULESET, buildStage5ApprovedComponentGeometry,
+} from '../../shared/ecr-stage5-approved-components';
 import { renderStage5Svg, type Stage5DrawingView } from '../../shared/ecr-stage5-drawings';
 
 export const STAGE5_VIEWS: Stage5DrawingView[] = ['ga', 'section', 'compartment', 'rotor', 'stator'];
@@ -58,8 +61,8 @@ export function validateStage5Inputs(input: any): Stage5Inputs {
   const number = (v: unknown) => v === null || (typeof v === 'number' && Number.isFinite(v));
   const classification = (v: unknown) => v === 'Engineer-entered' || v === 'Assumed';
   if (!input || !input.values || !Array.isArray(input.nozzles) || input.nozzles.length > 100 || !text(input.notes)) fail();
-  if (![null, undefined, 'flat-blade-turbine', 'flat-disc'].includes(input.rotorConstruction)
-    || ![null, undefined, 'annular-single-opening'].includes(input.statorConstruction)) fail();
+  if (![null, undefined, 'flat-blade-turbine', 'flat-disc', 'approved-double-entry-shrouded-turbine'].includes(input.rotorConstruction)
+    || ![null, undefined, 'annular-single-opening', 'approved-perforated-stator'].includes(input.statorConstruction)) fail();
   if (![null, undefined, 'nmp-down-rrbo-up', 'nmp-up-rrbo-down'].includes(input.flowArrangement)
     || (input.flowClassification !== undefined && !classification(input.flowClassification))
     || (input.flowNote !== undefined && !text(input.flowNote))
@@ -155,12 +158,18 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
   return { basis, sourceStage3, sourceStage4, sourceHash };
 }
 export const getStage5Basis = (u: number, d: number) => scoped(u, d, c => loadStage5Basis(c, u, d));
+/** Design 269 is the explicitly approved successor-component production
+ * boundary. Other designs continue to generate their historical R1/R2 rule
+ * version; they are never silently upgraded or resized. */
+export function buildCurrentStage5Geometry(designId: number, basis: Stage5Basis) {
+  return designId === 269 ? buildStage5ApprovedComponentGeometry(basis) : buildStage5R1Geometry(basis);
+}
 export function rejectStage5ConstructionOverrides(input: unknown) {
   if (input !== undefined) throw new Stage5Error('STAGE5_R1_CONSTRUCTION_OVERRIDES_FORBIDDEN', 400);
 }
 export const previewStage5 = (u: number, d: number, input?: unknown) => {
   rejectStage5ConstructionOverrides(input);
-  return scoped(u, d, async c => buildStage5R1Geometry((await loadStage5Basis(c, u, d)).basis));
+  return scoped(u, d, async c => buildCurrentStage5Geometry(d, (await loadStage5Basis(c, u, d)).basis));
 };
 
 export function verifyStage5Snapshot(row: any) {
@@ -191,8 +200,9 @@ export async function saveStage5Revision(u: number, d: number, input: unknown, e
   return scoped(u, d, async c => {
     const source = await loadStage5Basis(c, u, d);
     if (expectedSourceHash !== source.sourceHash) throw new Stage5Error('STAGE5_SOURCE_CHANGED');
-    const geometry = buildStage5R1Geometry(source.basis);
-    const rulesManifest = geometry.ruleset === R2_RULESET ? R2_RULES_MANIFEST : R1_RULES_MANIFEST;
+    const geometry = buildCurrentStage5Geometry(d, source.basis);
+    const rulesManifest = geometry.ruleset === APPROVED_COMPONENT_RULESET ? APPROVED_COMPONENT_RULES_MANIFEST
+      : geometry.ruleset === R2_RULESET ? R2_RULES_MANIFEST : R1_RULES_MANIFEST;
     const snapshot = JSON.parse(JSON.stringify({ inputs: geometry.inputs, geometry, ruleset: geometry.ruleset,
       rulesManifest, rulesManifestHash: stage5Hash(rulesManifest),
       geometryHash: stage5Hash(geometry), sourceStage3: source.sourceStage3,

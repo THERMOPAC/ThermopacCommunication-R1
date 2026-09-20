@@ -8,6 +8,7 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
   const d = g.dimensions as Record<string, number>, m = g.r1Model;
   if (!m) throw new Error("R1_FROZEN_DRAWING_MODEL_MISSING");
   const model = m;
+  const approved = model.approvedComponent;
   const titles = { ga: "GENERAL ARRANGEMENT", section: "LONGITUDINAL SECTION A–A", compartment: "DETAIL B — TYPICAL COMPARTMENT", rotor: "ROTOR — PLAN & ELEVATION", stator: "STATOR — PLAN & SECTION" };
   const sheet = new TechnicalSheet(titles[view]);
   const diameter = (key: string) => `Ø${mm(d[key])}`;
@@ -15,6 +16,13 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
     sheet.rect(cx - m.rotor.hub.diameterM*s/2, cy - m.rotor.hub.heightM*s/2, m.rotor.hub.diameterM*s, m.rotor.hub.heightM*s, "hub", "url(#section-hatch)");
     for (const profile of [model.rotor.profileM, model.rotor.oppositeProfileM])
       sheet.path(profile.map(([x,z],i)=>`${i?"L":"M"}${cx+x*s},${cy-z*s}`).join(" ")+" Z", "r1-stepped-blade", "url(#section-hatch)");
+    if (approved) for (const shroud of approved.rotor.shrouds) {
+      const z=(shroud.bottomM+shroud.topM)/2, t=shroud.topM-shroud.bottomM;
+      sheet.rect(cx-shroud.outerRadiusM*s,cy-(z+t/2)*s,
+        (shroud.outerRadiusM-shroud.innerRadiusM)*s,t*s,`${shroud.name}-shroud`,"url(#section-hatch)");
+      sheet.rect(cx+shroud.innerRadiusM*s,cy-(z+t/2)*s,
+        (shroud.outerRadiusM-shroud.innerRadiusM)*s,t*s,`${shroud.name}-shroud`,"url(#section-hatch)");
+    }
   };
   const ring = (cx: number, cy: number, s: number) => {
     sheet.rect(cx-d.columnDiameterM*s/2, cy-d.statorThicknessM*s/2, d.statorRadialWidthM*s, d.statorThicknessM*s, "stator-section-left", "url(#section-hatch)");
@@ -162,21 +170,30 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
     sheet.circle(cx,cy,d.shaftDiameterM*s/2); sheet.centerline(cx-r-35,cy,cx+r+35,cy); sheet.centerline(cx,cy-r-35,cx,cy+r+35);
     if(rotor) {
       sheet.circle(cx,cy,d.hubDiameterM*s/2);
+      if(approved) {
+        sheet.circle(cx,cy,approved.rotor.eyeDiameterM*s/2);
+        sheet.circle(cx,cy,approved.rotor.shrouds[0].outerRadiusM*s);
+      }
       for(const [i,b] of m.rotor.blades.entries()) sheet.parts.push(`<polygon class="object" data-blade="${i+1}" data-azimuth="${b.azimuthDeg}" points="${b.footprintM.map(([x,y])=>`${cx+x*s},${cy-y*s}`).join(" ")}" fill="url(#section-hatch)"/>`);
       sheet.dimensionH(cx-r,cx+r,cy,560,`SWEPT DR ${diameter("rotorDiameterM")}`);
       sheet.dimensionH(cx-d.hubDiameterM*s/2,cx+d.hubDiameterM*s/2,cy,610,`HUB ${diameter("hubDiameterM")}`);
       sheet.leader(cx,cy,80,710,`SHAFT ${diameter("shaftDiameterM")}`);
       sheet.leader(cx+r*.7,cy,405,750,`${m.rotor.blades.length} BLADES • ${m.bladeAzimuthsDeg.join("°, ")}°`);
       const ex=835,ey=365,es=420/d.rotorDiameterM;
-      sheet.text(ex,130,"ELEVATION / STEPPED PROFILE",18,"middle"); stepped(ex,ey,es); sheet.centerline(ex,210,ex,525);
+      sheet.text(ex,130,approved?"ELEVATION / SHROUDED PROFILE":"ELEVATION / STEPPED PROFILE",18,"middle"); stepped(ex,ey,es); sheet.centerline(ex,210,ex,525);
       sheet.dimensionV(ey-d.hubHeightM*es/2,ey+d.hubHeightM*es/2,ex,ex-70,`HUB H ${mm(d.hubHeightM)}`);
       sheet.dimensionV(ey-d.bladeHeightM*es/2,ey+d.bladeHeightM*es/2,ex+d.rotorDiameterM*es/2,1080,`H ${mm(d.bladeHeightM)}`);
       sheet.dimensionH(ex+d.hubDiameterM*es/2,ex+d.hubDiameterM*es/2+d.bladeRadialLengthM*es,ey,530,`BLADE RADIAL ${mm(d.bladeRadialLengthM)}`);
       sheet.leader(ex+d.rotorDiameterM*es*.37,ey-d.bladeHeightM*es/2,725,620,`BLADE t ${mm(d.bladeThicknessM)}`);
       sheet.leader(ex+d.hubDiameterM*es*.7,ey-d.bladeInnerSegmentHeightM*es/2,725,675,`INNER STEP H ${mm(d.bladeInnerSegmentHeightM)}`);
-      sheet.text(55,820,"Class-C reference-inspired stepped profile. Attachment and fabrication design excluded.",15);
+      if(approved) {
+        sheet.text(55,785,`UPPER + LOWER SHROUDS • each t ${mm(d.shroudThicknessM)} • eye Ø${mm(d.shroudInnerDiameterM)}`,15);
+        sheet.text(55,820,"Approved double-entry turbine component geometry. Attachment and fabrication design excluded.",15);
+      } else sheet.text(55,820,"Class-C reference-inspired stepped profile. Attachment and fabrication design excluded.",15);
     } else {
       sheet.circle(cx,cy,d.statorOpeningDiameterM*s/2);
+      if(approved) for(const h of approved.stator.holes)
+        sheet.parts.push(`<circle class="object" data-stator-hole="${h.row}-${h.index}" data-x-m="${h.xM}" data-y-m="${h.yM}" cx="${cx+h.xM*s}" cy="${cy-h.yM*s}" r="${approved.stator.holeDiameterM*s/2}" fill="white"/>`);
       sheet.dimensionH(cx-r,cx+r,cy,560,`COLUMN ID ${diameter("columnDiameterM")}`);
       sheet.dimensionH(cx-d.statorOpeningDiameterM*s/2,cx+d.statorOpeningDiameterM*s/2,cy,610,`OPENING do ${diameter("statorOpeningDiameterM")}`);
       sheet.leader(cx,cy,75,710,`SHAFT ${diameter("shaftDiameterM")}`);
@@ -187,12 +204,20 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
       sheet.text(680,615,`Empirical φs: ${d.statorFreeAreaRatio.toFixed(6)}`,17);
       sheet.text(680,645,`Gross opening fraction: ${d.grossFreeAreaRatio.toFixed(6)}`,17);
       sheet.text(680,675,`Shaft-blocked net fraction: ${d.shaftBlockedFreeAreaRatio.toFixed(6)}`,17);
-      sheet.text(680,720,"do = D √φs  •  gross = (do/D)²",15);
-      sheet.text(680,746,"net = (do² − ds²)/D²",15);
-      sheet.text(55,820,"Gross and shaft-blocked physical areas are reported separately; no feedback to Stage 3.",15);
+      sheet.text(680,720,approved?"gross = (112² + 84 dh²) / 600²":"do = D √φs  •  gross = (do/D)²",15);
+      sheet.text(680,746,approved?"PCD 200/310/420/530 • 12/18/24/30 holes":"net = (do² − ds²)/D²",15);
+      sheet.text(55,795,approved?`84 × Ø${mm(d.statorHoleDiameterM)} • centre Ø${mm(d.statorOpeningDiameterM)} • six ${mm(d.statorLaneWidthM)} no-hole lanes`:"Gross and shaft-blocked physical areas are reported separately; no feedback to Stage 3.",15);
+      sheet.text(55,820,approved?`Exact centres from approved manifest SHA-256 ${approved.manifestCanonicalSha256}`:"",12);
       sheet.callout(cx-r-25,cy,"A"); sheet.callout(cx+r+25,cy,"A");
     }
   }
+  if(approved && view!=="rotor" && view!=="stator") {
+    sheet.text(745,790,`APPROVED INTERNALS: DR Ø${mm(d.rotorDiameterM)} • eye Ø${mm(d.shroudInnerDiameterM)} • 6 blades t${mm(d.bladeThicknessM)}`,12);
+    sheet.text(745,810,`2 shrouds t${mm(d.shroudThicknessM)} • stator Ø112 + 84×Ø${mm(d.statorHoleDiameterM)}`,12);
+    sheet.text(745,830,"PCD/count: 200/12 • 310/18 • 420/24 • 530/30",12);
+  }
+  if(approved && (view==="rotor" || view==="stator"))
+    sheet.text(55,850,`COMPANION STATOR: Ø112 centre + 84 × Ø${mm(d.statorHoleDiameterM)} exact manifest holes`,12);
   return sheet.finish({ ruleset:g.ruleset??"R1",stage3:g.basis.stage3ResultId,stage4:g.basis.stage4ResultId,
     status:g.completionStatement??"",watermark:g.watermark,context,scale:view==="section"&&g.compartments.length>6?"BROKEN VIEW • repeated central section omitted":"FITTED SHEET • dimensions govern" }).replace("<svg ", `<svg data-view="${view}" `);
 }

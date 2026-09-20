@@ -29,9 +29,9 @@ Drawing-only improvements may expose an explicitly versioned new presentation of
 
 **How to apply:** Preserve original export access, hash-check saved geometry before and after rendering, and distinguish fixture verification downloads from actual user-design exports.
 
-Successor rotor–stator development is report-only until engineering review: use the user-established double-entry radial-flow shrouded six-blade construction, followed by eye sizing, centre opening and distributed stator perforations. Existing R1 single-opening geometry remains historical authority for its saved revisions.
+The approved double-entry shrouded turbine and perforated stator must be integrated into newly generated Stage-5 assemblies. Existing R1/R2 single-opening geometry remains historical authority for its saved revisions.
 
-**Why:** On 2026-09-20 the user initially prohibited implementation or revision/drawing replacement before engineering review, then explicitly approved the final turbine/stator component basis and requested whole-column assembly reconciliation. Component approval does not authorize overwriting historical revisions or establish fabrication qualification.
+**Why:** On 2026-09-20 the user approved the component basis and later identified its absence from the software exports as an integration defect. Updating only Stage-4 count/height left the old internals in new drawings. Integration must produce a new revision, not overwrite historical artifacts or imply fabrication qualification.
 
 **How to apply:** The user accepted the completed Stage-3 audit; keep it frozen unless a direct calculation inconsistency is found. Do not substitute discussion values for persisted RPM/flow. Retain gross centre-plus-hole free area separately from shaft/support-corrected diagnostics. Distinguish upper/lower eye-face open areas, internal geometric section areas and unproven hydraulic controlling throats. An area minimum in a radial-turn region is not automatically a series-flow restriction.
 
@@ -39,4 +39,4 @@ The approved component basis retains the nominal 130-mm eye and defines the 112-
 
 **Why:** The user explicitly selected geometric overlap as the preliminary design basis, accepted the shrouded six-blade architecture, excluded external mixing-section geometry, and subsequently approved the final component dimensions.
 
-**How to apply:** Freeze the approved component dimensions; change them only if an actual assembly interference is demonstrated. Reconcile the whole column against the existing 39-compartment/7020-mm active stack, keeping component approval distinct from assembly approval, production implementation and mechanical/fabrication qualification. Keep overlap sensitivity diagnostic only and preserve the accepted upstream audit and historical R1 artifacts.
+**How to apply:** Freeze the approved component dimensions; change them only if actual assembly interference is demonstrated. New assemblies consume the current fixed-seven/40%-efficiency Stage-4 stack; the original 39-compartment reconciliation remains historical. Verify every drawing and CAD data export includes holes and shrouds, while retaining assembly-interface and mechanical qualification holds.

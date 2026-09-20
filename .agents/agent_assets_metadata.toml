@@ -1255,3 +1255,31 @@ mtime_ms = 1789884391266
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7cf8ad13-1f74-41f4-b355-b2bcb3a9eb2e/e864a39d-d654-459d-b9cd-d604b0a42bdb"
 storage_version_token = "1789884430683950"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "WNDw4uAnjM8sxAY1TF7nX"
+uri = "file://deliverables/approved-stage5-internals/stage5-r3-drawings.pdf"
+type = "pdf"
+title = "Revision 3 — corrected internal geometry drawings"
+description = "Includes approved shrouded turbine and 84-hole perforated stator; 18 compartments and 19 stators. Preliminary, not for fabrication."
+logical_id = "6c535802-2256-48da-95ab-e95c254e958b"
+content_hash = "sha256:8e8261ed0ddc0be5855f49e754012564e95dac7ebf62dcf8ef5596fc3d131007"
+size = 171210
+mtime_ms = 1789906828811
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/6c535802-2256-48da-95ab-e95c254e958b/0df93298-a3e2-4455-b3c9-ccf20e491afd"
+storage_version_token = "1789906926397348"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "Ahe3aZmOjvIwLj8M6-aQi"
+uri = "file://deliverables/approved-stage5-internals/stage5-r3-design-data.pdf"
+type = "pdf"
+title = "Revision 3 — corrected CAD design data"
+description = "Approved component dimensions, exact perforation coordinates, shrouds and assembly schedules."
+logical_id = "93461cff-279e-45ac-aaa2-5ff3e2a25aef"
+content_hash = "sha256:f20f122140c0d97bfefa97a7da00acb1d70dae903906b74220dc35f6ef332be1"
+size = 153624
+mtime_ms = 1789906829819
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/93461cff-279e-45ac-aaa2-5ff3e2a25aef/ccbd2925-f48b-4187-8f59-1d23afcdf71a"
+storage_version_token = "1789906928602557"
+content_type = "application/pdf"

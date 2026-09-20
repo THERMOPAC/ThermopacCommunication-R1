@@ -49,8 +49,8 @@ export interface Stage5NozzleInput {
 export interface Stage5Inputs {
   values: Record<Stage5InputKey, Stage5InputValue>;
   /** Explicit proposal, not a source-qualified hydraulic construction. Missing means TBD. */
-  rotorConstruction?: "flat-blade-turbine" | "flat-disc" | "r1-stepped-rotor" | null;
-  statorConstruction?: "annular-single-opening" | null;
+  rotorConstruction?: "flat-blade-turbine" | "flat-disc" | "r1-stepped-rotor" | "approved-double-entry-shrouded-turbine" | null;
+  statorConstruction?: "annular-single-opening" | "approved-perforated-stator" | null;
   flowArrangement?: "nmp-down-rrbo-up" | "nmp-up-rrbo-down" | null;
   flowClassification?: "Engineer-entered" | "Assumed" | "System-generated";
   flowNote?: string;
@@ -84,6 +84,23 @@ export interface Stage5R1Model {
   skirtAccess: { widthM: number; heightM: number; elevationM: number; azimuthDeg: number };
   connections: { id: string; axis: string; centreM: [number, number, number]; endM: [number, number, number];
     outsideDiameterM: number; surfaceBoundaryM: [number, number, number][] }[];
+  /** Present only in the successor, user-approved component template. Values
+   * are component-local and are persisted so renderers never reconstruct them. */
+  approvedComponent?: {
+    manifestCanonicalSha256: string;
+    coordinateConvention: string;
+    rotor: {
+      eyeDiameterM: number; webHeightM: number; paddleHeightM: number;
+      shrouds: { name: "upper" | "lower"; innerRadiusM: number; outerRadiusM: number;
+        bottomM: number; topM: number }[];
+    };
+    stator: {
+      radiusM: number; thicknessM: number; centreOpeningDiameterM: number;
+      holeDiameterM: number; laneWidthM: number;
+      rows: { radiusM: number; pcdM: number; count: number; firstAngleDeg: number; stepDeg: number }[];
+      holes: { row: number; index: number; xM: number; yM: number; angleDeg: number }[];
+    };
+  };
 }
 export interface Stage5Geometry {
   ruleset?: string;

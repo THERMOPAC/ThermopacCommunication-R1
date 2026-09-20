@@ -1,5 +1,6 @@
 import type { Stage5Geometry } from "./ecr-stage5-geometry";
 import { renderStage5R1Svg, type Stage5DrawingContext } from "./ecr-stage5-r1-drawings";
+import { APPROVED_COMPONENT_RULESET } from "./ecr-stage5-approved-components";
 
 export type Stage5DrawingView = "ga" | "section" | "compartment" | "rotor" | "stator";
 const escape = (v: unknown) => String(v).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]!);
@@ -9,7 +10,8 @@ const fmt = (v: number | null | undefined) => typeof v === "number" && Number.is
 export function renderStage5Svg(g: Stage5Geometry, view: Stage5DrawingView, context?: Stage5DrawingContext): string {
   if (!["ga", "section", "compartment", "rotor", "stator"].includes(view)) throw new Error("Unknown Stage-5 drawing view");
   if (g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1"
-    || g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R2_ADOPTED_COMPARTMENT_EFFICIENCY")
+    || g.ruleset === "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R2_ADOPTED_COMPARTMENT_EFFICIENCY"
+    || g.ruleset === APPROVED_COMPONENT_RULESET)
     return renderStage5R1Svg(g, view, context);
   const d = g.dimensions;
   const parts: string[] = [];
