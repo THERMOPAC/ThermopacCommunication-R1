@@ -91,10 +91,10 @@ function optimizedStage3Row() {
     phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
   };
   const geometry = {
-    columnDiameterM: 0.8,
-    compartmentHeightM: 0.2,
+    columnDiameterM: 0.72,
+    compartmentHeightM: 0.18,
     hcToColumn: 0.25,
-    rotorDiameterM: 0.32,
+    rotorDiameterM: 0.288,
     rotorToColumn: 0.4,
     freeArea: 0.3,
   };
@@ -198,13 +198,13 @@ describe('Stage 4 deterministic HETS screening', () => {
     });
     expect(result.hetsSizing).toMatchObject({
       physicalCompartmentHeightM: .4871065,
-      screeningHetsMPerTheoreticalStage: 1,
-      calculatedScreeningCompartmentEfficiency: .4871065,
+      screeningHetsMPerTheoreticalStage: .4,
+      calculatedScreeningCompartmentEfficiency: 1.21776625,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 15,
-      installedActiveHeightM: 7.3065975,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 6,
+      installedActiveHeightM: 2.922639,
       designStatus: 'PRE-PILOT SCREENING',
     });
   });
@@ -227,7 +227,12 @@ describe('Stage 4 deterministic HETS screening', () => {
     expect(state.finiteRateRun).not.toHaveBeenCalled();
     expect(result.calculation.status).toBe('CALCULATED');
     expect(state.optimizerRuns).toBe(1);
-    expect(result.hetsSizing.installedActiveHeightM).toBe(7);
+    expect(result.hetsSizing).toMatchObject({
+      physicalCompartmentHeightM: .18,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 16,
+      installedActiveHeightM: 2.88,
+    });
     expect(result.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
   });
 
@@ -237,14 +242,14 @@ describe('Stage 4 deterministic HETS screening', () => {
       stage2ResultHash: stage3Result.theoreticalStagesUsed.stage2ResultHash,
       stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
     });
-    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7' }, null, false];
+    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40' }, null, false];
     state.index = 0;
     const html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
     expect(html).toContain('Stage 4 HETS-Based Pre-Pilot Sizing');
-    expect(html).toContain('48.7%');
-    expect(html).toContain('7.31 m');
+    expect(html).toContain('121.8%');
+    expect(html).toContain('2.92 m');
     expect(html).toContain('fixed-Nₜ=7');
-    expect(html).toContain('conservatism for RRBO/NMP is not established');
+    expect(html).toContain('applicability to RRBO/NMP is not established');
     expect(html).toContain('No outlet,');
     expect(html).not.toContain('Predicted primary raffinate outlet');
   });
@@ -253,7 +258,7 @@ describe('Stage 4 deterministic HETS screening', () => {
     const result = deriveStage4PrePilotSizing({
       stage3: { id: 'stage-3', immutableHash: 'i'.repeat(64), result: stage3Result },
     });
-    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7' }, null, false];
+    state.values = [{ ...result, calculationModel: 'ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40' }, null, false];
     state.index = 0;
     let html = '';
     expect(() => {

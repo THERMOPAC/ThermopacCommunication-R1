@@ -2055,7 +2055,7 @@ export default function EcrPrePilotDesignStage4Page() {
                 HETS physical sizing · Stage 4
               </h1>
               <p className="mt-1 text-xs text-slate-600">
-                Current fixed-Nₜ=7, HETS=1 m pre-pilot screening
+                Current fixed-Nₜ=7, HETS=0.40 m/theoretical stage pre-pilot screening
                 {design?.projectNumber ? ` · ${String(design.projectNumber)}` : ""}
               </p>
             </div>

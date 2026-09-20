@@ -11,7 +11,7 @@ const state = vi.hoisted(() => ({
   stage1Hash: 's'.repeat(64),
   stage2Available: true,
   currentOptimizer: false,
-  optimizerDiameterM: 0.8,
+  optimizerDiameterM: 0.72,
   optimizerRuns: 0,
   finiteRateRun: vi.fn(),
   query: vi.fn(),
@@ -178,7 +178,7 @@ function reset() {
   state.stage1Hash = 's'.repeat(64);
   state.stage2Available = true;
   state.currentOptimizer = false;
-  state.optimizerDiameterM = 0.8;
+  state.optimizerDiameterM = 0.72;
   state.optimizerRuns = 0;
   state.finiteRateRun.mockReset();
   state.query.mockReset();
@@ -244,10 +244,10 @@ describe('Stage 4 persisted HETS lifecycle', () => {
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
-      physicalCompartmentHeightM: 0.2,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 35,
-      installedActiveHeightM: 7,
+      physicalCompartmentHeightM: 0.18,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 16,
+      installedActiveHeightM: 2.88,
     });
     expect(first.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
     expect(state.finiteRateRun).not.toHaveBeenCalled();
@@ -319,17 +319,17 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     });
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 35,
-      installedActiveHeightM: 7,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 16,
+      installedActiveHeightM: 2.88,
     });
   });
 
-  it('treats a prior V2 HETS snapshot as historical and unrun until V3 is calculated', async () => {
+  it('treats the former optimized HETS implementation as historical under the 0.40 m basis', async () => {
     reset();
     await calculateStage4PrePilotSizing(8, 269);
     const saved = [...state.rows.values()][0];
-    saved.result_snapshot.implementation.version = 'ECR_STAGE4_HETS_SCREENING_V2';
+    saved.result_snapshot.implementation.version = 'ECR_STAGE4_HETS_SCREENING_V4_OPTIMIZED_GEOMETRY_NT7';
     saved.result_snapshot.implementation.implementationHash = '0'.repeat(64);
     const result = await getLiveStage4PrePilotSizing(8, 269);
     expect(result.status).toBe('UNRUN');

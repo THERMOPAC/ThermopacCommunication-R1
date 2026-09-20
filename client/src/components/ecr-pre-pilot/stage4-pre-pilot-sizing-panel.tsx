@@ -539,7 +539,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
   const historicalCalculationOnly = historicalPayload;
   const hetsSizing = record(displayResult?.hetsSizing);
   const isHetsResult = (
-    displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7"
+    displayResult?.calculationModel === "ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40"
     || optimizedStage3Geometry
   )
     && Object.keys(hetsSizing).length > 0;
@@ -843,13 +843,14 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <section className="rounded border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-950">
             <h4 className="text-xs font-semibold">Assumption governance</h4>
             <p className="mt-1">
-              Fixed Stage-4 design Nₜ = 7 and HETS = 1.0 m/theoretical stage are engineering
-              physical-sizing assumptions for both NMP-continuous/RRBO-dispersed and the reverse orientation.
+              Fixed Stage-4 design Nₜ = 7 and HETS = 0.40 m/theoretical stage are the engineering
+              physical-sizing basis for both NMP-continuous/RRBO-dispersed and the reverse orientation.
               {optimizedStage3Geometry
                 ? " The selected Stage-3 optimizer column diameter and hc are carried forward as immutable geometry; newly generated hc/D is constrained to 0.20–0.30."
                 : " Historical/pre-pilot records retain their original compartment geometry rule."}
-              {" "}Its conservatism for RRBO/NMP is not established. Column diameter, compartment pitch,
-              screening efficiency, and active height require pilot and final vendor/mechanical confirmation.
+              {" "}The HETS basis&apos;s applicability to RRBO/NMP is not established. Column diameter,
+              compartment pitch, the derived hc/HETS diagnostic, and active height require pilot and
+              final vendor/mechanical confirmation.
             </p>
             <p className="mt-1">
               The HETS-implied compartment efficiency is hc/HETS only; it is not independently predicted

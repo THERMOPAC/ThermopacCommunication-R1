@@ -5,6 +5,12 @@ description: User-approved assumption-based sizing replaces the operational fini
 
 Treat the operational Stage 4 result as fixed-`Ndesign=7` HETS-based pre-pilot physical screening, independently of the unqualified finite-rate/Broyden research route.
 
+The approved HETS basis is 0.40 m/theoretical stage; do not introduce a separate compartment-efficiency assumption or reoptimize Stage 3 when applying this basis.
+
+**Why:** The user explicitly reduced the assumed HETS while requiring preservation of all existing Stage-3 results.
+
+**How to apply:** Consume the persisted Stage-3 compartment height, round physical count upward, and retain old Stage-4/Stage-5 snapshots as historical. Any displayed hc/HETS ratio is a derived diagnostic only, never a second sizing input.
+
 New optimized sizing must never fall back to historical fixed-ratio geometry when a current optimizer result is absent.
 
 **Why:** Installing an optimizer alone left the real project displaying its old 0.50D result as current because no optimization had been saved. Historical compatibility must not silently defeat the user's changed design basis.

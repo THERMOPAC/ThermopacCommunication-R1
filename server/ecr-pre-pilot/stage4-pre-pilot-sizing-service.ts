@@ -25,13 +25,15 @@ const acceptedStage2Statuses = new Set([
 ]);
 
 export const STAGE4_HETS_DESIGN_NT = 7;
-export const STAGE4_HETS_IMPLEMENTATION_VERSION = 'ECR_STAGE4_HETS_SCREENING_V3_FIXED_DESIGN_NT7';
+export const STAGE4_HETS_M_PER_THEORETICAL_STAGE = 0.4;
+export const STAGE4_HETS_IMPLEMENTATION_VERSION =
+  'ECR_STAGE4_HETS_SCREENING_V4_FIXED_DESIGN_NT7_HETS0.40';
 export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_HETS_IMPLEMENTATION_VERSION,
   fixedPhysicalSizingDesignNt: STAGE4_HETS_DESIGN_NT,
   actualStage2Nt: 'OPTIONAL_SEPARATELY_LABELLED_REFERENCE_ONLY',
   compartmentHeightRule: 'hc = 0.5D',
-  screeningHets: 'HETS = 1.0 m/theoretical stage',
+  screeningHetsMPerTheoreticalStage: STAGE4_HETS_M_PER_THEORETICAL_STAGE,
   physicalCount: 'ceil(Ndesign * HETS / hc)',
   requiredHeight: 'Ndesign * HETS',
   installedHeight: 'Nphysical * hc',
@@ -40,7 +42,7 @@ export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.
   orientations: 'NMP_CONTINUOUS_RRBO_DISPERSED_OR_RRBO_CONTINUOUS_NMP_DISPERSED',
 })).digest('hex');
 export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION =
-  'ECR_STAGE4_HETS_SCREENING_V4_OPTIMIZED_GEOMETRY_NT7';
+  'ECR_STAGE4_HETS_SCREENING_V5_OPTIMIZED_GEOMETRY_NT7_HETS0.40';
 export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
   optimizerVersion: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
@@ -48,7 +50,7 @@ export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH = createHash('sha256').up
   fixedDesignPhysicalStages: STAGE4_HETS_DESIGN_NT,
   actualStage2Nt: 'REFERENCE_ONLY',
   selectedCompartmentHeight: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY',
-  screeningHets: 'HETS = 1.0 m/theoretical stage',
+  screeningHetsMPerTheoreticalStage: STAGE4_HETS_M_PER_THEORETICAL_STAGE,
   physicalCount: 'ceil(Ndesign * HETS / selected_hc)',
   requiredHeight: 'Ndesign * HETS',
   installedHeight: 'Nphysical * selected_hc',
@@ -314,9 +316,11 @@ export function deriveStage4PrePilotSizing(input: {
   const compartmentHeightM = optimizedHydraulics
     ? optimizerGeometry!.compartmentHeightM
     : .5 * diameterM;
-  const hetsMPerTheoreticalStage = 1;
+  const hetsMPerTheoreticalStage = STAGE4_HETS_M_PER_THEORETICAL_STAGE;
   const screeningEfficiency = compartmentHeightM / hetsMPerTheoreticalStage;
-  const requiredActiveHeightM = STAGE4_HETS_DESIGN_NT * hetsMPerTheoreticalStage;
+  const requiredActiveHeightM = Math.round(
+    STAGE4_HETS_DESIGN_NT * hetsMPerTheoreticalStage * 1e12,
+  ) / 1e12;
   const requiredPhysicalCompartments = Math.ceil(requiredActiveHeightM / compartmentHeightM);
   const installedActiveHeightM = requiredPhysicalCompartments * compartmentHeightM;
   if (!finite(compartmentHeightM) || !finite(screeningEfficiency)
@@ -424,7 +428,7 @@ export function deriveStage4PrePilotSizing(input: {
       : prePilotHetsAdmission,
     overallEfficiency: {
       value: screeningEfficiency,
-      status: 'HETS_IMPLIED_SCREENING_ASSUMPTION_NOT_PERFORMANCE',
+      status: 'HETS_IMPLIED_GEOMETRIC_DIAGNOSTIC_NOT_PERFORMANCE',
       dependency: null,
       closure: null,
     },
@@ -468,7 +472,7 @@ export function deriveStage4PrePilotSizing(input: {
         ...prePilotHetsAdmission.limitations.flatMap(limitation => limitation.details),
       ] : []),
       'Stage-4 HETS physical sizing deliberately fixes Ndesign = 7 for both NMP-continuous/RRBO-dispersed and RRBO-continuous/NMP-dispersed orientations. Any actual accepted Stage-2 N_T is retained as reference only and does not set this height or compartment count.',
-      'HETS = 1.0 m/theoretical stage is an explicit engineering screening assumption; its conservatism for the RRBO/NMP system is not established.',
+      'HETS = 0.40 m/theoretical stage is the explicit engineering screening basis; its applicability to the RRBO/NMP system is not established.',
        ...(optimizedHydraulics
          ? [
            'The selected hc/D is constrained to the newly generated 0.20–0.30 optimizer grid; the Stage-3 geometry lineage is immutable.',
@@ -490,8 +494,8 @@ export type Stage4PrePilotSizingAuthority = {
 /**
  * A Stage-4 calculation is current only when it was produced from the
  * currently accepted optimizer record.  Checking the Stage-4 implementation
- * hash alone is not sufficient: V3 HETS rows can carry the same fixed N_T=7
- * label while still containing the old width-first/0.5D geometry.
+ * hash alone is not sufficient: older HETS rows can carry the same fixed
+ * N_T=7 label while containing a superseded HETS basis or geometry.
  */
 function isCurrentStage4Calculation(
   authority: Stage4PrePilotSizingAuthority,

@@ -81,7 +81,7 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(resultSizing.selectedStage3Hydraulics.ranking?.diameterSelection)
       .toEqual(result.selectionRationale.diameterSelection);
     expect(resultSizing.selectedStage3Hydraulics.compartmentHeightM).toBe(0.08);
-    expect(resultSizing.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(7 / 0.08));
+    expect(resultSizing.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(2.8 / 0.08));
     expect(resultSizing.implementation.version).not.toContain('LEGACY');
   });
 
@@ -94,17 +94,17 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       stage3HydraulicColumnDiameterM: .974213,
       compartmentHeightRule: '0.5D',
       physicalCompartmentHeightM: .4871065,
-      screeningHetsMPerTheoreticalStage: 1,
-      calculatedScreeningCompartmentEfficiency: .4871065,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 15,
-      installedActiveHeightM: 7.3065975,
+      screeningHetsMPerTheoreticalStage: .4,
+      calculatedScreeningCompartmentEfficiency: 1.21776625,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 6,
+      installedActiveHeightM: 2.922639,
       designStatus: 'PRE-PILOT SCREENING',
     });
     expect(result.designNt).toMatchObject({ value: 7 });
     expect(result.actualStage2NtReference).toMatchObject({ value: 5, status: 'AVAILABLE_REFERENCE_ONLY' });
-    expect(result.mainOutputs.activeHeightM).toBe(7);
-    expect(result.mainOutputs.installedActiveHeightM).toBe(7.3065975);
+    expect(result.mainOutputs.activeHeightM).toBe(2.8);
+    expect(result.mainOutputs.installedActiveHeightM).toBe(2.922639);
   });
 
   it('keeps Stage-4 HETS sizing fixed at 7 when Stage-3 geometry is also fixed at 7', () => {
@@ -136,7 +136,7 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(result.actualStage2NtReference.value).toBe(4);
     expect(result.hetsSizing.fixedDesignTheoreticalStages).toBe(7);
     expect(result.hetsSizing.actualStage2TheoreticalStagesReference).toBe(4);
-    expect(result.hetsSizing.requiredActiveHeightM).toBe(7);
+    expect(result.hetsSizing.requiredActiveHeightM).toBe(2.8);
   });
 
   it.each([4, 10])('keeps physical sizing at fixed 7 when actual Stage-2 Nt is %i', actualNt => {
@@ -148,9 +148,9 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(result.actualStage2NtReference.value).toBe(actualNt);
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 15,
-      installedActiveHeightM: 7.3065975,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 6,
+      installedActiveHeightM: 2.922639,
     });
   });
 
@@ -166,9 +166,9 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: null,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 15,
-      installedActiveHeightM: 7.3065975,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 6,
+      installedActiveHeightM: 2.922639,
     });
   });
 
@@ -179,9 +179,9 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       overallEfficiency: .9,
     } as any);
 
-    expect(result.hetsSizing.screeningHetsMPerTheoreticalStage).toBe(1);
-    expect(result.hetsSizing.calculatedScreeningCompartmentEfficiency).toBe(.4871065);
-    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(15);
+    expect(result.hetsSizing.screeningHetsMPerTheoreticalStage).toBe(.4);
+    expect(result.hetsSizing.calculatedScreeningCompartmentEfficiency).toBe(1.21776625);
+    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(6);
   });
 
   it('does not require retired transport, RPM, d32, or holdup inputs for HETS sizing', () => {
@@ -234,9 +234,9 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(result.actualStage2NtReference.value).toBe(4);
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 21,
-      installedActiveHeightM: .6930996970569214 / 2 * 21,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 9,
+      installedActiveHeightM: .6930996970569214 / 2 * 9,
     });
     expect(result.hetsSizing.stage3HydraulicColumnDiameterM).toBe(.6930996970569214);
     expect(result.selectedStage3Hydraulics.source)
@@ -268,7 +268,7 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
       },
     });
     expect(result.actualStage2NtReference.value).toBeNull();
-    expect(result.hetsSizing.installedActiveHeightM).toBeCloseTo(7.2775468191, 10);
+    expect(result.hetsSizing.installedActiveHeightM).toBeCloseTo(3.1189486368, 10);
   });
 
   it('keeps reverse-orientation physical sizing at fixed 7 when actual Stage-2 Nt is 10', () => {
@@ -295,9 +295,9 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     expect(result.actualStage2NtReference.value).toBe(10);
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
-      requiredActiveHeightM: 7,
-      requiredPhysicalCompartments: 21,
-      installedActiveHeightM: .6930996970569214 / 2 * 21,
+      requiredActiveHeightM: 2.8,
+      requiredPhysicalCompartments: 9,
+      installedActiveHeightM: .6930996970569214 / 2 * 9,
     });
   });
 
@@ -311,7 +311,7 @@ describe('Stage 4 HETS pre-pilot sizing projection', () => {
     stale.stage3.result.theoreticalStagesUsed.stage2ResultHash = 'd'.repeat(64);
     const result = deriveStage4PrePilotSizing(stale);
     expect(result.actualStage2NtReference.value).toBe(5);
-    expect(result.hetsSizing.requiredActiveHeightM).toBe(7);
+    expect(result.hetsSizing.requiredActiveHeightM).toBe(2.8);
   });
 
   it('rejects a missing or invalid persisted Stage-3 screening diameter', () => {
