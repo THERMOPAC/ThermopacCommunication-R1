@@ -1204,14 +1204,14 @@ content_type = "application/pdf"
 id = "W6Qtm1BaD7tcomb0l9Jro"
 uri = "file://deliverables/kuhni-successor-review/engineering-review-report.pdf"
 type = "pdf"
-title = "Kühni turbine–stator engineering review"
-description = "28-page report: actual saved Stage-3 audit, proposed successor geometry, upper/lower entry-area calculations, perforation and clearance checks, three proposed drawings, provenance and unresolved decisions. Unapproved—NOT FOR FABRICATION."
+title = "Download Kühni turbine–stator engineering review PDF"
+description = "28-page engineering review report, including calculations and proposed drawings. Preliminary—NOT FOR FABRICATION."
 logical_id = "6b16bc44-a780-45bb-b567-81ddf8f78df2"
 content_hash = "sha256:68c0acdecf873575ce1c6134e0c5e6cc94eb39e8fdd78646b9d9eeefaea443d6"
 size = 1785218
 mtime_ms = 1789879816382
-storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/6b16bc44-a780-45bb-b567-81ddf8f78df2/10860ab4-460d-469c-8142-e1d23a549ddc"
-storage_version_token = "1789879877998295"
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/6b16bc44-a780-45bb-b567-81ddf8f78df2/a8855277-7890-491d-a347-5c3dba48965f"
+storage_version_token = "1789882228306686"
 content_type = "application/pdf"
 
 [[outputs]]
