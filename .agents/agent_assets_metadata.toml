@@ -1241,3 +1241,17 @@ mtime_ms = 1789882936994
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7f11fa2e-1553-4c81-b1b1-27e7de647a01/a10406f5-0f51-49b5-9043-91a056a5a10f"
 storage_version_token = "1789882969751703"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "xf7tsj-Zq1rsMYY1pW0qy"
+uri = "file://deliverables/ecr-assembly-reconciliation/whole-column-reconciliation.pdf"
+type = "pdf"
+title = "Download Approved Component Basis & Whole-Column Reconciliation"
+description = "20-page engineering report: frozen approved turbine/stator basis, reconciliation against actual saved Stage-5 revision and Stage-4 39-compartment stack, complete elevations, clearance checks and remaining assembly-interface holds. NOT FOR FABRICATION."
+logical_id = "7cf8ad13-1f74-41f4-b355-b2bcb3a9eb2e"
+content_hash = "sha256:bd8e2fa6252b78debda864c2ebc77f1971bee10fd21bf4e6b5e4dd1da97ec243"
+size = 903991
+mtime_ms = 1789884391266
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7cf8ad13-1f74-41f4-b355-b2bcb3a9eb2e/e864a39d-d654-459d-b9cd-d604b0a42bdb"
+storage_version_token = "1789884430683950"
+content_type = "application/pdf"

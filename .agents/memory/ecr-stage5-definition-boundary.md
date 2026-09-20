@@ -31,12 +31,12 @@ Drawing-only improvements may expose an explicitly versioned new presentation of
 
 Successor rotor–stator development is report-only until engineering review: use the user-established double-entry radial-flow shrouded six-blade construction, followed by eye sizing, centre opening and distributed stator perforations. Existing R1 single-opening geometry remains historical authority for its saved revisions.
 
-**Why:** On 2026-09-20 the user explicitly approved this development scope but prohibited implementation or revision/drawing replacement before reviewing the engineering report. Detailed eye, shroud and perforation dimensions are proposals, not approved rules.
+**Why:** On 2026-09-20 the user initially prohibited implementation or revision/drawing replacement before engineering review, then explicitly approved the final turbine/stator component basis and requested whole-column assembly reconciliation. Component approval does not authorize overwriting historical revisions or establish fabrication qualification.
 
 **How to apply:** The user accepted the completed Stage-3 audit; keep it frozen unless a direct calculation inconsistency is found. Do not substitute discussion values for persisted RPM/flow. Retain gross centre-plus-hole free area separately from shaft/support-corrected diagnostics. Distinguish upper/lower eye-face open areas, internal geometric section areas and unproven hydraulic controlling throats. An area minimum in a radial-turn region is not automatically a series-flow restriction.
 
-Final closure retains the nominal 130-mm eye and defines the 112-mm stator centre from a proposed 9-mm radial overlap. The previous 95%-of-turning-area sizing screen is rejected, not an optional successor sizing rule.
+The approved component basis retains the nominal 130-mm eye and defines the 112-mm stator centre from a 9-mm radial overlap. The previous 95%-of-turning-area sizing screen is rejected, not an optional successor sizing rule.
 
-**Why:** The user explicitly selected geometric overlap as the preliminary design basis, accepted the shrouded six-blade architecture, excluded external mixing-section geometry, and required a further report-only review before implementation or rule-set freeze.
+**Why:** The user explicitly selected geometric overlap as the preliminary design basis, accepted the shrouded six-blade architecture, excluded external mixing-section geometry, and subsequently approved the final component dimensions.
 
-**How to apply:** Keep overlap sensitivity diagnostic only, preserve the accepted upstream audit and historical R1 artifacts, and distinguish approval of the architecture from pending approval of the detailed successor rules.
+**How to apply:** Freeze the approved component dimensions; change them only if an actual assembly interference is demonstrated. Reconcile the whole column against the existing 39-compartment/7020-mm active stack, keeping component approval distinct from assembly approval, production implementation and mechanical/fabrication qualification. Keep overlap sensitivity diagnostic only and preserve the accepted upstream audit and historical R1 artifacts.

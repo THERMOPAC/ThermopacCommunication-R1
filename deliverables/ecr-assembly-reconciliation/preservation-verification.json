@@ -1,0 +1,9 @@
+{
+  "savedScientificEvidenceByteIdentical": true,
+  "savedEvidenceFileSha256BeforeAndAfter": "66e8e5d790c9ef70a1e464f9fc54054d1a1a8918709b2870cfbd15161a0ce7d6",
+  "applicationFilesChecked": 68,
+  "applicationFilesUnchanged": true,
+  "sourceListSha256BeforeAndAfter": "3bf5edf167fb4ea2c60d348b78e65855dc1455d92a734b0c3045d8b943388c29",
+  "upstreamAuditRerun": false,
+  "productionImplementationChanged": false
+}
