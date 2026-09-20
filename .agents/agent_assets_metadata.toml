@@ -1325,3 +1325,17 @@ mtime_ms = 1789924732896
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aadcafd6-b76e-451e-ae86-db03fa0bde07/2a9c6d5d-126c-41d8-8fc7-8eea6b7382dd"
 storage_version_token = "1789924742715170"
 content_type = "text/html"
+
+[[outputs]]
+id = "a5xSapXffHwz_QRsXepwU"
+uri = "file://deliverables/rrbo-hydraulic-method/report.html"
+type = "html"
+title = "Proposed RRBO-continuous hydraulic calculation method"
+description = "Primary-source review, recommended operating-holdup/drop-size/slip/capacity chain, quantified extrapolation and assumptions requiring approval. No hydraulic optimization or design changes."
+logical_id = "f0572363-eed6-4ac4-b61e-c1569d64427a"
+content_hash = "sha256:71c2616411d617c73a673ae9c3809ba680a2dffab748ba576721bce36ae64217"
+size = 26891
+mtime_ms = 1789925636508
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f0572363-eed6-4ac4-b61e-c1569d64427a/620ad7ee-f12f-45c3-aa4e-dad84913f265"
+storage_version_token = "1789925673114695"
+content_type = "text/html"
