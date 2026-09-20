@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design 269 Phase-Orientation Audit</title>
+<style>
+:root{--navy:#143452;--blue:#eaf3fa;--ink:#17212d;--muted:#596878;--line:#d8e0e8;--amber:#fff3cf;--red:#fbe8e8;--green:#e7f5ee}
+*{box-sizing:border-box}body{margin:0;background:#f3f6f8;color:var(--ink);font:14px/1.55 Arial,sans-serif}main{max-width:1120px;margin:28px auto;background:#fff;box-shadow:0 8px 28px #17324c22}header{padding:30px 38px;background:var(--navy);color:#fff}header h1{margin:0;font-size:27px}header p{margin:7px 0 0;color:#d9e8f4}section{padding:23px 38px;border-bottom:1px solid var(--line)}h2{margin:0 0 12px;color:var(--navy);font-size:19px}h3{font-size:15px;margin:18px 0 7px}.callout{padding:14px 16px;border-left:5px solid #3375a7;background:var(--blue)}.warn{background:var(--amber);border-color:#b97a00}.critical{background:var(--red);border-color:#a63232}.ok{background:var(--green);border-color:#287759}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(205px,1fr));gap:11px}.card{border:1px solid var(--line);border-radius:6px;padding:13px}.big{font-size:20px;font-weight:bold;color:var(--navy)}table{border-collapse:collapse;width:100%;margin:10px 0 16px}th,td{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}th{background:#edf2f6;color:#263c50}code{font-size:12px;overflow-wrap:anywhere}.small{font-size:12px;color:var(--muted)}ul{padding-left:21px}@media(max-width:650px){main{margin:0}header,section{padding:20px 16px}table{font-size:12px}}@media print{body{background:#fff}main{margin:0;box-shadow:none}section{break-inside:avoid}}
+</style></head><body><main>
+<header><h1>Design 269 · Phase-orientation authority audit</h1><p>Read-only persisted-evidence and source-flow review · no hydraulic recalculation</p></header>
+<section><div class="callout critical"><strong>Conclusion.</strong> Current Stage 1, Stage 3 run 64, and Stage 4 result 16 are <strong>wet NMP continuous / RRBO dispersed</strong>. Accepted Stage 2 job <code>145e…f5ef</code> is from an earlier <strong>RRBO continuous / NMP dispersed</strong> snapshot. Stage 2 remains usable only because its equilibrium identity explicitly excludes hydraulic orientation. The records do not identify whether the later orientation arose from user choice, UI default, or migration; no actor intent is inferred.</div></section>
+<section><h2>Current authority</h2><div class="grid">
+<div class="card"><div class="small">Stage 1</div><div class="big">NMP continuous</div><code>549dffa4…b5f15b</code><br>saved 2026-09-16 03:31:27.734Z</div>
+<div class="card"><div class="small">Stage 3 primary</div><div class="big">Run 64 · V1.3.0</div><code>e2afc059…788249</code><br>implementation <code>faa56fdd…ccb550</code></div>
+<div class="card"><div class="small">Selected geometry</div><div class="big">Ø 0.600 m</div>hc 0.180 m · Dr 0.198 m · free area 0.4</div>
+<div class="card"><div class="small">Stage 4 live persisted</div><div class="big">Result 16</div>η 0.35 · 20 compartments · 3.6 m active height</div>
+</div></section>
+<section><h2>Accepted Stage 2 versus current chain</h2>
+<table><tr><th>Evidence</th><th>Orientation</th><th>Identity / timestamp</th><th>Role</th></tr>
+<tr><td>Accepted Stage 2</td><td>RRBO continuous / NMP dispersed</td><td>Stage-1 hash <code>6ccf5381…fbe9</code><br>saved 2026-09-15 05:36:27.418Z<br>job completed 2026-09-15 07:34:35.795Z</td><td>7C-1.6.0; accepted N<sub>T</sub>=4; reference only</td></tr>
+<tr><td>Current Stage 1</td><td>NMP continuous / RRBO dispersed</td><td><code>549dffa4…b5f15b</code><br>saved 2026-09-16 03:31:27.734Z</td><td>Sole hydraulic property/orientation authority</td></tr>
+<tr><td>Current Stage 3</td><td>NMP continuous / RRBO dispersed</td><td>run 64 · <code>e2afc059…788249</code><br>2026-09-16 09:06:30.839Z</td><td>Selected D, RPM, d32, φ, loading</td></tr>
+<tr><td>Current Stage 4</td><td>NMP continuous / RRBO dispersed</td><td>result 16 · lineage <code>2feeeca2…69bf3</code><br>2026-09-20 16:23:12.866Z</td><td>Carries Stage-3 geometry; fixed Ndesign=7 and η=0.35</td></tr></table>
+<div class="callout">Persisted compatibility is <code>EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION</code>. Both snapshots have equilibrium-scientific hash <code>faa75060…1af</code>. This does not make their hydraulic phase assignments interchangeable.</div></section>
+<section><h2>What Stage 3 actually consumed</h2>
+<table><tr><th>Role</th><th>Identity</th><th>Q (m³/s)</th><th>ρ (kg/m³)</th><th>μ (Pa·s)</th></tr>
+<tr><td>Continuous</td><td>Wet NMP solvent</td><td>0.0005707717569786535</td><td>1015</td><td>0.001416</td></tr>
+<tr><td>Dispersed</td><td>RRBO feed</td><td>0.0011111111111111111</td><td>869</td><td>0.0598</td></tr></table>
+<p>Stage-1 σ = 0.011 N/m and T = 313.15 K. The ordinary optimizer path maps orientation twice: first into Kumar–Hartland operating holdup/direct-turbulence d32, then into the separate Myint/Garthe drag, swarm, turning-point flooding and loading admission.</p>
+<div class="grid"><div class="card"><div class="small">Selected RPM</div><div class="big">45 rpm</div></div><div class="card"><div class="small">d32</div><div class="big">4.4853 mm</div><span class="small">0.0044853344930663765 m</span></div><div class="card"><div class="small">Operating dispersed φ</div><div class="big">0.0639824</div></div><div class="card"><div class="small">Loading / limit</div><div class="big">0.475410 / 0.7</div></div></div>
+<p class="small">The saved candidate holdup is operating K&amp;H φ, not flood holdup. The optimizer shape does not persist selected flood holdup or flood superficial velocity; those values are not invented here. The selected trial is SCALE_UP_EXTRAPOLATION.</p></section>
+<section><h2>Search bounds versus feasible evidence</h2>
+<div class="callout warn"><strong>30–70 rpm is the search grid, not the feasible window.</strong> The selected geometry's saved feasible grid points are 30–60 rpm. At 65 and 70 rpm the loading exceeds 0.7.</div>
+<table><tr><th>RPM</th><th>d32 (m)</th><th>φ</th><th>Actual loading</th><th>Saved disposition</th></tr>
+<tr><td>30</td><td>0.007296327963</td><td>0.05224897288</td><td>0.2921771829</td><td>Pass</td></tr>
+<tr><td>35</td><td>0.006064125761</td><td>0.05548406697</td><td>0.3504492776</td><td>Pass</td></tr>
+<tr><td>40</td><td>0.005166279081</td><td>0.05938579841</td><td>0.4115007343</td><td>Pass</td></tr>
+<tr><td><strong>45</strong></td><td><strong>0.004485334493</strong></td><td><strong>0.06398240117</strong></td><td><strong>0.4754099937</strong></td><td><strong>Selected</strong></td></tr>
+<tr><td>50</td><td>0.003952627131</td><td>0.06929975812</td><td>0.5422738268</td><td>Pass</td></tr>
+<tr><td>55</td><td>0.003525450532</td><td>0.07536183028</td><td>0.6121997395</td><td>Pass</td></tr>
+<tr><td>60</td><td>0.003175911209</td><td>0.08219097319</td><td>0.6853015800</td><td>Pass</td></tr>
+<tr><td>65</td><td>0.002885053191</td><td>0.08980817762</td><td>0.7616968758</td><td>Fail</td></tr>
+<tr><td>70</td><td>0.002639564049</td><td>0.09823325739</td><td>0.8415051633</td><td>Fail</td></tr></table>
+<p>The 20 rpm minimum useful width is a ranking preference, not a hydraulic limit. Run 64 retained 0.5 m as the smallest accepted adequate diameter and selected 0.6 m as the next-smallest deliberate grid margin.</p></section>
+<section><h2>Dependency and direction audit</h2>
+<table><tr><th>Output</th><th>Directional dependencies</th><th>Finding</th></tr>
+<tr><td>d32</td><td>σ, continuous ρ, ψ; ψ derives from Np, RPM and geometry</td><td>Orientation-bearing continuous properties flow into the kernel.</td></tr>
+<tr><td>Operating φ</td><td>Qc/Qd, Uc/Ud, continuous/dispersed density, σ, ψ, free area</td><td>Saved φ is RRBO dispersed in NMP.</td></tr>
+<tr><td>Myint state</td><td>Δρ=ρc−ρd, κ=μd/μc, Re, Eo, Mo, Ta</td><td>Ordinary branch requires heavier continuous; it does not use |Δρ|.</td></tr>
+<tr><td>Garthe/swarm/flooding</td><td>Directional terminal/drag state, Qd/Qc, holdup turning point</td><td>Loading and candidate admission are orientation-dependent.</td></tr>
+<tr><td>D and RPM</td><td>Finite equations, tip speed, loading ≤0.7, contiguous-window ranking</td><td>600 mm and 45 rpm are keyed to current NMP-continuous lineage.</td></tr></table>
+<p>The optimizer's alternate orientation is comparison-only and cannot replace Stage-1 authority. Run 64's RRBO-continuous comparison selected 1.3 m, 30–50 rpm, and 40 rpm, but is explicitly reverse-swarm/flooding-unqualified extrapolation—not an admitted alternative.</p></section>
+<section><h2>Orientation-flip impact matrix</h2>
+<table><tr><th>Item</th><th>Impact</th><th>Audit disposition</th></tr>
+<tr><td>D=600 mm</td><td>Impacted</td><td>May numerically recur, but old NMP-continuous selection cannot prove post-flip feasibility.</td></tr>
+<tr><td>30–60 window; 45 rpm</td><td>Impacted</td><td>Directional loading and admission must be established by new governed evidence.</td></tr>
+<tr><td>d32, φ, flood loading</td><td>Impacted</td><td>Depend on continuous/dispersed ρ, μ, Q, σ and directional closures.</td></tr>
+<tr><td>Accepted Stage-2 N<sub>T</sub>=4</td><td>Independent for orientation-only change</td><td>Reference only; equality proven by persisted compatibility hash.</td></tr>
+<tr><td>Fixed design N<sub>T</sub>=7 and η=0.35</td><td>Independent adopted bases</td><td>Not derived from hydraulic orientation or Stage-2 N<sub>T</sub>.</td></tr>
+<tr><td>20 compartments</td><td>Equation independent</td><td>ceil(7/0.35); still cannot support a current design without valid Stage-3 authority.</td></tr>
+<tr><td>3.6 m active height</td><td>Impacted through hc</td><td>20 × persisted hc=0.18 m; new selected geometry may change hc.</td></tr></table></section>
+<section><h2>Source citations</h2><ul>
+<li>Stage-1 projection: <code>server/ecr-pre-pilot/stage1.ts:161-206</code>; equilibrium-only exclusion: <code>:388-412</code>.</li>
+<li>K&amp;H orientation, flows, φ and d32: <code>server/ecr-pre-pilot/kuhni-hydrodynamics.ts:80-140</code>.</li>
+<li>Myint/Garthe mapping and flooding: <code>server/ecr-pre-pilot/kuhni-geometry-resolver.ts:126-146,149-244</code>.</li>
+<li>Optimizer bounds, dispatch, window and authority: <code>server/ecr-pre-pilot/stage3-stage4-optimizer.ts:77-107,529-533,665-735,1125-1171,1371-1395</code>.</li>
+<li>Stage-4 compatibility and immutable carry-forward: <code>server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts:141-175,254-305,342-365,511-564</code>.</li>
+<li>Save semantics and absent cause field: <code>server/ecr-pre-pilot-service.ts:272-302</code>; UI default/hydration: <code>client/src/pages/design-software/ecr-pre-pilot-design-page.tsx:361-428</code>.</li>
+</ul><p class="small">Machine-readable redacted evidence is provided in evidence.json. It contains saved values only; no hydraulic calculations were rerun.</p></section>
+</main></body></html>

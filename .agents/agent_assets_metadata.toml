@@ -1297,3 +1297,17 @@ mtime_ms = 1789922655768
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/6e932065-b0fa-4783-9c25-fbf861f39b2d/0184c4ff-f4dc-4924-9602-91c2c29f46f4"
 storage_version_token = "1789922691089734"
 content_type = "text/html"
+
+[[outputs]]
+id = "pLJrbJfOBYSTzfPMJG-W4"
+uri = "file://deliverables/phase-orientation-audit/report.html"
+type = "html"
+title = "Hydraulic phase-orientation audit — Design 269"
+description = "Saved chronology, calculation-by-calculation phase mapping, RPM-window findings, source citations and orientation-change impact matrix. Read-only; no recalculation or design changes."
+logical_id = "e1ebad59-3ad0-4b2b-b2b9-40359301c959"
+content_hash = "sha256:9bc534fe889f01bf00318ab4afd6de9fed36b683b0df5b8715ff86b3cc29adf0"
+size = 11026
+mtime_ms = 1789923373400
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/e1ebad59-3ad0-4b2b-b2b9-40359301c959/41b53d13-2957-4ea2-a552-82e7389cb750"
+storage_version_token = "1789923400153376"
+content_type = "text/html"

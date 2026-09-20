@@ -1,0 +1,154 @@
+{
+  "audit": {
+    "designId": 269,
+    "scope": "READ_ONLY_PERSISTED_EVIDENCE_AND_SOURCE_TRACE",
+    "databaseTransaction": "BEGIN READ ONLY; ROLLBACK",
+    "hydraulicRecalculationPerformed": false,
+    "databaseWritesPerformed": false,
+    "redaction": "User identifiers, credentials, connection data, and unrelated payloads omitted."
+  },
+  "currentAuthority": {
+    "stage1": {
+      "savedAt": "2026-09-16T03:31:27.734Z",
+      "designUpdatedAt": "2026-09-16T03:31:27.738Z",
+      "immutableHash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+      "phaseConfiguration": "nmp-continuous-rrbo-dispersed",
+      "operatingTemperatureC": 40,
+      "temperatureK": 313.15,
+      "rrbo": {
+        "flowM3S": 0.0011111111111111111,
+        "densityKgM3": 869,
+        "dynamicViscosityPaS": 0.0598
+      },
+      "wetNmp": {
+        "flowM3S": 0.0005707717569786535,
+        "densityKgM3": 1015,
+        "dynamicViscosityPaS": 0.001416
+      },
+      "interfacialTensionNM": 0.011
+    },
+    "stage3": {
+      "runId": "64",
+      "createdAt": "2026-09-16T09:06:30.839Z",
+      "engineVersion": "ECR_STAGE3_STAGE4_OPTIMIZER_V1.3.0",
+      "implementationHash": "faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550",
+      "immutableHash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+      "calculationHash": "f7cacea88792a9b70aecb65e187728c5e4aae1fa038920a450d9e2385bf850ef",
+      "optimizerResultHash": "8616a167dde2a52f5cd14c65e132776e9796d2f360c204dbcff4903991fc9c4e",
+      "selectedOrientation": "nmp-continuous-rrbo-dispersed",
+      "searchBoundsRpm": [30, 70],
+      "searchStepRpm": 5,
+      "provenFeasibleWindowForSelectedGeometryRpm": [30, 60],
+      "selectedRpm": 45,
+      "selectedGeometry": {
+        "columnDiameterM": 0.6,
+        "compartmentHeightM": 0.18,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.198,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "selectedTrial": {
+        "classification": "SCALE_UP_EXTRAPOLATION",
+        "d32M": 0.0044853344930663765,
+        "operatingDispersedHoldupPhi": 0.06398240117180216,
+        "interfacialAreaM2M3": 85.58880226753513,
+        "actualLoading": 0.47540999374941056,
+        "designFloodFraction": 0.7,
+        "hydraulicPass": true,
+        "powerW": 0.15637129390505705,
+        "powerVolumeWM3": 3.072501775637703,
+        "psiWKg": 0.003027095345455865,
+        "tipSpeedMS": 0.46652650905808435,
+        "rotorReynolds": 21076.302966101695
+      },
+      "selectedGeometrySavedTrials": [
+        {"rpm":30,"d32M":0.007296327963164739,"phi":0.05224897288173679,"actualLoading":0.29217718294824435,"pass":true},
+        {"rpm":35,"d32M":0.006064125760906004,"phi":0.05548406696898936,"actualLoading":0.35044927764783795,"pass":true},
+        {"rpm":40,"d32M":0.005166279081251699,"phi":0.05938579840753819,"actualLoading":0.41150073430711503,"pass":true},
+        {"rpm":45,"d32M":0.0044853344930663765,"phi":0.06398240117180216,"actualLoading":0.47540999374941056,"pass":true},
+        {"rpm":50,"d32M":0.003952627131174431,"phi":0.06929975812223538,"actualLoading":0.5422738268489098,"pass":true},
+        {"rpm":55,"d32M":0.003525450531913343,"phi":0.07536183027523072,"actualLoading":0.612199739521508,"pass":true},
+        {"rpm":60,"d32M":0.003175911209163163,"phi":0.08219097318587484,"actualLoading":0.6853015800429325,"pass":true},
+        {"rpm":65,"d32M":0.0028850531912733594,"phi":0.08980817762087472,"actualLoading":0.761696875831426,"pass":false},
+        {"rpm":70,"d32M":0.0026395640485276295,"phi":0.09823325738585127,"actualLoading":0.8415051633252365,"pass":false}
+      ],
+      "diameterSelection": {
+        "rule": "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+        "smallestAcceptedAdequateDiameterM": 0.5,
+        "selectedNextSmallestAcceptedDiameterM": 0.6,
+        "minimumWindowWidthPreferenceRpm": 20,
+        "preferenceMeaning": "RANKING_PREFERENCE_NOT_HYDRAULIC_LIMIT"
+      },
+      "comparisonOnlyReverseOrientation": {
+        "orientation": "rrbo-continuous-nmp-dispersed",
+        "status": "FEASIBLE_COMPARISON",
+        "selectedGeometryDiameterM": 1.3,
+        "windowRpm": [30, 50],
+        "selectedRpm": 40,
+        "d32M": 0.003055005109269474,
+        "holdup": 0.14031802831347545,
+        "actualLoading": 0.397851433797785,
+        "qualification": "SCALE_UP_EXTRAPOLATION_WITH_REVERSE_SWARM_AND_FLOODING_UNQUALIFIED"
+      }
+    },
+    "stage4": {
+      "calculationId": "16",
+      "status": "CALCULATED",
+      "completedAt": "2026-09-20T16:23:12.866Z",
+      "lineageHash": "2feeeca2b7bba568f1b22e47b0d20554a807322e207e1db11de85483c4869bf3",
+      "stage3RunId": "64",
+      "stage3ImmutableHash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+      "implementationVersion": "ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V2_FIXED_DESIGN_NT7_ETA0.35",
+      "implementationHash": "b6893ba2bc448ef35d1e9abdd83158602e0b7956a481028416821cfc9b66f58a",
+      "orientation": "nmp-continuous-rrbo-dispersed",
+      "diameterM": 0.6,
+      "selectedRpm": 45,
+      "fixedDesignNt": 7,
+      "adoptedEfficiency": 0.35,
+      "physicalCompartments": 20,
+      "activeHeightM": 3.6
+    }
+  },
+  "acceptedStage2Reference": {
+    "jobId": "145e962e-892a-4424-aab9-91532af9f5ef",
+    "createdAt": "2026-09-15T05:36:33.122Z",
+    "completedAt": "2026-09-15T07:34:35.795Z",
+    "persistedStage1SavedAt": "2026-09-15T05:36:27.418Z",
+    "persistedStage1Hash": "6ccf5381167d4deb01d313881b63f5bb537c8bc729e3902b2919fc1f4397fbe9",
+    "persistedPhaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "engineVersion": "7C-1.6.0",
+    "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+    "engineHash": "ff35a410554e3f30bb43715691752fdc2f6a016a4689c885bf91272a17c7b486",
+    "stage2ResultHash": "4a5c37ac721bc37616b56d706a182d492bb60d56c281a48257ecc195db5d06ef",
+    "acceptedPredictiveNt": 4,
+    "currentCompatibility": {
+      "status": "EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION",
+      "excludedField": "stage1.phaseConfiguration",
+      "equilibriumScientificInputHashBothSnapshots": "faa75060eb246fd90993e01245e4e052b968c7bf81bb262532abfea2ac7ce1af"
+    }
+  },
+  "orientationChronology": [
+    {"at":"2026-09-14T14:57:51.801Z","evidence":"Stage2 embedded Stage1 save","phase":"rrbo-continuous-nmp-dispersed","hash":"8d9eee479148332de99872839178a8369b972d26cfcca1482d218752ec9c000c"},
+    {"at":"2026-09-15T05:36:27.418Z","evidence":"Accepted Stage2 embedded Stage1 save","phase":"rrbo-continuous-nmp-dispersed","hash":"6ccf5381167d4deb01d313881b63f5bb537c8bc729e3902b2919fc1f4397fbe9"},
+    {"at":"2026-09-15T09:20:09.276Z","evidence":"Stage3 run 12 creation; save time unavailable in this ledger","phase":"nmp-continuous-rrbo-dispersed","hash":"c1a9be0656e9204cd30034a4f291f13924e7e6b112d73c6d52811e3df70e2f3c"},
+    {"at":"2026-09-15T10:17:14.494Z","evidence":"Stage3 run 13 creation; save time unavailable in this ledger","phase":"rrbo-continuous-nmp-dispersed","hash":"3805119f757dedf2f9c2e10cab7a44fbca48fb4c956815691981f6cab811ac33"},
+    {"at":"2026-09-15T10:21:16.236Z","evidence":"Stage3 run 14 creation; save time unavailable in this ledger","phase":"nmp-continuous-rrbo-dispersed","hash":"52abf0c72c7d959250278325ceac8a7bf562d8331a720a2f95b3bcdaa55caba1"},
+    {"at":"2026-09-15T10:46:14.491Z","evidence":"Stage3 run 15 creation; save time unavailable in this ledger","phase":"rrbo-continuous-nmp-dispersed","hash":"e4137f46b51c7eb17e0ec7bb7077fb5dd24cb93acedce531d40420b53bb4f8af"},
+    {"at":"2026-09-16T03:05:39.445Z","evidence":"Stage3 run 26 creation; save time unavailable in this ledger","phase":"nmp-continuous-rrbo-dispersed","hash":"662406c9f2e275cd949101734f867e79c5b4c1a98d9c28247e449e75000295de"},
+    {"at":"2026-09-16T03:29:12.503Z","evidence":"Stage3 run 59 creation; save time unavailable in this ledger","phase":"rrbo-continuous-nmp-dispersed","hash":"5ad25d852bde334e00f8452eff18c5107114da2f49866ea32502a8ab6a4c6640"},
+    {"at":"2026-09-16T03:31:27.734Z","evidence":"Current Stage1 exact savedAt","phase":"nmp-continuous-rrbo-dispersed","hash":"549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b"},
+    {"at":"2026-09-16T09:06:30.839Z","evidence":"Current primary Stage3 run 64","phase":"nmp-continuous-rrbo-dispersed","hash":"e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249"},
+    {"at":"2026-09-20T16:23:12.866Z","evidence":"Current Stage4 result 16","phase":"nmp-continuous-rrbo-dispersed","hash":"2feeeca2b7bba568f1b22e47b0d20554a807322e207e1db11de85483c4869bf3"}
+  ],
+  "causeAttribution": {
+    "recordedCause": null,
+    "recordedActorIntent": null,
+    "findings": [
+      "The persisted records prove multiple orientation-bearing Stage1 snapshots and downstream runs.",
+      "The design table stores only the current Stage1 snapshot; the Stage1 save path stores no user/default/migration cause field or event type.",
+      "The client form has an NMP-continuous default, but persisted evidence does not prove that default caused the current save.",
+      "No actor intent is inferred."
+    ]
+  }
+}
