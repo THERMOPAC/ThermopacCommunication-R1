@@ -1,0 +1,70 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Design269 — Disengagement Assessment</title>
+<style>
+:root{--ink:#172033;--muted:#5d687b;--line:#d8dee9;--navy:#15345b;--blue:#eaf2fb;--amber:#fff4d6;--red:#8f2431;--green:#1d6b4f}
+*{box-sizing:border-box}body{margin:0;background:#f3f6fa;color:var(--ink);font:14px/1.5 Arial,sans-serif}
+main{max-width:1100px;margin:28px auto;background:white;box-shadow:0 8px 30px #1a2d4820}
+header{padding:30px 38px;background:var(--navy);color:white}header p{margin:6px 0 0;color:#d9e7f6}
+section{padding:24px 38px;border-bottom:1px solid var(--line)}h1{font-size:25px;margin:0}h2{font-size:18px;color:var(--navy);margin:0 0 14px}h3{font-size:15px;margin:18px 0 8px}
+.verdict,.warning,.note{padding:14px 16px;border-left:5px solid}.verdict{background:#fbe9eb;border-color:var(--red)}.warning{background:var(--amber);border-color:#bf7a00}.note{background:var(--blue);border-color:#3b6f9e}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.card{border:1px solid var(--line);padding:14px;border-radius:6px}.big{font-size:21px;font-weight:bold;color:var(--navy)}
+table{border-collapse:collapse;width:100%;margin:10px 0 18px}th,td{padding:8px 9px;border:1px solid var(--line);text-align:left;vertical-align:top}th{background:#edf2f8;color:#263b58}code{font-size:12px}ul{margin:8px 0;padding-left:22px}.small{font-size:12px;color:var(--muted)}
+@media(max-width:650px){main{margin:0}header,section{padding:22px 18px}table{font-size:12px}}
+@media print{body{background:white}main{margin:0;box-shadow:none}section{break-inside:avoid}}
+</style></head><body><main>
+<header><h1>Design269 · Read-only disengagement assessment</h1><p>Proposed top Ø1.2 m × 1.5 m; bottom Ø1.2 m × 0.9 m · 40 °C saved basis</p></header>
+<section><div class="verdict"><strong>Qualified conclusion — not ready for disengagement adequacy acceptance.</strong><br>
+<strong>Phase-orientation mismatch:</strong> the user proposal is RRBO-continuous, while the current saved authority is <strong>NMP-continuous / RRBO-dispersed</strong>. No orientation change was authorized or made. Stage-2 outlet rates below are scaled accepted-model reference estimates, not measured/actual flows and not a new prediction of fixed-N<sub>T</sub>=7 performance. Outlet volumetric rates, velocities, effective residence times and validated liquid-drop cut sizes remain unestablished.</div></section>
+<section><h2>1. Evidence lineage and currentness</h2>
+<table><tr><th>Evidence</th><th>Saved authority</th><th>Identity / time</th></tr>
+<tr><td>Current Stage 1</td><td>Sole saved process/property authority</td><td>549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b<br>2026-09-16T03:31:27.734Z</td></tr>
+<tr><td>Accepted Stage 2</td><td>7C 7C-1.6.0; accepted N<sub>T</sub>=4; converged; reference-only for Stage 4</td><td>145e962e-892a-4424-aab9-91532af9f5ef<br>Tue Sep 15 2026 07:34:35 GMT+0000 (Coordinated Universal Time)</td></tr>
+<tr><td>Stage 3</td><td>Active-section geometry lineage</td><td>run 64 · e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249</td></tr>
+<tr><td>Current Stage 4</td><td>D=0.6 m; N<sub>T,design</sub>=7; η=0.35; 20 compartments; H=3.6 m</td><td>calculation 16 · Sun Sep 20 2026 16:23:12 GMT+0000 (Coordinated Universal Time)</td></tr></table>
+<div class="warning"><strong>Orientation conflict:</strong> user proposal = RRBO-continuous; current saved Stage-1/3/4 authority = nmp-continuous-rrbo-dispersed. The accepted Stage-2 equilibrium evidence itself persisted RRBO-continuous/NMP-dispersed, and the saved compatibility record expressly excludes hydraulic orientation from its equilibrium-input match. This assessment does not reconcile or select an orientation.</div>
+<div class="note"><strong>Currentness:</strong> EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION. Equality of equilibrium inputs excluding orientation does not make the hydraulic phase assignments interchangeable.</div></section>
+<section><h2>2. Geometry and scaled model-predicted flows</h2><div class="grid">
+<div class="card"><div class="small">Gross cross-sectional area, each end</div><div class="big">1.130973 m²</div><code>A=πD²/4</code></div>
+<div class="card"><div class="small">Top gross volume</div><div class="big">1.69646 m³</div><code>V=A×1.5 m</code></div>
+<div class="card"><div class="small">Bottom gross volume</div><div class="big">1.017876 m³</div><code>V=A×0.9 m</code></div></div>
+<div class="note"><strong>Saved flow basis:</strong> oil feed = 4000 L/h = 3476 kg/h. Saved S/O = 0.6 is a <strong>mass ratio</strong>, so wet solvent = 2085.6 kg/h = approximately <strong>2054.778 L/h</strong> using the saved 1015 kg/m³ bulk wet-NMP density—not 2400 L/h.</div>
+<table><tr><th>Stream</th><th>Accepted Stage-2 normalized mass / flowMol</th><th>Scaled model-predicted mass flow</th><th>Scaled model-predicted molar flow</th></tr>
+<tr><td>Oil feed</td><td>100 / 0.60020631</td><td>3476 kg/h</td><td>20.863171 kmol/h</td></tr>
+<tr><td>Fresh wet solvent</td><td>60 / 0.618885331</td><td>2085.6 kg/h</td><td>21.512454 kmol/h</td></tr>
+<tr><td>Final raffinate</td><td>95.54485576 / 0.616215668</td><td><strong>3321.1392 kg/h</strong></td><td><strong>21.419657 kmol/h</strong></td></tr>
+<tr><td>Final extract</td><td>64.45514424 / 0.602875973</td><td><strong>2240.4608 kg/h</strong></td><td><strong>20.955969 kmol/h</strong></td></tr></table>
+<p class="small">Scale: 4000 L/h × 869 kg/m³ × 10⁻³ m³/L = 3476 kg/h; cascade oil basis = 100 mass units. In = out = 5561.6 kg/h. The accepted predictive N<sub>T</sub>=4 trial is reference evidence only: values are not measured and are not a new fixed-N<sub>T</sub>=7 performance prediction. No outlet property mixing was performed.</p></section>
+<section><h2>3. Property authority: bulk is not outlet mixture</h2>
+<table><tr><th>Saved 40 °C property</th><th>Value</th><th>Permitted interpretation</th></tr>
+<tr><td>Operating temperature</td><td><strong>40 °C</strong></td><td>Current saved Stage-1 authority</td></tr>
+<tr><td>RRBO density / dynamic viscosity</td><td><strong>869 kg/m³ / 59.8 mPa·s</strong></td><td>Bulk RRBO feed</td></tr>
+<tr><td>Wet NMP density / dynamic viscosity</td><td><strong>1015 kg/m³ / 1.416 mPa·s</strong></td><td>Fresh wet-solvent phase</td></tr>
+<tr><td>Final raffinate density / viscosity</td><td>Not saved</td><td>Not calculable; contains 8.6838 wt% NMP</td></tr>
+<tr><td>Final extract density / viscosity</td><td>Not saved</td><td>Not calculable; contains 6.6122 wt% SAT and other oil components</td></tr></table>
+<div class="warning"><strong>Therefore, there are no actual outlet velocities in this report.</strong> The values below are explicitly property-conditional sensitivities that substitute bulk-feed properties for compositionally changed model-predicted outlets.</div></section>
+<section><h2>4. Opposing velocity and terminal-slip sensitivity</h2>
+<table><tr><th>Conditional case</th><th>Assumed ρ outlet</th><th>Conditional Q</th><th>Opposing gross velocity</th><th>Gross nominal residence</th></tr>
+<tr><td>Top: provisional raffinate upward</td><td>869 kg/m³</td><td>3.82179 m³/h</td><td>0.00093867 m/s</td><td>26.633 min</td></tr>
+<tr><td>Bottom: provisional extract downward</td><td>1015 kg/m³</td><td>2.20735 m³/h</td><td>0.00054215 m/s</td><td>27.668 min</td></tr></table>
+<table><tr><th>Case</th><th>Stokes critical d</th><th>Re at Stokes d</th><th>Rigid-sphere S–N critical d</th><th>Re at S–N d</th></tr>
+<tr><td>Top; extract drops settle against upward raffinate</td><td>0.84005 mm</td><td>0.01146 (bounded)</td><td>0.84298 mm</td><td>0.0115</td></tr>
+<tr><td>Bottom; raffinate drops rise against downward extract</td><td>0.09824 mm</td><td>0.03818 (bounded)</td><td>0.09902 mm</td><td>0.03848</td></tr></table>
+<p><strong>Threshold meaning:</strong> the “critical diameter” is the zero-net-drift equality <code>u<sub>terminal</sub> − u<sub>opposing</sub> = 0</code>. A drop exactly at that threshold has no positive travel velocity and therefore no finite full-height travel time. It is <strong>not a passing size</strong>, separator guarantee, target droplet size, safety margin, liquid-drop validation, or entrainment specification. No margin above threshold has been selected.</p>
+<table><tr><th>Zero-net threshold row</th><th>Critical d</th><th>Net drift</th><th>Full straight-height travel</th><th>Disposition</th></tr>
+<tr><td>Top · Stokes</td><td>0.84005 mm</td><td>0 m/s</td><td>∞ / unavailable</td><td>NOT PASSING · no margin</td></tr>
+<tr><td>Top · rigid-sphere S–N</td><td>0.84298 mm</td><td>0 m/s</td><td>∞ / unavailable</td><td>NOT PASSING · no margin</td></tr>
+<tr><td>Bottom · Stokes</td><td>0.09824 mm</td><td>0 m/s</td><td>∞ / unavailable</td><td>NOT PASSING · no margin</td></tr>
+<tr><td>Bottom · rigid-sphere S–N</td><td>0.09902 mm</td><td>0 m/s</td><td>∞ / unavailable</td><td>NOT PASSING · no margin</td></tr></table>
+<h3>Labelled diameter sensitivity — not targets</h3>
+<table><tr><th>d (mm)</th><th>Top Stokes net / full 1.5 m time</th><th>Top rigid S–N net / full 1.5 m time</th><th>Bottom Stokes net / full 0.9 m time</th><th>Bottom rigid S–N net / full 0.9 m time</th></tr>
+<tr><td>0.1</td><td>-0.0009254 m/s / ∞ / unavailable</td><td>-0.0009254 m/s / ∞ / unavailable</td><td>0.0000196 m/s / 765.427 min</td><td>0.0000106 m/s / 1418.608 min</td></tr><tr><td>0.25</td><td>-0.0008555 m/s / ∞ / unavailable</td><td>-0.0008556 m/s / ∞ / unavailable</td><td>0.0029687 m/s / 5.053 min</td><td>0.0026436 m/s / 5.674 min</td></tr><tr><td>0.5</td><td>-0.0006061 m/s / ∞ / unavailable</td><td>-0.0006069 m/s / ∞ / unavailable</td><td>0.0135014 m/s / 1.111 min</td><td>0.0097294 m/s / 1.542 min</td></tr><tr><td>1</td><td>0.0003915 m/s / 63.86 min</td><td>0.0003784 m/s / 66.062 min</td><td>0.0556322 m/s / 0.27 min</td><td>0.0258305 m/s / 0.581 min</td></tr><tr><td>2</td><td>0.0043819 m/s / 5.705 min</td><td>0.0041749 m/s / 5.988 min</td><td>0.2241551 m/s / 0.067 min</td><td>0.0550982 m/s / 0.272 min</td></tr><tr><td>5</td><td>0.032315 m/s / 0.774 min</td><td>0.0259324 m/s / 0.964 min</td><td>1.4038157 m/s / 0.011 min</td><td>0.1264988 m/s / 0.119 min</td></tr>
+</table></section>
+<section><h2>5. What remains unknown</h2><ul><li>outlet-mixture density and viscosity at 40 °C</li><li>interface elevations and normal/minimum/maximum liquid levels</li><li>inlet and outlet elevations, orientation, momentum and distributors</li><li>coalescer, calming zone, internals displacement and effective free area/volume</li><li>phase inventory, entrainment direction and verified top/bottom phase routing</li><li>droplet-size distribution, target cut size, interfacial mobility and coalescence kinetics</li><li>allowable entrainment criterion and safety/design margin</li></ul>
+<p>Gross nominal residence uses <code>Vgross/Qoutlet</code>. Sensitivity travel times use the full proposed straight height divided by positive net slip. The full height is only an assumed test distance—not actual routing. Effective volume, true travel distance, interface location, inlet momentum/layout and residence-time distribution are unknown, so no effective disengagement time is claimed.</p></section>
+<section><h2>6. Equations, applicability and checks</h2>
+<p><code>uStokes=|ρp−ρc|gd²/(18μc)</code>; use only with the reported creeping-flow Reynolds check. Conditional rigid-sphere sensitivity uses <code>Cd=(24/Re)(1+0.15Re^0.687)</code>, <code>u=sqrt(4|ρp−ρc|gd/(3ρcCd))</code>. It is not a validated liquid-drop model.</p>
+<p><strong>Independent math checks:</strong> PASS — known Stokes identity, S–N positivity and force-balance, independent bisection inversion, circular area, normalized and scaled mass closure.</p>
+<p class="small">References: G. G. Stokes (1851), Transactions of the Cambridge Philosophical Society 9, 8–106; L. Schiller &amp; A. Naumann (1935), VDI Zeitung 77, 318–320; R. Clift, J. R. Grace &amp; M. E. Weber (1978), Bubbles, Drops, and Particles, Academic Press.</p></section>
+<section><p class="small">Read-only calculation. No database record, design geometry, drawing, memory, or application code was changed. Machine-readable evidence and all unrounded values are in assessment.json.</p></section>
+</main></body></html>

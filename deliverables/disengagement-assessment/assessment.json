@@ -1,0 +1,643 @@
+{
+  "assessment": {
+    "designId": 269,
+    "scope": "READ_ONLY_ENGINEERING_DISENGAGEMENT_ASSESSMENT",
+    "calculationTimestamp": "2026-09-20T16:44:15.735Z",
+    "qualifiedConclusion": "NOT READY FOR DISENGAGEMENT ADEQUACY ACCEPTANCE. The user-proposed RRBO-continuous orientation conflicts with the current saved NMP-continuous / RRBO-dispersed authority. Scaled Stage-2 model-predicted outlet mass rates and gross geometry are calculable, but measured/actual outlet rates, outlet volumetric rates, velocities, effective residence times, and validated liquid-drop terminal-slip criteria are not established.",
+    "noDatabaseWrites": true
+  },
+  "proposedGeometry": {
+    "top": {
+      "diameterM": 1.2,
+      "straightHeightM": 1.5,
+      "grossAreaM2": 1.1309733552923256,
+      "grossVolumeM3": 1.6964600329384885
+    },
+    "bottom": {
+      "diameterM": 1.2,
+      "straightHeightM": 0.9,
+      "grossAreaM2": 1.1309733552923256,
+      "grossVolumeM3": 1.017876019763093
+    },
+    "activeSection": {
+      "diameterM": 0.6,
+      "theoreticalStagesDesignBasis": 7,
+      "compartmentEfficiency": 0.35,
+      "physicalCompartmentCount": 20,
+      "activeHeightM": 3.6
+    },
+    "status": "USER_PROPOSED_GEOMETRY_ASSESSED_NOT_IMPLEMENTED"
+  },
+  "provenance": {
+    "currentStage1": {
+      "savedAt": "2026-09-16T03:31:27.734Z",
+      "immutableHash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+      "designUpdatedAt": "2026-09-16T03:31:27.738Z",
+      "operatingTemperatureC": 40,
+      "authority": "CURRENT_SAVED_STAGE1_SOLE_PROCESS_PROPERTY_AUTHORITY"
+    },
+    "acceptedStage2Cascade": {
+      "jobId": "145e962e-892a-4424-aab9-91532af9f5ef",
+      "jobStatus": "completed",
+      "createdAt": "2026-09-15T05:36:33.122Z",
+      "completedAt": "2026-09-15T07:34:35.795Z",
+      "resultHash": "4a5c37ac721bc37616b56d706a182d492bb60d56c281a48257ecc195db5d06ef",
+      "modelHash": "f165f0d23eeae810e40341f1cc86a2b97514bc21b74838d4a08eab1760e6e1af",
+      "engineHash": "ff35a410554e3f30bb43715691752fdc2f6a016a4689c885bf91272a17c7b486",
+      "engineVersion": "7C-1.6.0",
+      "temperatureK": 313.15,
+      "acceptedPredictiveNt": 4,
+      "trialAccepted": true,
+      "numericalAcceptancePassed": true,
+      "solverTerminationStatus": "CONVERGED",
+      "releaseEligible": false,
+      "maximumScaledEquationResidual": 3.197442310920451e-14,
+      "componentOrder": [
+        "SAT",
+        "MONO",
+        "DI",
+        "POLY",
+        "PA",
+        "NMP",
+        "H2O"
+      ],
+      "qualification": "PRE-PILOT MULTISTAGE PREDICTIVE MODEL"
+    },
+    "stage3": {
+      "runId": "64",
+      "immutableHash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+      "implementationHash": "faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550",
+      "createdAt": "2026-09-16T09:06:30.839Z"
+    },
+    "currentStage4": {
+      "calculationId": "16",
+      "status": "CALCULATED",
+      "completedAt": "2026-09-20T16:23:12.866Z",
+      "lineageHash": "2feeeca2b7bba568f1b22e47b0d20554a807322e207e1db11de85483c4869bf3",
+      "stage3ImmutableHash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+      "stage2Role": "AVAILABLE_REFERENCE_ONLY_NOT_STAGE4_SIZING_BASIS"
+    },
+    "currentness": {
+      "status": "EXACT_EQUILIBRIUM_INPUT_MATCH_EXCLUDING_HYDRAULIC_PHASE_ORIENTATION",
+      "currentPhaseConfiguration": "nmp-continuous-rrbo-dispersed",
+      "currentStage1SnapshotHash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+      "excludedScientificInputField": "stage1.phaseConfiguration",
+      "persistedStage2PhaseConfiguration": "rrbo-continuous-nmp-dispersed",
+      "persistedStage2Stage1SnapshotHash": "6ccf5381167d4deb01d313881b63f5bb537c8bc729e3902b2919fc1f4397fbe9",
+      "currentEquilibriumScientificInputHash": "faa75060eb246fd90993e01245e4e052b968c7bf81bb262532abfea2ac7ce1af",
+      "persistedEquilibriumScientificInputHash": "faa75060eb246fd90993e01245e4e052b968c7bf81bb262532abfea2ac7ce1af"
+    },
+    "phaseOrientationConflict": {
+      "userProposal": "RRBO_CONTINUOUS",
+      "currentSavedAuthority": "nmp-continuous-rrbo-dispersed",
+      "status": "MISMATCH_NO_ORIENTATION_CHANGE_AUTHORIZED"
+    }
+  },
+  "propertyAuthority": {
+    "operatingTemperatureC": 40,
+    "bulkFeedAndFreshSolventOnly": {
+      "rrboFeed": {
+        "densityKgM3": 869,
+        "dynamicViscosityPaS": 0.0598
+      },
+      "freshWetNmp": {
+        "densityKgM3": 1015,
+        "dynamicViscosityPaS": 0.001416
+      },
+      "interfacialTensionNM": 0.011
+    },
+    "outletMixtureProperties": {
+      "finalRaffinateDensityKgM3": null,
+      "finalRaffinateDynamicViscosityPaS": null,
+      "finalExtractDensityKgM3": null,
+      "finalExtractDynamicViscosityPaS": null,
+      "status": "NOT_SAVED_NOT_INVENTED"
+    },
+    "ownership": "Stage 1 owns the saved additive hydrodynamic process basis. Stage 2 owns outlet compositions and normalized phase mass/molar flows. Stage 3/4 own selected active-section geometry and fixed design sizing. Bulk feed/fresh-solvent properties are not relabelled as outlet-mixture properties."
+  },
+  "acceptedStage2Boundary": {
+    "basis": "mass units per 100 mass units oil feed; normalized cascade boundary, not kg/h",
+    "oilFeed": {
+      "mass": 100,
+      "flowMol": 0.6002063103195764,
+      "componentMass": [
+        85,
+        7,
+        4,
+        2,
+        2,
+        0,
+        0
+      ],
+      "massFractions": [
+        0.85,
+        0.07,
+        0.04,
+        0.02,
+        0.02,
+        0,
+        0
+      ],
+      "moleFractions": [
+        0.8314095020619517,
+        0.09703193550453776,
+        0.04686716619208694,
+        0.016475538558928395,
+        0.008215857682495201,
+        0,
+        0
+      ],
+      "componentMoles": [
+        0.49901722959724026,
+        0.05823917999234571,
+        0.02812996889528689,
+        0.009888722208982322,
+        0.00493120962572119,
+        0,
+        0
+      ]
+    },
+    "freshWetSolvent": {
+      "mass": 60,
+      "flowMol": 0.6188853313247427,
+      "componentMass": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        59.7,
+        0.3
+      ],
+      "massFractions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.995,
+        0.005
+      ],
+      "moleFractions": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.9730927044548102,
+        0.026907295545189856
+      ],
+      "componentMoles": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0.6022328008062051,
+        0.016652530518537597
+      ]
+    },
+    "finalRaffinate": {
+      "mass": 95.54485575844896,
+      "flowMol": 0.616215668405932,
+      "componentMass": [
+        80.73811269818289,
+        3.1157149752394204,
+        1.9475430326692444,
+        0.8636232661345464,
+        0.3341398157551009,
+        8.296927597513639,
+        0.248794372954121
+      ],
+      "massFractions": [
+        0.8450283592692878,
+        0.032609970997458965,
+        0.02038354673529375,
+        0.009038930032171584,
+        0.0034972036233939592,
+        0.08683803572313152,
+        0.0026039536192624404
+      ],
+      "moleFractions": [
+        0.7692056605437797,
+        0.04206706342584335,
+        0.022226116496249726,
+        0.0069294980717633506,
+        0.001336961684251452,
+        0.1358234126218022,
+        0.022411287156310383
+      ],
+      "componentMoles": [
+        0.47399658025361163,
+        0.025922383606830794,
+        0.013696081232804637,
+        0.00427006528600927,
+        0.0008238567378941291,
+        0.08369651499391854,
+        0.013810186294863082
+      ]
+    },
+    "finalExtract": {
+      "mass": 64.45514424155104,
+      "flowMol": 0.6028759732383872,
+      "componentMass": [
+        4.261887301817112,
+        3.8842850247605796,
+        2.0524569673307558,
+        1.136376733865454,
+        1.665860184244899,
+        51.403072402486366,
+        0.05120562704587913
+      ],
+      "massFractions": [
+        0.06612175571037951,
+        0.06026338270540357,
+        0.03184318321651724,
+        0.017630504860974127,
+        0.02584526345953007,
+        0.7975014718739758,
+        0.0007944381732198406
+      ],
+      "moleFractions": [
+        0.041502150449334696,
+        0.053604386009817505,
+        0.023941719861466194,
+        0.009319755923912636,
+        0.006812931797172392,
+        0.8601044142245967,
+        0.004714641733699696
+      ],
+      "componentMoles": [
+        0.02502064934362862,
+        0.03231679638551491,
+        0.014433887662482256,
+        0.005618656922973054,
+        0.00410735288782706,
+        0.5185362858122866,
+        0.0028423442236745213
+      ]
+    }
+  },
+  "savedFeedAndSolventFlows": {
+    "oilFeedLph": 4000,
+    "oilFeedKgH": 3476,
+    "solventOilMassRatio": 0.6,
+    "freshWetSolventKgH": 2085.6,
+    "freshWetSolventLphUsingSavedBulkDensity": 2054.7783251231526,
+    "clarification": "S/O=0.6 is a mass ratio. It gives 2085.6 kg/h and approximately 2054.78 L/h at the saved 1015 kg/m3 wet-NMP density, not 2400 L/h."
+  },
+  "scaledModelPredictedMassFlows": {
+    "classification": "SCALED_ACCEPTED_STAGE2_MODEL_PREDICTION_REFERENCE_ESTIMATE_NOT_MEASURED",
+    "derivation": "feed mass scale = 4000 L/h × 869 kg/m3 × 1e-3 m3/L; each accepted Stage-2 boundary mass is scaled by feed mass / normalized oil basis mass",
+    "oilFeedKgH": 3476,
+    "freshWetSolventKgH": 2085.6,
+    "finalRaffinateKgH": 3321.1391861636857,
+    "finalExtractKgH": 2240.460813836314,
+    "totalInKgH": 5561.6,
+    "totalOutKgH": 5561.6,
+    "limitation": "Accepted predictive N_T=4 Stage-2 outputs are reference estimates. They are not measured outlet flows and are not predicted performance for the separate fixed N_T=7 Stage-3/4 design basis."
+  },
+  "scaledModelPredictedMolarFlows": {
+    "classification": "SCALED_ACCEPTED_STAGE2_MODEL_PREDICTION_REFERENCE_ESTIMATE_NOT_MEASURED",
+    "derivation": "each saved Stage-2 flowMol (kmol per normalized cascade basis) is multiplied by the same 34.76 h^-1 actual-feed scale; no molecular-weight or property mixing was added",
+    "oilFeedKmolH": 20.863171346708473,
+    "freshWetSolventKmolH": 21.512454116848055,
+    "finalRaffinateKmolH": 21.419656633790197,
+    "finalExtractKmolH": 20.955968829766338,
+    "totalInKmolH": 42.37562546355653,
+    "totalOutKmolH": 42.37562546355653
+  },
+  "modelPredictedOutletVolumetricResults": {
+    "status": "NOT_CALCULABLE_FROM_SAVED_EVIDENCE",
+    "reason": "The accepted cascade saves outlet composition and mass/molar flow but no outlet-mixture densities or viscosities. No property-mixing rule was introduced."
+  },
+  "explicitlyConditionalBulkPropertySensitivity": {
+    "top": {
+      "name": "TOP — provisional raffinate outlet; entrained extract settles against upward outlet flow",
+      "status": "PROPERTY_CONDITIONAL_SENSITIVITY_NOT_ACTUAL_OUTLET_VOLUMETRIC_RESULT",
+      "outletMassKgH": 3321.1391861636857,
+      "assumedOutletDensityKgM3": 869,
+      "flowM3H": 3.821794230337958,
+      "opposingGrossSuperficialVelocityMS": 0.000938668893886376,
+      "nominalGrossResidenceTimeMin": 26.6334595327777,
+      "stokes": {
+        "equation": "u_t = |rho_p-rho_c| g d^2 / (18 mu_c)",
+        "criticalDiameterM": 0.0008400522356916328,
+        "criticalDiameterMm": 0.8400522356916328,
+        "reynoldsAtCritical": 0.011458751749259385,
+        "creepingFlowBoundSatisfied": true
+      },
+      "rigidSphereSchillerNaumannConditional": {
+        "equations": [
+          "Cd = (24/Re)(1 + 0.15 Re^0.687)",
+          "u_t = sqrt(4 |rho_p-rho_c| g d / (3 rho_c Cd))",
+          "Re = rho_c u_t d / mu_c"
+        ],
+        "criticalDiameterM": 0.0008429782507175041,
+        "criticalDiameterMm": 0.8429782507175041,
+        "reynoldsAtCritical": 0.011498664124194568,
+        "correlationNominalReBoundSatisfied": true,
+        "validatedLiquidDropModel": false,
+        "forceBalanceResidual": 8.99597694378534e-16
+      },
+      "labelledDiameterSensitivity": [
+        {
+          "diameterMm": 0.1,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.000013301476217019694,
+          "stokesReynolds": 0.000019329402730083803,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": -0.0009253674176693563,
+          "stokesFullStraightHeightTravelTimeS": null,
+          "stokesFullStraightHeightTravelAvailable": false,
+          "rigidSphereSnVelocityMS": 0.000013300324702962166,
+          "rigidSphereSnReynolds": 0.000019327729376043683,
+          "rigidSphereSnNetSlipOpposingVelocityMS": -0.0009253685691834138,
+          "rigidSphereSnFullStraightHeightTravelTimeS": null,
+          "rigidSphereSnFullStraightHeightTravelAvailable": false,
+          "assumedTestTravelHeightM": 1.5
+        },
+        {
+          "diameterMm": 0.25,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.00008313422635637308,
+          "stokesReynolds": 0.0003020219176575594,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": -0.0008555346675300029,
+          "stokesFullStraightHeightTravelTimeS": null,
+          "stokesFullStraightHeightTravelAvailable": false,
+          "rigidSphereSnVelocityMS": 0.00008308666749842292,
+          "rigidSphereSnReynolds": 0.00030184913903064185,
+          "rigidSphereSnNetSlipOpposingVelocityMS": -0.000855582226387953,
+          "rigidSphereSnFullStraightHeightTravelTimeS": null,
+          "rigidSphereSnFullStraightHeightTravelAvailable": false,
+          "assumedTestTravelHeightM": 1.5
+        },
+        {
+          "diameterMm": 0.5,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.0003325369054254923,
+          "stokesReynolds": 0.002416175341260475,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": -0.0006061319884608837,
+          "stokesFullStraightHeightTravelTimeS": null,
+          "stokesFullStraightHeightTravelAvailable": false,
+          "rigidSphereSnVelocityMS": 0.00033174550889562745,
+          "rigidSphereSnReynolds": 0.002410425144066056,
+          "rigidSphereSnNetSlipOpposingVelocityMS": -0.0006069233849907486,
+          "rigidSphereSnFullStraightHeightTravelTimeS": null,
+          "rigidSphereSnFullStraightHeightTravelAvailable": false,
+          "assumedTestTravelHeightM": 1.5
+        },
+        {
+          "diameterMm": 1,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.0013301476217019693,
+          "stokesReynolds": 0.0193294027300838,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": 0.0003914787278155933,
+          "stokesFullStraightHeightTravelTimeS": 3831.6258162220697,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.001317103853261818,
+          "rigidSphereSnReynolds": 0.019139853653587287,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.000378434959375442,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 3963.693001501648,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 1.5
+        },
+        {
+          "diameterMm": 2,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.005320590486807877,
+          "stokesReynolds": 0.1546352218406704,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": 0.004381921592921501,
+          "stokesFullStraightHeightTravelTimeS": 342.3155727895908,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.005113562795226014,
+          "rigidSphereSnReynolds": 0.14861826317897678,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.004174893901339638,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 359.29056772405175,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 1.5
+        },
+        {
+          "diameterMm": 5,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.03325369054254924,
+          "stokesReynolds": 2.4161753412604754,
+          "stokesCreepingFlowBoundSatisfied": false,
+          "stokesNetSlipOpposingVelocityMS": 0.03231502164866286,
+          "stokesFullStraightHeightTravelTimeS": 46.41804100608014,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.026871057122679707,
+          "rigidSphereSnReynolds": 1.952420454816778,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.025932388228793332,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 57.84272496485747,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 1.5
+        }
+      ]
+    },
+    "bottom": {
+      "name": "BOTTOM — provisional extract outlet; entrained raffinate rises against downward outlet flow",
+      "status": "PROPERTY_CONDITIONAL_SENSITIVITY_NOT_ACTUAL_OUTLET_VOLUMETRIC_RESULT",
+      "outletMassKgH": 2240.460813836314,
+      "assumedOutletDensityKgM3": 1015,
+      "flowM3H": 2.207350555503758,
+      "opposingGrossSuperficialVelocityMS": 0.0005421462222917657,
+      "nominalGrossResidenceTimeMin": 27.66781245213119,
+      "stokes": {
+        "equation": "u_t = |rho_p-rho_c| g d^2 / (18 mu_c)",
+        "criticalDiameterM": 0.0000982402211652674,
+        "criticalDiameterMm": 0.0982402211652674,
+        "reynoldsAtCritical": 0.03817759410563923,
+        "creepingFlowBoundSatisfied": true
+      },
+      "rigidSphereSchillerNaumannConditional": {
+        "equations": [
+          "Cd = (24/Re)(1 + 0.15 Re^0.687)",
+          "u_t = sqrt(4 |rho_p-rho_c| g d / (3 rho_c Cd))",
+          "Re = rho_c u_t d / mu_c"
+        ],
+        "criticalDiameterM": 0.00009902309942502822,
+        "criticalDiameterMm": 0.09902309942502822,
+        "reynoldsAtCritical": 0.0384818321059283,
+        "correlationNominalReBoundSatisfied": true,
+        "validatedLiquidDropModel": false,
+        "forceBalanceResidual": 4.613985928250003e-16
+      },
+      "labelledDiameterSensitivity": [
+        {
+          "diameterMm": 0.1,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.0005617431340238544,
+          "stokesReynolds": 0.040266192163433065,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": 0.000019596911732088678,
+          "stokesFullStraightHeightTravelTimeS": 45925.60360040343,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.0005527199643756652,
+          "rigidSphereSnReynolds": 0.03961940422608052,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.000010573742083899479,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 85116.50774709364,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 0.9
+        },
+        {
+          "diameterMm": 0.25,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.003510894587649089,
+          "stokesReynolds": 0.6291592525536416,
+          "stokesCreepingFlowBoundSatisfied": true,
+          "stokesNetSlipOpposingVelocityMS": 0.0029687483653573236,
+          "stokesFullStraightHeightTravelTimeS": 303.15806166066704,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.0031857631859236904,
+          "rigidSphereSnReynolds": 0.5708950624492489,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.002643616963631925,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 340.4426633590435,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 0.9
+        },
+        {
+          "diameterMm": 0.5,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.014043578350596357,
+          "stokesReynolds": 5.033274020429133,
+          "stokesCreepingFlowBoundSatisfied": false,
+          "stokesNetSlipOpposingVelocityMS": 0.013501432128304592,
+          "stokesFullStraightHeightTravelTimeS": 66.65959517829427,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.010271548253890221,
+          "rigidSphereSnReynolds": 3.681363516136503,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.009729402031598456,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 92.50311551285931,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 0.9
+        },
+        {
+          "diameterMm": 1,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.05617431340238543,
+          "stokesReynolds": 40.26619216343306,
+          "stokesCreepingFlowBoundSatisfied": false,
+          "stokesNetSlipOpposingVelocityMS": 0.05563216718009366,
+          "stokesFullStraightHeightTravelTimeS": 16.177690814857176,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.026372676403539217,
+          "rigidSphereSnReynolds": 18.904143043497392,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.025830530181247452,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 34.84249040514799,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 0.9
+        },
+        {
+          "diameterMm": 2,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 0.2246972536095417,
+          "stokesReynolds": 322.1295373074645,
+          "stokesCreepingFlowBoundSatisfied": false,
+          "stokesNetSlipOpposingVelocityMS": 0.22415510738724995,
+          "stokesFullStraightHeightTravelTimeS": 4.015076928161006,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.05564032749849862,
+          "rigidSphereSnReynolds": 79.76685368781936,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.05509818127620685,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 16.334477457401096,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 0.9
+        },
+        {
+          "diameterMm": 5,
+          "status": "SENSITIVITY_VALUE_NOT_TARGET_DROPLET_SIZE",
+          "stokesVelocityMS": 1.404357835059636,
+          "stokesReynolds": 5033.274020429133,
+          "stokesCreepingFlowBoundSatisfied": false,
+          "stokesNetSlipOpposingVelocityMS": 1.403815688837344,
+          "stokesFullStraightHeightTravelTimeS": 0.6411098032002976,
+          "stokesFullStraightHeightTravelAvailable": true,
+          "rigidSphereSnVelocityMS": 0.1270409840818518,
+          "rigidSphereSnReynolds": 455.3199111690664,
+          "rigidSphereSnNetSlipOpposingVelocityMS": 0.12649883785956004,
+          "rigidSphereSnFullStraightHeightTravelTimeS": 7.114689867737653,
+          "rigidSphereSnFullStraightHeightTravelAvailable": true,
+          "assumedTestTravelHeightM": 0.9
+        }
+      ]
+    }
+  },
+  "zeroNetThresholdInterpretation": {
+    "status": "ZERO_DRIFT_NOT_PASSING_NO_MARGIN",
+    "rule": "At each reported critical diameter, terminal slip equals opposing superficial velocity; net travel velocity is zero and full-height travel time is unavailable/infinite.",
+    "top": {
+      "stokes": {
+        "diameterMm": 0.8400522356916328,
+        "netVelocityMS": 0,
+        "fullHeightTravelTimeS": null,
+        "passingSize": false,
+        "margin": null
+      },
+      "rigidSphereSchillerNaumann": {
+        "diameterMm": 0.8429782507175041,
+        "netVelocityMS": 0,
+        "fullHeightTravelTimeS": null,
+        "passingSize": false,
+        "margin": null
+      }
+    },
+    "bottom": {
+      "stokes": {
+        "diameterMm": 0.0982402211652674,
+        "netVelocityMS": 0,
+        "fullHeightTravelTimeS": null,
+        "passingSize": false,
+        "margin": null
+      },
+      "rigidSphereSchillerNaumann": {
+        "diameterMm": 0.09902309942502822,
+        "netVelocityMS": 0,
+        "fullHeightTravelTimeS": null,
+        "passingSize": false,
+        "margin": null
+      }
+    }
+  },
+  "dragModelApplicability": {
+    "stokes": "Rigid sphere, isolated-particle creeping-flow result. Accepted only when the reported Reynolds number is below 1; it is not a liquid-drop/deformation/coalescence model.",
+    "schillerNaumann": "Rigid-sphere sensitivity using Cd=(24/Re)(1+0.15Re^0.687), nominally for Re below 1000. It is explicitly not validated here for liquid RRBO/NMP drops, contaminated interfaces, swarms, wall effects, or deformable drops.",
+    "references": [
+      "G. G. Stokes (1851), On the Effect of the Internal Friction of Fluids on the Motion of Pendulums, Transactions of the Cambridge Philosophical Society 9, 8–106.",
+      "L. Schiller and A. Naumann (1935), VDI Zeitung 77, 318–320.",
+      "R. Clift, J. R. Grace and M. E. Weber (1978), Bubbles, Drops, and Particles, Academic Press; rigid-particle drag regime discussion."
+    ]
+  },
+  "residenceAndLayoutLimits": {
+    "nominalResidence": "Only gross vessel-volume/outlet-flow sensitivity is reported; effective liquid volume and residence-time distribution are unknown.",
+    "straightHeightTravelSensitivity": "Travel time uses the full proposed straight height divided by positive net terminal-slip-minus-opposing velocity. Height is an assumed test distance, not actual droplet routing. Zero or negative net velocity is reported unavailable/infinite, never as passage.",
+    "pending": [
+      "outlet-mixture density and viscosity at 40 °C",
+      "interface elevations and normal/minimum/maximum liquid levels",
+      "inlet and outlet elevations, orientation, momentum and distributors",
+      "coalescer, calming zone, internals displacement and effective free area/volume",
+      "phase inventory, entrainment direction and verified top/bottom phase routing",
+      "droplet-size distribution, target cut size, interfacial mobility and coalescence kinetics",
+      "allowable entrainment criterion and safety/design margin"
+    ]
+  },
+  "independentMathChecks": {
+    "status": "PASS",
+    "independentChecks": [
+      "Known Stokes identity",
+      "Schiller-Naumann positivity",
+      "Schiller-Naumann force-balance residual",
+      "Independent bisection inversion of terminal velocity"
+    ],
+    "additionalChecks": [
+      "gross circular area",
+      "Stage-2 normalized mass closure",
+      "actual scaled mass closure",
+      "actual scaled molar closure"
+    ]
+  }
+}

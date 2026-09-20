@@ -1283,3 +1283,17 @@ mtime_ms = 1789906829819
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/93461cff-279e-45ac-aaa2-5ff3e2a25aef/ccbd2925-f48b-4187-8f59-1d23afcdf71a"
 storage_version_token = "1789906928602557"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "fRUdlj4HRf3qXbYG9XiVv"
+uri = "file://deliverables/disengagement-assessment/report.html"
+type = "html"
+title = "Disengagement assessment — calculations and limitations"
+description = "Proposed top and bottom sections: geometry, model-derived flow estimates, conditional droplet-separation limits, and unresolved operating-basis differences."
+logical_id = "6e932065-b0fa-4783-9c25-fbf861f39b2d"
+content_hash = "sha256:efac6b82f3986dce12badd5e3d4aba6a5e8af6e3d2917436b4fbba854fce4c73"
+size = 12423
+mtime_ms = 1789922655768
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/6e932065-b0fa-4783-9c25-fbf861f39b2d/0184c4ff-f4dc-4924-9602-91c2c29f46f4"
+storage_version_token = "1789922691089734"
+content_type = "text/html"
