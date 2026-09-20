@@ -33,4 +33,10 @@ Successor rotor–stator development is report-only until engineering review: us
 
 **Why:** On 2026-09-20 the user explicitly approved this development scope but prohibited implementation or revision/drawing replacement before reviewing the engineering report. Detailed eye, shroud and perforation dimensions are proposals, not approved rules.
 
-**How to apply:** Audit the saved Stage-3 selection read-only first; do not substitute discussion values for persisted RPM/flow. Retain gross centre-plus-hole free area separately from shaft/support-corrected diagnostics. Distinguish upper/lower eye-face open areas, internal geometric section areas and unproven hydraulic controlling throats. An area minimum in a radial-turn region is not automatically a series-flow restriction.
+**How to apply:** The user accepted the completed Stage-3 audit; keep it frozen unless a direct calculation inconsistency is found. Do not substitute discussion values for persisted RPM/flow. Retain gross centre-plus-hole free area separately from shaft/support-corrected diagnostics. Distinguish upper/lower eye-face open areas, internal geometric section areas and unproven hydraulic controlling throats. An area minimum in a radial-turn region is not automatically a series-flow restriction.
+
+Final closure retains the nominal 130-mm eye and defines the 112-mm stator centre from a proposed 9-mm radial overlap. The previous 95%-of-turning-area sizing screen is rejected, not an optional successor sizing rule.
+
+**Why:** The user explicitly selected geometric overlap as the preliminary design basis, accepted the shrouded six-blade architecture, excluded external mixing-section geometry, and required a further report-only review before implementation or rule-set freeze.
+
+**How to apply:** Keep overlap sensitivity diagnostic only, preserve the accepted upstream audit and historical R1 artifacts, and distinguish approval of the architecture from pending approval of the detailed successor rules.

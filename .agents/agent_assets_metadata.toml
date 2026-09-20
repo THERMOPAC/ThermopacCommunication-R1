@@ -1227,3 +1227,17 @@ mtime_ms = 1789879814814
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/38836da2-72f8-4bdc-b0e0-900602fc433c/459e35a8-efc5-4a39-aa6a-dfe9d1e20908"
 storage_version_token = "1789879881905460"
 content_type = "text/html"
+
+[[outputs]]
+id = "zaDR0joAL2l-yLQ0iPLr_"
+uri = "file://deliverables/ecr-final-closure/final-engineering-closure.pdf"
+type = "pdf"
+title = "Download ECR Final Engineering Closure Candidate — PDF"
+description = "21-page amended engineering review with CE-based centre-opening sizing, three sensitivity cases, verified area/ligament/clearance calculations and improved review drawings. Preliminary—NOT FOR FABRICATION. No implementation or rule-set freeze."
+logical_id = "7f11fa2e-1553-4c81-b1b1-27e7de647a01"
+content_hash = "sha256:6dbd1f53256262c74c5ac9b2211d28f92c3e1f1643f56ee0ffe44fdb98db8b6d"
+size = 989164
+mtime_ms = 1789882936994
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7f11fa2e-1553-4c81-b1b1-27e7de647a01/a10406f5-0f51-49b5-9043-91a056a5a10f"
+storage_version_token = "1789882969751703"
+content_type = "application/pdf"

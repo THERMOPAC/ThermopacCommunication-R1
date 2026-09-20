@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 540">
+<defs><marker id="f" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8Z" fill="#087b94"/></marker></defs>
+<style>text{font:15px 'DejaVu Sans';fill:#183748}.box{fill:#eff6fa;stroke:#718e9d}.arr{stroke:#087b94;stroke-width:3;fill:none;marker-end:url(#f)}</style>
+<text x="25" y="30">T-02 • Flow-path schematic (not a solid section)</text>
+<rect x="40" y="70" width="265" height="55" class="box"/><text x="60" y="103">Upper compartment fluid</text>
+<rect x="40" y="390" width="265" height="55" class="box"/><text x="60" y="423">Lower compartment fluid</text>
+<rect x="75" y="180" width="200" height="45" class="box"/><text x="91" y="209">Upper Ø130 eye</text>
+<rect x="75" y="295" width="200" height="45" class="box"/><text x="91" y="324">Lower Ø130 eye</text>
+<path d="M175,125 L175,177" class="arr"/><path d="M175,390 L175,344" class="arr"/>
+<rect x="355" y="225" width="310" height="70" class="box"/><text x="373" y="253">Shared radial-turning chamber</text><text x="373" y="276">→ outward between six blades</text>
+<path d="M275,202 Q320,202 335,233 L350,243" class="arr"/><path d="M275,317 Q320,317 335,284 L350,276" class="arr"/>
+<text x="25" y="490">No full-diameter middle disc; no curved vanes.</text>
+<text x="25" y="520">Flow arrows are schematic — not CFD streamlines or flow-rate predictions.</text></svg>
