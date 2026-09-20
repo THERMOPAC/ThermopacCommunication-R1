@@ -1,0 +1,65 @@
+Iran. J. Chem. Chem. Eng. 
+Research Article 
+Vol. 36, No. 5, 2017 
+ 
+149 
+ 
+ 
+Experimental Determination of Continuous Phase 
+Overall Mass Transfer Coefficients  
+Case Study: Kühni Extraction Column 
+ 
+ 
+Asadollahzadeh, Mehdi*+ 
+Department of Chemical Engineering, Iran University of Science and Technology (IUST),  
+P.O. Box 16765-163 Tehran, I.R. IRAN 
+ 
+Torkaman, Rezvan; Torab-Mostaedi, Meisam 
+Materials and Nuclear Fuel Research School, Nuclear Science and Technology Research Institute,  
+P.O. Box 11365-8486 Tehran, I.R. IRAN 
+ 
+ 
+ABSTRACT: Experimental data obtained in a pilot-scale Kühni liquid-liquid extraction column 
+were used to obtain. In this study, volumetric overall mass transfer coefficients were measured  
+and correlated under different operating variables in a 113 mm diameter Kühni column. Both  
+mass transfer directions are considered in the experiments.  The effect of operating parameters  
+on the volumetric overall mass transfer coefficients has been investigated. According to obtained results, 
+mass transfer performance is strongly dependent on rotor speed and mass transfer direction, 
+although only slightly dependent on phase flow rates. A novel empirical correlation is developed  
+for prediction of overall continuous phase Sherwood number based on dispersed phase holdup, 
+Reynolds number and mass transfer direction. The proposed correlations based on dimensionless 
+numbers can be considered as a useful tool for the possible scale up of the Kühni column. 
+ 
+ 
+KEYWORDS: Kühni column; Overall mass transfer coefficients; Mass transfer direction; 
+Sherwood number. 
+ 
+ 
+INTRODUCTION 
+Liquid-liquid extraction or solvent extraction is  
+a separation process which is based on the different 
+distribution of the components to be separated between 
+two liquid phases. It depends on the mass transfer of  
+the component to be extracted from a first liquid phase  
+to a second one [1, 2].  
+Different types of liquid-liquid columns are in use 
+nowadays, which can be classified into two main  
+ 
+ 
+ 
+categories: agitated (RDC, ORC & Kühni) and pulsed 
+(packed, sieve plate & disc and doughnut) columns [3-6]. 
+The Kühni contactor represents a logical development 
+of the RDC and ORC columns, in which the baffled 
+impellers of the latter are replaced by the unbaffled 
+double entry turbines, and the annular partition plates 
+between stages in the former are replaced by the 
+perforated stator plates [7]. 
+ 
+ 
+ 
+* To whom correspondence should be addressed. 
++ E-mail: mehdiasadollahzadeh@alumni.iust.ac.ir 
+1021-9986/2017/5/149-161 
+     13/$/6.30 
+ 

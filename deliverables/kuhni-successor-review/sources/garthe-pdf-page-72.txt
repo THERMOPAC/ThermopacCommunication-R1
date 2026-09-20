@@ -1,0 +1,65 @@
+4  Experimental Devices, Internals and Measuring Technique
+60
+The water that flowed counter currently to the particle phase in the column was pumped to the
+inlet above the active part of the column with a piston pump. A small portion 
+ of the total
+water pumped to the water inlet was used for removing the rigid spheres, while the main portion
+ flowed downwards in the column, see figure (4.5). Both liquid and particle flow rates
+, 
+, 
+ and 
+ were continuously measured. This was achieved by temporarily
+diverting the flows to beakers and measuring the weight and volume collected in a certain time
+interval. Steady state conditions were reached when all volume flows remained constant for an
+hour. The liquid level in the column was controlled by a weir.
+The hold-up of rigid spheres within the active part of the column was determined using two slide
+valves. The slide valves were pneumatically opened and closed. After both valves were closed,
+the spheres accumulated beneath the upper valve. By determining the height of the particle bed
+beneath the upper valve 
+, the hold-up 
+ within the active part of the column was
+calculated by: 
+ where 
+(4.1)
+Here, 
+ is the active height of the column and 
+ is the volume fraction of the spheres
+within the densely packed bed, which is known from preliminary tests. The special design of
+the closing plates inside the valves allowed the rigid pp-spheres to be held back but not the water
+phase. Thereby, the entire quantity of particles within the active column section could be
+transported under the upper slide valve with the help of a pulsator or agitators. Figure (A.4) in
+the appendix illustrates the various closing plates used to determine the hold-up, see chapter A.
+Although PVC, aluminium and silicon were used as construction materials, only chemically
+resistant materials were used for all other column elements. For the single drop mini plant and
+the drop swarm extractor, which will be introduced in the following section, only teflon, glass
+and stainless steel were used for all column parts which contacted the liquids. 
+4.4
+Drop Swarm Extractor
+The influence of hold-up on fluiddynamics and mass transfer of drop swarms was investigated
+in the extractor illustrated in figure (4.6). A scheme of the entire extraction plant including the
+distillation column for the regeneration of the solvent is given in the appendix, see chapter A.
+Pulsed and agitated experiments were carried out in the extractor with different types of column
+V·
+wb
+V·
+wc
+V·
+wc
+V·
+wb
+V·
+we
+V·
+p
+Hpb
+hd
+hd
+Hpb hpb
+⋅
+Hac
+= ----------------------
+Hac
+2000 mm
+=
+Hac
+hpb

@@ -1,0 +1,110 @@
+A.2  Extraction Plant, Sliding Valves and Column Internals
+177
+Two different types of sieve trays, structured packings (Montz-Pak B1-350), rotating discs and
+Kühni blade agitators were used as internals in the pulsed and agitated columns. Sketches of the
+installed compartments are given in chapter 4.5. The dimensions of the internals are listed in
+the following table.
+Table A.1: Geometrical data of used internals: Two different types of sieve trays, structured
+packings (Montz-Pak B1-350) and two different agitator types (rotating disc and
+Kühni blade agitator) were installed inside the active part of the columns. 
+Sieve tray - dh = 2 mm
+Sieve tray - dh = 4 mm
+Montz-Pak B1-350
+diameter of sieve tray 
+diameter of sieve tray 
+diameter of a packing 
+diameter of holes 
+diameter of holes 
+volumetric surface area 
+rel. free cross-sectional area 
+rel. free cross-sectional area 
+void fraction 
+height of compartment 
+height of compartment 
+height of a packing 
+thickness of sieve tray 
+thickness of sieve tray 
+hole diameter of punched 
+sheets 
+Rotating disc
+Kühni - 6 blade agitator
+diameter of agitator 
+diameter of agitator 
+height of agitator 
+height of agitator 
+rel. free cross-sectional stator 
+area 
+rel. free cross-sectional stator 
+area 
+height of compartment 
+height of compartment 
+diameter of rotating shaft 
+diameter of rotating shaft 
+Dst
+= 79 mm
+Dst
+= 79 mm
+DP
+79 mm
+=
+dh
+= 2 mm
+dh
+= 4 mm
+aP
+350 m 2 m3
+⁄
+=
+ϕst
+0.20 m 2 m 2
+⁄
+=
+ϕst
+0.40 m 2 m 2
+⁄
+=
+ϕP
+0.97 m3 m3
+⁄
+=
+hst
+= 100 mm
+hst
+= 100 mm
+hP
+100 mm
+=
+s
+= 1.0 mm
+s
+= 2.0 mm
+dhP
+4 mm
+=
+dA
+= 45 mm
+dA
+45 mm
+=
+hA
+= 1.5 mm
+hA
+7 mm
+=
+ϕs
+0.40 m 2 m 2
+⁄
+=
+ϕs
+0.40 m 2 m 2
+⁄
+=
+hc
+= 50 mm
+hc
+50 mm
+=
+dsh
+= 10 mm
+dsh
+= 10 mm

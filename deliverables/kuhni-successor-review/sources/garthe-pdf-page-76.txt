@@ -1,0 +1,19 @@
+4  Experimental Devices, Internals and Measuring Technique
+64
+4.6
+Determination of Phase Concentrations
+The analysis of the composition of both liquid phases was carried out by three different
+methods. While only refraction and titration methods were used to control the acetone
+concentration of the feed mixtures for the experiments, gas chromatography was applied for
+determining the concentration of all components in the experimental samples.
+• Gas chromatography
+In all runs the samples were analysed in a gas chromatograph (Hewlett-Packard gas
+chromatograph of the type 6890 in combination with a Pora-Plot-Q capillary column). The
+capillary column had a length of 25 m, an inner diameter of 0.32 mm, an outer diameter of
+0.45 mm and a coated film thickness of 10 µm. A thermal conductivity detector (TCD) and
+helium as the carrier gas were used. For calibration, samples with known compositions were
+prepared. Furthermore, quality of the calibration curve was checked by three control samples.
+Figure 4.9:
+Various compartments that were installed inside the columns; top row (from left 
+to right): sieve tray - dh = 2 mm, sieve tray - dh = 4 mm, Montz-Pak B1-350, 
+second row (from left to right): RDC-compartment, Kühni-compartment

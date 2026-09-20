@@ -1,0 +1,102 @@
+Iran. J. Chem. Chem. Eng. 
+Asadollahzadeh M. et al. 
+Vol. 36, No. 5, 2017 
+ 
+150 
+In most industrial extraction equipment, one phase  
+is dispersed as a swarm in a second continuous phase. 
+This method of contact has the advantage of providing a large 
+interfacial area per unit volume for the mass transfer [8, 9]. 
+The design and scale up of an extractor needs  
+the calculation of two independent parameters including 
+the cross-sectional area and the height of the column.  
+The first one is required to accommodate the desired flows 
+without flooding and the second one should be 
+determined to reach the appropriate performance of 
+extraction columns [10]. 
+Therefore, knowledge of mass transfer performance  
+is of fundamental importance for the design and 
+development of practical extraction columns. Mixing  
+is often applied to the extraction columns such as RDC, 
+Kühni, and ORC columns in order to improve the phase 
+contact. The performance of the apparatus is often 
+ameliorated by the use of impellers. The agitation 
+modifies the apparatus hydrodynamics by inducing 
+turbulence in the flow thus improving the interphase 
+contact and intensifying the mass transfer [11, 12]. 
+The knowledge of axial mixing in extraction column 
+is necessary for understanding the fundamental processes 
+involved in the mass transfer. Failure to account for axial 
+mixing may lead to large errors in column dimensions.  
+It has been reported that axial dispersion in extraction columns 
+lowers the process efficiency as much as 30% [13]. 
+Use axial mixing or backflow model for design and 
+scale-up is now developed for determination of height of 
+extraction column. In this method, one parameter is 
+considered for all deviations from the ideal plug flow 
+conditions [14]. 
+The investigation has been focused to study the axial 
+dispersion in continuous phase of liquid–liquid extraction 
+columns such as spray towers [15-17], reciprocating plate 
+extraction columns [18, 19] and pulsed sieve plate 
+extraction columns [20, 21]. Although, a few studies  
+can be found in which this effect has been taken into account. 
+Determining mass transfer coefficient in an extractor 
+is difficult due to significant uncertainty. Although,  
+the Kühni was applied appropriately for a number  
+of separation processes, limited experimental data  
+are available from the literature on the mass transfer 
+performance of Kühni extraction columns. 
+This research work examines the ability of an axial 
+dispersion model with correlations to predict the 
+performance of a Kühni column.  New correlations  
+are proposed to describe the effects of agitation conditions, 
+phase velocities, physical properties of the liquid-liquid 
+system on the overall mass transfer coefficients. 
+ 
+EXPERIMENTAL SECTION 
+Description of the Equipment 
+A pilot scale unit of Kühni extraction column  
+was constructed. Internal diameter of Kühni contactor is 
+113 mm and it has 10 stages. Agitation at each stage  
+is achieved with 50 mm diameter shrouded six-blade 
+turbine agitator with an accurate speed control.  
+The interface location of the two phases at the top  
+of the heavy-phase inlet and under the light-phase outlet 
+in the upper settler was automatically controlled by an optical 
+sensor. A solenoid valve (a normally closed type)  
+was provided at the outlet stream of the heavy phase. 
+When the interface location was meant to change, the optical 
+sensor sent a signal to the solenoid valve and the heavy 
+phase was allowed to leave the column by opening  
+the diaphragm of the solenoid valve. The light phase  
+was allowed to leave the column via an overflow.  
+A schematic diagram of the experimental apparatus  
+is shown in Fig. 1. The geometrical data of the investigated 
+extraction column are given in Table 1. 
+ 
+Materials Used 
+All 
+experiments 
+were 
+conducted 
+at 
+ambient 
+temperature, using a liquid–liquid system according to 
+the recommendations of the European Federation of 
+Chemical Engineering [22]. The system was toluene–
+acetone-water. The experiments were carried out in both 
+mass transfer directions. In all of the experiments, dilute 
+solutions were investigated with approximately 3.5 wt% 
+acetone as transferred solute in the organic or aqueous 
+phase. 
+The physical properties of these systems are listed in 
+Table 2. Technical-grade solvents of at least 99.5 wt% 
+purity were used as the dispersed phase and distilled 
+water was used as the continuous phase.  
+ 
+Analytic Procedure 
+In each experiment the following variables were 
+measured:  
+(1) Before starting each run, the aqueous and organic 
+phases were first mutually saturated, after which acetone 

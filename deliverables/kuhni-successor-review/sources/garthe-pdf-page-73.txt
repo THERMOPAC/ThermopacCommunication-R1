@@ -1,0 +1,50 @@
+4.4  Drop Swarm Extractor
+61
+internals such as sieve trays, structured packings and different types of agitators. In all
+experiments the organic phase was dispersed beneath the active part of the column with a
+cylindrical finger distributor (4 rows each with 12 holes, hole diameter = 1 mm). The dispersed
+phase left the column at the top after the drops coalesced at the principal interface in the upper
+settling zone. The water phase flowed counter currently downwards. The flow rates of both
+liquid phases were determined with pump calibration curves and controlled by flow meters.
+Both phases were cooled to a temperature of 20°C before entering the column. To control the
+temperature of the liquids, the temperature of the inlet and outlet of each phase as well as the
+temperature profile within the column was recorded.
+Figure 4.6: Pilot plant extractor for the investigation of drop swarms to evaluate the
+influence of drop concentration on fluiddynamics and mass transfer rates 
+Outlet light
+phase: y, T
+Inlet heavy 
+phase: x, T, vc
+Inlet light 
+phase: y, T, vd
+Outlet heavy
+phase: x, T
+LC
+ 
+d12, T
+d12, x, y
+hd
+850
+1000
+1450
+2100
+3200
+2550
+3650
+3800
+4300
+4400
+Ø 80
+Ø 150
+Ø 220
+M
+Length unit: 10-3 m
+d12, x, y
+hd
+T
+d12, T
+hd
+x, y
+slide
+valve
+20°C

@@ -1,0 +1,40 @@
+4  Experimental Devices, Internals and Measuring Technique
+62
+The size distribution of the drops was measured immediately above the inlet of the dispersed
+phase and at three positions within the active part of the column by photoelectrical suction
+probes. Each photoelectrical suction probe performed at least 1000 single drop measurements
+to determine the size distribution, see chapter 4.2. The hold-up was determined by a similar
+procedure as in the rigid sphere swarm extractor, using three pairs of stainless steel slide valves
+and teflon closing plates inside the valves. The use of pneumatic double stroke cylinders
+permitted the simultaneous measuring of the hold-up in three different column sections, each
+with a length of 300 mm. Photos of the teflon closing plates can be found in the appendix, see
+chapter A. 
+After simultaneously closing all valves, the rising drops coalesce underneath the upper valve.
+Measuring the height of coalescence 
+ allows the determination of the hold-up, see
+figure (4.7). The hold-up within a certain column section is then given by:
+ where 
+(4.2)
+The advantage of this measuring technique is that no time-consuming calibration of the
+measuring system is necessary. In addition, this technique provides very accurate results for
+both pulsed and agitated extractors. A disadvantage of this technique is that all phase inlets have
+to be shut after the valves are closed. Thus, experiments have to be interrupted until the column
+once again reaches steady state conditions. Preliminary tests revealed that a steady state was
+Figure 4.7:
+Slide valves for the determination of the hold-up within a measuring section of
+slide valve
+glas tube
+Hcoal
+Htotal
+hold-up
+closing plate
+Htotal
+300 mm
+=
+Hcoal
+hd
+Hcoal
+Htotal
+= --------------
+Htotal
+= 300 mm

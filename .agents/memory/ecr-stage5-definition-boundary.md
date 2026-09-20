@@ -28,3 +28,9 @@ Drawing-only improvements may expose an explicitly versioned new presentation of
 **Why:** The user requested dimensioned downloadable sheets while explicitly forbidding changes to the immutable R1 dataset. Presentation revision and scientific revision must remain distinct.
 
 **How to apply:** Preserve original export access, hash-check saved geometry before and after rendering, and distinguish fixture verification downloads from actual user-design exports.
+
+Successor rotor–stator development is report-only until engineering review: use the user-established double-entry radial-flow shrouded six-blade construction, followed by eye sizing, centre opening and distributed stator perforations. Existing R1 single-opening geometry remains historical authority for its saved revisions.
+
+**Why:** On 2026-09-20 the user explicitly approved this development scope but prohibited implementation or revision/drawing replacement before reviewing the engineering report. Detailed eye, shroud and perforation dimensions are proposals, not approved rules.
+
+**How to apply:** Audit the saved Stage-3 selection read-only first; do not substitute discussion values for persisted RPM/flow. Retain gross centre-plus-hole free area separately from shaft/support-corrected diagnostics. Distinguish upper/lower eye-face open areas, internal geometric section areas and unproven hydraulic controlling throats. An area minimum in a radial-turn region is not automatically a series-flow restriction.

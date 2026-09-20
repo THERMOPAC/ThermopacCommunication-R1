@@ -1,0 +1,35 @@
+4.5  Internals
+63
+reached for all types of column configurations after a minimum of five column volumes was
+replaced.
+The concentration of the solute in the continuous and the dispersed phase was determined at the
+phase inlets and outlets as well as at three positions within the column. To obtain single-phase
+samples from the two-phase mixture, measuring probes with cylindrical porous filter elements
+were used, see figure (4.8). Due to the different wettability of teflon and stainless steel, single-
+phase samples could be obtained by adjusting the filter element material and by low suction
+flow rates. The advantage of the cylindrical form is that the whole filter is always wetted with
+one liquid (organic or aqueous) independent of the type of column and operating mode. In this
+way, single-phase samples are obtained in columns even at high levels of energy input, for
+instance, in Kühni-extractors with high rotational speeds.
+4.5
+Internals
+In the mini plants and the swarm extractors, four different types of internals were installed. For
+pulsed experiments, different types of sieve trays and a structured packing (Montz-Pak B1-350)
+were used. The investigations in agitated columns were carried out with two different types of
+agitators: rotating discs and Kühni blade agitators. The agitated compartments (height = 50 mm,
+relative free cross-sectional stator area = 40 %) were the same for both types of agitators.
+Figure (4.9) illustrates the compartments that were installed inside the columns. Geometric data
+of the internals are listed in table (A.1) in the appendix, see chapter A. 
+Figure 4.8: Measuring probe for different porous filter elements to obtain single-phase
+concentration samples within the two-phase flow (porous teflon filter elements
+are preferentially wetted by organic liquids while sintered stainless steel filter
+elements are preferentially wetted by water)
+  Ø 8 mm
+  Ø 12 mm
+  Ø 6 mm
+metal measuring
+probe
+porous teflon filter or
+sintered metal filter
+liquid film
+suction flow rate

@@ -1,0 +1,72 @@
+Iran. J. Chem. Chem. Eng. 
+Experimental Determination of Continuous Phase ... 
+Vol. 36, No. 5, 2017 
+ 
+151
+ 
+Table 1: The geometrical data of the investigated extraction column. 
+Column diameter (m) 
+0.117 
+Shrouded six-bladed turbine diameter (m) 
+0.05 
+Column working height (m) 
+0.7 
+Stator plate fractional free area 
+0.212 
+No. of compartments (-) 
+10 
+ 
+Table 2: Physical properties of liquid systems at 20 ºC [22]. 
+ Physical property
+Toluene/acetone/water
+ 
+ cρ  [kg/m3]
+994.4-995.7
+ 
+ ρd [kg/m3]
+864.4-865.2
+ 
+ μc [mPa.s]
+1.059-1.075
+ 
+ μd [mPa.s]
+0.574-0.584
+ 
+ σ [mN/m]
+27.5-30.1
+ 
+ Dc [m2/s]
+1.09-1.14×10-9
+ 
+ Dd [m2/s]
+2.7-2.8×10-9
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Fig. 1: A schematic diagram of the experimental apparatus. 

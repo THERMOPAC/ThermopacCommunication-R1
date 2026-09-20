@@ -1,0 +1,1081 @@
+THERMOPAC • ENGINEERING REVIEW • DESIGN 269
+Kühni turbine–stator
+successor geometry
+Read-only Stage-3 audit and proposed double-entry shrouded turbine /
+perforated-stator development
+UNAPPROVED SUCCESSOR GEOMETRY
+PRELIMINARY — NOT FOR FABRICATION
+Stage-3 run 64 · Stage-4 calculation 13
+Report issue: engineering review candidate only; no new rule-set version assigned.
+Audit PASS is a software-selection verdict.
+The saved operating point is SCALE_UP_EXTRAPOLATION. Neither the audit nor geometric area closure
+validates the successor hydrodynamics.
+Conﬁrmed saved basis: Ø600 mm column, Ø198 mm turbine, 180 mm pitch, empirical φ = 0.40, 45 RPM, NMP
+continuous / RRBO dispersed.
+This report preserves the existing R1 implementation and immutable revisions. Candidate dimensions are
+explicit engineering choices for review—not released CAD or fabrication instructions.
+All dimensions: mm; areas: mm², unless stated otherwise. Eﬀective areas are geometric, not discharge-coeﬃcient-adjusted
+hydraulic areas.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 1 / 28
+
+Report sequence and decision boundary
+1. Stage-3 selection audit and applicability limits
+2. Conﬁrmed inherited diameter and saved basis
+3. Complete turbine topology and construction evidence
+4. Turbine eye candidate and sensitivity
+5. Upper/lower entry sections and obstruction accounting
+6. Stator centre-opening proposal
+7. Stator gross/net area and perforation development
+8. Clearance, ligament and assembly checks
+9. Proposed dimensioned review drawings
+10. Engineering decisions, primary references and integrity appendix
+STOP GATE: review before implementation.
+No Stage-2/3/4 calculation, R1 production rule, saved revision or issued drawing is modiﬁed. Numerical
+completeness of an ideal-solid candidate is not engineering approval.
+Five provenance classes: INHERITED; SYSTEM CALCULATED; SOURCE-BACKED REFERENCE; PRE-PILOT R1
+ENGINEERING RULE; UNRESOLVED. In this successor report, a proposed engineering rule is unapproved unless
+explicitly described as an already adopted construction decision.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 2 / 28
+
+1 · Stage-3 audit — selection and candidate
+coverage
+Software selection/integrity audit: PASS for the actual saved bounded search. The selected rotor/column ratio
+0.33 is supported by the stored trials and exact oﬄine replay; it is not an unevaluated default, ﬁrst-iteration
+selection, or tie/weighting accident. This does not validate the underlying correlations outside their published
+ranges, prove a continuous/global optimum, or qualify the proposed shrouded/perforated successor
+hydraulically.
+The evidence is an actual SELECT-only read of the application-connected database, not a UI ﬁxture. Scientiﬁc
+record identity: design 269, Stage-3 run 64, Stage-4 calculation 13. The two records have matching owner and
+design, without extracting owner PII. Run 64 is the latest Stage-3 run for this design at the time of the read.
+Run 63 has the same immutable hash; the duplicate is not a diﬀering numerical result. This audit identiﬁes the
+saved chain; it does not invoke an API that may create a current optimizer.
+Important correction to the supplied working context: the actual saved speed is 45 RPM, not 70 RPM. Its
+selected feasible operating window is 30–60 RPM, not 60–105 RPM. Seventy RPM is the upper bound of the
+conﬁgured search grid. Both Stage 3 and the linked Stage 4 agree on 45 RPM. Do not use 70 RPM as the
+inherited operating point in the engineering report.
+Saved engine: ECR_STAGE3_STAGE4_OPTIMIZER_V1.3.0.
+Conﬁgured grids, all present in the stored full result:
+D: 0.2–1.5 m inclusive, 0.1-m steps (14).
+h_c/D: 0.20, 0.25, 0.30 (3).
+D_R/D: 0.33, 0.40, 0.50 (3).
+phi_s: 0.20, 0.30, 0.40 (3).
+RPM: 30–70 inclusive, steps of 5 (9).
+Two orientations, with the actual saved orientation retained as authoritative.
+Each orientation has 378 geometry groups and 3402 stored trials, total 6804. Cartesian-key tests veriﬁed
+every conﬁgured combination exactly once, with no duplicates or missing combinations. Each rotor ratio has
+126 groups / 1134 trials per orientation.
+D_R/D
+NMP-continuous feasible trials (all D/h_c/phi/RPM)
+Reverse-orientation feasible trials
+0.33
+596
+341
+0.40
+318
+74
+0.50
+102
+0
+These are actual persisted trial counts, not inferred from array lengths or just the declared candidate grid.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 3 / 28
+
+1.1 · Why the 0.33 rotor ratio won
+The implemented policy is lexicographic, not a weighted objective:
+Determine feasible contiguous RPM windows for each geometry.
+Treat width >=20 RPM as the useful-window preference, not an additional hydraulic equation.
+Choose the second-smallest distinct accepted adequate diameter, deliberately one accepted grid
+diameter above the smallest.
+At that diameter choose the widest window, followed only if needed by deterministic tie criteria.
+The saved accepted adequate diameter set is 0.5, 0.6, …, 1.5 m. Thus 0.5 m is the smallest adequate diameter
+and 0.6 m is deliberately selected. This is an explicit pre-pilot margin policy, not an optimized economic
+diameter.
+At D=600 mm in the inherited orientation:
+Ratio
+Best h_c/D, phi_s
+Best feasible RPM
+window
+Width
+Meets 20-RPM
+preference
+0.33
+0.30, 0.40
+30–60
+30
+Yes
+0.40
+0.30, 0.40
+30–40
+10
+No
+0.50
+None feasible across all tested h_c/D and phi_s at
+D=600
+None
+—
+No
+At ratio 0.33 and phi_s=0.4, h_c/D=0.20 and 0.25 both produce 25-RPM windows; h_c/D=0.30 produces 30
+RPM. Therefore the selected complete geometry is a strict width winner, not a tie. The rotor ratio's late
+ascending tie-break clause is never needed for this winning decision.
+The representative selected speed is the feasible trial nearest the selected window midpoint, hence (30+60)/2
+= 45 RPM. The geometry-score power tie-break value is evaluated near the overall search midpoint (50 RPM);
+it is not the power at the selected 45-RPM point. Speciﬁcally, those values are 4.2146800763 and
+3.0725017756 W/m³ respectively. Mixing the two would misstate the saved operating point.
+At the selected 45 RPM, the stored candidate is FEASIBLE with no rejection reasons:
+Implemented actual loading = 0.47540999374941056, below the design ﬂood-fraction threshold 0.70.
+Tip speed = 0.46652650905808435 m/s, below the implemented 4.5-m/s cap.
+d32 = 0.0044853344930663765 m; dispersed holdup = 0.06398240117180216.
+Power density = 3.072501775637703 W/m³; rotor Reynolds number = 21076.3029661.
+Positive geometry, power, d32 and interfacial area; holdup between 0 and 1.
+At D=600 mm, h_c/D=0.30, phi_s=0.40, the implemented loading gate explains the relative windows:
+D_R/D
+RPM
+Actual loading
+Result
+0.33
+60
+0.6853015800
+Pass
+0.33
+65
+0.7616968758
+Fail >0.70
+0.40
+40
+0.6208041543
+Pass
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 4 / 28
+
+D_R/D
+RPM
+Actual loading
+Result
+0.40
+45
+0.7233596686
+Fail >0.70
+0.50
+30
+0.7015484950
+Fail >0.70
+This is model behavior, not evidence that smaller turbines universally perform better. The current primitive
+couples turbine power/droplet size, characteristic/swarm velocities and a maximized ﬂooding-capacity
+construction. It contains ﬁxed power/turbulence assumptions (N_P=1.2, C=0.42); the audit neither changes nor
+independently qualiﬁes them for the successor turbine.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 5 / 28
+
+1.2 · Replay, order independence and applicability
+Canonicalization deduplicates/sorts and range-checks the conﬁgured ratio grid; stored controls explicitly
+include all three ratios.
+The source loops exhaust the Cartesian product; no ﬁrst-feasible early-return bypass exists in this
+search.
+Reverse group order and 20 cyclic permutations produced the identical selected group in both
+orientations.
+Ranking uses ordered comparisons, no weighted sum. Window width strictly resolves this case before
+power or ratio tie-breaks.
+The ﬁnal deterministic tie chain is edge margin (descending), valid trial count (descending), distance to
+grid-center speed (ascending), power density (ascending), D, h_c/D, D_R/D and phi_s (ascending). This
+can favor a smaller ratio only in otherwise tied cases; it does not explain the saved winner.
+Actual selected ratio is recomputed from the persisted controls and basis, not a display fallback. Stage-4
+stored hydraulics match Stage 3.
+Full oﬄine pure-function replay reproduced the entire saved result, including every trial and calculation
+hash, exactly after canonical key ordering. No API, service writer, optimizer persistence function or
+scientiﬁc code modiﬁcation was used.
+Proceed using inherited D_R=198 mm and 45 RPM for engineering development, but keep the hydraulic-
+qualiﬁcation caveat explicit.
+The selected trial is expressly SCALE_UP_EXTRAPOLATION, not a source-range-qualiﬁed design. Persisted
+diagnostics include:
+KH1995 source ranges exceeded for continuous density 1015 kg/m³, dispersed viscosity 0.0598 Pa·s,
+D=0.6 m, D_R=0.198 m, h_c=0.18 m, h_c/D=0.30 and D_R/D=0.33.
+In particular, the reported KH1995 D_R/D source range is 0.43–0.69, although the conﬁgured
+engineering search range includes 0.33–0.50.
+Myint terminal Reynolds 374.177, characteristic Reynolds 286.844 and shape Taylor 4.42967
+extrapolation ﬂags.
+A retained primitive diagnostic states that no generic Kühni ﬂooding capacity is admitted; the optimizer
+separately applies its coupled resolver loading gate. This is not a license to present the latter as
+independently validated plant ﬂooding capacity.
+Thus the audit passes algorithmic correctness against the implemented screening policy, not universal Kühni
+performance, source applicability, or applicability of the inherited results to the changed shrouded/perforated
+geometry. The ﬁnite ratio grid cannot establish an interior optimum or justify extrapolating below its lower
+boundary. No new hydraulic equivalence claim is made.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 6 / 28
+
+2 · Inherited turbine OD and saved authority
+Quantity
+Actual saved value
+Provenance
+Column ID D
+600 mm
+INHERITED, Stage 3
+Rotor ratio D_R/D
+0.33
+INHERITED, Stage 3
+Overall turbine OD D_R
+198 mm
+INHERITED, Stage 3
+Compartment pitch h_c
+180 mm
+INHERITED, Stage 3
+h_c/D
+0.30
+INHERITED, Stage 3
+Empirical stator free-area
+fraction phi_s
+0.40
+INHERITED, Stage 3
+Selected speed
+45 RPM
+INHERITED, Stage 3
+Selected contiguous feasible grid
+window
+30–60 RPM, 5-RPM grid
+INHERITED, Stage 3
+Phase conﬁguration
+NMP continuous / RRBO dispersed
+INHERITED, Stage 1/3
+RRBO ﬂow
+4000 L/h (0.0011111111111111111 m³/s)
+INHERITED, saved process basis
+Wet-solvent ﬂow
+0.0005707717569786535 m³/s =
+2054.778325 L/h
+INHERITED; unit conversion SYSTEM
+CALCULATED
+Temperature
+40 °C
+INHERITED
+S/O mass ratio
+0.6
+INHERITED
+Required / installed active height
+7000 / 7020 mm
+INHERITED, Stage 4
+Compartment count
+39
+INHERITED, Stage 4
+Fixed design N_t / screening
+HETS
+7 / 1 m per theoretical stage
+INHERITED, Stage 4
+The discussion's 3500 L/h is not the saved RRBO ﬂow; neither ﬂow is a turbine circulation/pumping
+speciﬁcation. The preliminary Ø44 shaft follows the existing Stage-5 geometric proportion (10/45) × 198 and is
+not a Stage-3 shaft-strength selection.
+Disposition: use DR = 198 mm and 45 RPM for this engineering development. Do not reinterpret the audit as
+approval of the proposed physical construction.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 7 / 28
+
+3 · Complete turbine — construction and
+provenance
+The adopted project topology is a double-entry, radial-ﬂow, shrouded six-blade turbine. Primary source A
+(Asadollahzadeh et al., 2017, pp. 150–151, Fig. 1 and Table 1) directly supports the shrouded six-blade family.
+Double entry is the project construction decision. No inspected source supplies a numerical eye diameter.
+Garthe Fig. 4.9 depicts exposed stepped blades and ring stators; its proportions are not a source for the
+proposed shrouds. Oliveira’s 170 distributor holes are not stator holes. Full primary citations and caveats are in
+§11.
+Provenance labels: INHERITED = Stage-3/4 input conﬁrmed by the companion audit; SYSTEM CALCULATED =
+deterministic geometry from stated inputs; PRE-PILOT R1 ENGINEERING RULE = explicitly proposed,
+unapproved successor choice (not an existing approved software rule); UNRESOLVED = requires evidence or
+engineering approval. SOURCE-BACKED REFERENCE is deliberately not assigned to a dimension merely
+because similar historical equipment exists.
+Quantity
+Candidate
+Provenance / rationale
+Column inside
+diameter D
+600
+INHERITED, conﬁrmed design269/run64
+Overall turbine
+diameter DR
+198
+INHERITED, audited DR/D = 0.33
+Compartment
+pitch hc
+180
+INHERITED, conﬁrmed
+Empirical stator
+fraction phi
+0.40
+INHERITED; mapping to physical gross area is an engineering convention, not
+hydraulic equivalence
+RPM / feasible
+window
+45 / 30–60
+INHERITED from companion saved-result audit; not 70 RPM
+Phase
+conﬁguration
+NMP continuous /
+RRBO dispersed
+INHERITED from companion audit
+RRBO net ﬂow
+4000 L/h
+INHERITED; not equated to turbine circulation
+Shaft ds
+44
+PRE-PILOT R1 ENGINEERING RULE: user-stipulated preliminary shaft, not
+strength-qualiﬁed or a new hydraulic selection
+Turbine type
+Double-entry
+radial-ﬂow
+shrouded
+Established user construction basis; no basic type re-selection
+Blade count /
+spacing
+6 / 60°
+Established six-blade reference construction; geometrical spacing SYSTEM
+CALCULATED
+Hub diameter /
+height
+70 / 24
+PRE-PILOT R1 ENGINEERING RULE: explicit review candidate; 13 mm radial
+hub material around the shaft, ample overlap with the proposed web.
+Attachment/key/ﬁt/weld design UNRESOLVED
+Blade thickness
+3
+PRE-PILOT R1 ENGINEERING RULE: trial plate gauge; stress, vibration,
+corrosion and joining not qualiﬁed
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 8 / 28
+
+Quantity
+Candidate
+Provenance / rationale
+Inner web axial
+height
+16
+PRE-PILOT R1 ENGINEERING RULE: reduced-height web to retain entry paths
+above and below while connecting the hub to outer paddles
+Outer blade axial
+height
+28
+PRE-PILOT R1 ENGINEERING RULE: trial discharge height, independent of net
+process ﬂow
+Shroud thickness,
+each
+2
+PRE-PILOT R1 ENGINEERING RULE: geometric sheet envelope only; strength
+and distortion not qualiﬁed
+Shroud radial
+width
+34
+PRE-PILOT R1 ENGINEERING RULE: explicit trial support/outer-paddle width;
+selection procedure below
+Overall turbine
+height HR
+32
+SYSTEM CALCULATED: 28 + 2×2
+Stator thickness
+4
+PRE-PILOT R1 ENGINEERING RULE: review plate envelope, not mechanical
+design; diﬀers from old R1 min(D/160,hc/20) = 3.75
+The hub is not silently inherited from the former R1 1.6ds convention. The round 70 mm candidate is proposed
+here and must be approved independently; changing it changes all eﬀective eye calculations.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 9 / 28
+
+3.1 · Ideal-solid topology and coordinate convention
+Use a rotor-local Cartesian system: Z = 0 at the turbine midplane, Z positive upward, X/Y in the transverse
+plane, positive azimuth counterclockwise from +X when viewed from +Z. Translate the rotor-local origin to
+each inherited rotor elevation only after approval. A typical compartment has stator centre planes at Z = ±90.
+The candidate consists of:
+Continuous Ø44 shaft.
+Annular hub: radial interval 22 ≤ r ≤ 35; axial interval −12 ≤ Z ≤ +12.
+Lower shroud: annulus 65 ≤ r ≤ 99; −16 ≤ Z ≤ −14.
+Upper shroud: annulus 65 ≤ r ≤ 99; +14 ≤ Z ≤ +16.
+Six 3-mm-thick radial blades at azimuths 0°, 60°, 120°, 180°, 240°, 300°.
+Each blade's inner web occupies 35 ≤ r < 65 and |Z| ≤ 8.
+Each blade's outer paddle occupies 65 ≤ r ≤ 99 and |Z| ≤ 14.
+Both axial eye apertures are Ø130, bounded by the inner shroud edge. The upper and lower entries are
+geometrically identical.
+Discharge is through the six outer-periphery passages between the shrouds, not through drilled holes in
+the shrouds.
+For an exact blade solid at azimuth alpha, rotate local coordinates (u,v), with u outward along the blade and v
+transverse. The blade lies within |v| ≤ 1.5, u > 0 and 35 ≤ sqrt(u²+v²) ≤ 99; its axial half-height is 8 for r < 65
+and 14 for r ≥ 65. Thus the root, step and outer edge are cylindrical-radius trimmed. There are no rectangular
+corners protruding beyond DR = 198. Joining surfaces at r = 35 and Z = ±14 are intentional interfaces, not
+collisions. Six blades are distinct; the opposite blade is not double-counted as part of one strip.
+In the zero-thickness centre-plane sketch the positive-radius stepped blade outline is (r,Z):
+(35,−8), (65,−8), (65,−14), (99,−14), (99,+14), (65,+14), (65,+8), (35,+8). Finite-thickness construction must
+use the radial clipping above, not extrude these coordinates into an oversized rectangular outer corner.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 10 / 28
+
+4 · Eye candidate — engineering choice, not a
+correlation
+Neither the inherited variables nor gross free area uniquely determines DTI. The proposed construction deﬁnes
+it through a chosen physical shroud/paddle radial width w:
+DTI = DR − 2w.
+For review, consider w = 30–38: this provides an outer working/shroud span of 10–12.7 blade thicknesses and
+leaves an inner radial web reach of 26–34 from the Ø70 hub. These are declared geometric screening choices,
+not stress criteria, published Kühni proportions or an optimum. A nominal w = 34 balances those two spans
+and gives:
+DTI = 198 − 2×34 = 130.
+The resulting DTI/DR ratio is merely an output (approximately 0.6566), not the sizing rule. Its unique
+acceptance remains UNRESOLVED pending engineering review and any primary-source dimensional evidence.
+Selecting a physical width does not eliminate the engineering assumption; it makes the assumption explicit
+and testable.
+Trial shroud
+width
+Calculated
+eye
+Minimum eye-disk area in turning region, each
+side (diagnostic)
+Conditional centre-opening candidate
+using §4 rule
+30
+138
+10,496.577
+120
+34
+130
+8,884.689
+112
+38
+122
+7,373.333
+104
+These are sensitivity alternatives, not three approved designs. Remaining calculations use the middle
+candidate only.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 11 / 28
+
+5 · Upper and lower entry sections
+For DTI = 130 and ds = 44:
+ATI,gross = π×130²/4 = 13,273.229.
+Ashaft = π×44²/4 = 1,520.531.
+ATI,shaft-corrected = 11,752.698.
+For this particular topology, the shaft-only number is the actual geometric eﬀective area at each shroud eye
+face: the hub and blades do not reach those faces. It is not the same as every internal cross-section. The
+internal station analysis below is necessary but must not be mistaken for a series of identical-ﬂow axial throats.
+Inspect the eye disk r ≤ 65 at each axial station. A solid boundary is evaluated using the ﬂuid-side limit;
+coincident zero-thickness mathematical faces are not counted twice.
+Upper station (lower is mirror image)
+Actual obstruction union in eye disk
+Open area
+Z > +16; aperture at +16 through
++14
+Shaft only; shroud is outside r = 65
+11,752.698
++12 < Z < +14
+Shaft only
+11,752.698
++8 < Z < +12
+Shaft and hub jointly equal one Ø70 solid disk
+9,424.778
+0 ≤ Z < +8
+One Ø70 disk plus six non-overlapping blade strips outside the
+hub
+8,884.689
+−8 < Z ≤ 0
+Mirrored lower eye/web region
+8,884.689
+−12 < Z < −8
+Hub/shaft union Ø70
+9,424.778
+−16 through −14; below −16
+Shaft only in aperture
+11,752.698
+The hub begins at Z = ±12, inside the eye, and therefore changes the real entry area. The inner blade webs
+begin at Z = ±8. The shroud does not intrude into r < 65; there is no hypothetical full disk blocking entry. The
+taller outer paddle lies outside the eye disk.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 12 / 28
+
+5.1 · Obstruction union and unresolved limiting
+streamtube
+For exact strip area, deﬁne:
+F(R,t) = t sqrt(R²−t²/4) + 2R² asin[t/(2R)].
+F is the intersection area of a circle of radius R with the complete strip |v| ≤ t/2, including both positive and
+negative u. Each actual radial blade occupies one half, so:
+Ablade,eye = (6/2) [F(65,3) − F(35,3)] = 540.089.
+Aeye-disk,turning-min = π(65²−35²) − Ablade,eye = 8,884.689.
+There is no extra shaft subtraction after subtracting the Ø70 hub disk; the shaft is already contained in that
+disk. Similarly, only the blade strip outside the hub is subtracted. Blade roots do not overlap one another: 3
+mm is far smaller than the 35 mm chord between adjacent blade centre lines at the hub radius.
+Therefore:
+Actual upper and lower eﬀective eye-face area = 11,752.698 each, at Z = +16 and −16 respectively (and
+throughout each shroud aperture).
+The downstream hub-cap cuts at Z = +12− and −12+ have 9,424.778 geometric open area each. They are
+actual internal approach/turning sections, not proven full-branch throats: the eye is not a closed axial duct and
+ﬂow may already leave the eye cylinder radially above these cuts.
+The conservative minimum eye-disk geometric diagnostic = 8,884.689 each, in the web/turning region |Z| < 8.
+It is explicitly not reported as a certiﬁed controlling entry throat. The minimum pre-turn, whole-branch
+streamtube section and corresponding hydraulic eﬀective area are UNRESOLVED. Only a deﬁned
+streamtube/control-volume analysis or resolved ﬂow ﬁeld can establish which internal cut intercepts all of each
+entry branch before it turns.
+Important interpretation: these are minimum geometric axial cross-sections of the entry/turning region. The
+ﬂow turns radially along that region, so the sections must not be modelled as an unbranched constant-
+throughput axial nozzle train. The station schedule identiﬁes the actual solid obstruction, not a proven
+controlling hydraulic restriction or discharge coeﬃcient. A single true ﬂow-controlling throat cannot be certiﬁed
+without a ﬂow solution/test. Equality of upper/lower geometric areas does not prove equal entry ﬂow rates.
+At r = 99, clear discharge height is 28. Subtract the six blade arc widths, not their projected eye areas:
+Aradial,out = [2π×99 − 6×2×99 asin(3/198)]×28 = 16,912.970.
+At the eye outer edge r = 65+, where full-height outer paddles begin, the separate cylindrical turn-passage
+area is:
+Aradial,turn = [2π×65 − 6×2×65 asin(3/130)]×28 = 10,931.353.
+This is the combined radial passage area over the full 28-mm height, not an axial eye area or a separate full-
+height area available to each side. A symmetric half-height partition would give half this number per side as a
+bookkeeping convention, but the two entry streams are not separated by a solid disc. A geometric area smaller
+than other sections is a warning for ﬂow review, not proof of the controlling streamtube.
+The outer cylindrical discharge area is smaller than twice the per-side minimum eye-disk diagnostic
+(17,769.378), and the turn area at r = 65 is smaller still. These diﬀerent orientations, branching and ﬂow
+turning prevent a simple smallest-area argument from certifying the actual hydraulic restriction. No pumping
+number, throughput equality, circulation multiplier or capacity guarantee is implied.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 13 / 28
+
+6 · Stator centre opening follows the eye
+The adopted construction requirement is DSO < DTI < DR. The candidate adds a transparent, unapproved and
+arbitrary comparative geometric screen: the shaft-corrected stator centre area should be at most 95% of the
+smaller turning-region minimum eye-disk diagnostic. This is not a solved hydraulic design condition: that
+diagnostic is not a certiﬁed entry throat. The 5% allowance is a proposed comparison margin, not a hydraulic
+correlation, fabrication tolerance or proof of capture.
+DSO,max = sqrt[ds² + 4×0.95×Aeye-disk,turning-min/π]
+= 112.617585.
+For a simple preliminary centre-opening callout, round downward to an even millimetre:
+DSO = 112; CE = (130−112)/2 = 9.
+This rule is explicitly additional engineering judgment, not a claim that the documents or literature require a
+0.95 factor. It is not a universal DSO/DTI ratio. Engineering review may reject it; its sensitivity is visible.
+ASO,gross = π×112²/4 = 9,852.035.
+ASO,shaft-corrected = π(112²−44²)/4 = 8,331.504.
+ASO,shaft-corrected / Aeye-disk,turning-min = 0.937737.
+Actual comparative area allowance = 6.2263% after rounding.
+Shaft-to-centre-opening radial clearance = (112−44)/2 = 34.
+The centre opening lies inside the eye's gross envelope in axial projection, but it is not a duct or sealed
+coupling. The stator and turbine are separated axially. A positive CE does not establish streamtube capture or
+control which perforation ﬂows reach the turbine.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 14 / 28
+
+7 · Gross-area target and perforation development
+AC = π×600²/4 = 282,743.339.
+Inherited phi = 0.40 is mapped under the stated physical gross convention:
+Atarget = phi AC = 113,097.336.
+Required hole area after the eye and centre selection:
+Aholes = Atarget − ASO,gross = 103,245.301.
+Use four rings with counts 12, 18, 24 and 30, totalling 84 holes. Each ring count is a multiple of six. The rings
+and their phase shifts reserve six continuous radial no-hole lanes. The choices are explicitly proposed layout
+decisions, not a reused 54×Ø40 or two-quarter-point pattern.
+Proposed preliminary layout goals: hole-to-hole ligament at least 12; centre edge ligament at least 20; shell
+edge ligament at least 15; six 8-wide no-hole radial lanes with at least 2 separation to the nearest hole. These
+are geometric screening goals only, not allowable structural values. Selected centres r = 100,155,210,265 give
+uniform 55 radial pitch and pass these goals.
+With N = 84:
+d_h = sqrt[(0.40×600² −112²)/84] = 39.5594790278.
+The nonstandard diameter is a proﬁle-cut CAD diameter, not an assertion that a standard drill exists. A
+released drawing needs fabrication method, tolerances, deburring and an acceptance rule for gross-area
+deviation. Ø39.56 is a display rounding only; use the unrounded calculation for exact nominal closure. If a
+standard drill diameter is mandated, this candidate must be rebalanced and re-reviewed.
+Row
+PCD
+Count
+First hole angle
+Increment
+Chord pitch
+Arc pitch
+Circumferential ligament
+1
+200
+12
+15°
+30°
+51.763809
+52.359878
+12.204330
+2
+310
+18
+10°
+20°
+53.830935
+54.105207
+14.271456
+3
+420
+24
+7.5°
+15°
+54.821001
+54.977871
+15.261522
+4
+530
+30
+6°
+12°
+55.400086
+55.501470
+15.840607
+For row i, hole j = 0…Ni−1:
+theta_ij = (j+0.5)360°/Ni;
+X_ij = (PCDi/2) cos(theta_ij);
+Y_ij = (PCDi/2) sin(theta_ij).
+This is the full pattern deﬁnition, not a representative subset. All 84 centres are provided in geometry-
+proposal.json. Row staggering is the explicit ﬁrst-angle schedule above, not an undocumented common angle.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 15 / 28
+
+7.1 · Gross/net closure and support obstruction
+DSO² + N d_h² = 112² + 84×39.5594790278² = 144,000.
+Physical gross free area = 113,097.336.
+Physical gross fraction = 0.400000.
+Shaft-only adjusted stator free area = 111,576.805.
+Shaft-only adjusted fraction = 0.3946222222.
+This candidate places no separate support bar across the centre opening or a hole at the stator plane. The six
+radial lanes are retained solid plate, already outside the counted openings; subtracting them again would
+double-count blockage. Wall attachment and ﬁnal support details are unresolved. Any later support masking a
+hole or centre opening must have its intersection with the already-open area deducted as an additional
+diagnostic and be checked at its actual Z station. Separate shaft-support planes must not be subtracted from
+the stator plane as though they were coincident.
+The old Ø379.473 central opening is not used. The new centre opening supplies only part of the target; holes
+supply the remainder. No shaft-adjusted value is returned to Stage 3.
+Retired for this successor: Ø379.473 mm as a centre opening. It alone consumes the full 40% gross area.
+The historical single-opening R1 dataset remains unchanged.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 16 / 28
+
+8 · Clearance and ligament validation
+The accompanying standalone calculation enumerates all 3,486 hole pairs, not just pairs in the same row. It
+calculates centre distances and subtracts the common hole diameter. Each row is also checked against the
+centre boundary, shell and six radial lane boundaries.
+Check
+Result
+Status / limitation
+DSO < DTI < DR
+112 < 130 <
+198
+Geometric pass
+Positive capture allowance CE
+9
+Geometric pass; not hydraulic capture proof
+Hub-eye radial interval
+30
+Positive entry annulus
+Rotor-wall radial clearance
+201
+Geometric pass
+Stator planes relative to rotor
+±90
+From hc/2
+Stator inner faces
+±88
+With proposed 4 plate
+Rotor extremes
+±16
+With proposed 32 HR
+Rotor-to-stator axial clearance, each
+side
+72
+Geometric pass
+Web top to shroud inner-face plane
+6
+Step space; radial positions diﬀer at the boundary
+Hub cap to shroud inner-face plane
+2
+Axial plane oﬀset only; not a collision clearance between
+overlapping radial solids
+Minimum same-row and global hole-
+pair ligament
+12.204330
+Row 1 adjacent holes
+Minimum cross-row centre distance
+55.345639
+Between rows 3 and 4
+Minimum cross-row ligament
+15.786160
+All cross-row pairs checked
+Centre-opening to nearest hole
+ligament
+24.220260
+r1 − d_h/2 − DSO/2
+Outer hole to shell ligament
+15.220260
+300 − r4 − d_h/2
+Six reserved radial lane widths
+8
+Solid geometric lanes, not structurally qualiﬁed spokes
+Minimum hole edge to lane boundary
+2.102165
+Row 1; exact r sin(π/N) − d_h/2 − 4
+Sixfold plate rotational symmetry
+exact
+Counts and phases repeat at 60°
+Total gross area closure
+0.400000
+Nominal arithmetic pass
+Rotor swept diameter
+198 exact
+Cylindrical clipping includes ﬁnite blade thickness
+Upper/lower eye obstruction topology
+mirrored
+Equal geometry, not demonstrated equal ﬂux
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 17 / 28
+
+The 72-mm axial gap uses stator centre-plane pitch, consistent with the existing R1 stack deﬁnitions inspected
+read-only in shared/ecr-stage5-r1.ts: stators z0+i hc, rotor centres z0+(i+0.5)hc (manifest lines 18–21 and
+compartment mapping lines 211–212). This is a veriﬁed existing geometry convention, not a new inference
+from the database.
+No-hole lanes are strips about radial axes at 0°,60°,…300°, from the centre-opening edge to the outer plate.
+Because every ring has an even number of holes per 120° and half-step phase, the nearest hole on each side
+of a lane has distance r sin(π/N) to the lane axis; the table veriﬁes actual lane clearance. These are not
+additional pieces intruding into the opening.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 18 / 28
+
+8.1 · Conditional quantities and assembly interfaces
+The conﬁrmed Stage-4 count is 39 compartments, installed active height 7020 = 39×180. If the existing one-
+turbine-per-compartment and N+1 shared stator boundaries including two terminal stators convention is
+retained, the proposed complete active stack contains:
+Component
+Conditional stack
+quantity
+Basis
+Turbine assemblies / hubs
+39 / 39
+One per inherited compartment
+Upper shrouds / lower
+shrouds
+39 / 39
+Two per turbine, 78 total
+Individual radial blades
+234
+39×6
+Stator plates
+40
+N+1 retained terminal-boundary convention
+Stator perforations
+3360
+40×84; centre openings excluded
+Continuous main shaft
+1
+Existing common-shaft architecture; length/support veriﬁcation
+separate
+The N+1 count is a retained existing R1 engineering convention, not a universal published Kühni count.
+Terminal stators may require separate treatment; approval of the repeating pattern does not automatically
+approve terminal support/ﬂow conditions.
+If the existing R1 z0 = 1.25D = 750 stack datum is retained, proposed rotor centres are z_i = 750+(i+0.5)180,
+i=0…38, i.e. 840 through 7680; stator centres are z_j=750+j180, j=0…39, i.e. 750 through 7770. These
+formulas give all component elevations without reselecting counts or active height.
+No saved Stage-5 snapshot/support geometry was supplied in the audit evidence available for this appendix.
+Therefore complete-assembly collision approval is not claimed. The read-only current R1 source has end-zone
+support centres at 0.75D and z1+D/2, with axial half-depth 0.02D. Conditionally retaining that source
+convention gives centres 450 and 8070, axial envelopes [438,462] and [8058,8082]. With proposed 4-mm
+terminal stators, their nearest faces are 748 and 7772, leaving 286 axial separation to the respective supports;
+ﬁrst/last rotor envelopes also remain separated. This is a source-convention compatibility calculation, not
+veriﬁcation against an actual immutable Stage-5 snapshot. Final saved support housings, arms, nozzles,
+attachments and interface coordinates must be compared with the successor solids before a complete
+assembly can be approved. Do not subtract these separate end-zone support projections from active-stator
+plane areas.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 19 / 28
+
+9 · Proposed turbine drawing
+T-01 • Proposed turbine — plan and blade-plane section
+Ø198 swept OD
+Ø198 swept OD
+Ø130 eye (both sides)
+Ø70 hub / Ø44 shaft
+Upper shroud shown opaque
+6 blades at 60° intervals
+Covered blade portions hidden
+No continuous outer rim
+Radial discharge
+between blades
+BLADE-PLANE SECTION • equal horizontal/vertical scale
+Ø198
+Ø198
+Ø130 eye
+Ø130 eye
+32 overall
+32 overall
+t = 2 each shroud
+Paddle H = 28
+Inner web H = 16
+Hub H = 24; blade t = 3
+Upper entry
+Lower entry
+Solid blade section: radial ﬂow occurs out of this section between blades.
+All new construction dimensions are proposed engineering choices; swept OD is inherited. Blue shrouds attach to the outer
+paddles at Z = ±14. Blade t = 3 is trimmed at cylindrical radii 35, 65 and 99. The section shows solids through two opposing
+blades; radial passage ﬂow is between blades, as indicated in the plan.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 20 / 28
+
+9.1 · Proposed stator drawing
+S-01 • Proposed perforated stator — complete 84-hole pattern
+Ø600 plate envelope
+Ø600 plate envelope
+Ø112 centre
+Plate t = 4
+84 holes
+Ø39.559479
+proﬁle-cut
++X at right; positive azimuth counterclockwise viewed from +Z
+Six 8-mm radial no-hole lanes: 0°, 60°, 120°, 180°, 240°, 300°
+PCD: 200 / 310 / 420 / 530; counts: 12 / 18 / 24 / 30
+First angle: 15° / 10° / 7.5° / 6°; radial centre pitch = 55
+Shaded lanes are retained plate, not separate support bars; no extra area deduction.
+Hole count and row layout: proposed engineering rules. Hole diameter: SYSTEM CALCULATED from exact gross closure.
+Nominal hole diameter shown rounded; use 39.5594790278 in review calculations. Ligament acceptance and plate strength
+remain unqualiﬁed. The no-hole lanes are not additional pieces.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 21 / 28
+
+9.2 · Proposed typical-compartment section
+C-01 • Typical compartment — section between blade planes
+180
+180
+72
+72
+72
+72
+Ø600 ID
+Ø600 ID
+Z = +90 plate centre
+Z = −90 plate centre
+Z = 0 rotor centre
+Rotor outer faces Z = ±16; stator inner faces Z = ±88; plate t = 4
+30° section cuts row-2 and row-4 holes; row-1/row-3 holes are out of section.
+Local return
+circulation
+Radial discharge
+Ø112 stator opening
+Ø130 eye; CE = 9
+Projection overlap only
+Axial communication (schematic)
+Horizontal and vertical scales diﬀer. Dimensions govern; do not scale.
+Section at 30° between blade planes intersects row-2 and row-4 perforations through their centres; other blades/perforations
+away from this cut are intentionally omitted. Flow arrows show the adopted architecture, not solved streamlines or imposed
+equal upper/lower ﬂow. Stator opening and eye are not a sealed duct. Wall attachment and bypass sealing remain
+unresolved.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 22 / 28
+
+10 · Engineering decisions and release stop gate
+Acceptance of the speciﬁc 34-mm shroud width / Ø130 eye remains UNRESOLVED: the numerical
+candidate is a deliberately exposed engineering choice, not a sourced unique solution.
+Hub dimensions, blade plate gauge and stepped heights, shroud gauge, 5% comparative entry-area
+allowance, even-mm centre rounding, stator thickness, ring placement, lane/ligament screening criteria
+and fabrication method all require approval.
+The shape and dimensions are geometrically connected and collision-free for the stated ideal solids.
+They are not qualiﬁed for rotational strength, weld fatigue, balance, critical speed, erosion/corrosion,
+thermal expansion, deﬂection, pressure loading or shaft attachment.
+Weld beads, ﬁllets, hub fasteners, surface ﬁnish, runout, tolerances and real shroud transitions are
+absent. Their real intersections may reduce eﬀective areas; recalculate after they are deﬁned.
+Station-area arithmetic is not a hydraulic performance validation. Local loss coeﬃcients, nonuniform
+inﬂow, radial passage pressure gradients, operating power/pumping characteristics, phase holdup and
+backmixing remain unvalidated.
+A separate radial discharge area does not by itself identify the actual hydraulic minimum passage. Do
+not impose Q_turbine = process throughput or infer pumping capacity from any of these area values.
+Equal gross phi does not demonstrate hydraulic equivalence between the old annular stator and this
+perforated design. The empirical Stage-3 model is unchanged, but the successor physical mapping
+needs independent qualiﬁcation.
+All assembly supports, end-compartment diﬀerences and any inherited shaft-support elevations must be
+reconciled by the full report before a new complete rule set can be issued.
+The companion audit conﬁrms the inherited dimensional tuple, 45 RPM and NMP-continuous/RRBO-
+dispersed conﬁguration. That software audit does not approve these new engineering choices or qualify
+the successor hydrodynamics.
+Stop after engineering review. No production calculations, persisted records, R1 datasets or drawings have
+been changed by this standalone calculation.
+Reproduction: node deliverables/kuhni-successor-review/geometry-proposal.mjs. The script imports only Node
+ﬁlesystem, writes its own report JSON, asserts area closure and positive clearances, and does not invoke
+application modules, databases or optimizer services.
+Review outcome required: approve, amend or reject the dimensional candidate and its explicit
+geometric assumptions. A successor rule-set version may be assigned only after review. No automatic
+production implementation is authorized by this report.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 23 / 28
+
+11 · Primary construction references
+G — Dirk Garthe, Fluiddynamics and Mass Transfer of Single Particles and Swarms of
+Particles in Extraction Columns, TU München dissertation
+Primary local ﬁle: attached_assets/Paper_1788587264307.pdf.
+Repository record: https://mediatum.ub.tum.de/601973 (cached project HTML reports a bot-protection
+page; the local supplied primary PDF, not that HTML, was inspected).
+SHA-256: 39a39035d63f0b84bc74957ccf17b7a8c67ec456e73e4277491bc2cbb2bd53fc.
+Printed pp. 63–64, §4.5 and Figure 4.9 (PDF pages 75–76): the Kühni compartment illustration is bottom-
+right. It depicts annular stators, a common shaft and six stepped-looking radial blades. The illustrated
+blades are exposed; a pair of annular rotor shrouds is not visibly established by this ﬁgure. This is a limit
+on using this particular illustration as a shrouded-turbine manufacturing reference, not proof that
+shrouded Kühni turbines do not exist.
+Printed p. 177, Table A.1 (PDF p. 189): Kühni six-blade agitator diameter 45 mm, height 7 mm, relative
+stator free area 0.40, compartment height 50 mm, shaft diameter 10 mm.
+No turbine-eye diameter, rotor-shroud ID/OD/thickness, blade thickness, hub OD/height, stepped-web
+numerical proportions, or turbine-to-stator clearance dimension is supplied in that table.
+The table's 1- and 2-mm sieve-tray thicknesses and 2- and 4-mm perforation diameters belong to
+diﬀerent pulsed sieve-tray internals. They must not be silently assigned to the Kühni stator.
+The 7/45 height ratio and 10/45 shaft ratio are calculated apparatus ratios, not universal scale laws.
+Applying them at OD 198 gives 30.8-mm height and 44-mm shaft, but those extrapolations are PRE-
+PILOT ENGINEERING RULES, not source-backed target dimensions. Adding shrouds also requires deﬁning
+whether “height” includes them; Garthe does not settle that for the proposed successor.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 24 / 28
+
+11.1 · Oliveira and shrouded-family evidence
+O — N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim, M. Borges Mansur (2008), A Study of
+the Drop Size Distributions and Hold-Up in Short Kühni Columns
+Brazilian Journal of Chemical Engineering, 25(4), 729–741.
+Primary local ﬁle: attached_assets/A_STUDY_OF_THE_DROP_SIZE_DISTRIBUTIONS_1788585700948.pdf.
+SHA-256: 5381a0eb1d1ea54d6f3eacabf644364306d4bcbd0edf226191d6d4947be39317.
+Printed p. 731, “Experimental / Kühni Pilot Scale Unit” (PDF p. 3): ﬁve stages, column diameter 150 mm;
+six-blade rotor diameter 85 mm and height 10 mm; stator fractional free area 30%; stator spacing 70
+mm. Internal parts AISI 316; annular Teﬂon gaskets prevent bypass between stator and wall.
+Apparatus ratios: 85/150 = 0.5667; 10/85 = 0.11765; 70/150 = 0.4667. These diﬀer from Garthe and do
+not select target DTI, HR, hub or shroud dimensions.
+The same paragraph describes 170 holes of 1-mm diameter on ﬁve concentric circles in the inlet
+distributor, not holes in each stator. Do not repurpose the distributor pattern as the proposed stator
+pattern.
+The inspected apparatus text supplies no eye diameter or detailed shroud/hub/blade-entry dimensions.
+“Six-blade rotor” alone is not a dimensional shroud speciﬁcation.
+Its water-continuous/Exxsol-dispersed system must not replace the saved project's phase conﬁguration.
+A — Asadollahzadeh et al. (2017), “Experimental Determination of Continuous Phase
+Overall Mass Transfer Coeﬃcients: Case Study: Kühni Extraction Column”
+Iranian Journal of Chemistry and Chemical Engineering, 36(5), primary article.
+Primary local ﬁle: research/sources/kuhni-mass-transfer/asadollahzadeh-2017-primary.pdf.
+Primary source URL recorded with the project copy: https://ijcce.ac.ir/juﬁle?ar_sﬁle=344118
+SHA-256: 317c207d4fa0618f123b14239794aab51c1f29ddba217b91a08af2e532190239.
+Printed p. 150 (PDF p. 2), “Description of the Equipment”: explicit 50-mm diameter shrouded six-blade
+turbine agitator, ten stages. This is direct primary support for a shrouded six-blade Kühni construction
+family.
+Printed p. 151 (PDF p. 3), Table 1: shrouded six-bladed turbine diameter 0.05 m; working height 0.7 m;
+stator fractional free area 0.212; ten compartments.
+Figure 1 on p. 151 includes an enlarged compartment sketch with perforated stators and a visibly
+shrouded rotor. It is a schematic, not a dimensioned component drawing: do not measure or scale its
+eye, hub, blade geometry, stator hole count or PCD.
+Important source inconsistency: prose says column internal diameter 113 mm, while Table 1 says
+column diameter 0.117 m. Preserve this discrepancy; neither is needed to infer the target eye.
+The inspected paper supports the construction family and a perforated-stator illustration, not a universal
+DSO/DTI relation, total free area of 0.40 for the successor, or published 198-mm turbine dimensions.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 25 / 28
+
+11.2 · Source limits and classiﬁcation
+There is primary support for shrouded six-blade Kühni turbines, and a primary illustration of perforated stators.
+The accepted user topology therefore need not be reopened. However, Garthe's illustrated exposed-blade
+geometry cannot be presented as a dimensioned source for the new upper/lower shrouds.
+No inspected primary source establishes a numerical turbine eye DTI, eye/OD ratio, upper/lower eye thickness,
+lip radius, entry-blade start radius, or capture margin CE for this proposed 198-mm turbine. A limited additional
+web search returned no usable dimensioned primary eye source; unrelated pump/compressor/wind-turbine
+sources were rejected. This is an evidence gap, not a claim that such evidence cannot exist.
+Consequently:
+Item
+Valid report classiﬁcation
+D, DR, hc, RPM, empirical phi and phase orientation from
+veriﬁed saved Stage 3
+INHERITED
+Six blades and shrouded construction family
+SOURCE-BACKED REFERENCE, also adopted project
+topology
+Explicit double entry and turbine-ﬁrst successor sequence
+Adopted PRE-PILOT ENGINEERING RULE / user design basis
+Garthe 45-mm rotor, 7-mm height, 10-mm shaft in its own
+apparatus
+SOURCE-BACKED REFERENCE
+Scaling those to HR = 30.8 mm and ds = 44 mm for DR =
+198 mm
+PRE-PILOT ENGINEERING RULE (shaft not strength veriﬁed)
+New hub, shroud thickness, stepped inner web, eye and
+DSO values
+Proposed PRE-PILOT ENGINEERING RULE with rationale, or
+UNRESOLVED
+DSO < DTI < DR and positive CE
+Adopted PRE-PILOT ENGINEERING FLOW-PATH RULE, not
+literature correlation
+Area and ligament results from fully deﬁned proposed solids
+SYSTEM CALCULATED
+Pumping number, circulation ratio, hydraulic equivalence,
+shaft adequacy
+UNRESOLVED / outside demonstrated evidence
+Sources were visually inspected at the cited ﬁgures/tables. Their numerical dimensions refer to their own
+apparatus. The new 130-mm eye, 112-mm centre opening and 84-hole layout are not claimed as published
+Kühni or proprietary Sulzer dimensions.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 26 / 28
+
+12 · Scientiﬁc integrity and reproducibility
+Stage-3 immutable hash, independently reconstructed and veriﬁed:
+e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249.
+Stage-3 engine/implementation hash:
+faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550.
+Stage-3 calculation hash, saved = replay:
+f7cacea88792a9b70aecb65e187728c5e4aae1fa038920a450d9e2385bf850ef.
+Full result canonical SHA-256, saved = replay:
+7dc0cc2a2350bb06b4c024ac82bd86a21d7efacb57164094695dd8c4447a9ebf.
+Stage-1 snapshot hash: 549dﬀa428356ee5e94d8baﬀ297c114e1f0c6f345b84e121181e7b5f6b5f15b.
+Stage-4 ID 13 lineage hash: 5a9a6446a4e59faﬀ9d5a86ee02f21afbaf11b1524e02641d5dd449424d380b3.
+Stage-4's stored Stage-3 immutable hash equals the veriﬁed run-64 hash.
+SELECT export ﬁle SHA-256 before and after the ﬁnal oﬄine replay/re-read:
+a20f1b5039e3b9f56c99dd8964f126e39c5ee5e9b4ce184910e947785f9e7fc8 both times.
+The export includes Stage-3/4 scientiﬁc records and comparison IDs, not credentials or owner personal data.
+Diﬀerent hashes above represent diﬀerent envelopes and must not be substituted for one another. Stage-4's
+optimizerResultHash is its projected/compacted representation identity, not the full raw Stage-3 calculation hash.
+Evidence ﬁles in this directory:
+saved-evidence.json: actual saved records and owner/design-match booleans.
+ranking-evidence.json: exact replay identities, Cartesian completeness, ratio counts, ordering tests and all
+D=600-mm group summaries.
+audit-read.ts: direct database SELECTs inside BEGIN READ ONLY, rolled back after reading.
+audit-replay.ts: imports only pure scientiﬁc functions; no database access or writes except review
+evidence ﬁles.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 27 / 28
+
+12.1 · Audit code citations and calculation artifacts
+Source citations:
+server/ecr-pre-pilot/stage3-stage4-optimizer.ts:76–86: conﬁgured grid and ﬁxed 20-RPM preference.
+Same ﬁle :340–378, :381–466: deterministic canonicalization and bounded grids.
+Same ﬁle :536–596, :665–735: candidate physical checks and hydraulic loading admission.
+Same ﬁle :775–784, :870–880, :950–977, :1043–1085: tie order, width ranking, second-smallest adequate
+diameter.
+Same ﬁle :1091–1117: selected RPM midpoint policy.
+Same ﬁle :1120–1206: exhaustive loops, contiguous windows and geometry score construction.
+Same ﬁle :1358–1384: authoritative orientation retained; alternate orientation is comparison, not an
+automatic phase switch.
+Same ﬁle :1525–1531, :1572–1589: pure optimizer entry and API-only compaction (stored trials retained).
+server/ecr-pre-pilot/kuhni-geometry-resolver.ts:180–242: d32, characteristic/swarm velocity and implemented
+loading construction.
+server/ecr-pre-pilot-service.ts:491–547: authority loading, full-result immutable envelope and persisted-
+result/API-compaction separation.
+server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts:605–658: current saved record lookup and
+immutable/calculation integrity checks.
+Stop gate: this audit authorizes no implementation change. Detailed eye, shroud, hub, stator and perforation
+dimensions remain the engineering report's next work, with provenance and unresolved items stated explicitly.
+Companion reports: stage3-audit.md; source-review.md; geometry-proposal.md. Standalone geometry
+reproduction: node deliverables/kuhni-successor-review/geometry-proposal.mjs. Complete 84-hole coordinates and
+derived quantities: geometry-proposal.json. Renderer: build-report.mjs. These are report-only artifacts,
+separate from production models.
+DESIGN 269 · STAGE 3 / 64 · ENGINEERING REVIEW ONLY
+UNAPPROVED SUCCESSOR · NOT FOR FABRICATION
+Page 28 / 28

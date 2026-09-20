@@ -1,0 +1,1583 @@
+{
+  "savedResultCanonicalHash": "7dc0cc2a2350bb06b4c024ac82bd86a21d7efacb57164094695dd8c4447a9ebf",
+  "replayResultCanonicalHash": "7dc0cc2a2350bb06b4c024ac82bd86a21d7efacb57164094695dd8c4447a9ebf",
+  "exactReplay": true,
+  "savedCalculationHash": "f7cacea88792a9b70aecb65e187728c5e4aae1fa038920a450d9e2385bf850ef",
+  "replayCalculationHash": "f7cacea88792a9b70aecb65e187728c5e4aae1fa038920a450d9e2385bf850ef",
+  "calculatedImmutableHash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+  "immutableHashVerified": true,
+  "orientations": [
+    {
+      "orientation": "nmp-continuous-rrbo-dispersed",
+      "completeCartesianGrid": true,
+      "counts": [
+        {
+          "ratio": 0.33,
+          "groups": 126,
+          "trials": 1134,
+          "feasibleTrials": 596
+        },
+        {
+          "ratio": 0.4,
+          "groups": 126,
+          "trials": 1134,
+          "feasibleTrials": 318
+        },
+        {
+          "ratio": 0.5,
+          "groups": 126,
+          "trials": 1134,
+          "feasibleTrials": 102
+        }
+      ],
+      "groupCount": 378,
+      "trialCount": 3402,
+      "reverseInvariant": true,
+      "permutationsInvariant": true,
+      "selected": {
+        "geometry": {
+          "freeArea": 0.4,
+          "hcToColumn": 0.3,
+          "rotorToColumn": 0.33,
+          "rotorDiameterM": 0.198,
+          "columnDiameterM": 0.6,
+          "compartmentHeightM": 0.18
+        },
+        "window": {
+          "rpmMax": 60,
+          "rpmMin": 30,
+          "widthRpm": 30,
+          "edgeMarginRpm": 0,
+          "validTrialCount": 7
+        },
+        "score": {
+          "edgeMarginRpm": 0,
+          "windowWidthRpm": 30,
+          "validTrialCount": 7,
+          "centerDistanceRpm": 0,
+          "tieBreakPowerVolumeWM3": 4.21468007632058
+        },
+        "passingRpms": [
+          30,
+          35,
+          40,
+          45,
+          50,
+          55,
+          60
+        ]
+      },
+      "bestByRatio": [
+        {
+          "ratio": 0.33,
+          "best": {
+            "geometry": {
+              "freeArea": 0.4,
+              "hcToColumn": 0.3,
+              "rotorToColumn": 0.33,
+              "rotorDiameterM": 0.198,
+              "columnDiameterM": 0.6,
+              "compartmentHeightM": 0.18
+            },
+            "window": {
+              "rpmMax": 60,
+              "rpmMin": 30,
+              "widthRpm": 30,
+              "edgeMarginRpm": 0,
+              "validTrialCount": 7
+            },
+            "score": {
+              "edgeMarginRpm": 0,
+              "windowWidthRpm": 30,
+              "validTrialCount": 7,
+              "centerDistanceRpm": 0,
+              "tieBreakPowerVolumeWM3": 4.21468007632058
+            },
+            "passingRpms": [
+              30,
+              35,
+              40,
+              45,
+              50,
+              55,
+              60
+            ]
+          }
+        },
+        {
+          "ratio": 0.4,
+          "best": {
+            "geometry": {
+              "freeArea": 0.4,
+              "hcToColumn": 0.3,
+              "rotorToColumn": 0.4,
+              "rotorDiameterM": 0.24,
+              "columnDiameterM": 0.6,
+              "compartmentHeightM": 0.18
+            },
+            "window": {
+              "rpmMax": 40,
+              "rpmMin": 30,
+              "widthRpm": 10,
+              "edgeMarginRpm": 0,
+              "validTrialCount": 3
+            },
+            "score": {
+              "edgeMarginRpm": 0,
+              "windowWidthRpm": 10,
+              "validTrialCount": 3,
+              "centerDistanceRpm": 10,
+              "tieBreakPowerVolumeWM3": 5.646311480388003
+            },
+            "passingRpms": [
+              30,
+              35,
+              40
+            ]
+          }
+        },
+        {
+          "ratio": 0.5,
+          "best": null
+        }
+      ],
+      "at600": [
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 1.365556344727868
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 45,
+            "rpmMin": 30,
+            "widthRpm": 15,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 4
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 15,
+            "validTrialCount": 4,
+            "centerDistanceRpm": 5,
+            "tieBreakPowerVolumeWM3": 4.6087526634565545
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 55,
+            "rpmMin": 30,
+            "widthRpm": 25,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 6
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 25,
+            "validTrialCount": 6,
+            "centerDistanceRpm": 0,
+            "tieBreakPowerVolumeWM3": 6.32202011448087
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45,
+            50,
+            55
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 3.573056483683034
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 8.469467220582004
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 1.0924450757822943
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 45,
+            "rpmMin": 30,
+            "widthRpm": 15,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 4
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 15,
+            "validTrialCount": 4,
+            "centerDistanceRpm": 5,
+            "tieBreakPowerVolumeWM3": 3.687002130765244
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 55,
+            "rpmMin": 30,
+            "widthRpm": 25,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 6
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 25,
+            "validTrialCount": 6,
+            "centerDistanceRpm": 0,
+            "tieBreakPowerVolumeWM3": 5.057616091584697
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45,
+            50,
+            55
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 2.8584451869464274
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 6.775573776465603
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 0.9103708964852453
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 45,
+            "rpmMin": 30,
+            "widthRpm": 15,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 4
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 15,
+            "validTrialCount": 4,
+            "centerDistanceRpm": 5,
+            "tieBreakPowerVolumeWM3": 3.072501775637703
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 60,
+            "rpmMin": 30,
+            "widthRpm": 30,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 7
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 30,
+            "validTrialCount": 7,
+            "centerDistanceRpm": 0,
+            "tieBreakPowerVolumeWM3": 4.21468007632058
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45,
+            50,
+            55,
+            60
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 2.382037655788689
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 5.646311480388003
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        }
+      ]
+    },
+    {
+      "orientation": "rrbo-continuous-nmp-dispersed",
+      "completeCartesianGrid": true,
+      "counts": [
+        {
+          "ratio": 0.33,
+          "groups": 126,
+          "trials": 1134,
+          "feasibleTrials": 341
+        },
+        {
+          "ratio": 0.4,
+          "groups": 126,
+          "trials": 1134,
+          "feasibleTrials": 74
+        },
+        {
+          "ratio": 0.5,
+          "groups": 126,
+          "trials": 1134,
+          "feasibleTrials": 0
+        }
+      ],
+      "groupCount": 378,
+      "trialCount": 3402,
+      "reverseInvariant": true,
+      "permutationsInvariant": true,
+      "selected": {
+        "geometry": {
+          "freeArea": 0.4,
+          "hcToColumn": 0.3,
+          "rotorToColumn": 0.33,
+          "rotorDiameterM": 0.42900000000000005,
+          "columnDiameterM": 1.3,
+          "compartmentHeightM": 0.39
+        },
+        "window": {
+          "rpmMax": 50,
+          "rpmMin": 30,
+          "widthRpm": 20,
+          "edgeMarginRpm": 0,
+          "validTrialCount": 5
+        },
+        "score": {
+          "edgeMarginRpm": 0,
+          "windowWidthRpm": 20,
+          "validTrialCount": 5,
+          "centerDistanceRpm": 0,
+          "tieBreakPowerVolumeWM3": 16.939576647195313
+        },
+        "passingRpms": [
+          30,
+          35,
+          40,
+          45,
+          50
+        ]
+      },
+      "bestByRatio": [
+        {
+          "ratio": 0.33,
+          "best": {
+            "geometry": {
+              "freeArea": 0.4,
+              "hcToColumn": 0.3,
+              "rotorToColumn": 0.33,
+              "rotorDiameterM": 0.198,
+              "columnDiameterM": 0.6,
+              "compartmentHeightM": 0.18
+            },
+            "window": {
+              "rpmMax": 45,
+              "rpmMin": 30,
+              "widthRpm": 15,
+              "edgeMarginRpm": 0,
+              "validTrialCount": 4
+            },
+            "score": {
+              "edgeMarginRpm": 0,
+              "windowWidthRpm": 15,
+              "validTrialCount": 4,
+              "centerDistanceRpm": 5,
+              "tieBreakPowerVolumeWM3": 2.6305458552011465
+            },
+            "passingRpms": [
+              30,
+              35,
+              40,
+              45
+            ]
+          }
+        },
+        {
+          "ratio": 0.4,
+          "best": {
+            "geometry": {
+              "freeArea": 0.3,
+              "hcToColumn": 0.3,
+              "rotorToColumn": 0.4,
+              "rotorDiameterM": 0.24,
+              "columnDiameterM": 0.6,
+              "compartmentHeightM": 0.18
+            },
+            "window": {
+              "rpmMax": 30,
+              "rpmMin": 30,
+              "widthRpm": 0,
+              "edgeMarginRpm": 0,
+              "validTrialCount": 1
+            },
+            "score": {
+              "edgeMarginRpm": 0,
+              "windowWidthRpm": 0,
+              "validTrialCount": 1,
+              "centerDistanceRpm": 20,
+              "tieBreakPowerVolumeWM3": 2.0393997269757347
+            },
+            "passingRpms": [
+              30
+            ]
+          }
+        },
+        {
+          "ratio": 0.5,
+          "best": null
+        }
+      ],
+      "at600": [
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 35,
+            "rpmMin": 30,
+            "widthRpm": 5,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 2
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 5,
+            "validTrialCount": 2,
+            "centerDistanceRpm": 15,
+            "tieBreakPowerVolumeWM3": 1.856537506860069
+          },
+          "passingRpms": [
+            30,
+            35
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 35,
+            "rpmMin": 30,
+            "widthRpm": 5,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 2
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 5,
+            "validTrialCount": 2,
+            "centerDistanceRpm": 15,
+            "tieBreakPowerVolumeWM3": 1.856537506860069
+          },
+          "passingRpms": [
+            30,
+            35
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 2.7712746458086146
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 3.0590995904636022
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.2,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 35,
+            "rpmMin": 30,
+            "widthRpm": 5,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 2
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 5,
+            "validTrialCount": 2,
+            "centerDistanceRpm": 15,
+            "tieBreakPowerVolumeWM3": 1.4852300054880552
+          },
+          "passingRpms": [
+            30,
+            35
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 2.217019716646892
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 2.217019716646892
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 2.447279672370882
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 2.447279672370882
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.25,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 1.8475164305390765
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 40,
+            "rpmMin": 30,
+            "widthRpm": 10,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 3
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 10,
+            "validTrialCount": 3,
+            "centerDistanceRpm": 10,
+            "tieBreakPowerVolumeWM3": 1.8475164305390765
+          },
+          "passingRpms": [
+            30,
+            35,
+            40
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.33,
+            "rotorDiameterM": 0.198,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 45,
+            "rpmMin": 30,
+            "widthRpm": 15,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 4
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 15,
+            "validTrialCount": 4,
+            "centerDistanceRpm": 5,
+            "tieBreakPowerVolumeWM3": 2.6305458552011465
+          },
+          "passingRpms": [
+            30,
+            35,
+            40,
+            45
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 2.0393997269757347
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.4,
+            "rotorDiameterM": 0.24,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": {
+            "rpmMax": 30,
+            "rpmMin": 30,
+            "widthRpm": 0,
+            "edgeMarginRpm": 0,
+            "validTrialCount": 1
+          },
+          "score": {
+            "edgeMarginRpm": 0,
+            "windowWidthRpm": 0,
+            "validTrialCount": 1,
+            "centerDistanceRpm": 20,
+            "tieBreakPowerVolumeWM3": 2.0393997269757347
+          },
+          "passingRpms": [
+            30
+          ]
+        },
+        {
+          "geometry": {
+            "freeArea": 0.2,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.3,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        },
+        {
+          "geometry": {
+            "freeArea": 0.4,
+            "hcToColumn": 0.3,
+            "rotorToColumn": 0.5,
+            "rotorDiameterM": 0.3,
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18
+          },
+          "window": null,
+          "score": {
+            "edgeMarginRpm": -1,
+            "windowWidthRpm": -1,
+            "validTrialCount": 0,
+            "centerDistanceRpm": null,
+            "tieBreakPowerVolumeWM3": null
+          },
+          "passingRpms": []
+        }
+      ]
+    }
+  ]
+}

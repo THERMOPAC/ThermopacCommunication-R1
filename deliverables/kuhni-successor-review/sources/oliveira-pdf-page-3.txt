@@ -1,0 +1,107 @@
+A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                                                              731 
+Brazilian Journal of Chemical Engineering Vol. 25,  No. 04,  pp. 729 - 741,  October - December,  2008 
+EXPERIMENTAL 
+Kühni Pilot Scale Unit
+The current experimental work was carried out in 
+a short Kühni column of 5 stages and 150 mm 
+diameter which was built in a cylindrical precision 
+bore glass section. Each stage was equipped with a 
+six-blade turbine agitator (rotor diameter = 85 mm 
+and rotor height = 10 mm) with accurate speed 
+control, and stator plate (fractional free cross-
+sectional area = 30 %) spacing of 70 mm. All the 
+internal parts of the column were constructed in AISI 
+316 stainless steel. Teflon annular gaskets were fixed 
+on the stators to prevent any liquid from passing 
+between the stators and the column wall. 
+The dispersed phase was introduced into the column 
+using a conical distributor of 92 mm diameter made of 
+AISI 316 stainless steel centrally located in the base of 
+the column. In the distributor, a total of 170 holes of 1 
+mm diameter each are distributed into five concentrical 
+circles. The diameter of the smaller circle of holes is 37 
+mm and the distance between each circle of holes is 9 
+mm; in each circle, the distance between holes is 
+around 6-7 mm. 
+In the unit, all piping was constructed of resistant 
+plastic and pumps were helicoidal provided with a PID 
+system for precise flow rate control. Tanks were made 
+of polypropylene. A scheme of the experimental pilot 
+scale unit used in this work is shown in Figure 1. 
+Reagents 
+Runs were carried out in the absence of mass 
+transfer using water as the continuous phase and 
+commercial kerosene Exxsol D-80 (Exxon Mobil, 
+predominantly aliphatic, aromatic max. of 0.5%wt.) as 
+the dispersed phase, at room temperature. Distilled 
+water and Exxsol D-80 were mutually saturated 
+before being fed into the column in order to prevent 
+miscibility effects from interfering with drop size 
+measurements. The physicochemical properties of 
+saturated liquids at 25°C are given in Table 1. After 
+each run, the column was cleaned using a solution of 
+non-surface-active detergent, then thoroughly rinsed 
+with tap water and finally cleaned with distilled water. 
+All joints and pipes were washed to ensure thorough 
+removal of the detergent. 
+Experimental and Image Analysis Procedures
+The same experimental methodology and image 
+analysis procedure proposed by Moreira et al. (2005) 
+for the photographic determination of drop size 
+distributions in a rotating disc contactor has been 
+adopted in this study. The following operating 
+variables and range levels were investigated in this 
+work: rotor speed (60, 90, 120, 150 and 180 rpm), 
+flow rate of the continuous phase (1.24 and 2.00 
+L/min), flow rate of the dispersed phase (1.24 and 
+2.00 L/min) and stage number from the bottom of the 
+column (0 or distributor, 1, 3 and 5). These variables 
+and levels have been chosen based on a previous 
+study (Mansur et al., 2003). Under this range of 
+operating variables, the short Kühni column described 
+in Section 2.1 operates at 7225 � ReR � 21675 
+conditions. 
+Firstly, the column was filled with the continuous 
+aqueous phase until it reached a previously set level (1-
+2 mm above the top stage); this was done carefully in 
+order to avoid the formation of small bubbles below the 
+plates. The rotor motor was started and agitation speed 
+adjusted. Then both phases were fed to the column at a 
+specified throughput and allowed to circulate in the unit 
+for 30 minutes according to Figure 1 (closed system) to 
+assure that the hydrodynamic steady-state condition has 
+been reached. 
+A digital camera (Nikon® Coolpix 990) was 
+suitably placed 200 mm from the column wall to 
+provide photographs of the two-phase mixture at a 
+given 
+operating 
+condition 
+for 
+drop 
+size 
+measurements. A graduated scale was fixed by the 
+side of the column as a size reference. In the 
+photographs obtained from runs at 150 and 180 
+rpm, drops of stages 3 and 5 were photographed 
+using the zoom mode of the camera in order to 
+obtain clearer pictures of the fine drops. The 
+photographs were analysed with the aid of the 
+software Quantikov Image Analyser (version 5.1 
+for Windows®) for drop size determination. All 
+drops were assumed to be spherical because they 
+did not exhibit very significant deviations from 
+spherical shape for the operating conditions 
+evaluated in this work. Drops were measured in 
+the vertical position only according to Moreira et 
+al. (2005) and measured drop values were 
+multiplied by a factor of 0.8 in order to correct the 
+parallax deformation of drops photographed inside 
+the column. A minimum of 400 drops was 
+analysed for each experimental condition in order 
+to guarantee the statistical significance of the 
+determined size distributions (Colella et al., 1999).  
+The total hold-up of the dispersed phase was 
+assessed using the shut-down method (Gayler et al., 
+1951). Measurements were done in triplicate to 
+verify experimental reproducibility. 

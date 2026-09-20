@@ -1,0 +1,68 @@
+ 
+ 
+ 
+ 
+                                                                                ISSN 0104-6632                         
+Printed in Brazil 
+www.abeq.org.br/bjche 
+            
+    Vol. 25,  No. 04,  pp. 729 - 741,  October - December,  2008
+*To whom correspondence should be addressed 
+Brazilian Journal 
+of Chemical 
+Engineering
+A STUDY OF THE DROP SIZE DISTRIBUTIONS 
+AND HOLD-UP IN SHORT KÜHNI COLUMNS 
+N. S. Oliveira1, D. Moraes Silva1, M. P. C. Gondim1 and M. Borges Mansur2*
+1Escola de Engenharia, UFMG,  
+Rua Espírito Santo 35, CEP 30160-030, Belo Horizonte - MG, Brazil. 
+2Departamento de Engenharia Metalúrgica e de Materiais, UFMG,  
+Phone: +(55) (31) 3409-1810, Fax: +(55) (31) 3409-1815, 
+Rua Espírito Santo 35, 2° andar, CEP 30160-030, Belo Horizonte - MG, Brazil. 
+E-mail: marcelo.mansur@demet.ufmg.br 
+(Received: May 18, 2007 ; Accepted: May 05, 2008) 
+Abstract - The hydrodynamic behaviour of a short Kühni column was investigated under no mass transfer 
+conditions using the binary system water (continuous phase) and Exxsol D-80 (dispersed phase). The counter-
+current flow pattern of the liquid phases was characterised regarding the Sauter mean drop diameter, drop size 
+distribution and hold-up; a photographic method was used to assess drop sizes. The following operating 
+variables were studied: rotor speed, flow rate of both liquid phases and column stage. The log-normal 
+probability density function was found to be adequate to fit the experimental drop size distributions along the 
+column. As expected, smaller drops and more uniform drop size distributions were obtained with the increase 
+of rotor speed and column stage number, thus indicating the predominance of drop breakage phenomena in 
+short columns. The total hold-up was influenced mainly by rotor speed and flow rate of the dispersed phase. 
+Recommended correlations available in the literature were found to be inadequate for predicting experimental 
+drop sizes and hold-up, so alternative expressions, valid only for short Kühni columns, were proposed. 
+Keywords: Liquid-liquid extraction; Kühni column; Hydrodynamics; Drop size distributions; Short columns. 
+INTRODUCTION 
+Pilot-plant testing is an expensive and time-
+consuming procedure that still remains an almost 
+inevitable preliminary step in order to obtain a full-
+scale design for liquid-liquid extraction columns. In 
+such equipment, extraction kinetics and mass 
+transfer rates between liquid phases are closely 
+related to the interfacial area (Ji et al., 2006), which, 
+in turn, is very susceptible to contaminants and 
+depends upon the column geometry, hydrodynamics, 
+mass transfer direction, turbulence level, physical 
+properties of liquid phases, column height, flow 
+rates, temperature, etc. The knowledge of the mean 
+drop size and drop size distributions along the 
+equipment is fundamental to get a realistic 
+description of column performance, but is still to 
+complex to be predicted based solely on theory. As 
+recently pointed out by Grinbaum (2006), there is 
+still a wide gap between the development of new 
+models by academia and their application by 
+industrial R&D personnel, so column piloting is, at 
+present, the easiest, fastest, and most accurate 
+method to supply data for industrial column design. 
+In this context, considerable effort has been made 
+over the years aiming at reducing piloting. It has 
+focused on the development of: (1) cheaper 
+alternative experimental procedures using single 
+drops (Bahmanyar et al., 1990; Cabassud et al., 
+1990; Seikova et al., 1992; Fang et al., 1995; Modes 
+et al., 1999) and/or short columns (Fan et al., 1987; 
+Mansur et al., 2003) to get reliable design data, and 
+(2) mathematical models incorporating the complex 
+nature of the macroscopic dispersed phase interaction 
