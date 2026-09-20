@@ -1311,3 +1311,17 @@ mtime_ms = 1789923373400
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/e1ebad59-3ad0-4b2b-b2b9-40359301c959/41b53d13-2957-4ea2-a552-82e7389cb750"
 storage_version_token = "1789923400153376"
 content_type = "text/html"
+
+[[outputs]]
+id = "Tnh9Mmdo682Jb-QXKcr3i"
+uri = "file://deliverables/reverse-hydraulic-audit/report.html"
+type = "html"
+title = "RRBO-continuous hydraulic branch — qualification audit"
+description = "Equation and literature trace, phase-property mapping, applicability limits, operating-versus-flood holdup distinction, and requirements before qualified hydraulic sizing. Audit only; no recalculation or design changes."
+logical_id = "aadcafd6-b76e-451e-ae86-db03fa0bde07"
+content_hash = "sha256:14a08654c90c6ef909b029078a2d3429679bea5651dac7f8ea3307ebfc938e6e"
+size = 19429
+mtime_ms = 1789924732896
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aadcafd6-b76e-451e-ae86-db03fa0bde07/2a9c6d5d-126c-41d8-8fc7-8eea6b7382dd"
+storage_version_token = "1789924742715170"
+content_type = "text/html"

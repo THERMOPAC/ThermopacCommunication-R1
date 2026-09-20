@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RRBO-continuous reverse-hydraulic scientific audit</title>
+<style>
+body{font:15px/1.55 system-ui,-apple-system,Segoe UI,sans-serif;color:#172033;background:#f5f7fa;margin:0}
+main{max-width:1120px;margin:28px auto;background:white;padding:42px 52px;box-shadow:0 2px 14px #0001}
+h1{font-size:2rem;border-bottom:3px solid #264f78;padding-bottom:.5rem}h2{margin-top:2.2rem;color:#183f63}h3{color:#28577f}
+code,pre{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#f0f3f6}code{padding:.1em .25em}pre{padding:14px;overflow:auto;border-left:4px solid #6089ad}
+table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.92rem}th,td{border:1px solid #cbd3dc;padding:8px;vertical-align:top}th{background:#e9eff5;text-align:left}
+.scope{background:#eef5fb;border:1px solid #b8cee0;padding:14px}.critical{background:#fff1ef;border-left:5px solid #b52c24;padding:15px}.decision{background:#fff9e6;border-left:5px solid #b68300;padding:15px}
+a{color:#145a92}.muted{color:#526273}li{margin:.25rem 0}
+@media(max-width:700px){main{margin:0;padding:24px 18px}table{display:block;overflow:auto}}
+</style>
+</head>
+<body><main>
+<h1>RRBO-continuous / wet-NMP-dispersed reverse-hydraulic scientific audit</h1>
+<div class="scope"><strong>Audit mode:</strong> read-only, before recalculation. No hydraulic solve or optimizer replay; no database query; no application, database, drawing, memory, or scientific-input change. Evidence is source code, tests, prior audits, and visually inspected retained primary-source pages.</div>
+
+<h2>1. Executive disposition</h2>
+<div class="decision"><strong>Scientific status:</strong> mathematically calculable, empirically unqualified. Signed buoyancy and countercurrent kinematics are defensible necessary physics. Preliminary <code>d32</code>, Myint drag/shape, Garthe characteristic velocity, swarm/holdup, turning-point capacity, diameter, and RPM remain a linked extrapolated chain. Reversal is not automatically invalid.</div>
+<p>Using <code>|Δρ|</code> in buoyancy, Eötvös, Morton, Archimedes, or drag-speed <em>magnitude</em> equations can be valid once direction is retained independently. The current reverse kernel restores the negative sign to relative velocity and reports downward dispersed motion. Magnitudes do not, however, validate drift routing, interface behavior, or an empirical model's domain.</p>
+<div class="critical"><strong>Two-level admission finding:</strong> V1.4/V1.5 exclude reverse roots from the governed hydraulic envelope, while the presentation layer intentionally permits an independently rechecked root for non-governed HETS-only screening. The current optimizer likewise treats correlation evidence as metadata, marks numerically acceptable extrapolations <code>FEASIBLE</code> for preliminary screening, and supplies Stage-4 screening geometry. Project policy expressly permits this behavior and applies assumption-based Stage 4 to both orientations. It is not established as a code bug; it is also not scientific qualification.</div>
+<p>The reviewed contracts distinguish operational screening acceptance from empirical qualification. Phase-1 policy states evidence status is metadata rather than an execution gate; the hydraulic-chain policy permits a complete chain to remain <code>CALCULATED_EXTRAPOLATED</code>; Stage 4 is labeled <code>PRE-PILOT PREDICTIVE / SCREENING DESIGN</code>, uses an adopted non-performance efficiency, and denies outlet/final-design claims. Tests intentionally allow either a selected reverse screening result or no bounded result, but prohibit silent orientation substitution.</p>
+<p><strong>Gap relative to this audit's stronger objective:</strong> there is no positive field establishing that the complete reverse chain is scientifically qualified or release eligible. Generic <code>FEASIBLE</code>, <code>SELECTED</code>, <code>hydraulicPass</code>, and empty numerical blockers must be interpreted only at the approved screening level.</p>
+<p>The existing 1.3 m candidate is comparison-only. It must not be described as a qualified selection or operating guarantee.</p>
+
+<h2>2. Actual branch and phase authority</h2>
+<p>Stage 1 directly projects saved RRBO and wet-solvent flow, density, viscosity, interfacial tension, temperature, and phase configuration (<code>server/ecr-pre-pilot/stage1.ts:157-206</code>). Reverse mapping is RRBO continuous/upward and wet NMP dispersed/downward. The prior persisted audit records 40 °C, <code>ρc=869</code>, <code>μc=0.0598</code>, <code>ρd=1015</code>, <code>μd=0.001416</code>, <code>σ=0.011</code>, <code>κ=0.0236789</code>, and <code>Δρ=-146</code> (<code>research/rrbo-stage3-current-basis-audit.md:41-88</code>). No database read or recalculation was performed here.</p>
+<p>Bulk properties are available; reverse-drop interface mobility, contamination, coalescence, population distribution, and flooding behavior are not.</p>
+
+<h2>3. Equation trace and disposition</h2>
+<h3>3.1 Power and preliminary drop size</h3>
+<pre>Dr=(Dr/D)D; hc=(hc/D)D; N=RPM/60; A=πD²/4
+P=Np ρc N³ Dr⁵
+ψ=P/(A hc ρc)
+d32=C(σ/ρc)^0.6 ψ^-0.4</pre>
+<p>Implemented at <code>kuhni-geometry-resolver-v140.ts:277-300</code>; optimizer inputs <code>Np=1.2</code>, <code>C=0.42</code> at <code>stage3-stage4-optimizer.ts:674-685</code>. The exponents have generic Hinze/Kolmogorov-type turbulent-breakup conceptual provenance, but the controlled record does not establish an original primary citation for this exact executable coefficient. This route is explicitly <strong>not K&amp;H 1996</strong>. It is a project-controlled sensitivity; the exact <code>C=0.36–0.43</code> interval has no verified authoritative Kühni source. Viscous RRBO operation may retain viscosity, coalescence, geometry, and low-agitation effects.</p>
+
+<h3>3.2 Signed terminal force balance</h3>
+<pre>Δρ=ρc-ρd
+Cd(Re,κ,0)Re²=4[ρc|Δρ|gd32³/μc²]/3
+w=sign(Δρ) Re μc/(ρc d32)
+0=ΔρVg-0.5ρcCdAp|w|w</pre>
+<p>Implemented at <code>kuhni-geometry-resolver-v140.ts:188-261</code>. The sign/magnitude treatment is coherent. The Myint empirical continuation is not qualified at the prior reverse state: <code>κ=0.0237</code> is below the primary range <code>0.1&lt;κ&lt;100</code>, the experiments are rising isolated drops, and the real interface state is unknown.</p>
+
+<h3>3.3 Shape</h3>
+<pre>Ta=Re Mo^0.23
+E=1-0.0487Ta-0.0289Ta²</pre>
+<p>A finite positive aspect ratio is only numerical plausibility. It does not establish a clean, falling, low-κ RRBO/wet-NMP drop under agitation.</p>
+
+<h3>3.4 Garthe characteristic velocity</h3>
+<pre>NP=1.08+10.94/ReR^0.5+257.37/ReR^1.5
+vchar/vt=1-1.669NP^-3.945-2.807[d32/(D-Dr)]^1.336
+         -1.159(hc/D)^2.049+2.1φs^1.032</pre>
+<p>The retained primary equation structure is verified, including both Reynolds exponents. Its pilot systems and ranges do not validate reverse RRBO/wet-NMP or industrial scale-up. Garthe states that reliable dimensioning still requires preliminary tests.</p>
+
+<h3>3.5 Swarm/hindrance</h3>
+<pre>vs/vchar=sqrt[(Cd(Rechar)/Cd(Res))(1-h)^4.65]</pre>
+<p>Visual inspection of Garthe printed p.126 Eq. 8.3 confirms the radical covers the entire product. The fixed 4.65 is a drag/swarm hindrance relation connected to Richardson–Zaki/rigid-sphere behavior; because it is under the radical, the constant-drag velocity exponent is 2.325. It is not a universal liquid-drop exponent. Reusing one Myint drag function at terminal, characteristic, and swarm states is an unvalidated composite assumption.</p>
+
+<h3>3.6 Turning-point “flooding” and loading</h3>
+<pre>jT(h)=(1+r)vs(h)/[r/h+1/(1-h)]
+h_flood=arg max jT(h); Uflood=max jT(h)
+actualLoading=(Qc+Qd)/(A Uflood)</pre>
+<p>This is a reproducible maximum of the assumed slip closure, not independently observed flooding. It does not establish the lower stable operating branch, entrainment, inversion, hysteresis, or disengagement limits.</p>
+<p><strong>Semantic defect:</strong> the reverse optimizer maps <code>record.floodHoldup</code> into candidate <code>holdup</code> and computes <code>6h/d32</code> from it (<code>stage3-stage4-optimizer.ts:643-645</code>). That is flood-point holdup, not operating <code>φ</code>. Ordinary K&amp;H operating holdup and reverse flood holdup must not be conflated.</p>
+
+<h3>3.7 Search feasibility versus qualification</h3>
+<p>Reverse trials become <code>FEASIBLE</code> from finite state, force closure, tip speed, and loading ≤0.7 (<code>stage3-stage4-optimizer.ts:606-657</code>). Contiguous windows and the second-smallest adequate-diameter ranking then operate on those flags. These are search-feasible flags only. A 20 rpm window is a ranking preference, not a hydraulic limit or validation.</p>
+
+<h2>4. Verified K&amp;H 1995 boundary</h2>
+<p>Visual inspection of Kumar &amp; Hartland (1995), pp.3929–3931 confirms Eq. 9 <code>ε=P/(AcHρc)</code>, Eqs. 15–19 <code>φ=ΠΦΨΓ</code>, Eq. 17's <code>exp(20.7Vcθ)</code>, and Table 2 Kühni constants. DOI: <a href="https://doi.org/10.1021/ie00038a032">10.1021/ie00038a032</a>.</p>
+<p>This does not qualify reverse flooding: the current reverse optimizer does not use K&amp;H operating φ, the transfer-factor mapping is unresolved, the project point exceeds multiple source ranges, and K&amp;H provides no generic flooding percentage.</p>
+
+<h2>5. Correlation/source-domain matrix</h2>
+<table><thead><tr><th>Link/source</th><th>Source domain/bounds</th><th>Current relationship</th><th>Disposition</th></tr></thead><tbody>
+<tr><td>Signed force</td><td>Analytical; no empirical range</td><td>Signed direction plus positive magnitude groups</td><td>Usable physics; no population/slip qualification</td></tr>
+<tr><td>K&amp;H 1995 operating holdup</td><td>Water continuous; six conventional dispersed liquids. ρc 994–1003, ρd 801–882 kg/m³; μc 0.97–1.61, μd 0.66–3.92 mPa·s; σ 0.8–34.1 mN/m; D 72–200, Dr 50–85, H 50–90 mm; H/D 0.45–0.69; Dr/D 0.43–0.69; free area 0.16–1.00; Vc 0.2–7.9, Vd 0.1–8.8 mm/s; R 0.09–5; N 0–5 s⁻¹; ε 0–0.83 W/kg; d32 0.35–8.49 mm; φ 0.010–0.542; Vslip 2.3–126 mm/s. Primary p.3927 Table 1; <a href="https://doi.org/10.1021/ie00038a032">DOI</a>.</td><td>Reverse optimizer does not use this operating-φ equation</td><td>No automatic multicomponent Cψ or reverse RRBO/NMP qualification</td></tr>
+<tr><td>Direct-turbulence d32</td><td>Generic Hinze/Kolmogorov-type concept; no controlled primary source for exact executable C interval</td><td>C=0.42; project sensitivity interval 0.36–0.43</td><td>Approved preliminary sensitivity; not K&amp;H 1996 or a literature-verified Kühni range</td></tr>
+<tr><td>K&amp;H 1996 d32</td><td>Publisher record covers eight column types including Kühni; <a href="https://doi.org/10.1021/ie950674w">DOI</a></td><td>Not the current direct-turbulence route</td><td>Primary equation/table/symbols/ranges unavailable; executable route blocked</td></tr>
+<tr><td>Myint 2006 drag</td><td>Rising single drops, stagnant infinite liquid: −11.6&lt;log10Mo&lt;−0.9; 0.17&lt;Re&lt;200; 0.017&lt;Eo&lt;12.1; 0.1&lt;κ&lt;100; ≈10% maximum velocity error only over that set. <a href="https://doi.org/10.1299/jfst.1.72">DOI</a></td><td>Prior reverse κ≈0.02368; falling clean-interface continuation; reused at forced/swarm Re</td><td>Calculable extrapolation; κ/interface/orientation/forced-slip unqualified</td></tr>
+<tr><td>Myint 2007 shape</td><td>Rising clean drops: −11.6≤log10Mo≤−0.9; 0.015≤Re≤850; 0.017≤Eo≤9.3; 0.0074≤Ta≤3.6; 0.1≤κ≤100. <a href="https://doi.org/10.1299/jfst.2.184">DOI</a></td><td>Prior scalar groups pass except κ&lt;0.1</td><td>Low-κ falling fore/aft and contamination unresolved</td></tr>
+<tr><td>Garthe characteristic</td><td>p.86 Eqs. 5.6–5.7; Fig. 5.20, 143 Kühni points, 10.7% relative error; D 72–152, agitator 41–85, stator 47.5–83.2 mm; 50–250 rpm; drops 0.9–6.4 mm</td><td>Industrial geometry/reverse chemistry and orientation differ</td><td>Equation verified; scale/fluid/orientation transfer extrapolated</td></tr>
+<tr><td>Garthe comparison corpus</td><td>D 80–152, h 50–72, agitator 45–85 mm; 28–220 rpm; ≈23.5% average deviation; swarm concern above d32≈4.5 mm in rotating-disc evidence</td><td>Prior reverse root D 693, h 346.5 mm, 25 rpm, d32 4.746 mm</td><td>Strong geometry/speed/population extrapolation; bounds are not commercial limits</td></tr>
+<tr><td>Garthe swarm</td><td>p.126 Eq. 8.3; radical spans drag ratio × (1−h)^4.65</td><td>Myint drag applied at characteristic/swarm states</td><td>Grouping verified; reverse RRBO/NMP swarm domain absent</td></tr>
+<tr><td>Perry geometry</td><td>Dr/D 0.33–0.50; hc/D 0.20–0.30; free area 0.20–0.40; 60 mm pilot maps up to 1 m, 150 mm for larger</td><td>Optimizer ratio grid matches recommendations</td><td>Supports bounded screening geometry, not fluid qualification</td></tr>
+<tr><td>Sulzer ECR</td><td>Product D 30 mm–3.5 m; typical 10–70 or 10–100 rpm by revision; 32/60/150 mm pilots</td><td>Optimizer D≤1.5 m and 30–70 rpm inside product/speed range</td><td>Product envelope is not correlation validity</td></tr>
+<tr><td>Flooding construction</td><td>No separate experimental source domain; mathematical maximum of assumed slip</td><td>Finite interior maximum/loading</td><td>Preliminary model capacity; stable branch/entrainment/inversion/observed flooding unresolved</td></tr>
+<tr><td>Rode 2013</td><td>Publisher preview supports heavy or light dispersion; <a href="https://doi.org/10.1016/j.ces.2013.03.059">DOI</a></td><td>Supports orientation possibility</td><td>No full reverse RRBO/NMP closure</td></tr>
+<tr><td>Barry–Parlange</td><td>Conditional spherical, steady, non-wobbling all-viscosity-ratio drag; <a href="https://doi.org/10.1371/journal.pone.0194907">DOI</a></td><td>Possible low-κ comparator</td><td>Shape gate, population, characteristic/swarm, flooding absent</td></tr>
+</tbody></table>
+
+<h2>6. Exact reason for “unqualified”</h2>
+<ul>
+<li><strong>Missing evidence:</strong> reverse drop population; breakup/coalescence; falling low-κ interface/shape; forced-slip drag; reverse holdup branch; flooding/entrainment/inversion; ports/control; vendor mechanical and scale-up basis.</li>
+<li><strong>Two-level policy:</strong> known limitations are intentionally nonblocking for approved preliminary screening. That does not provide a positive scientific-qualification or release verdict.</li>
+<li><strong>Model applicability:</strong> terminal-drop, characteristic-slip, swarm, and flooding closures are distinct gates. Passing scalar ranges or numerical closure does not qualify their composition.</li>
+</ul>
+
+<h2>7. Caller and two-level admission behavior</h2>
+<table><thead><tr><th>Path</th><th>Finding</th></tr></thead><tbody>
+<tr><td>V1.4/V1.5</td><td>Excluded from the governed hydraulic envelope; V1.5 can separately supply an independently rechecked, non-governed HETS-only presentation candidate.</td></tr>
+<tr><td>Current trial adapter</td><td>Stores warnings as diagnostics and marks numerically acceptable extrapolations feasible for screening.</td></tr>
+<tr><td>Window/ranker</td><td>Uses screening feasibility as screening-selection eligibility; does not qualify correlations.</td></tr>
+<tr><td>Result metadata</td><td>Can emit optimized status, selected geometry, and empty numerical blockers together with explicit screening/extrapolation classifications.</td></tr>
+<tr><td>Persistence/replay</td><td>Preserves screening lineage and reproducibility; integrity is not scientific validity.</td></tr>
+<tr><td>Stage 4</td><td>Intentionally performs assumption-based screening for both orientations and denies separation/final-design claims.</td></tr>
+<tr><td>HETS presentation qualifier</td><td>Has a safe non-governed/HETS-only contract, but it does not gate the current optimized geometry path.</td></tr>
+</tbody></table>
+
+<h2>8. Defensible present use</h2>
+<p>The model may report signed direction, bulk-property mapping, assumed power and d32 sensitivity, extrapolated terminal/shape/characteristic/swarm diagnostics, the assumed capacity maximum, loading, bounded numerical failures, comparison candidates, and—under approved policy—a selected preliminary screening diameter/RPM window and assumption-based Stage-4 screening geometry. At the scientific-qualification or release level it may not authorize operating holdup/interfacial area, qualified flooding, pilot-validated diameter/RPM, scientifically qualified/final Stage-4 geometry, vendor feasibility, or separation performance.</p>
+
+<h2>9. Controls before claiming scientific qualification</h2>
+<ol>
+<li>Persist separate <code>numericallyCalculable</code>, <code>screeningFeasible</code>, <code>scientificallyQualified</code>, and <code>releaseEligible</code> flags.</li>
+<li>Preserve approved preliminary screening, but require a positive versioned qualification object before any scientifically-qualified, pilot-validated, or release claim.</li>
+<li>Retain comparison roots under explicitly non-governing labels.</li>
+<li>Stop substituting <code>floodHoldup</code> for operating φ.</li>
+<li>Require a positive, versioned scientific-admission object in any qualified/release consumer; do not retroactively apply it to the explicitly approved screening consumer.</li>
+<li>Keep alternate orientation comparison-only; never silently switch orientation.</li>
+<li>Preserve warnings through persistence, API compaction, and display.</li>
+</ol>
+
+<h2>10. Exact promotion requirements</h2>
+<ol>
+<li>Qualified viscous reverse <code>d32</code>/distribution, breakup/coalescence, geometry/power scaling, and uncertainty.</li>
+<li>Low-κ falling-drop interface, contamination, deformation, and drag/shape evidence.</li>
+<li>Applicable terminal and forced characteristic/swarm slip closure, including wall/rotor/stator effects.</li>
+<li>Operating lower holdup branch, multiplicity/hysteresis, observed or validated flooding, entrainment, inversion, and approved margin.</li>
+<li>Verified distributors, collection, interface control, ports, start-up/shutdown, vendor geometry, torque, RPM, tip speed, and scale-up rule.</li>
+<li>Versioned governance approval and regression tests preventing preliminary reverse results from being presented as scientifically qualified or release-eligible, while retaining expressly approved Stage-4 preliminary screening.</li>
+</ol>
+
+<h2>11. Final conclusion</h2>
+<p>Reverse operation is not invalid merely because wet NMP is denser. The signed force and proposed countercurrent mapping are coherent. The full empirical chain remains unqualified. Current optimizer and Stage-4 behavior is intentional preliminary-screening admission under the reviewed two-level policy, not a demonstrated code bug. No positive scientific-release gate exists, so its generic status words must remain scoped to screening. Independently, mapping <code>floodHoldup</code> into candidate operating <code>holdup</code> and interfacial area is a concrete semantic/model mismatch that should be corrected or relabeled. The 1.3 m comparison and reverse RPM windows are not scientifically qualified selections.</p>
+
+<p class="muted">Detailed file-line citations and source limitations are preserved in the companion Markdown report.</p>
+</main></body></html>
