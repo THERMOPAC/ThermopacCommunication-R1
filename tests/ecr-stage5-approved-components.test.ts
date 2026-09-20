@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   APPROVED_COMPONENT_MANIFEST_CANONICAL_SHA256, APPROVED_COMPONENT_RULESET,
+  HISTORICAL_APPROVED_COMPONENT_RULESET,
   buildStage5ApprovedComponentGeometry,
 } from "../shared/ecr-stage5-approved-components";
 import { renderStage5Svg, type Stage5DrawingView } from "../shared/ecr-stage5-drawings";
 import type { Stage5Basis } from "../shared/ecr-stage5-geometry";
 import { buildCurrentStage5Geometry } from "../server/ecr-pre-pilot/stage5-geometry-service";
+import { stage5DrawingPresentation } from "../server/ecr-pre-pilot/stage5-drawing-presentation";
+import { stage5Hash } from "../server/ecr-pre-pilot/stage5-geometry-service";
 import { createStage5DesignDataPdf } from "../server/ecr-pre-pilot/stage5-design-data-report";
 import { execFileSync } from "node:child_process";
 import { writeFileSync, unlinkSync } from "node:fs";
@@ -14,10 +17,11 @@ const basis: Stage5Basis = {
   stage3ResultId: "64", stage4ResultId: "13", sourcesCurrent: true, sourcesCompatible: true,
   columnDiameterM: .6, rotorDiameterM: .198, rotorDiameterRatio: .33,
   compartmentHeightM: .18, statorFreeAreaRatio: .4, selectedRpm: 45, rpmMin: 30, rpmMax: 60,
-  phaseConfiguration: "NMP continuous / RRBO dispersed", compartmentCount: 18,
-  requiredActiveHeightM: 3.24, installedActiveHeightM: 3.24, designNt: 7, hetsM: null,
-  sizingMethod: "ADOPTED_COMPARTMENT_EFFICIENCY", designCompartmentEfficiency: .4,
-  impliedInstalledHetsMPerTheoreticalStage: 3.24 / 7,
+  phaseConfiguration: "NMP continuous / RRBO dispersed", compartmentCount: Math.ceil(7 / .35),
+  requiredActiveHeightM: Math.ceil(7 / .35) * .18,
+  installedActiveHeightM: Math.ceil(7 / .35) * .18, designNt: 7, hetsM: null,
+  sizingMethod: "ADOPTED_COMPARTMENT_EFFICIENCY", designCompartmentEfficiency: .35,
+  impliedInstalledHetsMPerTheoreticalStage: Math.ceil(7 / .35) * .18 / 7,
 };
 
 describe("approved Stage5 turbine and perforated stator production geometry", () => {
@@ -27,8 +31,13 @@ describe("approved Stage5 turbine and perforated stator production geometry", ()
     expect(g.ruleset).toBe(APPROVED_COMPONENT_RULESET);
     expect(g.inputs.rotorConstruction).toBe("approved-double-entry-shrouded-turbine");
     expect(g.inputs.statorConstruction).toBe("approved-perforated-stator");
-    expect(g.compartments).toHaveLength(18);
-    expect(g.internals.find(i => i.id === "S")).toMatchObject({ count: 19, thicknessM: .004 });
+    expect(g.compartments).toHaveLength(Math.ceil(7 / .35));
+    expect(g.internals.find(i => i.id === "S")).toMatchObject({
+      count: Math.ceil(7 / .35) + 1, thicknessM: .004,
+    });
+    expect(g.dimensions.activeEndM! - g.dimensions.activeStartM!).toBeCloseTo(3.6);
+    expect(g.dimensions.bottomDisengagementM).toBe(.6);
+    expect(g.dimensions.topDisengagementM).toBe(.6);
     expect(d).toMatchObject({
       columnDiameterM: .6, rotorDiameterM: .198, shaftDiameterM: .044,
       hubDiameterM: .07, hubHeightM: .024, bladeCount: 6, bladeThicknessM: .003,
@@ -74,10 +83,11 @@ describe("approved Stage5 turbine and perforated stator production geometry", ()
     });
 
   it("fails instead of resizing any incompatible approved-template input", () => {
-    for (const change of [{ columnDiameterM: .61 }, { rotorDiameterM: .2 }, { selectedRpm: 46 },
-      { compartmentCount: 19 }, { installedActiveHeightM: 3.42 }])
+    for (const change of [{ columnDiameterM: .61 }, { rotorDiameterM: .2 }, { selectedRpm: 46 }])
       expect(() => buildStage5ApprovedComponentGeometry({ ...basis, ...change }))
         .toThrow("approved-template-");
+    for (const change of [{ compartmentCount: 19 }, { installedActiveHeightM: 3.42 }])
+      expect(() => buildStage5ApprovedComponentGeometry({ ...basis, ...change })).toThrow();
   });
 
   it("selects the successor only for design 269 and exports exact CAD design data", async () => {
@@ -101,4 +111,19 @@ describe("approved Stage5 turbine and perforated stator production geometry", ()
         expect(text).toContain(value);
     } finally { unlinkSync(path); }
   }, 30000);
+
+  it("continues to present a verified historical approved R3 snapshot without regeneration", () => {
+    const geometry = {
+      ...buildStage5ApprovedComponentGeometry(basis),
+      ruleset: HISTORICAL_APPROVED_COMPONENT_RULESET,
+    };
+    const record = {
+      revision: 3, createdAt: "2026-09-20T00:00:00Z", sourceHash: "a".repeat(64),
+      geometry, geometryHash: stage5Hash(geometry), drawings: { original: "frozen" },
+    };
+    const presented = stage5DrawingPresentation(record, 269, "dimensioned-v2");
+    expect(presented.geometry).toBe(geometry);
+    expect(presented.presentationVersion).toBe("dimensioned-v2");
+    expect(record.drawings).toEqual({ original: "frozen" });
+  });
 });

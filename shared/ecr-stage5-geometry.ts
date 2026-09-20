@@ -211,8 +211,8 @@ export function buildStage5Geometry(basis: Stage5Basis, inputs: Stage5Inputs): S
   }
   const efficiencySizing = basis.sizingMethod === "ADOPTED_COMPARTMENT_EFFICIENCY";
   if (efficiencySizing) {
-    test("fixed-basis", ["designNt", "designCompartmentEfficiency"], (n, e) => n === 7 && e === .4,
-      "Fixed inherited design Nt = 7 and adopted compartment efficiency = 0.40; no recalculation.");
+    test("fixed-basis", ["designNt", "designCompartmentEfficiency"], (n, e) => n === 7 && e === .35,
+      "Fixed inherited design Nt = 7 and adopted compartment efficiency = 0.35; no recalculation.");
   } else {
     test("fixed-basis", ["designNt", "hetsM"], (n, h) => n === 7 && h > 0,
       "Legacy inherited design Nt = 7 and positive HETS are required; no recalculation.");

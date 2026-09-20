@@ -5,11 +5,11 @@ description: User-approved assumption-based sizing replaces the operational fini
 
 Treat the operational Stage 4 result as fixed-`Ndesign=7` HETS-based pre-pilot physical screening, independently of the unqualified finite-rate/Broyden research route.
 
-The current approved basis supersedes fixed HETS: fixed Stage-4 Ndesign=7 and adopted average physical-compartment efficiency 0.40. Stage-2 N_T remains reference-only.
+The current approved basis supersedes fixed HETS and the former 40% efficiency: fixed Stage-4 Ndesign=7 and adopted average physical-compartment efficiency 0.35. Stage-2 N_T remains reference-only.
 
-**Why:** After auditing diameter scaling, the user explicitly adopted efficiency-based compartment count and reaffirmed the fixed-seven rule rather than using the actual Stage-2 result.
+**Why:** On 2026-09-20 the user explicitly superseded the 40% assumption with 35%, reaffirmed the fixed-seven rule, and required formula-derived compartment counts rather than hard-coded counts. Disengagement-zone enlargement is a separate, deferred decision.
 
-**How to apply:** Use NC=ceil(7/0.40), active height=NC×persisted Stage-3 hc. Never rerun Stage 3 to create missing authority. Hactive/7 is diagnostic-only implied installed HETS. Preserve old HETS calculations and Stage-5 snapshots under their historical methodology.
+**How to apply:** Use NC=ceil(Ndesign/eta), active height=NC×persisted Stage-3 hc. Never rerun Stage 3 to create missing authority. Hactive/7 is diagnostic-only implied installed HETS. Preserve old HETS/40% calculations and Stage-5 snapshots under their historical methodology.
 
 New optimized sizing must never fall back to historical fixed-ratio geometry when a current optimizer result is absent.
 
@@ -27,7 +27,7 @@ Ranking changes also invalidate downstream sizing even when Stage-1 inputs are i
 
 **How to apply:** Do not restore finite-rate convergence or transport-property requirements as prerequisites for this screening route. Preserve current Stage-1/Stage-3 hydraulic snapshot integrity and Stage-3 HETS admission through lightweight persisted-evidence checks without executing scientific-runtime preflight. Preserve Stage-2 scientific acceptance checks when Stage-2 evidence exists, but do not make an actual Stage-2 value a gate for the fixed-7 assumption-based sizing. Show that actual value as nullable reference-only evidence, never as the fixed sizing value.
 
-The adopted 40% efficiency is an engineering assumption, not a published Kühni constant or a calculated/validated RRBO/NMP performance value.
+The adopted efficiency is an engineering assumption, not a published Kühni constant or a calculated/validated RRBO/NMP performance value.
 
 The approved replacement investigation excludes Job A/B/C and alternative
 full-column rate/population-balance solvers. Seek published engineering
@@ -43,7 +43,7 @@ another chemistry's HETS band or promise a separation-qualified optimum.
 
 **Why:** Integer compartment rounding creates extra installed height but does not demonstrate an adequate allowance for uncertain mass transfer.
 
-**How to apply:** Round NC upward from 7/0.40, then determine active height from NC×hc. Do not preserve the superseded fixed-HETS formula in current sizing. Distinguish active height from total mechanical vessel height. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
+**How to apply:** Round NC upward from Ndesign/eta, then determine active height from NC×hc. Do not preserve the superseded fixed-HETS formula in current sizing. Distinguish active height from total mechanical vessel height. Never infer outlet performance, target compliance, or release-ready mechanical sizing from the screening result.
 
 For a reduced transport diagnostic, preserve the saved counter-current section boundaries and signed component transfer; a straight path between terminal products cannot substitute for the saved intermediate profile.
 

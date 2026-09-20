@@ -4,8 +4,11 @@ import {
 } from "./ecr-stage5-r1";
 import type { Stage5Basis, Stage5Geometry, Stage5Parameter } from "./ecr-stage5-geometry";
 
-export const APPROVED_COMPONENT_RULESET =
+/** Retained solely so immutable R3 snapshots remain presentable. */
+export const HISTORICAL_APPROVED_COMPONENT_RULESET =
   "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_APPROVED_TURBINE_PERFORATED_STATOR";
+export const APPROVED_COMPONENT_RULESET =
+  "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R4_APPROVED_TURBINE_PERFORATED_STATOR_ETA0.35";
 export const APPROVED_COMPONENT_MANIFEST_CANONICAL_SHA256 =
   "954fd39266e55dbaa2c0c10dcc6578b5a94d9247b1ff95194f0a762b58a32042";
 export const APPROVED_COMPONENT_COMPLETE =
@@ -14,7 +17,7 @@ export const APPROVED_COMPONENT_COMPLETE =
 export const APPROVED_COMPONENT_RULES_MANIFEST = {
   ...R1_RULES_MANIFEST,
   id: APPROVED_COMPONENT_RULESET,
-  revision: 3,
+  revision: 4,
   authority: "User-approved component manifest plus frozen Stage-3/4 authority; exact D600 template, no scaling",
   approvedComponentManifest: {
     recordType: approvedManifest.recordType,
@@ -27,7 +30,7 @@ export const APPROVED_COMPONENT_RULES_MANIFEST = {
     ...R1_RULES_MANIFEST.rules,
     rotor: "D198 double-entry shrouded turbine; eye130; shaft44; hub70x24; six t3 blades; web16; paddle28; upper/lower t2 shrouds; overall32",
     stator: "D600 t4 plate; centre opening112 from CE9; 84 exact D39.559479027818114 holes at approved manifest coordinates",
-    stack: "N=ceil(7/0.40)=18; HA=3.24 m; N+1=19 stators; inherited pitch 0.18 m",
+    stack: "N=ceil(Nt/eta); HA=N hc; N+1 stators; count and height inherited from Stage 4; inherited pitch 0.18 m",
   },
 } as const;
 
@@ -39,9 +42,7 @@ export function buildStage5ApprovedComponentGeometry(source: Stage5Basis): Stage
   const required: [keyof Stage5Basis, number][] = [
     ["columnDiameterM", .6], ["rotorDiameterM", .198], ["rotorDiameterRatio", .33],
     ["compartmentHeightM", .18], ["statorFreeAreaRatio", .4], ["selectedRpm", 45],
-    ["compartmentCount", 18], ["requiredActiveHeightM", 3.24], ["installedActiveHeightM", 3.24],
-    ["designNt", 7], ["designCompartmentEfficiency", .4],
-    ["impliedInstalledHetsMPerTheoreticalStage", 3.24 / 7],
+    ["designNt", 7], ["designCompartmentEfficiency", .35],
   ];
   for (const [key, expected] of required)
     if (!near(source[key] as number | null | undefined, expected))

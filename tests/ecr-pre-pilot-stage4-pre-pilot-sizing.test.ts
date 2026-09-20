@@ -46,41 +46,41 @@ function derive(diameterM = .6, calculatedNt: number | null = 5) {
 }
 
 describe('Stage 4 adopted compartment-efficiency sizing projection', () => {
-  it('implements the fixed-Nt=7, eta=.40 Design269 result from persisted hc', () => {
+  it('implements the fixed-Nt=7, eta=.35 Design269 result from persisted hc', () => {
     const result = derive(.6, 5);
     expect(result.hetsSizing).toEqual({
       sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
-      designCompartmentEfficiency: .4,
+      designCompartmentEfficiency: .35,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
       stage3HydraulicColumnDiameterM: .6,
       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
       physicalCompartmentHeightM: .18,
-      impliedInstalledHetsMPerTheoreticalStage: 3.24 / 7,
-      requiredActiveHeightM: 3.24,
-      requiredPhysicalCompartments: 18,
-      installedActiveHeightM: 3.24,
+      impliedInstalledHetsMPerTheoreticalStage: 3.6 / 7,
+      requiredActiveHeightM: 3.6,
+      requiredPhysicalCompartments: 20,
+      installedActiveHeightM: 3.6,
       designStatus: 'PRE-PILOT SCREENING',
     });
     expect(result.hetsSizing).not.toHaveProperty('screeningHetsMPerTheoreticalStage');
     expect(result.hetsSizing).not.toHaveProperty('calculatedScreeningCompartmentEfficiency');
     expect(result.mainOutputs).toMatchObject({
-      physicalCompartments: 18,
-      activeHeightM: 3.24,
-      requiredActiveHeightM: 3.24,
-      installedActiveHeightM: 3.24,
+      physicalCompartments: 20,
+      activeHeightM: 3.6,
+      requiredActiveHeightM: 3.6,
+      installedActiveHeightM: 3.6,
     });
   });
 
   it.each([
-    [.6, .18, 3.24],
-    [.7, .21, 3.78],
-    [.8, .24, 4.32],
-    [.9, .27, 4.86],
-    [1, .3, 5.4],
-  ])('keeps NC=18 while persisted Stage-3 diameter %f scales hc and height', (diameter, hc, height) => {
+    [.6, .18, 3.6],
+    [.7, .21, 4.2],
+    [.8, .24, 4.8],
+    [.9, .27, 5.4],
+    [1, .3, 6],
+  ])('keeps the calculated count while persisted Stage-3 diameter %f scales hc and height', (diameter, hc, height) => {
     const result = derive(diameter, 7);
-    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(18);
+    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(7 / .35));
     expect(result.hetsSizing.physicalCompartmentHeightM).toBeCloseTo(hc, 12);
     expect(result.hetsSizing.requiredActiveHeightM).toBeCloseTo(height, 12);
     expect(result.hetsSizing.installedActiveHeightM).toBeCloseTo(height, 12);
@@ -93,7 +93,7 @@ describe('Stage 4 adopted compartment-efficiency sizing projection', () => {
       status: 'AVAILABLE_REFERENCE_ONLY',
     });
     expect(result.hetsSizing.fixedDesignTheoreticalStages).toBe(7);
-    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(18);
+    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(7 / .35));
   });
 
   it('allows an absent Stage-2 reference without changing fixed-Nt sizing', () => {
@@ -102,7 +102,7 @@ describe('Stage 4 adopted compartment-efficiency sizing projection', () => {
       value: null,
       status: 'NOT_AVAILABLE_REFERENCE_ONLY',
     });
-    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(18);
+    expect(result.hetsSizing.requiredPhysicalCompartments).toBe(Math.ceil(7 / .35));
   });
 
   it('fails closed without persisted authoritative Stage-3 hc and never infers hc=.5D', () => {

@@ -13,9 +13,9 @@ function hetsResult() {
     status: 'CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING',
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
-    calculationModel: 'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V1_FIXED_DESIGN_NT7_ETA0.40',
+    calculationModel: 'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V2_FIXED_DESIGN_NT7_ETA0.35',
     implementation: {
-      version: 'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V1_FIXED_DESIGN_NT7_ETA0.40',
+      version: 'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V2_FIXED_DESIGN_NT7_ETA0.35',
     },
     designNt: { value: 7, provenance: 'STAGE4_FIXED_HETS_PRE_PILOT_DESIGN_NT' },
     actualStage2NtReference: { value: 5, status: 'AVAILABLE_REFERENCE_ONLY' },
@@ -27,28 +27,28 @@ function hetsResult() {
     },
     mainOutputs: {
       diameterM: .72,
-      overallEfficiency: .4,
-      physicalCompartments: 18,
-      activeHeightM: 3.24,
-      requiredActiveHeightM: 3.24,
-      installedActiveHeightM: 3.24,
+      overallEfficiency: .35,
+      physicalCompartments: 20,
+      activeHeightM: 3.6,
+      requiredActiveHeightM: 3.6,
+      installedActiveHeightM: 3.6,
     },
     hetsSizing: {
       sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
-      designCompartmentEfficiency: .4,
+      designCompartmentEfficiency: .35,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
       stage3HydraulicColumnDiameterM: .72,
       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
       physicalCompartmentHeightM: .18,
-      impliedInstalledHetsMPerTheoreticalStage: 3.24 / 7,
-      requiredActiveHeightM: 3.24,
-      requiredPhysicalCompartments: 18,
-      installedActiveHeightM: 3.24,
+      impliedInstalledHetsMPerTheoreticalStage: 3.6 / 7,
+      requiredActiveHeightM: 3.6,
+      requiredPhysicalCompartments: 20,
+      installedActiveHeightM: 3.6,
       designStatus: 'PRE-PILOT SCREENING',
     },
     assumptions: [
-      'Design average physical-compartment efficiency = 40% is an adopted pre-pilot engineering assumption.',
+      'Design average physical-compartment efficiency = 35% is an adopted pre-pilot engineering assumption.',
     ],
     calculation: { status: 'CALCULATED', progress: { phase: 'COMPLETE' }, lineageHash: 'hets-lineage' },
   };
@@ -188,11 +188,11 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       expect(text).toContain('Actual accepted Stage-2 Nₜ (reference only) 5');
       expect(text).toContain('Stage 3 hydraulic column diameter 0.720 m');
       expect(text).toContain('Physical compartment height 0.180 m');
-      expect(text).toContain('Design average physical-compartment efficiency 40%');
-      expect(text).toContain('Implied installed HETS (derived diagnostic only) 0.46286 m/theoretical stage');
-      expect(text).toContain('Required active height 3.24 m');
-      expect(text).toContain('Required physical compartments 18');
-      expect(text).toContain('Installed active height 3.24 m');
+      expect(text).toContain('Design average physical-compartment efficiency 35%');
+      expect(text).toContain('Implied installed HETS (derived diagnostic only) 0.51429 m/theoretical stage');
+      expect(text).toContain('Required active height 3.6 m');
+      expect(text).toContain('Required physical compartments 20');
+      expect(text).toContain('Installed active height 3.6 m');
       expect(text).toContain('adopted pre-pilot engineering assumption');
       expect(text).toContain('No outlet, recovery, target-compliance, or final-design claim is made');
       expect(text).not.toContain('Predicted primary raffinate outlet');
@@ -260,7 +260,7 @@ describe.sequential('ECR pre-pilot HETS Stage 4 browser integration', () => {
       expect(ecrMutationRequests).toEqual([{ method: 'POST', path: calculateEndpoint }]);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('[data-testid="stage4-hets-result"]', { visible: true, timeout: 30_000 });
-      expect(await panelText(page)).toContain('Installed active height 3.24 m');
+      expect(await panelText(page)).toContain('Installed active height 3.6 m');
     } finally {
       await page.close();
     }

@@ -41,6 +41,17 @@ export const R2_RULES_MANIFEST = {
     stack: "N=ceil(7/0.40); HA=N hc; rotor centres z0+(i+.5)hc; stators z0+i hc; z0=1.25D",
   },
 } as const;
+export const R3_RULESET = "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35";
+export const R3_RULES_MANIFEST = {
+  ...R1_RULES_MANIFEST,
+  id: R3_RULESET,
+  revision: 3,
+  authority: "Frozen Stage3 geometry and Stage4 adopted 35% compartment-efficiency sizing unchanged; no recalculation or feedback",
+  rules: {
+    ...R1_RULES_MANIFEST.rules,
+    stack: "N=ceil(7/0.35); HA=N hc; rotor centres z0+(i+.5)hc; stators z0+i hc; z0=1.25D",
+  },
+} as const;
 export class R1GeometryError extends Error {
   readonly status = 409;
   constructor(public checkId: string, detail: string) {
@@ -54,7 +65,7 @@ const near = (a: number, b: number) => Math.abs(a - b) <= 1e-9 * Math.max(1, Mat
 export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
   const b = { ...source };
   const efficiencySizing = b.sizingMethod === "ADOPTED_COMPARTMENT_EFFICIENCY";
-  const ruleset = efficiencySizing ? R2_RULESET : R1_RULESET;
+  const ruleset = efficiencySizing ? R3_RULESET : R1_RULESET;
   const checks: Stage5Geometry["checks"] = [];
   const check = (id: string, ok: boolean, message: string) => {
     if (!ok) throw new R1GeometryError(id, message);
@@ -71,8 +82,8 @@ export function buildStage5R1Geometry(source: Stage5Basis): Stage5Geometry {
   check("count", Number.isSafeInteger(N) && N <= 1000, "Positive integer count; drawing capacity 1000 compartments.");
   check("stack", near(N * hc, HA), "Frozen count × pitch must equal frozen installed height; no repair.");
   if (efficiencySizing) {
-    check("sizing-method", b.designNt === 7 && b.designCompartmentEfficiency === .4,
-      "Frozen adopted sizing basis must be Nt=7 and compartment efficiency=0.40.");
+    check("sizing-method", b.designNt === 7 && b.designCompartmentEfficiency === .35,
+      "Frozen adopted sizing basis must be Nt=7 and compartment efficiency=0.35.");
     check("count-efficiency", N === Math.ceil(b.designNt! / b.designCompartmentEfficiency!),
       "Frozen count must equal ceil(Nt / adopted compartment efficiency).");
     check("height", near(b.requiredActiveHeightM!, HA),

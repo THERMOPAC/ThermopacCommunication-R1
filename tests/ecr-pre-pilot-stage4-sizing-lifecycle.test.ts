@@ -242,14 +242,14 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     expect(first.status).toBe('CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING');
     expect(first.hetsSizing).toMatchObject({
       sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
-      designCompartmentEfficiency: .4,
+      designCompartmentEfficiency: .35,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
       compartmentHeightRule: 'PERSISTED_STAGE3_SELECTED_hc',
       physicalCompartmentHeightM: 0.18,
-      requiredActiveHeightM: 3.24,
-      requiredPhysicalCompartments: 18,
-      installedActiveHeightM: 3.24,
+      requiredActiveHeightM: 3.6,
+      requiredPhysicalCompartments: 20,
+      installedActiveHeightM: 3.6,
     });
     expect(first.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
     expect(state.finiteRateRun).not.toHaveBeenCalled();
@@ -315,9 +315,9 @@ describe('Stage 4 persisted HETS lifecycle', () => {
     });
     expect(result.hetsSizing).toMatchObject({
       fixedDesignTheoreticalStages: 7,
-      requiredActiveHeightM: 3.24,
-      requiredPhysicalCompartments: 18,
-      installedActiveHeightM: 3.24,
+      requiredActiveHeightM: 3.6,
+      requiredPhysicalCompartments: 20,
+      installedActiveHeightM: 3.6,
     });
   });
 

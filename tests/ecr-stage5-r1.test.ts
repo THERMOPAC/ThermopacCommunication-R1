@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { buildStage5R1Geometry, R1_COMPLETE, R1_RULESET, R1_WATERMARK, R2_RULESET } from "../shared/ecr-stage5-r1";
+import { buildStage5R1Geometry, R1_COMPLETE, R1_RULESET, R1_WATERMARK, R3_RULESET } from "../shared/ecr-stage5-r1";
 import { renderStage5Svg, type Stage5DrawingView } from "../shared/ecr-stage5-drawings";
 import { buildStage5Geometry, emptyStage5Inputs, type Stage5Basis } from "../shared/ecr-stage5-geometry";
 
@@ -58,23 +58,25 @@ describe("approved automatic R1 geometry", () => {
     }
   });
 
-  it("hands off adopted 40% efficiency as 18 compartments and 19 plates without changing components", () => {
+  it("derives the adopted 35% efficiency stack without changing components", () => {
+    const count = Math.ceil(7 / .35);
+    const height = count * .18;
     const next = buildStage5R1Geometry({
       ...basis,
       compartmentHeightM: .18,
-      compartmentCount: 18,
-      requiredActiveHeightM: 3.24,
-      installedActiveHeightM: 3.24,
+      compartmentCount: count,
+      requiredActiveHeightM: height,
+      installedActiveHeightM: height,
       hetsM: null,
       sizingMethod: "ADOPTED_COMPARTMENT_EFFICIENCY",
-      designCompartmentEfficiency: .4,
-      impliedInstalledHetsMPerTheoreticalStage: 3.24 / 7,
+      designCompartmentEfficiency: .35,
+      impliedInstalledHetsMPerTheoreticalStage: height / 7,
     });
     const historical = buildStage5R1Geometry(basis);
-    expect(next.ruleset).toBe(R2_RULESET);
-    expect(next.compartments).toHaveLength(18);
-    expect(next.internals.find(x => x.id === "S")).toMatchObject({ count: 19 });
-    expect(next.compartments.at(-1)?.topM! - next.compartments[0].bottomM!).toBeCloseTo(3.24);
+    expect(next.ruleset).toBe(R3_RULESET);
+    expect(next.compartments).toHaveLength(count);
+    expect(next.internals.find(x => x.id === "S")).toMatchObject({ count: count + 1 });
+    expect(next.compartments.at(-1)?.topM! - next.compartments[0].bottomM!).toBeCloseTo(height);
     for (const key of ["shaftDiameterM", "statorThicknessM", "bladeHeightM", "hubDiameterM",
       "bladeThicknessM", "bladeRadialLengthM"]) {
       expect(next.dimensions[key]).toBe(historical.dimensions[key]);

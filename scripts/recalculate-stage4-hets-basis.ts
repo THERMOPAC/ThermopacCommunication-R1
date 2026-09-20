@@ -37,9 +37,10 @@ async function main() {
   const authority = await loadStage4PrePilotSizingAuthority(userId, designId);
   const sizing = authority.projection.hetsSizing;
   if (!sizing || sizing.sizingMethod !== 'ADOPTED_COMPARTMENT_EFFICIENCY'
-    || sizing.fixedDesignTheoreticalStages !== 7 || sizing.designCompartmentEfficiency !== 0.4
-    || sizing.requiredPhysicalCompartments !== 18) {
-    throw new Error('Expected fixed-seven, adopted-40% compartment sizing');
+    || sizing.fixedDesignTheoreticalStages !== 7 || sizing.designCompartmentEfficiency !== 0.35
+    || sizing.requiredPhysicalCompartments !== Math.ceil(7 / 0.35)
+    || Math.abs(sizing.installedActiveHeightM - Math.ceil(7 / 0.35) * .18) > 1e-10) {
+    throw new Error('Expected fixed-seven, adopted-35% compartment sizing at 180 mm pitch');
   }
   await calculateStage4PrePilotSizing(userId, designId);
   const after = await snapshot();

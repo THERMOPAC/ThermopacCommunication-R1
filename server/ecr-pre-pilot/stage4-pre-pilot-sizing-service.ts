@@ -25,9 +25,9 @@ const acceptedStage2Statuses = new Set([
 ]);
 
 export const STAGE4_HETS_DESIGN_NT = 7;
-export const STAGE4_DESIGN_COMPARTMENT_EFFICIENCY = 0.4;
+export const STAGE4_DESIGN_COMPARTMENT_EFFICIENCY = 0.35;
 export const STAGE4_HETS_IMPLEMENTATION_VERSION =
-  'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V1_FIXED_DESIGN_NT7_ETA0.40';
+  'ECR_STAGE4_ADOPTED_COMPARTMENT_EFFICIENCY_V2_FIXED_DESIGN_NT7_ETA0.35';
 export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_HETS_IMPLEMENTATION_VERSION,
   fixedPhysicalSizingDesignNt: STAGE4_HETS_DESIGN_NT,
@@ -423,7 +423,7 @@ export function deriveStage4PrePilotSizing(input: {
     assumptions: [
        'Stage 4 carries the persisted immutable Stage-3 optimizer geometry (D and hc) forward and does not recalculate or reselect hydraulic candidates.',
        'Stage-4 physical sizing deliberately fixes Ndesign = 7. Any actual accepted Stage-2 N_T is retained as reference only and does not set height or compartment count.',
-       'Design average physical-compartment efficiency ηcomp,design = 0.40 is an adopted pre-pilot engineering assumption, subject to validation/calibration from pilot performance or a validated mass-transfer/backmixing model; it is not a published Kühni constant or calculated NMP/RRBO efficiency.',
+       'Design average physical-compartment efficiency ηcomp,design = 0.35 is an adopted pre-pilot engineering assumption, subject to validation/calibration from pilot performance or a validated mass-transfer/backmixing model; it is not a published Kühni constant or calculated NMP/RRBO efficiency.',
        'The persisted Stage-3 hc is authoritative. Stage 4 does not select, modify, or infer compartment height.',
        'Implied installed HETS = installed active height / 7 is a derived reporting diagnostic only, never a design input.',
       'Installed active height is not total vessel height. This screening makes no outlet, recovery, target-compliance, or final-design claim.',

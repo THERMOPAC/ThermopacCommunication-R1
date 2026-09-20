@@ -70,22 +70,22 @@ describe('Stage 5 authoritative immutable persistence', () => {
     const previous = structuredClone(projection.hetsSizing);
     (projection as any).hetsSizing = {
       sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
-      designCompartmentEfficiency: .4,
+      designCompartmentEfficiency: .35,
       fixedDesignTheoreticalStages: 7,
-      requiredPhysicalCompartments: 18,
-      requiredActiveHeightM: 3.6,
-      installedActiveHeightM: 3.6,
-      impliedInstalledHetsMPerTheoreticalStage: 3.6 / 7,
+      requiredPhysicalCompartments: Math.ceil(7 / .35),
+      requiredActiveHeightM: 4,
+      installedActiveHeightM: 4,
+      impliedInstalledHetsMPerTheoreticalStage: 4 / 7,
     };
     try {
       const { basis } = await getStage5Basis(1, 1);
       expect(basis).toMatchObject({
         sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
-        designCompartmentEfficiency: .4,
-        compartmentCount: 18,
-        requiredActiveHeightM: 3.6,
-        installedActiveHeightM: 3.6,
-        impliedInstalledHetsMPerTheoreticalStage: 3.6 / 7,
+        designCompartmentEfficiency: .35,
+        compartmentCount: Math.ceil(7 / .35),
+        requiredActiveHeightM: 4,
+        installedActiveHeightM: 4,
+        impliedInstalledHetsMPerTheoreticalStage: 4 / 7,
       });
       expect(basis).not.toHaveProperty('hetsM');
     } finally {

@@ -687,7 +687,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               Stage 4 Adopted-Efficiency Pre-Pilot Sizing
             </h2>
             <p className="mt-1 text-[10px] leading-4 text-slate-700">
-              Deterministic fixed-Nₜ=7 physical sizing using the adopted 40% average
+              Deterministic fixed-Nₜ=7 physical sizing using the adopted 35% average
               physical-compartment efficiency and persisted Stage-3 geometry. The
               actual accepted Stage-2 Nₜ is reference-only. Stage 4 never creates,
               reruns, or reselects Stage 3.
@@ -845,7 +845,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
           <section className="rounded border border-amber-300 bg-amber-50 p-3 text-[10px] text-amber-950">
             <h4 className="text-xs font-semibold">Assumption governance</h4>
             <p className="mt-1">
-              Design average physical-compartment efficiency = 40% is an adopted
+              Design average physical-compartment efficiency = 35% is an adopted
               pre-pilot engineering assumption, subject to validation/calibration
               from pilot performance or a validated mass-transfer/backmixing model.
               It is not a published Kühni constant or a calculated NMP/RRBO efficiency.
@@ -971,7 +971,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               </details>
             )}
             <p className="mt-1 font-mono">
-              Hrequired = Ndesign(7) × HETS · Nphysical = ceil(Ndesign(7) × HETS / hc) · Hinstalled = Nphysical × hc
+              Nphysical = ceil(Ndesign(7) / ηcomp,design) · Hrequired = Hinstalled = Nphysical × hc
             </p>
           </section>
         </div>

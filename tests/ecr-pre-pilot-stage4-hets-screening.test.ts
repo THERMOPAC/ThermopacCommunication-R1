@@ -204,7 +204,7 @@ function resetDb() {
 }
 
 describe('Stage 4 deterministic adopted-efficiency sizing', () => {
-  it('calculates fixed-Nt=7 and eta=.40 without intermediate rounding', () => {
+  it('calculates fixed-Nt=7 and eta=.35 without intermediate rounding', () => {
     const result = deriveStage4PrePilotSizing({
       calculatedNt: 5,
       stage2JobId: 'stage-2',
@@ -216,13 +216,13 @@ describe('Stage 4 deterministic adopted-efficiency sizing', () => {
     });
     expect(result.hetsSizing).toMatchObject({
       sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY',
-      designCompartmentEfficiency: .4,
+      designCompartmentEfficiency: .35,
       physicalCompartmentHeightM: .18,
       fixedDesignTheoreticalStages: 7,
       actualStage2TheoreticalStagesReference: 5,
-      requiredActiveHeightM: 3.24,
-      requiredPhysicalCompartments: 18,
-      installedActiveHeightM: 3.24,
+      requiredActiveHeightM: 3.6,
+      requiredPhysicalCompartments: 20,
+      installedActiveHeightM: 3.6,
       designStatus: 'PRE-PILOT SCREENING',
     });
   });
@@ -251,9 +251,9 @@ describe('Stage 4 deterministic adopted-efficiency sizing', () => {
     expect(state.optimizerRuns).toBe(0);
     expect(result.hetsSizing).toMatchObject({
       physicalCompartmentHeightM: .18,
-      requiredActiveHeightM: 3.24,
-      requiredPhysicalCompartments: 18,
-      installedActiveHeightM: 3.24,
+      requiredActiveHeightM: 3.6,
+      requiredPhysicalCompartments: 20,
+      installedActiveHeightM: 3.6,
     });
     expect(result.hetsSizing.compartmentHeightRule).not.toBe('0.5D');
   });
@@ -271,8 +271,8 @@ describe('Stage 4 deterministic adopted-efficiency sizing', () => {
     state.index = 0;
     const html = renderToStaticMarkup(React.createElement(Panel, { designId: 269 }));
     expect(html).toContain('Stage 4 Adopted-Efficiency Pre-Pilot Sizing');
-    expect(html).toContain('40%');
-    expect(html).toContain('3.24 m');
+    expect(html).toContain('35%');
+    expect(html).toContain('3.60 m');
     expect(html).toContain('fixed-Nₜ=7');
     expect(html).toContain('adopted pre-pilot engineering assumption');
     expect(html).toContain('No outlet,');

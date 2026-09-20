@@ -39,4 +39,4 @@ The approved component basis retains the nominal 130-mm eye and defines the 112-
 
 **Why:** The user explicitly selected geometric overlap as the preliminary design basis, accepted the shrouded six-blade architecture, excluded external mixing-section geometry, and subsequently approved the final component dimensions.
 
-**How to apply:** Freeze the approved component dimensions; change them only if actual assembly interference is demonstrated. New assemblies consume the current fixed-seven/40%-efficiency Stage-4 stack; the original 39-compartment reconciliation remains historical. Verify every drawing and CAD data export includes holes and shrouds, while retaining assembly-interface and mechanical qualification holds.
+**How to apply:** Freeze the approved component dimensions; change them only if actual assembly interference is demonstrated. New assemblies inherit the current Stage-4 calculated count and active height, never a component-template count. The original reconciliation remains historical. Verify every drawing and CAD data export includes holes and shrouds, while retaining assembly-interface and mechanical qualification holds.

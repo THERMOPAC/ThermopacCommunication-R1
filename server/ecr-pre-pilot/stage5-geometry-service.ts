@@ -2,7 +2,10 @@ import { createHash } from 'node:crypto';
 import { pool } from '../db';
 import { loadStage4PrePilotSizingAuthority } from './stage4-pre-pilot-sizing-service';
 import { STAGE5_INPUT_FIELDS, type Stage5Basis, type Stage5Inputs } from '../../shared/ecr-stage5-geometry';
-import { buildStage5R1Geometry, R1_RULES_MANIFEST, R2_RULES_MANIFEST, R2_RULESET } from '../../shared/ecr-stage5-r1';
+import {
+  buildStage5R1Geometry, R1_RULES_MANIFEST, R2_RULES_MANIFEST, R2_RULESET,
+  R3_RULES_MANIFEST, R3_RULESET,
+} from '../../shared/ecr-stage5-r1';
 import {
   APPROVED_COMPONENT_RULES_MANIFEST, APPROVED_COMPONENT_RULESET, buildStage5ApprovedComponentGeometry,
 } from '../../shared/ecr-stage5-approved-components';
@@ -40,7 +43,7 @@ export function validateStage5Basis(basis: Stage5Basis): void {
     throw new Stage5Error('STAGE5_GOVERNING_BASIS_INVALID');
   const efficiencySizing = basis.sizingMethod === 'ADOPTED_COMPARTMENT_EFFICIENCY';
   if (efficiencySizing) {
-    if (basis.designCompartmentEfficiency !== .4
+    if (basis.designCompartmentEfficiency !== .35
       || typeof basis.impliedInstalledHetsMPerTheoreticalStage !== 'number'
       || !Number.isFinite(basis.impliedInstalledHetsMPerTheoreticalStage)
       || basis.impliedInstalledHetsMPerTheoreticalStage <= 0
@@ -202,7 +205,8 @@ export async function saveStage5Revision(u: number, d: number, input: unknown, e
     if (expectedSourceHash !== source.sourceHash) throw new Stage5Error('STAGE5_SOURCE_CHANGED');
     const geometry = buildCurrentStage5Geometry(d, source.basis);
     const rulesManifest = geometry.ruleset === APPROVED_COMPONENT_RULESET ? APPROVED_COMPONENT_RULES_MANIFEST
-      : geometry.ruleset === R2_RULESET ? R2_RULES_MANIFEST : R1_RULES_MANIFEST;
+      : geometry.ruleset === R3_RULESET ? R3_RULES_MANIFEST
+        : geometry.ruleset === R2_RULESET ? R2_RULES_MANIFEST : R1_RULES_MANIFEST;
     const snapshot = JSON.parse(JSON.stringify({ inputs: geometry.inputs, geometry, ruleset: geometry.ruleset,
       rulesManifest, rulesManifestHash: stage5Hash(rulesManifest),
       geometryHash: stage5Hash(geometry), sourceStage3: source.sourceStage3,

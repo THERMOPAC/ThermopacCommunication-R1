@@ -27,7 +27,7 @@ async function main() {
   let saved = existing.find((r: any) => r.sourceHash === source.sourceHash
     && String(r.ruleset).includes('APPROVED'));
   if (!saved) saved = await saveStage5Revision(owner.created_by, designId, undefined, source.sourceHash,
-    'Approved frozen shrouded turbine and 84-hole perforated stator integrated; inherited 18-compartment / 3240-mm active stack. Historical revisions preserved. Preliminary, not for fabrication.');
+    `Approved frozen shrouded turbine and 84-hole perforated stator; inherited ${preview.basis.compartmentCount}-compartment / ${Number(preview.basis.installedActiveHeightM) * 1000}-mm active stack at adopted efficiency ${preview.basis.designCompartmentEfficiency}. End sections unchanged. Historical revisions preserved. Preliminary, not for fabrication.`);
   if (!String(saved.ruleset).includes('APPROVED')) throw new Error('Approved component generator was not selected');
   const afterOld = (await pool.query(
     'SELECT * FROM ecr_pre_pilot_stage5_geometry_revisions WHERE design_id=$1 AND id=ANY($2::bigint[]) ORDER BY id',
