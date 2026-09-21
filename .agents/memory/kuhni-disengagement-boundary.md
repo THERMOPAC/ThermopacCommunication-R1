@@ -49,4 +49,10 @@ The end-design objective is a calculated top-settler diameter, effective calm-zo
 
 **Why:** The user clarified that population/return studies must lead to an integrated sizing result, not remain isolated mechanism studies. The prior Ø700 ×1600 top reservation is not the final required top size.
 
-**How to apply:** Keep extraction internals unchanged; evaluate top geometry as a separate design variable. State the outlet mass-fraction basis explicitly and include dissolved NMP when assessing total NMP; settling cannot remove molecularly dissolved solvent. Do not claim compliance from droplet removal alone or an assumed residence time.
+**How to apply:** Keep extraction internals unchanged; evaluate top geometry as a separate design variable. The user explicitly scopes this exercise to physical separation after Stage 20, using <5 wt% NMP as the design acceptance target. Do not reopen Stage 2 or make dissolved-NMP analysis a prerequisite. Label predicted performance as physical dispersed-NMP performance, not newly established total-composition compliance. Define its mass denominator explicitly.
+
+The coupled sizing sequence is Stage-20 outlet DSD → terminal flow → anti-swirl/calming → residence time → coalescence → settling → NMP return → raffinate outlet.
+
+**Why:** The user permits Ø900, Ø1000 or another calculated top diameter; Ø700 ×1600 is only a reference case. Required outputs include return hydraulics as well as diameter, effective calm height, residence time, anti-swirl arrangement and predicted physical separation.
+
+**How to apply:** Use this coupled sequence to compare top candidates without changing the established Ø700, 20-stage extraction section. Keep assumed Stage-20 DSD/loading explicit rather than treating inherited compartment means or donor widths as measured outlet inputs.
