@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { downloadSelection } from "./p1-selection-download";
-import { assertCompleteRun, downloadCompleteRun } from "./p1-full-run-download";
+import { assertCompleteRun, prepareCompleteRun } from "./p1-full-run-download";
 
 const number = (value: unknown) => typeof value === "number" ? Number(value.toPrecision(6)).toString() : "—";
 async function request(url: string, init?: RequestInit, timeoutMs = 20_000) {
@@ -29,6 +29,11 @@ export function P1CandidateResults({ run, fullUrl }: { run: any; fullUrl?: strin
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadStatus, setDownloadStatus] = useState("");
   const [downloadError, setDownloadError] = useState("");
+  const [prepared, setPrepared] = useState<ReturnType<typeof prepareCompleteRun> | null>(null);
+  useEffect(() => () => { if (prepared) URL.revokeObjectURL(prepared.url); }, [prepared]);
+  useEffect(() => {
+    setPrepared(null); setFullRun(null); setDownloadStatus(""); setDownloadError("");
+  }, [run?.id, run?.sourceSnapshotHash, run?.stale]);
   const detailRequest = useRef<{ key: string; promise: Promise<any> } | null>(null);
   const latestRun = useRef(run);
   latestRun.current = run;
@@ -49,11 +54,18 @@ export function P1CandidateResults({ run, fullUrl }: { run: any; fullUrl?: strin
   }
   async function downloadFull(format: "csv" | "json") {
     setDownloadBusy(true); setDownloadError("");
+    setPrepared(null);
     setDownloadStatus("Loading complete saved hydraulic evidence (up to 90 seconds)…");
     try {
       const value = await loadCompleteRun();
       assertCompleteRun(value, latestRun.current);
-      setDownloadStatus(downloadCompleteRun(value, format));
+      setDownloadStatus("Preparing complete saved file… Keep this panel open.");
+      // Paint progress before the large, synchronous CSV conversion.
+      await new Promise(resolve => setTimeout(resolve, 30));
+      assertCompleteRun(value, latestRun.current);
+      const file = prepareCompleteRun(value, format);
+      setPrepared(file);
+      setDownloadStatus(`${file.summary} ${file.bytes.toLocaleString()} bytes. Click Save ${format.toUpperCase()} below; preparation does not save a file.`);
     } catch (error) {
       setDownloadStatus("");
       setDownloadError(`${error instanceof Error ? error.message : String(error)} Use the download button to retry.`);
@@ -122,6 +134,8 @@ export function P1CandidateResults({ run, fullUrl }: { run: any; fullUrl?: strin
       </div>
       <p>CSV uses saved field names: M = m, MS = m/s, WM3 = W/m³, M2M3 = m²/m³; holdup, loading and free area are fractions, not percentages. Blank means unavailable, not zero. Root and continuation arrays are JSON cells. The JSON companion preserves every saved field, source property and provenance record without rounding.</p>
       {downloadStatus && <p role="status">{downloadStatus}</p>}
+      {prepared && !run.stale && <a className="inline-block rounded border border-blue-600 bg-white px-3 py-2 font-semibold text-blue-800 underline"
+        href={prepared.url} download={prepared.filename}>Save {prepared.format.toUpperCase()}</a>}
       {downloadError && <p role="alert">{downloadError}</p>}
     </section>
     <details onToggle={e => setInspectionOpen(e.currentTarget.open)}><summary className="cursor-pointer font-semibold">Historical engine selection provenance and raw trial inspection (not downstream selection)</summary>

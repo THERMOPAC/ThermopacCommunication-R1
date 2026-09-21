@@ -1535,3 +1535,17 @@ mtime_ms = 1789968875919
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/0f8a60ba-1726-4a71-8de9-4be0a5b5ef09/c2d051b9-e20c-44bc-ae0b-4db0a3c44253"
 storage_version_token = "1789968923367376"
 content_type = "text/csv"
+
+[[outputs]]
+id = "f84XZAkhu4lhibuRZSXcN"
+uri = "file://exports/stage3-complete-b4b44349-5471-4b9c-acf8-d06e2cea8d42.csv"
+type = "table"
+title = "Complete Stage-3 hydraulic run"
+description = "All 6,804 saved trials across both orientations, including rejected trials; 23,814 trial/scenario rows. CSV approximately 86 MB. Exported from the verified saved run without recalculation."
+logical_id = "280e7b29-def6-460c-a7dd-97a4a16e8f9a"
+content_hash = "sha256:90ce303c5603d17a418f31c86760b64230ba5cf5b0de4f79a35be6260d0472f0"
+size = 86403039
+mtime_ms = 1789983243369
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/280e7b29-def6-460c-a7dd-97a4a16e8f9a/b9faea59-77c9-42ab-8af7-433a48e678a8"
+storage_version_token = "1789983469301059"
+content_type = "text/csv"

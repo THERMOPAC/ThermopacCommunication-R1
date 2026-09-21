@@ -31,3 +31,14 @@ exercise this failure, so successful login-page screenshots miss it.
 **How to apply:** Check signed-in asset delivery as well as logged-out rendering.
 Keep any asset-only session bypass restricted to public development paths and
 read methods; never broaden it to API or protected document requests.
+
+Large scientific downloads need full-size browser verification in a download-enabled
+sandboxed iframe, not just small fixtures or intercepted anchor clicks.
+
+**Why:** Small export tests passed while the user received no file from a complete
+hydraulic run. The original failure was not conclusively reproduced; successful
+file preparation alone does not establish that the browser saved the file.
+
+**How to apply:** Verify the actual downloaded file and its completeness against
+the saved evidence. Distinguish preparation from saving, keep an explicit Save
+link available, and never report a download as completed solely after creating a Blob.

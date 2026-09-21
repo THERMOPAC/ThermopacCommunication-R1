@@ -77,16 +77,16 @@ export function buildHydraulicCsv(run: any): { blob: Blob; trialCount: number; r
   return { blob: new Blob(chunks, { type: "text/csv;charset=utf-8" }), trialCount, rowCount };
 }
 
-export function downloadCompleteRun(run: any, format: "csv" | "json"): string {
+export function prepareCompleteRun(run: any, format: "csv" | "json") {
   assertCompleteRun(run, run);
   const csv = format === "csv" ? buildHydraulicCsv(run) : null;
   const blob = csv?.blob ?? new Blob([JSON.stringify(run)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `stage3-complete-${String(run.id).replace(/[^a-zA-Z0-9_-]/g, "_")}.${format}`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return csv ? `Downloaded ${csv.trialCount} trials, ${csv.rowCount} trial/scenario rows.` :
-    "Downloaded complete saved run JSON, including scientific evidence and metadata.";
+  return {
+    url, format,
+    filename: `stage3-complete-${String(run.id).replace(/[^a-zA-Z0-9_-]/g, "_")}.${format}`,
+    bytes: blob.size,
+    summary: csv ? `Ready: ${csv.trialCount} trials, ${csv.rowCount} trial/scenario rows.` :
+      "Ready: complete saved run JSON, including scientific evidence and metadata.",
+  };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, statSync, existsSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 import { build } from "esbuild";
@@ -54,6 +55,14 @@ describe("complete saved hydraulic export", () => {
     for (const wrong of [{ ...run, id: undefined }, { ...run, sourceSnapshotHash: undefined },
       { ...run, id: "other" }, { ...run, stale: true }, { ...run, summaryOnly: true },
       { ...run, result: {} }]) expect(() => assertCompleteRun(wrong, run)).toThrow();
+  });
+  it("accepts explicitly empty grids but rejects missing executed trial detail", () => {
+    const run = fixture();
+    run.result.orientationComparison.push({ orientation: "not evaluated", geometryGrid: [] });
+    expect(buildHydraulicCsv(run).trialCount).toBe(3);
+    expect(() => assertCompleteRun({ ...run, result: { orientationComparison: [
+      { orientation: "unknown", status: "FEASIBLE" },
+    ] } }, run)).toThrow("Complete hydraulic trial detail");
   });
   it("counts every raw trial and scenario in the authentic saved full-grid artifact", () => {
     const saved = JSON.parse(readFileSync("deliverables/p1-research-regression/integrated-saved-artifact.json", "utf8"));
@@ -111,7 +120,8 @@ it("visible complete-run buttons load lazily, share inspection request, retry er
     failure = false;
     await page.click('[data-testid="complete-hydraulic-download"] button');
     await page.click("details > summary");
-    await page.waitForFunction(() => document.body.textContent?.includes("Downloaded 3 trials, 8"));
+    await page.waitForFunction(() => document.body.textContent?.includes("Ready: 3 trials, 8"));
+    expect(await page.$eval('[data-testid="complete-hydraulic-download"] a', a => a.getAttribute("download"))).toBe("stage3-complete-saved.csv");
     expect(requests).toEqual(["GET", "GET"]);
     await page.click('[data-testid="complete-hydraulic-download"] button:nth-child(2)');
     await page.waitForFunction(() => (window as any).downloads.length === 2);
@@ -120,3 +130,59 @@ it("visible complete-run buttons load lazily, share inspection request, retry er
     expect(downloaded).toEqual(fixture());
   } finally { await browser.close(); }
 }, 30_000);
+
+// Opt-in exact, ownership/hash-verified read-only DB capture. Never commit the raw
+// payload or put it in public/. This exercises a real native download, not a click stub.
+it.skipIf(!process.env.P1_VERIFIED_FULL_RUN)("saves the exact verified full run from a mounted sandbox iframe", async () => {
+  const payload = readFileSync(process.env.P1_VERIFIED_FULL_RUN!, "utf8");
+  const run = JSON.parse(payload);
+  assertCompleteRun(run, run);
+  const expected = buildHydraulicCsv(run);
+  const compiled = await build({
+    stdin: { contents: `
+      import React from 'react';
+      import { createRoot } from 'react-dom/client';
+      import { P1CandidateResults } from './client/src/components/ecr-pre-pilot/p1-candidate-panel';
+      window.mount = run => createRoot(document.getElementById('root')).render(React.createElement(P1CandidateResults, {run, fullUrl:'/detail'}));
+    `, resolveDir: process.cwd(), loader: "tsx" },
+    bundle: true, write: false, platform: "browser", jsx: "automatic", alias: { "@": resolve("client/src") },
+  });
+  const browser = await puppeteer.launch({
+    executablePath: execSync("command -v chromium || command -v chromium-browser", { encoding: "utf8" }).trim(),
+    headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"],
+  });
+  try {
+    const directory = mkdtempSync(`${tmpdir()}/p1-exact-download-`);
+    const page = await browser.newPage();
+    const session = await page.createCDPSession();
+    await session.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: directory });
+    await page.setRequestInterception(true);
+    page.on("request", request => {
+      if (request.url().endsWith("/detail")) {
+        expect(request.method()).toBe("GET");
+        void request.respond({ status: 200, contentType: "application/json", body: payload });
+      } else void request.respond({ status: 200, contentType: "text/html", body:
+        request.url().endsWith("/frame") ? '<div id="root"></div>' :
+          '<iframe sandbox="allow-scripts allow-same-origin allow-downloads" src="/frame" style="width:100%;height:900px"></iframe>' });
+    });
+    await page.goto("http://export.test");
+    const frame = page.frames().find(f => f.url().endsWith("/frame"))!;
+    await frame.addScriptTag({ content: compiled.outputFiles[0].text });
+    await frame.evaluate(value => (window as any).mount(value), {
+      id: run.id, sourceSnapshotHash: run.sourceSnapshotHash, phaseConfiguration: run.phaseConfiguration,
+      summaryOnly: true, result: { status: run.result.status },
+    });
+    await frame.waitForSelector('[data-testid="complete-hydraulic-download"] button');
+    await frame.click('[data-testid="complete-hydraulic-download"] button');
+    await frame.waitForSelector('[data-testid="complete-hydraulic-download"] a', { timeout: 120_000 });
+    const text = await frame.$eval('[role="status"]', element => element.textContent);
+    expect(text).toContain(`${expected.trialCount} trials, ${expected.rowCount}`);
+    await frame.click('[data-testid="complete-hydraulic-download"] a');
+    const filename = `${directory}/stage3-complete-${run.id}.csv`;
+    const deadline = Date.now() + 60_000;
+    while ((!existsSync(filename) || statSync(filename).size !== expected.blob.size) && Date.now() < deadline)
+      await new Promise(resolve => setTimeout(resolve, 250));
+    expect(statSync(filename).size).toBe(expected.blob.size);
+    console.info(`Exact sandbox download: ${run.id}; ${expected.trialCount} trials; ${expected.rowCount} rows; ${statSync(filename).size} bytes; ${filename}`);
+  } finally { await browser.close(); }
+}, 180_000);
