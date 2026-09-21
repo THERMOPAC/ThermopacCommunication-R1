@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { evaluateRrboHydraulicTrial, RRBO_HYDRAULIC_METHOD } from './rrbo-wetnmp-hydraulic-p1';
 import {
   evaluateKuhniHydrodynamics,
   kuhniRunHash,
@@ -18,6 +19,9 @@ export { evaluateKuhniReverseTrial };
  */
 export const ECR_STAGE3_STAGE4_OPTIMIZER_VERSION =
   'ECR_STAGE3_STAGE4_OPTIMIZER_V1.3.0';
+/** Review-only identity. Never used for current-authority lookup or normal Calculate. */
+export const ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION =
+  'ECR_STAGE3_STAGE4_OPTIMIZER_V1.4.0';
 export const ECR_STAGE3_STAGE4_OPTIMIZER_SMALLEST_VERSION =
   'ECR_STAGE3_STAGE4_OPTIMIZER_V1.2.0';
 export const ECR_STAGE3_STAGE4_OPTIMIZER_CONFIGURABLE_VERSION =
@@ -53,6 +57,11 @@ const OPTIMIZER_DESCRIPTOR = [
   'useful-window-preference:fixed-server-owned-20-rpm-not-hydraulic-limit',
   'root-search:bounded-finite-grid-bisection-all-brackets',
 ].join('|');
+const P1_REVIEW_OPTIMIZER_DESCRIPTOR = OPTIMIZER_DESCRIPTOR
+  .replace(ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION)
+  + `|reverse:${RRBO_HYDRAULIC_METHOD}|C=.36,.42,.43|BP+SN|vs-to-slip|actual-lower-branch|loading=.70`;
+export const ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH = createHash('sha256')
+  .update(P1_REVIEW_OPTIMIZER_DESCRIPTOR).digest('hex');
 export const ECR_STAGE3_STAGE4_OPTIMIZER_HASH = createHash('sha256')
   .update(OPTIMIZER_DESCRIPTOR)
   .digest('hex');
@@ -135,6 +144,9 @@ type Candidate = {
   psiWKg: number;
   d32M: number | null;
   holdup: number | null;
+  /** Additive P1 evidence, omitted entirely for immutable historical replay. */
+  hydraulicMethod?: ReturnType<typeof evaluateRrboHydraulicTrial>;
+  floodHoldup?: number;
   interfacialAreaM2M3: number | null;
   actualLoading: number | null;
   designFloodFraction?: number | null;
@@ -263,6 +275,7 @@ export type Stage3Stage4OptimizerResult = {
   engine: {
     id: 'ecr_stage3_stage4_optimizer';
     version: typeof ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
+      | typeof ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION
       | typeof ECR_STAGE3_STAGE4_OPTIMIZER_CONFIGURABLE_VERSION
       | typeof ECR_STAGE3_STAGE4_OPTIMIZER_SMALLEST_VERSION
       | typeof ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION;
@@ -662,16 +675,42 @@ function reverseTrialFromRecord(
   };
 }
 
-function evaluateTrial(
+export function evaluateTrial(
   basis: HydrodynamicProcessBasis,
   diameterM: number,
   hcToColumn: number,
   rotorToColumn: number,
   freeArea: number,
   rpm: number,
+  correctedReverse = false,
 ): Candidate {
   try {
     if (basis.phaseConfiguration === 'rrbo-continuous-nmp-dispersed') {
+      if (correctedReverse) {
+        const model = evaluateRrboHydraulicTrial(diameterM, rpm, basis, {
+          rotorToColumn, compartmentToColumn: hcToColumn, statorFreeArea: freeArea,
+        });
+        const s = model.governing;
+        return {
+          diameterM, hcToColumn, rotorToColumn, freeArea, rpm,
+          compartmentHeightM: model.compartmentHeightM, rotorDiameterM: model.rotorDiameterM,
+          tipSpeedMS: model.tipSpeedMS, powerW: model.powerW, powerVolumeWM3: model.powerVolumeWM3,
+          psiWKg: model.epsilonWKg, d32M: s.d32M, holdup: s.operatingHoldup,
+          interfacialAreaM2M3: s.interfacialAreaM2M3, floodHoldup: s.floodHoldup,
+          hydraulicMethod: model, actualLoading: s.loading, designFloodFraction: .70,
+          signedForceBalanceResidualN: s.forceBalanceResidualN, buoyancyDirection: 'DISPERSED_DOWNWARD',
+          hydraulicPass: model.screeningPass, rotorReynolds: model.rotorReynolds,
+          status: model.screeningPass ? 'FEASIBLE' : 'INFEASIBLE',
+          validity: model.screeningPass ? 'SCALE_UP_EXTRAPOLATION' : 'PHYSICAL_INVALID',
+          reasons: model.screeningPass ? [] : [
+            ...(model.scenarios.some(row => row.operatingHoldup === null) ? ['NO_DILUTE_CONNECTED_ROOT'] : []),
+            ...(s.loading > .70 ? ['ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION'] : []),
+            ...(model.tipSpeedMS > 4.5 ? ['TIP_SPEED_LIMIT_EXCEEDED'] : []),
+          ],
+          sourceDiagnostics: ['PREPILOT_EXTRAPOLATED_METHOD', 'INVERSION_ENTRAINMENT_UNKNOWN',
+            'TURBULENCE_SHAPE_DRAG_RANGE_UNQUALIFIED', model.capacityMeaning],
+        };
+      }
       const reverse = evaluateKuhniReverseTrial(
         diameterM,
         rpm,
@@ -1121,6 +1160,7 @@ function optimizeOrientation(
   controls: CanonicalStage3Stage4OptimizerControls,
   rankingPolicy: 'CORRECTED' | 'LEGACY' = 'CORRECTED',
   nextSmallest = true,
+  correctedReverse = false,
 ): OrientationResult {
   const { continuous, dispersed } = phaseProperties(basis);
   const diameters = boundedGrid(
@@ -1135,7 +1175,7 @@ function optimizeOrientation(
       for (const rotorToColumn of controls.rotorToColumn) {
         for (const freeArea of controls.freeArea) {
           const trials = rpms.map((rpm) =>
-            evaluateTrial(basis, diameterM, hcToColumn, rotorToColumn, freeArea, rpm));
+            evaluateTrial(basis, diameterM, hcToColumn, rotorToColumn, freeArea, rpm, correctedReverse));
           const valid = trials.filter((trial) => trial.status === 'FEASIBLE');
           trials.filter((trial) => trial.status !== 'FEASIBLE').forEach((trial) => {
             rejectedTrialCount += 1;
@@ -1363,14 +1403,16 @@ function optimizeStage3Stage4Internal(
   rankingPolicy: 'CORRECTED' | 'LEGACY',
   configurableReplay = false,
   smallestReplay = false,
+  p1Review = false,
 ): Stage3Stage4OptimizerResult {
   const controls = configurableReplay || rankingPolicy === 'LEGACY'
     ? canonicalizeHistoricalOptimizerControls(rawControls)
     : canonicalizeStage3Stage4OptimizerControls(rawControls);
   const nextSmallest = rankingPolicy === 'CORRECTED' && !configurableReplay && !smallestReplay;
-  const current = optimizeOrientation(basis, controls, rankingPolicy, nextSmallest);
+  const correctedReverse = p1Review && rankingPolicy !== 'LEGACY' && !configurableReplay && !smallestReplay;
+  const current = optimizeOrientation(basis, controls, rankingPolicy, nextSmallest, correctedReverse);
   const comparison = controls.compareOrientations
-    ? optimizeOrientation(alternativeBasis(basis), controls, rankingPolicy, nextSmallest)
+    ? optimizeOrientation(alternativeBasis(basis), controls, rankingPolicy, nextSmallest, correctedReverse)
     : null;
   const orientations = [
     { ...current, status: current.selectedGeometry ? 'SELECTED' as const : current.status },
@@ -1407,11 +1449,12 @@ function optimizeStage3Stage4Internal(
       version: rankingPolicy === 'LEGACY'
         ? ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_VERSION
         : configurableReplay ? ECR_STAGE3_STAGE4_OPTIMIZER_CONFIGURABLE_VERSION
-          : smallestReplay ? ECR_STAGE3_STAGE4_OPTIMIZER_SMALLEST_VERSION : ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
+          : smallestReplay ? ECR_STAGE3_STAGE4_OPTIMIZER_SMALLEST_VERSION
+            : p1Review ? ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION : ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
       implementationHash: rankingPolicy === 'LEGACY'
         ? ECR_STAGE3_STAGE4_OPTIMIZER_LEGACY_HASH
         : configurableReplay ? CONFIGURABLE_OPTIMIZER_HASH
-          : smallestReplay ? SMALLEST_OPTIMIZER_HASH : ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+          : smallestReplay ? SMALLEST_OPTIMIZER_HASH : p1Review ? ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH : ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
     },
     stage1Authority: {
       snapshotHash: stage1SnapshotHash,
@@ -1544,6 +1587,24 @@ export function replayLegacyStage3Stage4(
 ): Stage3Stage4OptimizerResult {
   validateOptimizerAuthority(basis, stage1SnapshotHash);
   return optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'LEGACY');
+}
+
+/** Future P1 entry point, deliberately not wired into any service dispatcher.
+ * Requires separate user approval before any optimization may be executed.
+ */
+export function optimizeStage3Stage4P1ForReview(
+  basis: HydrodynamicProcessBasis, stage1SnapshotHash: string, rawControls?: unknown,
+): Stage3Stage4OptimizerResult {
+  validateOptimizerAuthority(basis, stage1SnapshotHash);
+  return optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'CORRECTED', false, false, true);
+}
+
+/** Permitted single-trial review adapter; does not search or persist authority. */
+export function evaluateP1ReviewTrial(
+  basis: HydrodynamicProcessBasis, diameterM: number, hcToColumn: number,
+  rotorToColumn: number, freeArea: number, rpm: number,
+): Candidate {
+  return evaluateTrial(basis, diameterM, hcToColumn, rotorToColumn, freeArea, rpm, true);
 }
 
 /** Historical V1.1 replay only; new calculations always enforce the fixed preference. */

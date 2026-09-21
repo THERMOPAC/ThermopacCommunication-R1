@@ -50,6 +50,8 @@ type OptimizerRun = {
     designFloodFraction?: number | null;
     d32M?: number | null;
     holdup?: number | null;
+    floodHoldup?: number | null;
+    hydraulicMethod?: { methodId?: string; status?: string };
     powerVolumeWM3?: number | null;
   } | null;
   selectionRationale?: {
@@ -297,7 +299,8 @@ export function Stage3Stage4OptimizerPanel({
           </div>
           <p className="border-t border-indigo-100 pt-2 text-slate-600">
             loading = {value(run.selectedTrial?.actualLoading, 3)} · tip speed = {value(run.selectedTrial?.tipSpeedMS, 3)} m/s ·
-            d32 = {value(run.selectedTrial?.d32M, 5)} m · holdup = {value(run.selectedTrial?.holdup, 4)} ·
+            d32 = {value(run.selectedTrial?.d32M, 5)} m · {run.selectedTrial?.hydraulicMethod ? "Operating holdup" : "Holdup (stored model basis)"} = {value(run.selectedTrial?.holdup, 4)} ·
+            {run.selectedTrial?.hydraulicMethod && <>Modeled flood holdup = {value(run.selectedTrial?.floodHoldup, 4)} · Conservative C/interface case · Inversion / entrainment: UNKNOWN · pre-pilot extrapolation, not qualification · </>}
             P/V = {value(run.selectedTrial?.powerVolumeWM3, 2)} W/m³ · fixed design N<sub>T</sub> = 7.
             Stage-2 accepted N<sub>T</sub> remains reference-only.
           </p>
@@ -360,7 +363,7 @@ export function Stage3Stage4OptimizerPanel({
                       {value(alternative.representativeTrial?.tipSpeedMS, 3)} m/s · loading{" "}
                       {value(alternative.representativeTrial?.actualLoading, 3)} · flood{" "}
                       {value(alternative.representativeTrial?.designFloodFraction, 2)} · d32{" "}
-                      {value(alternative.representativeTrial?.d32M, 5)} m · holdup{" "}
+                      {value(alternative.representativeTrial?.d32M, 5)} m · {run.selectedTrial?.hydraulicMethod ? "operating holdup" : "holdup (stored model basis)"}{" "}
                       {value(alternative.representativeTrial?.holdup, 4)} · P/V{" "}
                       {value(alternative.representativeTrial?.powerVolumeWM3, 2)} W/m³
                     </div>

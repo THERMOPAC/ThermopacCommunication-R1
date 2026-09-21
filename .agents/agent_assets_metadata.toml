@@ -1339,3 +1339,17 @@ mtime_ms = 1789925636508
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f0572363-eed6-4ac4-b61e-c1569d64427a/620ad7ee-f12f-45c3-aa4e-dad84913f265"
 storage_version_token = "1789925673114695"
 content_type = "text/html"
+
+[[outputs]]
+id = "w1AsbWGpeifJpXOSz6K4P"
+uri = "file://deliverables/rrbo-hydraulic-implementation/report.html"
+type = "html"
+title = "Corrected RRBO-continuous hydraulics — implementation review"
+description = "Implemented equations, separate operating/flood holdup, six sensitivity cases, applicability diagnostics, authority isolation and 15 passing tests. No final optimizer run."
+logical_id = "e05bcb1b-4b79-4caa-a854-dbf4b3f810dc"
+content_hash = "sha256:e3cea9c145512d7ad6da17f8c10541e93212b7ca5d573a126402d4d4fcc936bb"
+size = 7979
+mtime_ms = 1789957919830
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/e05bcb1b-4b79-4caa-a854-dbf4b3f810dc/c7e137dc-a134-479c-a0d0-80d31a30fd81"
+storage_version_token = "1789957950356200"
+content_type = "text/html"

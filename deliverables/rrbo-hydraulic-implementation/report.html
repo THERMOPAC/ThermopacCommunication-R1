@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RRBO hydraulic implementation review</title>
+<style>body{font:16px/1.6 system-ui,sans-serif;margin:40px auto;padding:0 24px;max-width:1100px;color:#172b3a}h1,h2{color:#154c62}aside{padding:16px;background:#fff2d6;border-left:5px solid #ae780c}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:8px;border-bottom:1px solid #ccd8dc;text-align:left}code{background:#edf2f5;padding:2px 4px}a{color:#12617e}.scroll{overflow:auto}</style></head>
+<body><h1>RRBO / wet-NMP hydraulic implementation</h1>
+<p>Review artifact · <code>RRBO_WETNMP_KUHNI_HYDRAULIC_P1</code> · explicit review-only V1.4.0 entry point; current V1.3 authority unchanged</p>
+<aside><strong>Conditional pre-pilot extrapolation, not qualification.</strong> No final diameter/RPM optimization, saved Stage-3 replacement or persisted Stage-4 sizing run was performed. Tests make no database calls. The normal workflow was subsequently restarted for a startup check, including its existing startup routines.</aside>
+<h2>Implemented chain</h2>
+<ol>
+<li>Consume the saved 40 °C properties unchanged. RRBO continuous/upward, wet NMP dispersed/downward.</li>
+<li>Power = 1.2 ρc N³ Dr⁵; ε = Power/(A hc ρc). Conditional d32 = C(σ/ρc)<sup>0.6</sup> ε<sup>−0.4</sup>, with C=.36, .42 and .43. This is a Sauter-mean proxy, not a maximum stable diameter.</li>
+<li>Barry–Parlange Eq. 10 mobile and Schiller–Naumann immobile scenarios both solve Cd Re² = 4Ar/3. Barry–Parlange uses its positive τ root and primary-source coefficients. No interface is assumed to be actual.</li>
+<li>Garthe Eqs. 5.6–5.7 supply characteristic velocity; the source power number is distinct from fixed engineering Np=1.2.</li>
+<li>Garthe Eq. 8.3: vs/v0 = √[(Cd0/Cds)(1−φ)<sup>4.65</sup>]. <strong>Slip = vs/(1−φ)</strong> before capacity or operating balances. Low-Re superficial exponent is 4.65; slip exponent is 3.65.</li>
+<li>Actual operating balance: jd/φ + jc/(1−φ) = vslip. Retain the lower dilute-connected quasi-steady branch, not a claim of dynamical stability.</li>
+<li>Modeled capacity maximizes (1+r)vslip/[r/φ+1/(1−φ)], with separate flood holdup. Interfacial area is <strong>6φop/d32</strong>, never calculated from flood holdup. No root means null operating holdup and area.</li>
+<li>Take the lower capacity over all six interface/coefficient scenarios; all must have roots and loading≤.70 to pass screening, alongside the existing tip-speed ceiling.</li>
+</ol>
+<h2>Numerics and scientific limits</h2>
+<p>Bounded 70-iteration bisection, log-velocity swarm brackets, 512 holdup intervals, 60 capacity-refinement iterations and 16 proportional flow-continuation steps are explicit implementation assumptions. All sign-changing mesh brackets are refined. A finite mesh is not proof that arbitrarily narrow additional branches cannot exist. Missing or non-monotone lower roots and turning-point contact do not become operating states.</p>
+<p>Inversion, entrainment, disengagement, turbulence, sphericity, SN drag-range qualification and actual interface mobility remain independently <strong>UNKNOWN</strong>. Passing loading does not qualify them. No authoritative numerical regime threshold has been invented.</p>
+<p>Output includes rotor, terminal, characteristic and swarm Reynolds numbers; Eo; terminal We; both Oh numbers; power and ε; signed phase velocities; force/operating residuals; roots and continuation; source-range ratios and all scenarios.</p>
+<h2>Single nominated test fixture — not a selected design</h2>
+<p>40 °C properties: ρc/ρd=869/1015 kg/m³; μc/μd=.0598/.001416 Pa s; σ=.011 N/m; Qc=4 m³/h; Qd=.6×869/1015×4 m³/h. Arbitrary verification geometry: D=1.2 m, Dr/D=.33, hc/D=.30, free area=.30, 40 rpm. Rotor Re=1519.21; power=3.00887 W; ε=.00850410 W/kg.</p>
+<div class="scroll"><table><thead><tr><th>C</th><th>Interface</th><th>d32 mm</th><th>Terminal Re</th><th>φop</th><th>φf,model</th><th>Capacity m/s</th><th>Loading</th></tr></thead><tbody>
+<tr><td>.36</td><td>Mobile BP</td><td>2.79174</td><td>.587876</td><td>.043386</td><td>.160870</td><td>.00276564</td><td>.537709</td></tr>
+<tr><td>.36</td><td>Immobile SN</td><td>2.79174</td><td>.389947</td><td>.080847</td><td>.161247</td><td>.00183602</td><td>.809963</td></tr>
+<tr><td>.42</td><td>Mobile BP</td><td>3.25703</td><td>.908880</td><td>.030404</td><td>.162326</td><td>.00370906</td><td>.400940</td></tr>
+<tr><td>.42</td><td>Immobile SN</td><td>3.25703</td><td>.603813</td><td>.051387</td><td>.162438</td><td>.00245983</td><td>.604558</td></tr>
+<tr><td>.43</td><td>Mobile BP</td><td>3.33458</td><td>.970637</td><td>.028901</td><td>.162588</td><td>.00387708</td><td>.383565</td></tr>
+<tr><td>.43</td><td>Immobile SN</td><td>3.33458</td><td>.645102</td><td>.048418</td><td>.162647</td><td>.00257111</td><td>.578393</td></tr>
+</tbody></table></div>
+<p>The governing .36/SN scenario fails the .70 loading policy. Its Eo=1.01445, We=.0203763, Ohc=.366064 and Ohd=.00802041 are diagnostics, not sphericity or turbulence approval.</p>
+<h2>Historical integrity and wiring</h2>
+<p>Historical V1.4/V1.5 resolver files remain unchanged. Optimizer V1.0–V1.3 replay and normal/current V1.3 calculations keep their original reverse calculations and descriptors, including the old flood-holdup mapping. Only separately named review entry points use P1; no service dispatch uses V1.4. Existing saved V1.3 authority remains current, admitted and unchanged. The initial current-identity bump was removed following review because it would have incorrectly excluded saved authority.</p>
+<p>Original current optimizer hash: <code>faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550</code>. Original transitive Stage-4 hash: <code>b6893ba2bc448ef35d1e9abdd83158602e0b7956a481028416821cfc9b66f58a</code>. Both were reconstructed independently from git HEAD and pinned in no-DB tests, alongside byte-identical latest-query and replay services.</p>
+<p>Selected-trial and compact JSON retain the full method evidence with separate operating/flood holdup. Existing panel labels distinguish corrected results from stored historical semantics. Stage 4 remains fixed Ndesign=7, efficiency .35, NC=ceil(7/.35); its saved-geometry boundary is unchanged.</p>
+<h2>Validation</h2>
+<p>Pure/single-trial tests cover formula limits, superficial/slip exponents, six-scenario envelope selection, roots and balances, operating versus flood holdup, no-root failures, invalid inputs, unknown qualification, JSON/compact serialization, historical single-trial mapping and unchanged input authority. Nearby mapper and diameter-display regressions are included. No optimizer suite or full-grid replay was run.</p>
+<p><code>npx vitest run tests/rrbo-wetnmp-hydraulic-p1.test.ts tests/rrbo-p1-authority-isolation.test.ts tests/common-hydraulic-mapper.test.ts tests/ecr-hydraulic-diameter-basis.test.ts --maxWorkers=1</code></p>
+<p>The isolation suite additionally verifies unchanged current dispatch and pure admission of a synthetic V1.3 snapshot, while rejecting promotion of P1 review geometry. All DB calls are mocked to fail immediately. No optimizer is executed. After the final workflow restart the application served on port 5000 and its login page rendered; the authenticated hydraulic panel was not exercised. Startup logs also contain unrelated VPN-tool and mirror-table warnings.</p>
+<p><strong>Final focused validation: 4 files passed, 15 tests passed</strong> (9 hydraulic tests, 3 authority-isolation tests, 3 nearby regressions). Diff whitespace checking passed.</p>
+<p>Targeted TypeScript checking found existing errors in unchanged V1.1/V1.4 resolver dependencies, not the new kernel or modified optimizer. Full detail, source locators, changed paths and review caveats are in the <a href="report.md">Markdown report</a>.</p>
+</body></html>
