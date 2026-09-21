@@ -1349,6 +1349,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? "Stage 1 input data could not be saved.");
       setForm((current) => hydrateSavedStage1(current, payload));
+      window.dispatchEvent(new Event("ecr-stage1-saved"));
       setSaveState("saved");
       toast({
         title: "Stage 1 saved",

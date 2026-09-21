@@ -21,7 +21,7 @@ import { ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION as VERSION, ECR_STAGE3_ST
 let rows: any[] = [];
 let client: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> };
 let inTransaction = false;
-const sourceBasis = { phaseConfiguration: 'nmp-continuous-rrbo-dispersed', operatingTemperatureC: 40, stage1SnapshotHash: 'source' };
+const sourceBasis = { phaseConfiguration: 'rrbo-continuous-nmp-dispersed', operatingTemperatureC: 40, stage1SnapshotHash: 'source' };
 beforeEach(() => {
   vi.clearAllMocks(); mocks.workers.length = 0; rows = [];
   mocks.validate.mockReturnValue({ immutableHash: 'source' });
@@ -50,7 +50,7 @@ beforeEach(() => {
     return execute(sql, values);
   });
 });
-const input = { phaseConfiguration: 'rrbo-continuous-nmp-dispersed', sourceSnapshotHash: 'source' };
+const input = { sourceSnapshotHash: 'source' };
 describe('P1 candidate integration without scientific optimizer execution', () => {
   it('persists candidate intent, dispatches exact P1 in a worker, deduplicates, and restores complete results', async () => {
     const original = structuredClone(sourceBasis);
@@ -65,7 +65,7 @@ describe('P1 candidate integration without scientific optimizer execution', () =
     expect(mocks.query).not.toHaveBeenCalled();
     const worker = mocks.workers[0];
     expect(worker.code).toContain('optimizeStage3Stage4P1ForReview(workerData.basis, workerData.snapshotHash, workerData.controls)');
-    expect(worker.options.workerData.basis.phaseConfiguration).toBe(input.phaseConfiguration);
+    expect(worker.options.workerData.basis.phaseConfiguration).toBe(sourceBasis.phaseConfiguration);
     expect(worker.options.workerData.snapshotHash).toBe('source');
     expect(sourceBasis).toEqual(original);
     expect((await startP1Candidate(7, 100, input)).id).toBe(pending.id);
@@ -84,8 +84,11 @@ describe('P1 candidate integration without scientific optimizer execution', () =
     expect((await getP1Candidates(7, 100, 'unowned-or-other-design-id'))).toEqual([]);
     expect(mocks.query.mock.calls.every(([sql]) => !/\bUPDATE\b|\bDELETE\b/.test(sql))).toBe(true);
   });
-  it('rejects missing explicit phase, stale source, wrong temperature and foreign ownership before dispatch', async () => {
-    await expect(startP1Candidate(7, 101, {})).rejects.toThrow('P1_EXPLICIT');
+  it('rejects overrides, incompatible saved phase, stale source, wrong temperature and foreign ownership before dispatch', async () => {
+    await expect(startP1Candidate(7, 101, { ...input, phaseConfiguration: sourceBasis.phaseConfiguration })).rejects.toThrow('P1_PHASE_OVERRIDE_NOT_ALLOWED');
+    mocks.basis.mockReturnValue({ ...sourceBasis, phaseConfiguration: 'nmp-continuous-rrbo-dispersed' });
+    await expect(startP1Candidate(7, 101, input)).rejects.toThrow('Change phase');
+    mocks.basis.mockReturnValue(sourceBasis);
     await expect(startP1Candidate(7, 101, { ...input, sourceSnapshotHash: 'old' })).rejects.toThrow('P1_STAGE1_CHANGED');
     await expect(startP1Candidate(8, 101, input)).rejects.toThrow('DESIGN_NOT_FOUND');
     await expect(getP1Candidates(8, 101)).rejects.toThrow('DESIGN_NOT_FOUND');

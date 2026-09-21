@@ -25,7 +25,7 @@ async function invoke(method: string, suffix = '', request: any = {}) {
 describe('actual P1 HTTP handlers with mocked storage service', () => {
   it('dispatches explicit candidate requests asynchronously and forwards the authenticated owner', async () => {
     mocks.start.mockResolvedValue({ id: 'candidate', status: 'running', candidateOnly: true });
-    const body = { phaseConfiguration: 'rrbo-continuous-nmp-dispersed', sourceSnapshotHash: 'source' };
+    const body = { sourceSnapshotHash: 'source' };
     const res = await invoke('POST', '', { body });
     expect(res.statusCode).toBe(202);
     expect(mocks.start).toHaveBeenCalledWith(7, 12, body);

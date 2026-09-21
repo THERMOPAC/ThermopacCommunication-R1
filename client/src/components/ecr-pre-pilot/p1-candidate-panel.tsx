@@ -63,7 +63,6 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
   const [history, setHistory] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [run, setRun] = useState<any>(null);
-  const [phase, setPhase] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -71,17 +70,26 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
   useEffect(() => {
     let cancelled = false;
     let polling = true;
-    setBasis(null); setHistory([]); setSelectedId(""); setRun(null); setPhase(""); setError("");
+    setBasis(null); setHistory([]); setSelectedId(""); setRun(null); setError("");
     if (!designId) return;
     const load = async () => {
       try {
         const [nextBasis, rows] = await Promise.all([request(`${base}/basis`), request(base)]);
         if (!cancelled) { setBasis(nextBasis); setHistory(rows); setError(""); polling = rows.some((item: any) => item.status === "running"); }
-      } catch (e) { if (!cancelled) setError((e as Error).message); }
+      } catch (e) { if (!cancelled) { setBasis(null); setError((e as Error).message); } }
     };
     void load();
     const timer = setInterval(() => { if (polling) void load(); }, 5000);
-    return () => { cancelled = true; clearInterval(timer); };
+    const refresh = () => { void load(); };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("ecr-stage1-saved", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      cancelled = true; clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("ecr-stage1-saved", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [base, designId, refreshToken, reload]);
   const selected = history.find(item => item.id === selectedId) ?? history[0];
   useEffect(() => {
@@ -89,25 +97,25 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
     setRun(null);
     if (selected?.status === "completed") void request(`${base}/${selected.id}`).then(value => { if (!cancelled) setRun(value); }).catch(e => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
-  }, [base, selected?.id, selected?.status]);
+  }, [base, selected?.id, selected?.status, selected?.stale]);
   return <section className="mb-4 rounded border border-amber-300 bg-amber-50 p-3">
     <h4 className="font-semibold">Corrected P1 — independent Stage 3 candidate</h4>
     <p className="mt-1 text-xs">Conditional pre-pilot method: Np=1.2; C32=0.36 / 0.42 / 0.43; Barry–Parlange mobile and Schiller–Naumann immobile interfaces; corrected Garthe superficial swarm/slip and lower-branch operating holdup. Maximum modeled-capacity loading 0.70 in every scenario.</p>
     <p className="mt-1 text-xs">Interface mobility, inversion, entrainment, disengagement, turbulence, Schiller–Naumann range and spherical-drop qualification remain UNKNOWN. Lower-branch continuation is quasi-steady admissibility, not dynamic stability. Extrapolated screening only, not observed flooding or commercial qualification. Running this candidate never adopts geometry, changes saved Stage 1, or replaces Stage 3/4 authority.</p>
     <p className="mt-2 text-xs">Saved property temperature: {basis ? `${basis.basis.operatingTemperatureC} °C` : "not loaded"}; saved phase: {basis?.basis.phaseConfiguration ?? "not loaded"}. P1 requires saved 40 °C properties.</p>
-    <label className="my-2 block text-xs">Explicit candidate phase overlay <select className="ml-2 border bg-white p-1" value={phase} onChange={e => setPhase(e.target.value)}>
-      <option value="">Choose candidate phase…</option><option value="rrbo-continuous-nmp-dispersed">RRBO continuous / wet NMP dispersed (downward)</option>
-    </select></label>
-    <Button size="sm" disabled={!designId || !basis || !phase || busy || basis.basis.operatingTemperatureC !== 40 || history.some(item => item.status === "running")} onClick={async () => {
+    <p className="my-2 text-xs">Phase and properties come only from Saved Stage 1{basis?.sourceSavedAt ? ` (${basis.sourceSavedAt})` : ""}. No candidate phase override.</p>
+    {basis && basis.basis.phaseConfiguration !== "rrbo-continuous-nmp-dispersed" && <p role="alert" className="my-2 text-xs">Change phase to RRBO continuous / NMP dispersed in Stage 1 and save Stage 1 before calculating P1.</p>}
+    <Button size="sm" disabled={!designId || !basis || basis.basis.phaseConfiguration !== "rrbo-continuous-nmp-dispersed" || busy || basis.basis.operatingTemperatureC !== 40 || history.some(item => item.status === "running")} onClick={async () => {
       setBusy(true); setError("");
       try {
-        await request(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phaseConfiguration: phase, sourceSnapshotHash: basis.sourceSnapshotHash }) });
+        await request(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceSnapshotHash: basis.sourceSnapshotHash }) });
         setReload(value => value + 1);
       } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
     }}>{busy ? "Submitting…" : "Calculate P1 candidate (no adoption)"}</Button>
     {error && <p role="alert" className="mt-2 text-xs text-red-800">{error}</p>}
     {!!history.length && <label className="mt-3 block text-xs">Candidate history <select className="ml-2 max-w-full border bg-white p-1" value={selected?.id ?? ""} onChange={e => setSelectedId(e.target.value)}>{history.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status}{item.stale ? " — historical Stage 1" : ""}</option>)}</select></label>}
     {selected && <p className="mt-2 text-xs">{selected.status === "running" ? "Calculating in background; safe to leave and reload. No authority will be replaced. A lost server process is reported interrupted after 16 minutes." : selected.status}{selected.error ? `: ${selected.error}` : ""}</p>}
+    {selected?.originalPhaseConfiguration && selected.originalPhaseConfiguration !== selected.phaseConfiguration && <p className="mt-2 text-xs">Historical candidate used an explicit phase override: saved {selected.originalPhaseConfiguration} → candidate {selected.phaseConfiguration}. Original evidence is preserved; this is not the current saved Stage 1 phase.</p>}
     {!history.length && <p className="mt-2 text-xs">No saved P1 candidates. The earlier isolated report is not an adopted app result.</p>}
     <P1CandidateResults key={run?.id ?? "none"} run={run} />
   </section>;

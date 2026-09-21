@@ -26,9 +26,10 @@ describe('P1 candidate display independently of selection', () => {
     expect(html.match(/<td class="p-1">BARRY_PARLANGE_MOBILE/g)).toHaveLength(3);
     expect(html.match(/<td class="p-1">SCHILLER_NAUMANN_IMMOBILE/g)).toHaveLength(3);
   });
-  it('requires an explicit phase and displays candidate-only qualifications', () => {
+  it('uses saved Stage 1 phase and displays candidate-only qualifications', () => {
     const html = renderToStaticMarkup(React.createElement(P1CandidatePanel, { designId: null, refreshToken: 0 }));
-    expect(html).toContain('Choose candidate phase');
+    expect(html).not.toContain('Choose candidate phase');
+    expect(html).toContain('Phase and properties come only from Saved Stage 1');
     expect(html).toContain('Calculate P1 candidate (no adoption)');
     expect(html).toContain('Maximum modeled-capacity loading 0.70');
     expect(html).toContain('UNKNOWN');

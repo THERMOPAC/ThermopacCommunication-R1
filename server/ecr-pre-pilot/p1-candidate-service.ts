@@ -87,7 +87,10 @@ async function candidateViews(client: QueryClient, userId: number, designId: num
 }
 
 export async function startP1Candidate(userId: number, designId: number, input: any) {
-  if (input?.phaseConfiguration !== 'rrbo-continuous-nmp-dispersed') throw new Error('P1_EXPLICIT_RRBO_CONTINUOUS_PHASE_REQUIRED');
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || Object.keys(input).some(key => key !== 'sourceSnapshotHash')) {
+    throw new Error('P1_PHASE_OVERRIDE_NOT_ALLOWED: Phase is owned by saved Stage 1; submit only sourceSnapshotHash.');
+  }
   const controls = canonicalizeStage3Stage4OptimizerControls();
   const key = `${userId}:${designId}`;
   // Every submission query uses this one connection. Never borrow from the
@@ -104,7 +107,10 @@ export async function startP1Candidate(userId: number, designId: number, input: 
     const { snapshot, basis: saved } = await savedBasis(userId, designId, client, true);
     if (input.sourceSnapshotHash !== snapshot.immutableHash) throw new Error('P1_STAGE1_CHANGED_RELOAD_REQUIRED');
     if (saved.operatingTemperatureC !== 40) throw new Error('P1_REQUIRES_SAVED_40C_BASIS');
-    const basis = { ...saved, phaseConfiguration: input.phaseConfiguration };
+    if (saved.phaseConfiguration !== 'rrbo-continuous-nmp-dispersed') {
+      throw new Error('P1_REQUIRES_SAVED_RRBO_CONTINUOUS: Change phase to RRBO continuous / NMP dispersed in Stage 1 and save Stage 1 before calculating P1.');
+    }
+    const basis = saved;
     const inputHash = kuhniRunHash({ basis, controls, version: VERSION, implementationHash: HASH });
     const history = await candidateViews(client, userId, designId, snapshot.immutableHash);
     const existing = history.find((item: any) => item.inputHash === inputHash && ['running', 'completed'].includes(item.status));
@@ -114,7 +120,8 @@ export async function startP1Candidate(userId: number, designId: number, input: 
     }
     if (active.has(key)) throw new Error('P1_CANDIDATE_ALREADY_RUNNING');
     const metadata = { id: randomUUID(), inputHash, session, status: 'running', sourceSnapshotHash: snapshot.immutableHash,
-      originalPhaseConfiguration: saved.phaseConfiguration, phaseConfiguration: input.phaseConfiguration,
+      originalPhaseConfiguration: saved.phaseConfiguration, phaseConfiguration: saved.phaseConfiguration,
+      phaseSource: 'SAVED_STAGE1',
       propertyTemperatureC: saved.operatingTemperatureC, version: VERSION, implementationHash: HASH,
       candidateOnly: true, controls, requestedAt: new Date().toISOString() };
     await append(userId, designId, basis, metadata, null, client);
@@ -151,5 +158,6 @@ export async function startP1Candidate(userId: number, designId: number, input: 
 
 export async function getP1CandidateBasis(userId: number, designId: number) {
   const { snapshot, basis } = await savedBasis(userId, designId);
-  return { sourceSnapshotHash: snapshot.immutableHash, basis, methodVersion: VERSION, candidateOnly: true };
+  return { sourceSnapshotHash: snapshot.immutableHash, sourceSavedAt: snapshot.savedAt,
+    sourceName: 'Saved Stage 1', basis, methodVersion: VERSION, candidateOnly: true };
 }
