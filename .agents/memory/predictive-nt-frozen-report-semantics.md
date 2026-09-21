@@ -1,0 +1,11 @@
+# Frozen Predictive N_T report semantics
+
+For the 7C matrix contract inherited from `predictive-nt-seven-component-v1-2/worker.py` by 7C-1.4/1.5/1.6, both `solverTerminationStatus` and `residualClosureStatus` are derived from `bothEndpointsClosed`. They are combined endpoint evidence, NOT the primary optimizer's termination. Combined CLOSED proves both endpoint closures; combined UNCLOSED does not identify a failed individual endpoint. Individual optimizer terminations remain unavailable unless independently persisted. Native branch evidence uses `branchProductRelativeDifference`, `branchReproduced`, and `secondaryMaximumScaledEquationResidual`, not the older `multistartEvidence` schema.
+
+Do not confuse closure/reproduction with stage acceptance: Project 236 frozen N_T=9 reproduces both closed endpoints but rejects stage 8 raffinate TPD refinement (`allRefinementsAccepted=false`, `ROUTINE_REFINEMENT_AMBIGUOUS`). Nonnegative reported minima do not prove all refinement checks passed.
+
+The governed sulfur allocation in the inherited v1.4 worker computes sum(feed sulfur ppm * allocation fraction * component mass retention), WITHOUT dividing by hydrocarbon recovery. Its saved ppm is feed-basis retained-sulfur equivalent; saved removal is allocated sulfur mass removal. `targetRaffinateSulfurPpm` remains an intended **raffinate concentration** target. Comparing these produces a BASIS MISMATCH: the historical saved PASS is not demonstrated product-concentration compliance. Never relabel the original target as an allocation target to conceal this. Preserve frozen values, statuses, acceptance and selected N_T; scientific basis correction or reevaluation requires separate authorization.
+
+Report boundary arithmetic may fill missing component removal with 100*(component feed - component final raffinate)/component feed; same-component MW cancels. Zero or missing feed must remain unavailable, not a fabricated zero. Wet-solvent dry-NMP/oil and water/oil ratios require enough precision to retain 0.597 and 0.003.
+
+Molecular identity or generation provenance may be resolved from referenced artifacts only when their bytes match the job's frozen manifest digest AND family profile digests agree. Current files cannot stand in for missing frozen evidence.

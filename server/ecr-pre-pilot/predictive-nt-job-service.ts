@@ -3254,7 +3254,8 @@ export async function getPredictiveNtJobReport(
   designId: number,
 ) {
   const found = await pool.query(
-    `SELECT job.id, job.report_pdf, job.report_sha256, design.project_number
+    `SELECT job.id, job.report_pdf, job.report_sha256, design.project_number,
+            job.input_snapshot, job.result_snapshot, job.model_hash, job.engine_hash, job.completed_at
        FROM ecr_pre_pilot_predictive_nt_jobs AS job
        JOIN ecr_pre_pilot_designs AS design
          ON design.id = job.design_id
@@ -3264,9 +3265,21 @@ export async function getPredictiveNtJobReport(
     [jobId, userId, designId],
   );
   if (!found.rows[0]?.report_pdf) return null;
+  const row = found.rows[0];
+  // Presentation-only refresh for completed owned jobs. Keep the original archived
+  // PDF and all frozen evidence untouched; never fetch current Stage-1 inputs.
+  const pdf = await generatePredictiveNtReport({
+    id: row.id,
+    projectNumber: row.project_number,
+    modelHash: row.model_hash,
+    engineHash: row.engine_hash,
+    completedAt: row.completed_at,
+    input: row.input_snapshot,
+    result: row.result_snapshot,
+  });
   return {
-    pdf: Buffer.from(found.rows[0].report_pdf),
-    filename: predictiveNtReportFilenameForOwnedJob(found.rows[0]),
-    sha256: String(found.rows[0].report_sha256),
+    pdf,
+    filename: predictiveNtReportFilenameForOwnedJob(row),
+    sha256: createHash('sha256').update(pdf).digest('hex'),
   };
 }

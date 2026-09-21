@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 
 const { query } = vi.hoisted(() => ({ query: vi.fn() }));
 
@@ -79,17 +80,21 @@ describe('Predictive N_T report filenames', () => {
     },
   );
 
-  it('returns the same authoritative filename and original bytes from the download read path', async () => {
-    const row = completedReportRow();
+  it('refreshes presentation from owned frozen evidence without changing the archived PDF or writing data', async () => {
+    const row = completedReportRow({ result_snapshot: { trials: [], componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'] } });
+    const before = JSON.stringify(row);
     query.mockResolvedValueOnce({ rows: [row] });
 
     const report = await getPredictiveNtJobReport(jobId, 71, 53);
 
     expect(report).toMatchObject({
       filename: expectedFilename,
-      sha256: 'c'.repeat(64),
     });
-    expect(report?.pdf).toEqual(row.report_pdf);
+    expect(report?.pdf.toString('latin1')).toMatch(/^%PDF/);
+    expect(report?.sha256).toBe(createHash('sha256').update(report!.pdf).digest('hex'));
+    expect(JSON.stringify(row)).toBe(before);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).toContain('job.input_snapshot, job.result_snapshot');
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining('JOIN ecr_pre_pilot_designs AS design'),
       [jobId, 71, 53],

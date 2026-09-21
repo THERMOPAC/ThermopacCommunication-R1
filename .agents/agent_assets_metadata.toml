@@ -1563,3 +1563,17 @@ mtime_ms = 1789996369678
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c5af7226-7606-4b99-b3ec-6aea0e2dacfd/c1f096f1-b854-498f-ab18-ef3ce3e3203a"
 storage_version_token = "1789996812732264"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "9Y_qLDEdZDwHByYA6qIYL"
+uri = "file://deliverables/stage2-report-corrected/Project-236-Stage2-corrected.pdf"
+type = "pdf"
+title = "Project 236 — Corrected Stage-2 Complete Report"
+description = "53-page report with reconciled frozen evidence, full design and thermodynamic basis, component-removal calculations, charts and bookmarks. Frozen scientific results and selected N_T=4 unchanged; sulfur comparison basis mismatch explicitly disclosed."
+logical_id = "aca4888c-4ac2-4abc-aece-857eac370d0c"
+content_hash = "sha256:a768285d2309ac30e1c90dda56b54663169c3deb2e960e59069e8eb514f8a5a9"
+size = 136261
+mtime_ms = 1790000131557
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aca4888c-4ac2-4abc-aece-857eac370d0c/a974698d-aeb7-4a22-98ee-34dff300010e"
+storage_version_token = "1790000350693326"
+content_type = "application/pdf"

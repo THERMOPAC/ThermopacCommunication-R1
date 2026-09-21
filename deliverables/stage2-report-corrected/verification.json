@@ -1,0 +1,20 @@
+{
+  "jobId": "145e962e-892a-4424-aab9-91532af9f5ef",
+  "designId": 269,
+  "before": {
+    "input": "278489671d42953a748351174cf76cc30872b4ed5ef3267b4a06a6f868e32907",
+    "result": "22356b58bc8989a6d2be48e4c2396d06f3fabe44b9548abb857165c6ad6c4be7"
+  },
+  "after": {
+    "input": "278489671d42953a748351174cf76cc30872b4ed5ef3267b4a06a6f868e32907",
+    "result": "22356b58bc8989a6d2be48e4c2396d06f3fabe44b9548abb857165c6ad6c4be7"
+  },
+  "unchanged": true,
+  "predictiveNt": 4,
+  "trialCount": 10,
+  "stageCountTotal": 55,
+  "pdfPages": 53,
+  "pdfSha256": "a768285d2309ac30e1c90dda56b54663169c3deb2e960e59069e8eb514f8a5a9",
+  "assertionStatus": "PASS",
+  "databaseAccess": "SELECT in READ ONLY transaction; no writes or reruns"
+}

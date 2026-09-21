@@ -1,3 +1,4 @@
+- [Frozen Predictive N_T reporting semantics](predictive-nt-frozen-report-semantics.md) — 7C endpoint statuses are combined, not primary optimizer termination; feed-basis sulfur versus raffinate concentration target is a preserved historical basis mismatch, never demonstrated product compliance.
 - [Kühni paper audit boundary](kuhni-paper-audit-boundary.md) — missing extracted equations are not absent evidence; verify primary algebra and distinguish pre-pilot extrapolation from calibration.
 - [LLX localData hydration](llx-localdata-hydration.md) — inputs refetch must merge UNDER local values after first load or whole-section saves persist rollbacks (lost OT/OP/capacity).
 - [LLX pending prod DB ALTERs](llx-prod-db-alters-pending.md) — constraint widenings (mechanical_vessel, ecp/ecr_design) applied to dev only; apply to prod at next publish; never drop comparison/summary from ds_results_section_chk.

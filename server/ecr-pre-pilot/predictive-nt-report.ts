@@ -1,4 +1,6 @@
 import PDFDocument from 'pdfkit';
+import { createHash } from 'node:crypto';
+import { frozenMolecularBasis, reportTrials } from './predictive-nt-report-evidence';
 
 const SIX_COMPONENTS = ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'] as const;
 const COLORS = {
@@ -26,13 +28,23 @@ export type PredictiveNtReportSnapshot = {
 function value(input: unknown, digits = 2) {
   if (input === null || input === undefined) return '—';
   if (typeof input !== 'number') return String(input);
-  if (!Number.isFinite(input)) return String(input);
+  if (!Number.isFinite(input)) return 'Not recorded';
   const absolute = Math.abs(input);
   if (absolute > 0 && (absolute < 1e-4 || absolute > 1e5)) return input.toExponential(2);
   return input.toFixed(digits).replace(/\.0+$|(?<=\.[0-9]*?)0+$/, '');
 }
 
 function label(input: string) {
+  const targetLabels: Record<string, string> = {
+    minimumNmpFreeRecoveryPct: 'Minimum RRBO recovery (%)',
+    minimumRecoveryPct: 'Minimum RRBO recovery (%)',
+    maximumNmpRaffinateWt: 'Maximum NMP in raffinate (wt%)',
+    minimumRaffinateSaturatesWt: 'Minimum saturates (wt%)',
+    maximumRaffinateTotalAromaticsWt: 'Maximum total aromatics (wt%)',
+    maximumRaffinatePolarAromaticsWt: 'Maximum polar aromatics (wt%)',
+    targetRaffinateSulfurPpm: 'Raffinate sulfur target (ppm)',
+  };
+  if (targetLabels[input]) return targetLabels[input];
   return input.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
 }
 
@@ -154,7 +166,9 @@ export async function generatePredictiveNtReport(
   snapshot: PredictiveNtReportSnapshot,
 ): Promise<Buffer> {
   const r = snapshot;
-  const o = r.result;
+  if (!r.result || !Array.isArray(r.result.trials)) throw new Error('PREDICTIVE_NT_REPORT_RESULT_MISSING');
+  const o = { ...r.result, trials: reportTrials(r.result) };
+  const molecular = await frozenMolecularBasis(r.input, r.result);
   const components: string[] = Array.isArray(o?.componentOrder)
     ? o.componentOrder
     : [...SIX_COMPONENTS];
@@ -179,13 +193,17 @@ export async function generatePredictiveNtReport(
   const chunks: Buffer[] = [];
   doc.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
   let pageNumber = 0;
+  const sections: Array<{ title: string; page: number }> = [];
+  let contentsPage = -1;
+  const testedCounts = o.trials.map((trial: any) => trial.stageCount).join(', ');
+  const scientific = (v: unknown, digits = 3) => finiteNumber(v) === null ? 'Not recorded' : Number(v).toExponential(digits);
 
   const text = (
     content: unknown, x: number, y: number, width: number, size = 8,
     color = COLORS.ink, bold = false, align: 'left' | 'center' | 'right' = 'left',
   ) => {
     doc.fillColor(color).font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(size)
-      .text(String(content ?? '—'), x, y, { width, align, lineGap: 1.5, ellipsis: false });
+      .text(String(content ?? 'Not recorded'), x, y, { width, align, lineGap: 1.5, ellipsis: false });
   };
   const page = (title: string, landscape = false, subtitle = '') => {
     doc.addPage({
@@ -194,10 +212,12 @@ export async function generatePredictiveNtReport(
       margins: { top: 32, bottom: 32, left: 42, right: 42 },
     });
     pageNumber += 1;
+    sections.push({ title, page: pageNumber });
+    doc.outline.addItem(title);
     doc.rect(0, 0, doc.page.width, 12).fill(COLORS.teal);
     text(pageNumber, 42, 19, 40, 7, COLORS.muted);
     text(
-      `PROJECT ${projectRef}  •  ${String(o.status ?? 'MISSING EVIDENCE')}`,
+      `PROJECT ${projectRef}  |  FROZEN STAGE-2 REPORT`,
       doc.page.width - 292, 19, 250, 7, COLORS.muted, false, 'right',
     );
     text(title, 42, 39, doc.page.width - 84, 17, COLORS.navy, true);
@@ -211,8 +231,8 @@ export async function generatePredictiveNtReport(
   const grid = (items: Array<[string, unknown]>, x: number, y: number, width: number, row = 20) => {
     items.forEach(([key, entry], index) => {
       doc.rect(x, y + index * row, width, row).fill(index % 2 ? COLORS.pale : '#FFFFFF');
-      text(key, x + 7, y + index * row + 6, width * 0.42, 7.3, COLORS.muted, true);
-      text(value(entry), x + width * 0.44, y + index * row + 6, width * 0.54 - 7, 7.6);
+      text(key, x + 7, y + index * row + 6, width * 0.42, 8.3, COLORS.muted, true);
+      text(value(entry), x + width * 0.44, y + index * row + 6, width * 0.54 - 7, 8.6);
     });
   };
   const table = (
@@ -228,7 +248,8 @@ export async function generatePredictiveNtReport(
     });
     rows.forEach((row, rowIndex) => {
       const rowY = y + rowHeight * (rowIndex + 1);
-      doc.rect(x, rowY, totalWidth, rowHeight).fill(rowIndex % 2 ? COLORS.pale : '#FFFFFF');
+      const selected = headers[0] === 'N_T' && row[0] === String(o.predictiveNt);
+      doc.rect(x, rowY, totalWidth, rowHeight).fill(selected ? '#DDF2EE' : rowIndex % 2 ? COLORS.pale : '#FFFFFF');
       cursor = x;
       row.forEach((entry, index) => {
         const color = entry === 'PASS' ? COLORS.green
@@ -262,7 +283,7 @@ export async function generatePredictiveNtReport(
   grid([
     ['Project reference', projectRef],
     ['Job status', 'COMPLETED — report generated automatically'],
-    ['N_T tested', r.input.ntTest ?? 'Sequence'],
+    ['N_T tested', testedCounts],
     ['Trials completed', `${o.trials.length} / ${r.input.ntTest == null ? (r.input.maximumStages ?? o.trials.length) : 1}`],
     ['Accepted Predictive N_T', o.predictiveNt ?? 'NOT ASSIGNED'],
     ['Established theoretical stages', o.establishedTheoreticalStages ?? 'Not established'],
@@ -288,15 +309,36 @@ export async function generatePredictiveNtReport(
     prePilotMultistage
       ? (
         o.sulfurPrediction?.status === 'CALCULABLE'
-          ? `Governed sulfur post-processing: ${value(o.sulfurPrediction.predictedRaffinateSulfurPpm, 2)} ppm · removal ${value(o.sulfurPrediction.sulfurRemovalPct, 3)}% · target ${o.sulfurPrediction.targetStatus}`
+          ? `Allocation: ${value(o.sulfurPrediction.predictedRaffinateSulfurPpm, 2)} feed-basis ppm; removal ${value(o.sulfurPrediction.sulfurRemovalPct, 3)}%; historical target ${o.sulfurPrediction.targetStatus} — BASIS MISMATCH`
           : `Governed sulfur post-processing: NOT CALCULABLE — ${o.sulfurPrediction?.reason ?? 'invalid trial'}`
       )
       : 'COSMO-SAC sulfur prediction: NOT CALCULABLE',
     55, 492, 480, 8.2,
-    o.sulfurPrediction?.targetStatus === 'PASS' ? COLORS.green : COLORS.red,
+    prePilotMultistage ? COLORS.amber : COLORS.red,
     true,
   );
-  text(`Completed ${new Date(r.completedAt).toISOString()}  •  Job ${r.id}`, 42, 720, 510, 7, COLORS.muted);
+  text(`Completed ${new Date(r.completedAt).toISOString()}  •  Job ${r.id}`, 42, 760, 510, 7, COLORS.muted);
+  const selected = o.trials.find((trial: any) => trial.stageCount === o.predictiveNt);
+  if (selected) {
+    text('Selected trial versus frozen targets', 42, 535, 510, 11, COLORS.navy, true);
+    const entries = Object.entries(selected.targetCompliance ?? {})
+      .filter(([key]) => key !== 'minimumNmpFreeRecoveryPct');
+    table(['Target (mass basis)', 'Result', 'Limit', 'Margin', 'Saved status'],
+      entries.map(([key, raw]) => {
+        const entry = raw as any;
+        const margin = finiteNumber(entry.target) !== null && finiteNumber(entry.calculated) !== null
+          ? (entry.direction === 'MINIMUM' || key.startsWith('minimum') ? entry.calculated - entry.target : entry.target - entry.calculated) : null;
+        return [key === 'minimumRecoveryPct' ? 'RRBO recovery %' : key === 'targetRaffinateSulfurPpm'
+          ? 'Raffinate sulfur target (ppm)*' : label(key).replace('maximum ', 'Max ').replace('minimum ', 'Min '),
+        value(entry.calculated), value(entry.target), key === 'targetRaffinateSulfurPpm' && prePilotMultistage ? 'Mismatch' : value(margin), entry.status ?? 'Not recorded'];
+      }), 42, 555, [228, 68, 68, 68, 78], 20, 7);
+    if (prePilotMultistage) text('*BASIS MISMATCH: result is feed-basis retained sulfur; target is intended raffinate concentration. Historical PASS is preserved, NOT demonstrated product-concentration compliance.', 42, 700, 510, 8, COLORS.amber, true);
+  }
+
+  page('Contents and reading guide');
+  contentsPage = pageNumber - 1;
+  text('Frozen acceptance is preserved. Reporting-derived component removal does not re-evaluate qualification. Green comparison rows identify the saved selected trial; unaccepted trials remain diagnostic.', 42, 92, 510, 9);
+  text('Main report and appendix groups are indexed below; PDF bookmarks provide every trial page.', 42, 140, 510, 9);
 
   page('1. Frozen Design Basis', false, 'OWNER-CONTROLLED / SAVED STAGE-1 INPUT AUTHORITY');
   grid([
@@ -307,7 +349,7 @@ export async function generatePredictiveNtReport(
     ['Phase configuration', s.phaseConfiguration],
     ['Solvent/oil mass ratio', s.solventOilRatio],
     ['Maximum stages', s.maximumStages],
-    ['N_T tested', r.input.ntTest ?? 'Historical sequence'],
+    ['N_T tested', testedCounts],
     ['SAT identity', s.satIdentity],
     ['MONO identity', s.monoIdentity],
   ], 42, 100, 510, 25);
@@ -317,8 +359,8 @@ export async function generatePredictiveNtReport(
     [[
       s.saturatesWt, s.monoAromaticsWt, s.diAromaticsWt, s.polyAromaticsWt,
       s.polarAromaticsWt, s.nmpInFeedWt,
-      ...(sevenComponent ? [0] : []),
-    ].map((v) => `${value(Number(v), 5)} wt%`)],
+       ...(sevenComponent ? [o.trials[0]?.boundaryStreams?.oilFeed?.massFractions?.[6] == null ? null : 100 * o.trials[0].boundaryStreams.oilFeed.massFractions[6]] : []),
+    ].map((v) => v == null ? 'Not recorded' : `${value(Number(v), 5)} wt%`)],
     42, 380, components.map(() => 510 / components.length), 32, 7,
   );
   text('Saved product targets', 42, 475, 510, 12, COLORS.navy, true);
@@ -331,8 +373,54 @@ export async function generatePredictiveNtReport(
     ['Raffinate sulfur target', `${value(s.targetRaffinateSulfurPpm)} ppm`],
   ], 42, 505, 510, 24);
 
+  page('1.2 Frozen solvent and stream basis', false, 'Saved Stage-1 conditions and actual frozen boundary construction');
+  grid([
+    ['Fresh-solvent NMP purity', `${value(s.nmpPurityWt)} wt%`],
+    ['Fresh-solvent water', `${value(s.nmpWaterWt)} wt%`],
+    ['S/O construction', r.input.wetSolventConstruction?.basis ?? 'Not recorded'],
+    ['Total wet solvent / oil mass', r.input.wetSolventConstruction?.totalWetSolventMassPerUnitFeedMass],
+    ['Dry NMP / oil mass', value(r.input.wetSolventConstruction?.dryNmpMassPerUnitFeedMass, 6)],
+    ['Water / oil mass', value(r.input.wetSolventConstruction?.waterMassPerUnitFeedMass, 6)],
+    ['Physical design feed rate', `${value(s.designFeedRateLph)} L/h`],
+    ['Frozen boundary oil mass', o.trials[0]?.boundaryStreams?.oilFeed?.mass],
+    ['Frozen boundary wet-solvent mass', o.trials[0]?.boundaryStreams?.freshWetSolvent?.mass],
+  ], 42, 105, 510, 34);
+  text('Boundary quantities use the persisted normalized stream basis, not plant molar flow. Component mass divided by component moles gives the frozen molecular weight (g/mol on a gram/mol normalization). RRBO recovery and product composition exclude NMP and H2O; total aromatics = MONO + DI + POLY, with PA reported separately. NMP and H2O contents use the full raffinate stream. S/O is total wet-solvent mass / oil-feed mass when the frozen construction says FIXED_TOTAL_WET_SOLVENT_MASS.', 42, 440, 510, 10);
+  grid([
+    ['RRBO / NMP density', `${value(s.rrboDensityKgM3)} / ${value(s.nmpDensityKgM3)} kg/m3`],
+    ['RRBO / NMP dynamic viscosity', `${value(s.rrboDynamicViscosityCp)} / ${value(s.nmpDynamicViscosityCp)} cP`],
+    ['Saved interfacial tension', `${value(s.rrboInterfacialTensionMnM)} mN/m`],
+    ['Saved basis notes', s.designBasisNotes || 'No notes recorded'],
+  ], 42, 600, 510, 30);
+
+  page('1.3 Frozen thermodynamic basis', false, 'NIST COSMO-SAC-2010 / cCOSMO implementation and job-specific amendments');
+  grid([
+    ['Base activity model', o.stage1TargetGovernance?.predictiveNtEngineScope?.thermodynamicModel ?? 'Not recorded'],
+    ['Actual model identity', o.engine?.modelIdentity ?? o.scientificIntegrity?.activeThermodynamicModel ?? 'Not recorded'],
+    ['Engine version / contract', o.engine?.engineVersion ?? o.engineContractVersion],
+    ['Native Gibbs contribution retained', String(o.scientificIntegrity?.nativeGibbsContributionRetained ?? 'Not recorded')],
+    ['Inherited residual applied', String(o.scientificIntegrity?.inheritedSixComponentResidualApplied ?? 'Not recorded')],
+    ['Additive interaction form', o.scientificIntegrity?.interactionForm ?? 'Not recorded'],
+    ['Interaction pairs / parameters', `${o.scientificIntegrity?.interactionPairCount ?? 'Not recorded'} / ${o.scientificIntegrity?.interactionParameterCount ?? 'Not recorded'}`],
+  ], 42, 100, 510, 48);
+  text(o.scientificIntegrity?.nativeGibbsContributionRetained === true
+    ? 'cCOSMO identifies the implementation, not a different molecular basis. For this native-plus-RK contract the NIST COSMO-SAC-2010 contribution is retained with the persisted additive Redlich-Kister interaction model. This is not an unamended COSMO-SAC prediction. Model and parameter digests, molecular generation routes and sigma-profile provenance follow in the provenance appendix. Missing artifacts are never replaced with current-model values.'
+    : 'Only the model identity and amendments recorded in this frozen job are reported. Missing model/version evidence remains explicitly unavailable; no current model or native-plus-RK amendment is assumed. See the provenance appendix for the available immutable references.', 42, 465, 510, 10);
+  page(`1.4 ${sevenComponent ? 'Seven' : 'Six'}-component molecular identities`, true, 'Identities from hash-verified frozen generation manifests; unavailable identities remain explicit');
+  const order = o.componentOrder ?? components;
+  table(['Family', 'Molecule / surrogate', 'CAS', 'MW g/mol*'],
+    order.map((family: string) => {
+      const c = molecular.components.find((entry: any) => entry.family === family);
+      const i = order.indexOf(family);
+      const b = o.trials[0]?.boundaryStreams;
+      const stream = (b?.oilFeed?.componentMoles?.[i] ?? 0) > 0 ? b.oilFeed : b?.freshWetSolvent;
+      const n = stream?.componentMoles?.[i], mass = stream?.componentMass?.[i];
+      return [family, c?.name ?? 'Not recorded', c?.cas ?? 'Not recorded', n > 0 && finiteNumber(mass) !== null ? value(mass / n, 5) : 'Not recorded'];
+    }), 42, 110, [65, 450, 120, 115], 43, 10);
+  text('*Reporting reconstruction from persisted boundary component mass / component moles, not a replacement molecular-weight database. PA is a non-sulfur-bearing surrogate. H2O is explicitly included in equilibrium.', 42, 480, 750, 10);
+
   page(
-    '1. Frozen Design Basis — Sulfur Allocation',
+    '1.5 Frozen Design Basis — Sulfur Allocation',
     false,
     'OWNER-CONTROLLED MASS ALLOCATION — saved with the completed Stage-1 snapshot',
   );
@@ -384,7 +472,7 @@ export async function generatePredictiveNtReport(
     'Primary process comparison. Product composition is wt% on an NMP-free hydrocarbon basis; NMP is wt% of total raffinate.',
   );
   table(
-    ['N_T', 'Solver', 'Recovery %', 'NMP %', 'SAT %', 'Arom %', 'PA %', 'SAT loss %', 'MONO rem %', 'DI rem %', 'POLY rem %', 'PA rem %', 'Sulfur ppm', 'Target', 'Scientific'],
+    ['N_T', 'Closure', 'Recovery %', 'NMP wt%', 'SAT wt%', 'Arom wt%', 'PA wt%', 'Sulfur ppm*', 'Targets', 'Saved acceptance'],
     o.trials.map((trial: any) => {
       const metrics = trial.productMetrics ?? {};
       const extraction = metrics.componentExtractionPct ?? {};
@@ -398,11 +486,6 @@ export async function generatePredictiveNtReport(
         value(metrics.raffinateSaturatesWtNmpFree, 2),
         value(metrics.raffinateTotalAromaticsWtNmpFree, 2),
         value(metrics.raffinatePolarAromaticsWtNmpFree, 2),
-        value(metrics.satLossPct, 2),
-        value(extraction.MONO, 2),
-        value(extraction.DI, 2),
-        value(extraction.POLY, 2),
-        value(extraction.PA, 2),
         sulfur?.status === 'CALCULABLE'
           ? value(prePilotMultistage ? sulfur.predictedRaffinateSulfurPpm : sulfur.totalPpm, 1)
           : 'N/C',
@@ -411,15 +494,15 @@ export async function generatePredictiveNtReport(
           : trial?.residualClosureStatus === 'UNCLOSED'
             ? 'DIAGNOSTIC_ONLY — UNCONVERGED'
             : 'NOT_CALCULABLE / MISSING_EVIDENCE',
-        trial.accepted ? 'QUALIFIED' : 'NOT QUALIFIED',
+         trial.accepted ? 'ACCEPTED' : 'NOT ACCEPTED',
       ];
     }),
-    30, 96, [30, 48, 48, 40, 40, 44, 38, 46, 51, 46, 48, 44, 48, 48, 58], 30, 4.6,
+    42, 100, [35, 65, 75, 65, 65, 65, 65, 85, 70, 160], 32, 8,
   );
-  const comparisonNoteY = 96 + 30 * (o.trials.length + 1) + 14;
+  const comparisonNoteY = 100 + 32 * (o.trials.length + 1) + 14;
   text(
     prePilotMultistage
-      ? 'Recovery = NMP-free RRBO recovery. Sulfur is persisted post-processing from actual component feed/final-raffinate masses and the saved Stage-1 allocation. Invalid trials remain NOT CALCULABLE.'
+      ? '*Sulfur BASIS MISMATCH: saved result is feed-basis retained sulfur; intended target is raffinate concentration. Historical target PASS is NOT demonstrated product-concentration compliance. All saved statuses/selection remain unchanged. Selected trial is highlighted.'
       : 'Recovery = NMP-free RRBO recovery. Removal/loss = component-relative boundary removal. Sulfur = PRE-PILOT ALLOCATION ESTIMATE ONLY. Unconverged values are diagnostic only and receive no engineering PASS/FAIL.',
     30, comparisonNoteY, 780, 7.5, COLORS.muted, true,
   );
@@ -441,9 +524,9 @@ export async function generatePredictiveNtReport(
         value(extraction.PA, 3),
       ];
     }),
-    42, 105, [50, 100, 110, 90, 105, 95, 105, 95], 26, 6.2,
+    42, 105, [40, 90, 105, 90, 110, 100, 110, 105], 27, 8,
   );
-  text('SAT is reported as SAT LOSS. NMP removal/extraction percentage is NOT APPLICABLE.', 42, 420, 755, 8.5, COLORS.amber, true);
+  text('Reporting-derived where metrics were absent: removal/loss (%) = 100*(oil-feed component moles - final-raffinate component moles)/oil-feed component moles. The same component MW cancels, so component-relative mass removal is identical. No equilibrium rerun. Recovery uses persisted hydrocarbon mass recovery (or boundary component masses if absent). SAT = loss; NMP removal = not applicable. Unaccepted trials remain diagnostic.', 42, 430, 755, 9, COLORS.amber, true);
 
   page(
     prePilotMultistage ? '4. Governed Sulfur Post-Processing' : '4. Pre-Pilot Sulfur Allocation Estimate',
@@ -453,7 +536,9 @@ export async function generatePredictiveNtReport(
       : 'ESTIMATE ONLY — NOT A COSMO-SAC SULFUR PREDICTION — NOT PILOT VALIDATED',
   );
   table(
-    ['N_T', 'Solver', 'SAT ppm', 'MONO ppm', 'DI ppm', 'POLY ppm', 'PA ppm', 'Total ppm', 'Removal %', 'Target ppm', 'Target Status'],
+    ['N_T', 'Closure', 'SAT ppm', 'MONO ppm', 'DI ppm', 'POLY ppm', 'PA ppm',
+      prePilotMultistage ? 'Feed-basis ppm' : 'Product ppm',
+      prePilotMultistage ? 'Allocated removal %' : 'Not applicable', 'Raffinate target ppm*', prePilotMultistage ? 'Historical target*' : 'Estimate target'],
     o.trials.map((trial: any) => {
       const estimate = prePilotMultistage ? trial.sulfurPrediction : calculatePrePilotSulfurEstimate(s, trial);
       const contributions = prePilotMultistage
@@ -470,7 +555,7 @@ export async function generatePredictiveNtReport(
         value(contributions?.DI, 2),
         value(contributions?.POLY, 2),
         value(contributions?.PA, 2),
-        estimate?.status === 'CALCULABLE' ? value(total, 2) : `NOT CALCULABLE: ${estimate?.reason}`,
+        estimate?.status === 'CALCULABLE' ? value(total, 2) : 'Not calculable',
         prePilotMultistage && estimate?.status === 'CALCULABLE'
           ? value(estimate.sulfurRemovalPct, 3)
           : '—',
@@ -478,14 +563,52 @@ export async function generatePredictiveNtReport(
         estimate?.status === 'CALCULABLE' ? String(estimate.targetStatus) : 'NOT_CALCULABLE',
       ];
     }),
-    30, 105, [32, 55, 52, 55, 52, 55, 52, 80, 60, 60, 92], 27, 5.2,
+    42, 105, [30, 60, 45, 60, 55, 60, 55, 85, 80, 60, 160], 29, 7.5,
   );
   text(
     prePilotMultistage
-      ? 'S_R = S_F Σ(f_S,i × m_i,R / m_i,F), using persisted cascade component masses. No total-aromatics proxy or hardcoded sulfur-removal factor is used.'
+      ? 'Frozen allocation basis: S_retained = S_feed * sum(allocation_i * m_i,R / m_i,F). Allocated sulfur mass removal (%) = 100*(1 - S_retained/S_feed). Feed-basis ppm is NOT recovery-normalized raffinate concentration; the frozen model does not divide by RRBO recovery. Existing values and target decisions are preserved, not corrected scientifically.'
       : 'Formal COSMO-SAC sulfur prediction: NOT CALCULABLE',
-    42, 420, 755, 9, prePilotMultistage ? COLORS.navy : COLORS.red, true,
+    42, 440, 755, 9, prePilotMultistage ? COLORS.navy : COLORS.red, true,
   );
+  text(prePilotMultistage
+    ? '*BASIS MISMATCH: the original target is intended raffinate sulfur concentration, but the saved comparison uses feed-basis retained sulfur. Historical PASS is NOT demonstrated product-concentration compliance. Concentration reduction = 100*(1-C_R/C_F) requires consistent concentration bases. Direct thermodynamic sulfur prediction remains NOT CALCULABLE. Scientific review requires separate authorization; no result or target decision is altered.'
+    : 'Direct thermodynamic sulfur prediction: NOT CALCULABLE. This legacy allocation estimate divides retained sulfur by hydrocarbon recovery to report estimated product ppm. Estimated target status is not scientific acceptance. Concentration reduction = 100*(1 - C_R/C_F); allocated sulfur mass removal = 100*(1 - (C_R/C_F)*hydrocarbon recovery fraction). Neither changes the frozen solver or acceptance result.', 42, 500, 755, 9);
+
+  page('Engineering trends versus frozen targets', true, 'Filled green = accepted; red cross = not accepted. Points never confer scientific qualification.');
+  const panels = [
+    ['Total aromatics (wt%, hydrocarbon basis)', 'raffinateTotalAromaticsWtNmpFree', s.targetRaffinateTotalAromaticsWt],
+    ['Polar aromatics (wt%, hydrocarbon basis)', 'raffinatePolarAromaticsWtNmpFree', s.targetRaffinatePolarAromaticsWt],
+    ['RRBO mass recovery (%)', 'nmpFreeHydrocarbonRecoveryPct', s.minimumRecoveryPct],
+    ['Allocated retained sulfur (feed-basis ppm)', 'sulfur', s.targetRaffinateSulfurPpm],
+  ];
+  panels.forEach(([title, key, target], panel) => {
+    const x = 65 + (panel % 2) * 395, y = 130 + Math.floor(panel / 2) * 215, w = 315, h = 125;
+    text(title, x - 15, y - 32, 355, 10, COLORS.navy, true);
+    const points = o.trials.map((t: any) => ({ n: t.stageCount, accepted: t.accepted,
+      v: key === 'sulfur' ? (t.sulfurPrediction?.status === 'CALCULABLE' ? t.sulfurPrediction.predictedRaffinateSulfurPpm : null) : t.productMetrics?.[key as string] }))
+      .filter((p: any) => finiteNumber(p.v) !== null);
+    const vals = points.map((p: any) => p.v).concat(finiteNumber(target) !== null ? [target] : []);
+    if (!vals.length) { text('No recorded values', x, y, w, 10); return; }
+    const lo = Math.max(0, Math.min(...vals) * 0.9), hi = Math.max(...vals) * 1.08 || 1;
+    const ns = o.trials.map((t: any) => t.stageCount), nmin = Math.min(...ns), nmax = Math.max(...ns);
+    const px = (n: number) => x + (n - nmin) / Math.max(1, nmax - nmin) * w;
+    const py = (v: number) => y + h - (v - lo) / (hi - lo) * h;
+    doc.strokeColor(COLORS.line).lineWidth(0.7).moveTo(x, y).lineTo(x, y + h).lineTo(x + w, y + h).stroke();
+    text(value(hi, 1), x - 38, y - 4, 34, 7, COLORS.muted, false, 'right');
+    text(value(lo, 1), x - 38, y + h - 5, 34, 7, COLORS.muted, false, 'right');
+    if (finiteNumber(target) !== null) {
+      doc.strokeColor(COLORS.amber).dash(3).moveTo(x, py(Number(target))).lineTo(x + w, py(Number(target))).stroke().undash();
+      text(key === 'sulfur' ? `Raffinate target ${value(target)}: DIFFERENT BASIS, reference only` : `Target ${value(target)}`, x + 5, py(Number(target)) - 12, w, 7, COLORS.amber);
+    }
+    points.forEach((p: any) => {
+      if (p.accepted) doc.circle(px(p.n), py(p.v), p.n === o.predictiveNt ? 4 : 2.6).fill(COLORS.green);
+      else doc.strokeColor(COLORS.red).moveTo(px(p.n) - 3, py(p.v) - 3).lineTo(px(p.n) + 3, py(p.v) + 3)
+        .moveTo(px(p.n) - 3, py(p.v) + 3).lineTo(px(p.n) + 3, py(p.v) - 3).stroke();
+    });
+    ns.forEach((n: number) => text(String(n), px(n) - 9, y + h + 7, 18, 7, COLORS.muted, false, 'center'));
+    text('N_T (theoretical stages)', x + 65, y + h + 22, 200, 8, COLORS.muted);
+  });
 
   page('5. Engineering Stage Selection', false, 'Preferred engineering candidate, accepted Predictive N_T, and established theoretical stages are separate states');
   grid([
@@ -502,6 +625,12 @@ export async function generatePredictiveNtReport(
       : 'No explicit deterministic preferred-candidate selection rule is persisted for this completed run. No stage is selected by this report. Unconverged trials and scientifically unqualified trials can never become an accepted Predictive N_T through presentation logic.',
     55, 305, 480, 8.5,
   );
+  const preceding = o.trials.filter((t: any) => selected && t.stageCount < selected.stageCount).at(-1);
+  if (preceding) {
+    const failures = Object.entries(preceding.targetCompliance ?? {}).filter(([, v]) => (v as any)?.status === 'FAIL')
+      .map(([key, v]) => `${label(key)}: ${value((v as any).calculated, 4)} versus ${value((v as any).target, 4)}`);
+    text(`Immediately preceding trial N_T=${preceding.stageCount}: ${failures.length ? failures.join('; ') : preceding.reportingDisposition}. Selection shown above is persisted, not recomputed by this report.`, 42, 415, 510, 10);
+  }
 
   page('6. Scientific Qualification Summary', false, 'Exact persisted evidence; PASS is never inferred from the absence of a blocker');
   const qualificationBlockers = Array.from(new Set(
@@ -511,11 +640,11 @@ export async function generatePredictiveNtReport(
     [sevenComponent ? 'Seven-component molecular basis incl. H2O' : 'Six-component molecular basis',
       sevenComponent ? 'PERSISTED' : (o.stage1TargetGovernance?.sixComponentCosmoSacBasisManifestSha256 ? 'PERSISTED' : 'MISSING_EVIDENCE')],
     ['Stage-1 authority', r.input?.stage1Authority?.snapshotHash ? 'PERSISTED' : 'MISSING_EVIDENCE'],
-    ['Primary solver closure', explicitClosureSummary(o.trials)],
-    ['Secondary / multistart closure', explicitClosureSummary(o.trials, true)],
+    [prePilotMultistage ? 'Combined endpoint closure' : 'Primary solver closure', explicitClosureSummary(o.trials)],
+    ['Multistart: both endpoints closed', explicitClosureSummary(o.trials, true)],
     ['Global TPD stability', sevenComponent
-      ? (prePilotMultistage
-        ? 'POST-SPLIT TPD >= -1e-8 + EXPLICIT MONO-RICH SEARCH'
+       ? (prePilotMultistage
+         ? 'Per-stage TPD and explicit MONO-rich evidence in trial appendices'
         : 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING')
       : (o.globalStabilityQualification?.status ?? 'NOT_CALCULABLE / MISSING_EVIDENCE')],
     ['Sulfur thermodynamic prediction', 'NOT CALCULABLE'],
@@ -525,7 +654,8 @@ export async function generatePredictiveNtReport(
     ['Accepted Predictive N_T', o.predictiveNt ?? 'NOT ASSIGNED'],
   ], 42, 100, 510, 28);
   text('Main-report blocker summary', 42, 410, 510, 11, COLORS.navy, true);
-  text(qualificationBlockers.length ? `${qualificationBlockers.length} exact trial blocker code(s); see Appendix E.` : 'No trial blocker codes persisted.', 42, 438, 510, 8.5);
+   text(qualificationBlockers.length ? `${qualificationBlockers.length} exact trial blocker code(s); see Appendix C.` : 'No exact blocker-code array is recorded. This is NOT evidence of acceptance. Appendix C lists persisted numerical, target and stage dispositions, including rejected trials.', 42, 438, 510, 9);
+   text('Evidence completeness is separate from saved acceptance. In supported 7C matrix contracts, closure and termination status are combined endpoint fields. CLOSED establishes both endpoints closed; UNCLOSED does not identify the failing endpoint. Individual optimizer terminations are not recorded. Native residuals and branch differences are preserved; no gate or selected N_T changes.', 42, 510, 510, 10);
 
   for (const trial of o.trials) {
     const trialClosed = trial.residualClosureStatus === 'CLOSED';
@@ -539,9 +669,9 @@ export async function generatePredictiveNtReport(
       ? trial.multistartProductRelativeDifference
       : null;
     page(
-      `Appendix A — N_T=${trial.stageCount} Numerical Diagnostics`,
+       `Appendix A.${trial.stageCount}.1 — N_T=${trial.stageCount} Numerical Diagnostics`,
       true,
-      `${prePilotMultistage ? 'PRE-PILOT MULTISTAGE PREDICTIVE MODEL' : sevenComponent ? 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING' : 'RESEARCH DIAGNOSTIC'} — ${trial.accepted ? 'ACCEPTED' : 'NOT ACCEPTED'} · numerical gates ${trial.numericalAcceptancePassed ? 'PASS' : 'FAIL'} · maximum component-balance residual ${Number(trial.maximumOverallComponentBalanceResidualMol).toExponential(3)}`,
+       `${trial.accepted ? 'ACCEPTED' : 'NOT ACCEPTED'} (persisted) | numerical acceptance ${trial.numericalAcceptancePassed === true ? 'PASS' : trial.numericalAcceptancePassed === false ? 'FAIL' : 'Not recorded'} | maximum component balance residual ${scientific(trial.maximumOverallComponentBalanceResidualMol)}`,
     );
     const shift = trialClosed ? 0 : 22;
     if (!trialClosed) {
@@ -556,14 +686,16 @@ export async function generatePredictiveNtReport(
     const metrics = trial.productMetrics ?? {};
     const extraction = metrics.componentExtractionPct ?? {};
     text(
-      `Primary termination ${trial.solverTerminationStatus ?? 'MISSING_EVIDENCE'}   ·   Residual closure ${solverDisplayStatus(trial)}   ·   Maximum scaled equation residual ${Number(trial.maximumScaledEquationResidual).toExponential(3)}   ·   Branch comparison ${branchComparisonEvaluated && branchDifference !== null ? `EVALUATED (${branchDifference.toExponential(3)})` : 'NOT EVALUABLE — ENDPOINT UNCLOSED'}`,
+      `${trial.multistartEvidence?.combinedTerminationStatus ? 'Combined endpoint status' : 'Primary termination'} ${trial.solverTerminationStatus ?? 'MISSING_EVIDENCE'} | Closure ${solverDisplayStatus(trial)} | Scaled residual ${scientific(trial.maximumScaledEquationResidual)} | Branch ${branchComparisonEvaluated && branchDifference !== null ? `EVALUATED (${branchDifference.toExponential(3)})` : trial.multistartEvidence?.bothStartsClosed === false ? 'NOT EVALUABLE — ENDPOINT UNCLOSED' : 'NOT EVALUABLE — MISSING EVIDENCE'}`,
       42, 90 + shift, 755, 8, COLORS.ink, true,
     );
     const blockers = (trial.acceptanceBlockers ?? [])
       .map((blocker: any) => blocker.code ?? 'UNSPECIFIED_GATE_FAILURE').join(' · ');
-    text(`Blockers: ${blockers || 'None'}`, 42, 110 + shift, 755, 7, COLORS.amber, true);
+    text(`Exact blocker codes: ${blockers || 'Not recorded; see persisted disposition in Appendix C'}`, 42, 110 + shift, 755, 7, COLORS.amber, true);
     text(
-      'Product targets — MASS BASIS (NMP-free hydrocarbon basis except total-raffinate NMP wt%)',
+      prePilotMultistage
+        ? 'Targets: hydrocarbon mass basis; NMP full-stream; sulfur feed-basis result vs raffinate target: BASIS MISMATCH'
+        : 'Product targets — MASS BASIS (NMP-free hydrocarbon basis except total-raffinate NMP wt%)',
       42, 139 + shift, 755, 10, COLORS.navy, true,
     );
     const compliance = trial.targetCompliance ?? {};
@@ -579,7 +711,7 @@ export async function generatePredictiveNtReport(
       ].map((key) => {
         const entry = compliance[key] ?? {};
         return [
-          label(key),
+           key === 'minimumNmpFreeRecoveryPct' ? 'Minimum RRBO recovery (%)' : label(key),
           entry.status === 'NOT_CALCULABLE' ? 'NOT CALCULABLE' : entry.status,
           value(entry.target, 4),
           value(entry.calculated, 4),
@@ -598,7 +730,7 @@ export async function generatePredictiveNtReport(
       ['Basis', ...components],
       [[
         'Removal / loss',
-        value(satLoss, 4),
+         value(metrics.satLossPct ?? satLoss, 4),
         value(extraction.MONO, 4),
         value(extraction.DI, 4),
         value(extraction.POLY, 4),
@@ -629,7 +761,7 @@ export async function generatePredictiveNtReport(
     );
 
     page(
-      `Appendix C.1 — N_T=${trial.stageCount} Stage TPD and Stability Evidence`,
+       `Appendix A.${trial.stageCount}.2 — Stage TPD and Stability Evidence`,
       true,
       'Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.',
     );
@@ -643,22 +775,32 @@ export async function generatePredictiveNtReport(
     }
     const diagnosticRows = (trial.stages ?? []).map((stage: any) => [
       String(stage.stageFromFeedEnd),
-      Number(stage.maximumComponentBalanceResidualMol).toExponential(3),
-      stage.accepted ? 'PASS' : 'FAIL',
-      Number(stage.isoactivityLogResidual).toExponential(3),
-      Number(stage.localPostSplitStability?.raffinate?.minimumEigenvalue).toExponential(3),
-      Number(stage.localPostSplitStability?.extract?.minimumEigenvalue).toExponential(3),
-      Number(stage.postSplitTpdSearch?.raffinate?.minimum).toExponential(3),
-      Number(stage.postSplitTpdSearch?.extract?.minimum).toExponential(3),
+       scientific(stage.maximumComponentBalanceResidualMol),
+       stage.accepted === true ? 'PASS' : stage.accepted === false ? 'FAIL' : 'Not recorded',
+       scientific(stage.isoactivityLogResidual),
+       scientific(stage.localPostSplitStability?.raffinate?.minimumEigenvalue),
+       scientific(stage.localPostSplitStability?.extract?.minimumEigenvalue),
+       scientific(stage.postSplitTpdSearch?.raffinate?.minimum),
+       scientific(stage.postSplitTpdSearch?.extract?.minimum),
     ]);
     table(
       ['Stage', 'Local balance', 'Stage qualification', 'Isoactivity', 'R min eig', 'E min eig', 'R TPD min', 'E TPD min'],
       diagnosticRows, 42, trialClosed ? 100 : 115,
-      [55, 105, 90, 90, 100, 100, 100, 100], 23, 6.3,
+      [55, 105, 90, 90, 100, 100, 100, 100], 23, 8,
     );
+    const stageFlag = (v: unknown) => v === true ? 'PASS' : v === false ? 'FAIL' : 'Not recorded';
+    text('Persisted refinement / explicit MONO-rich acceptance (not inferred from the minimum)', 42, 367, 750, 9, COLORS.navy, true);
+    table(['Stage', 'R refinements', 'E refinements', 'R MONO-rich', 'E MONO-rich'],
+      (trial.stages ?? []).map((stage: any) => [
+        String(stage.stageFromFeedEnd),
+        stageFlag(stage.postSplitTpdSearch?.raffinate?.allRefinementsAccepted),
+        stageFlag(stage.postSplitTpdSearch?.extract?.allRefinementsAccepted),
+        stageFlag(stage.postSplitTpdSearch?.raffinate?.explicitMonoRichBasinSearch?.allRequiredSearchesAccepted),
+        stageFlag(stage.postSplitTpdSearch?.extract?.explicitMonoRichBasinSearch?.allRequiredSearchesAccepted),
+      ]), 42, 386, [50, 175, 175, 175, 175], 15, 7);
 
     page(
-      `Appendix B — N_T=${trial.stageCount} ${sevenComponent ? 'Seven-Component' : 'Six-Component'} Stage Outlet Compositions`,
+       `Appendix A.${trial.stageCount}.3 — ${sevenComponent ? 'Seven-Component' : 'Six-Component'} Stage Outlet Compositions`,
       true,
       'Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.',
     );
@@ -690,13 +832,13 @@ export async function generatePredictiveNtReport(
   }
 
   page(
-    'Appendix D — Multistart / Solver Evidence',
-    false,
+    'Appendix B — Multistart / Solver Evidence',
+    true,
     'Primary convergence is insufficient: both starts must close and boundary products must agree within 1e-6',
   );
   const multistartLimit = 1e-6;
   table(
-    ['N_T', 'P termination', 'P closure / residual', 'S termination', 'S closure / residual', 'Branch difference', 'Gate'],
+    ['N_T', 'Combined endpoint status', 'P closure / residual', 'P / S optimizer termination', 'S closure / residual', 'Branch difference', 'Branch gate'],
     o.trials.map((trial: any) => {
       const evidence = trial.multistartEvidence ?? {};
       const evaluated = (evidence.branchComparisonStatus
@@ -711,40 +853,44 @@ export async function generatePredictiveNtReport(
         && difference <= multistartLimit;
       return [
         String(trial.stageCount),
-        evidence.primary?.terminationStatus ?? 'MISSING_EVIDENCE',
-        `${evidence.primary?.residualClosureStatus ?? 'MISSING_EVIDENCE'} / ${Number(evidence.primary?.maximumScaledEquationResidual).toExponential(3)}`,
-        evidence.secondary?.terminationStatus ?? 'MISSING_EVIDENCE',
-        `${evidence.secondary?.residualClosureStatus ?? 'MISSING_EVIDENCE'} / ${Number(evidence.secondary?.maximumScaledEquationResidual).toExponential(3)}`,
+        evidence.combinedTerminationStatus
+          ? `${evidence.combinedTerminationStatus} / ${evidence.combinedClosureStatus}`
+          : 'Not recorded',
+        `${evidence.primary?.residualClosureStatus ?? 'MISSING_EVIDENCE'} / ${scientific(evidence.primary?.maximumScaledEquationResidual)}`,
+        evidence.combinedTerminationStatus ? 'Neither separately recorded'
+          : `${evidence.primary?.terminationStatus ?? 'MISSING_EVIDENCE'} / ${evidence.secondary?.terminationStatus ?? 'MISSING_EVIDENCE'}`,
+        `${evidence.secondary?.residualClosureStatus ?? 'MISSING_EVIDENCE'} / ${scientific(evidence.secondary?.maximumScaledEquationResidual)}`,
         difference === null ? 'NOT EVALUABLE' : difference.toExponential(3),
-        passed ? 'PASS' : 'FAIL',
+        typeof trial.branchReproduced === 'boolean' ? (trial.branchReproduced ? 'PASS' : 'FAIL')
+          : evidence.bothStartsClosed == null || difference === null ? 'NOT EVALUABLE' : passed ? 'PASS' : 'FAIL',
       ];
     }),
-    42, 100, [35, 68, 94, 68, 94, 92, 55], 36, 5.8,
+    42, 100, [40, 110, 145, 120, 145, 105, 85], 30, 8,
   );
-  doc.roundedRect(42, 510, 510, 110, 4).fill('#FFF3E5');
-  text('MULTISTART INTERPRETATION BOUNDARY', 54, 525, 480, 8, COLORS.amber, true);
+  doc.roundedRect(42, 455, 750, 90, 4).fill('#FFF3E5');
+  text('MULTISTART INTERPRETATION BOUNDARY', 54, 465, 720, 8, COLORS.amber, true);
   text(
-    'Optimizer termination and numerical residual closure are separate evidence. An unclosed endpoint is not a branch, so branch comparison is not evaluable until both starts close. The equation-closure tolerance remains 1e-8 and the boundary-product agreement tolerance remains 1e-6.',
-    54, 546, 480, 8.1,
+    'Matrix 7C CONVERGED/UNCLOSED and closure are combined endpoint statuses, NOT optimizer termination. CLOSED proves both endpoints closed; UNCLOSED does not identify which endpoint failed. Individual optimizer terminations are not separately recorded. Branch gate uses persisted branchReproduced when available. Missing evidence is NOT failure; branch reproduction alone does not establish numerical/stage acceptance. No gate is rerun.',
+    54, 485, 720, 9,
   );
 
-  page('Appendix E — Exact Qualification Blockers', true, 'Complete frozen blocker set for every N_T — no truncation');
+  page('Appendix C — Frozen qualification dispositions', true, 'Exact codes where recorded; native persisted flags otherwise. No invented rejection codes.');
   table(
-    ['N_T', 'Residual closure', 'Exact blocker codes'],
+    ['N_T', 'Closure', 'Exact codes / persisted disposition'],
     o.trials.map((trial: any) => [
       String(trial.stageCount),
       solverDisplayStatus(trial),
-      (trial.acceptanceBlockers ?? [])
-        .map((blocker: any) => blocker.code ?? 'UNSPECIFIED_GATE_FAILURE').join('; ') || 'None recorded',
+      [(trial.acceptanceBlockers ?? []).map((blocker: any) => blocker.code ?? String(blocker)).join('; ') || 'Exact codes not recorded',
+        trial.reportingDisposition, trial.sulfurPrediction?.reason].filter(Boolean).join('. '),
     ]),
-    42, 100, [45, 95, 610], 40, 6.2,
+    42, 100, [45, 95, 610], 40, 8,
   );
 
   const stability = o.globalStabilityQualification;
   page(
-    'Appendix C.2 — Frozen Global TPD Qualification',
+    'Appendix D — Supplementary global TPD evidence',
     false,
-    'Task 216 evidence reconstructed from the closed Project 170 endpoints; never recalculated during PDF generation',
+    'Legacy supplementary evidence, separate from native matrix per-stage TPD evidence',
   );
   if (stability) {
     const classifications = Object.entries(stability.classificationCounts ?? {})
@@ -759,7 +905,7 @@ export async function generatePredictiveNtReport(
       ['Optimizer/refinement failures', stability.coverage?.optimizerRefinementFailureCount],
       ['Worst frozen TPD minimum', stability.worstMinimum],
       ['Unchanged TPD threshold', stability.postSplitTpdThreshold],
-      ['Task 206 comparison candidate', stability.comparisonCandidate?.disposition],
+      ['Historical comparison candidate', stability.comparisonCandidate?.disposition],
       ['Frozen results SHA-256', stability.evidenceArtifacts?.resultsSha256],
       ['Frozen protocol SHA-256', stability.evidenceArtifacts?.protocolSha256],
     ], 42, 100, 510, 20);
@@ -776,18 +922,18 @@ export async function generatePredictiveNtReport(
       55, 525, 480, 8,
     );
   } else {
-    pill('TASK 216 FROZEN EVIDENCE NOT ATTACHED', 42, 105, 510);
+    pill('SUPPLEMENTARY GLOBAL EVIDENCE NOT ATTACHED', 42, 105, 510, COLORS.amber);
     text(
-      'This legacy completed snapshot predates the frozen global-stability evidence attachment. No current evidence has been substituted into this report.',
+      'This supplementary schema is not attached to the frozen job. Native per-stage stability evidence remains in Appendix A. Absence of this legacy attachment is not a new qualification failure. No current evidence has been substituted.',
       42, 160, 510, 9,
     );
   }
 
   const task218 = o.task218CandidateGeneratedStability;
-  page(
-    'Appendix C.3 — Candidate-Generated Stability Evidence',
+  if (task218 || stability) page(
+    'Appendix D.2 — Candidate-generated supplementary evidence',
     false,
-    'Immutable candidate cascade lineage; historical Task216/206 comparisons remain diagnostic only',
+    'Immutable candidate cascade lineage; historical comparisons remain diagnostic only',
   );
   if (task218) {
     grid([
@@ -805,14 +951,15 @@ export async function generatePredictiveNtReport(
     doc.roundedRect(42, 365, 510, 100, 4).fill('#FFF3E5');
     text((task218.blockers ?? []).join(' · ') || 'None recorded', 55, 382, 480, 8.2, COLORS.red, true);
     text(
-      'Task218 is candidate-generated controlled-negative evidence. It is research-only, calibration-required, not pilot validated, not release eligible; predictive N_T remains unassigned and sulfur remains NOT CALCULABLE.',
+      'This is supplementary candidate-generated evidence, not a replacement for the saved run disposition. Saved calibration, pilot-validation, release and selected-stage states remain unchanged.',
       55, 425, 480, 8,
     );
   } else {
-    pill('TASK218 IMMUTABLE EVIDENCE NOT ATTACHED', 42, 105, 510);
+    pill('CANDIDATE SUPPLEMENTARY EVIDENCE NOT ATTACHED', 42, stability ? 105 : 250, 510, COLORS.amber);
+    if (!stability) text('No candidate-generated legacy attachment is recorded. This report does not manufacture it or reclassify the saved matrix result.', 42, 300, 510, 10);
   }
 
-  page('7. Governance / Report Status', false, 'Immutable identifiers for the frozen completed snapshot; full provenance is Appendix F');
+  page('Appendix E — Governance / Report Status', false, '7. Governance / Report Status — full immutable provenance is Appendix F');
   pill(
     o.calibrationRequired
       ? 'CONTROLLED RESEARCH OUTPUT — CALIBRATION REQUIRED'
@@ -821,17 +968,12 @@ export async function generatePredictiveNtReport(
   );
   grid([
     ['Thermodynamic classification', o.resultThermodynamicClassification],
-    ['Model SHA-256', r.modelHash],
-    ['Engine SHA-256', r.engineHash],
-    ['Input SHA-256', o.inputHash],
-    ['Stage 1 authority SHA-256', r.input?.stage1Authority?.snapshotHash ?? r.input?.stage1Authority?.source?.immutableHash],
-    ['Six-component basis SHA-256', o.stage1TargetGovernance?.sixComponentCosmoSacBasisManifestSha256],
-    ['Six-component binding SHA-256', o.stage1TargetGovernance?.sixComponentCosmoSacBindingSha256],
+    ['Full immutable digests', 'See provenance appendix'],
     ['Job ID', r.id],
   ], 42, 145, 510, 25);
   text('Persisted limitations', 42, 370, 510, 12, COLORS.navy, true);
   const limitations = [
-    'Sulfur removal is NOT CALCULABLE from this aromatic-transfer model.',
+    'Direct thermodynamic sulfur prediction is NOT CALCULABLE. Allocation-based retained sulfur and removal are separate saved estimates.',
     'The PA representative is non-sulfur-bearing and is not a sulfur surrogate.',
     'SAT is boundary-mole loss; NMP extraction percentage is not applicable.',
   ];
@@ -856,8 +998,8 @@ export async function generatePredictiveNtReport(
     ['Engine SHA-256', r.engineHash],
     ['Input SHA-256', o.inputHash],
     ['Stage-1 authority SHA-256', r.input?.stage1Authority?.snapshotHash ?? r.input?.stage1Authority?.source?.immutableHash],
-    ['Six-component basis SHA-256', o.stage1TargetGovernance?.sixComponentCosmoSacBasisManifestSha256],
-    ['Six-component binding SHA-256', o.stage1TargetGovernance?.sixComponentCosmoSacBindingSha256],
+    ['Six-component basis SHA-256', r.input?.stage1Authority?.sixComponentCosmoSacBasisManifestSha256 ?? o.stage1TargetGovernance?.sixComponentCosmoSacBasisManifestSha256],
+    ['Six-component binding SHA-256', r.input?.stage1Authority?.sixComponentCosmoSacBindingSha256 ?? o.stage1TargetGovernance?.sixComponentCosmoSacBindingSha256],
     ['Job ID', r.id],
     ['Completed at', new Date(r.completedAt).toISOString()],
   ], 42, 105, 510, 27);
@@ -867,6 +1009,55 @@ export async function generatePredictiveNtReport(
     'Generated exclusively from the persisted completed job snapshot. The renderer does not read live Stage-1 or workspace values and does not invoke COSMO-SAC, cascade, TPD, or multistart calculations.',
     54, 425, 480, 8.3,
   );
+
+  const provenanceRows: Array<[string, unknown]> = [
+    ['Input snapshot SHA-256 (report-derived)', createHash('sha256').update(JSON.stringify(r.input)).digest('hex')],
+    ['Result snapshot SHA-256 (report-derived)', createHash('sha256').update(JSON.stringify(r.result)).digest('hex')],
+    ['Digest serialization basis', 'UTF-8 JSON.stringify of the frozen snapshot objects in stored property order; not a replacement for engine-owned canonical hashes.'],
+    ['cCOSMO native binary SHA-256', o.scientificRuntime?.cCOSMOBinarySha256],
+    ['Scientific model contract', o.engine?.scientificModelContract],
+    ['Native runtime versions', JSON.stringify(o.scientificRuntime ?? {})],
+    ...Object.entries(o.scientificIntegrity ?? {}).filter(([key]) => /Sha256|Model|interactionForm|ResidualApplied/.test(key))
+      .map(([key, entry]) => [label(key), typeof entry === 'object' ? JSON.stringify(entry) : String(entry)] as [string, string]),
+    ...molecular.provenance,
+    ...molecular.components.flatMap((c: any) => [
+      [`${c.family} molecular identity`, `${c.name ?? 'Not recorded'}; CAS ${c.cas ?? 'not recorded'}; InChIKey ${c.inchiKey ?? 'not recorded'}`],
+      [`${c.family} sigma profile SHA-256`, c.profileSha256 ?? 'Not recorded'],
+      [`${c.family} optimized geometry SHA-256`, c.optimizedGeometrySha256 ?? 'Not recorded'],
+      [`${c.family} surface SHA-256`, c.surfaceSha256 ?? 'Not recorded'],
+    ] as Array<[string, string]>),
+  ];
+  // Dynamic rows preserve full hash/provenance strings without clipping or fixed-height overflow.
+  let provenanceY = 100;
+  page('Appendix F — Model and molecular provenance', false, 'Only frozen fields or artifacts whose bytes match frozen SHA-256 digests');
+  for (const [key, entry] of provenanceRows) {
+    const rendered = value(entry);
+    doc.font('Helvetica').fontSize(9);
+    const height = Math.max(40, doc.heightOfString(rendered, { width: 315, lineGap: 1.5 }) + 18);
+    if (provenanceY + height > 765) { page('Appendix F — Provenance continued'); provenanceY = 100; }
+    text(key, 42, provenanceY + 5, 175, 9, COLORS.muted, true);
+    text(rendered, 225, provenanceY + 5, 325, 9);
+    doc.strokeColor(COLORS.line).moveTo(42, provenanceY + height - 2).lineTo(552, provenanceY + height - 2).stroke();
+    provenanceY += height;
+  }
+
+  doc.switchToPage(contentsPage);
+  const majorSections = sections.filter(({ title }) => !title.startsWith('Appendix A.')
+    && title !== 'Contents and reading guide' && title !== 'Appendix F — Provenance continued');
+  majorSections.push({ title: 'Appendix A — All trial diagnostics, stability and outlets (bookmarked individually)', page: sections.find(s => s.title.startsWith('Appendix A.'))?.page ?? 0 });
+  majorSections.sort((a, b) => a.page - b.page);
+  majorSections.forEach((section, index) => {
+    text(section.title, 42, 180 + index * 24, 455, 8.5, COLORS.navy);
+    text(section.page, 512, 180 + index * 24, 40, 8.5, COLORS.navy, false, 'right');
+  });
+  const total = doc.bufferedPageRange().count;
+  for (let index = 0; index < total; index++) {
+    doc.switchToPage(index);
+    const bottomMargin = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+    text(`Page ${index + 1} of ${total}  |  Frozen run ${r.id}`, 42, doc.page.height - 25, doc.page.width - 84, 7, COLORS.muted, false, 'center');
+    doc.page.margins.bottom = bottomMargin;
+  }
 
   doc.end();
   await new Promise<void>((resolve, reject) => {
