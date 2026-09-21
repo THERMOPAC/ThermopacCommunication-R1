@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { downloadSelection } from "./p1-selection-download";
+import { assertCompleteRun, downloadCompleteRun } from "./p1-full-run-download";
 
 const number = (value: unknown) => typeof value === "number" ? Number(value.toPrecision(6)).toString() : "—";
-async function request(url: string, init?: RequestInit) {
+async function request(url: string, init?: RequestInit, timeoutMs = 20_000) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(url, { credentials: "include", ...init, signal: controller.signal });
     const body = await response.json().catch(() => { throw new Error(`Stage 3 returned an invalid response (HTTP ${response.status}).`); });
@@ -25,12 +26,44 @@ export function P1CandidateResults({ run, fullUrl }: { run: any; fullUrl?: strin
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [inspectionError, setInspectionError] = useState("");
   const [inspectionRetry, setInspectionRetry] = useState(0);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadStatus, setDownloadStatus] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const detailRequest = useRef<{ key: string; promise: Promise<any> } | null>(null);
+  const latestRun = useRef(run);
+  latestRun.current = run;
+  async function loadCompleteRun() {
+    if (!run?.summaryOnly) return run;
+    if (fullRun) return fullRun;
+    if (!fullUrl) throw new Error("Complete saved run URL is unavailable. Reload history.");
+    const key = `${run.id}:${run.sourceSnapshotHash}:${fullUrl}`;
+    if (detailRequest.current?.key === key) return detailRequest.current.promise;
+    const promise = request(fullUrl, undefined, 90_000).then(value => {
+      // Historical inspection remains allowed; current downloads additionally check staleness.
+      assertCompleteRun({ ...value, stale: false }, { ...run, stale: false });
+      if (latestRun.current?.id === run.id && latestRun.current?.sourceSnapshotHash === run.sourceSnapshotHash) setFullRun(value);
+      return value;
+    }).finally(() => { if (detailRequest.current?.promise === promise) detailRequest.current = null; });
+    detailRequest.current = { key, promise };
+    return promise;
+  }
+  async function downloadFull(format: "csv" | "json") {
+    setDownloadBusy(true); setDownloadError("");
+    setDownloadStatus("Loading complete saved hydraulic evidence (up to 90 seconds)…");
+    try {
+      const value = await loadCompleteRun();
+      assertCompleteRun(value, latestRun.current);
+      setDownloadStatus(downloadCompleteRun(value, format));
+    } catch (error) {
+      setDownloadStatus("");
+      setDownloadError(`${error instanceof Error ? error.message : String(error)} Use the download button to retry.`);
+    } finally { setDownloadBusy(false); }
+  }
   useEffect(() => {
     let cancelled = false;
     if (!inspectionOpen || !run?.summaryOnly || !fullUrl || fullRun) return;
     setInspectionError("");
-    void request(fullUrl).then(value => {
-      if (value.id !== run.id || value.sourceSnapshotHash !== run.sourceSnapshotHash) throw new Error("Candidate detail identity changed. Reload history.");
+    void loadCompleteRun().then(value => {
       if (!cancelled) setFullRun(value);
     }).catch(e => { if (!cancelled) setInspectionError(e.message); });
     return () => { cancelled = true; };
@@ -80,6 +113,17 @@ export function P1CandidateResults({ run, fullUrl }: { run: any; fullUrl?: strin
           </tr>)}</tbody></table></div>
       </details>
     </section>}
+    <section className="rounded border border-blue-300 bg-blue-50 p-3" data-testid="complete-hydraulic-download">
+      <h3 className="font-semibold">Download complete hydraulic run</h3>
+      <p>All tested diameters, orientations, geometries and RPM, including infeasible, invalid and rejected trials. CSV has one row per saved sensitivity scenario (all six where evaluated); trials without scenarios have one explicitly marked row. No new calculation.</p>
+      <div className="my-2 flex flex-wrap gap-2">
+        <Button size="sm" disabled={!!run.stale || downloadBusy} onClick={() => void downloadFull("csv")}>Download all hydraulic trials (CSV)</Button>
+        <Button size="sm" variant="outline" disabled={!!run.stale || downloadBusy} onClick={() => void downloadFull("json")}>Download complete run (JSON)</Button>
+      </div>
+      <p>CSV uses saved field names: M = m, MS = m/s, WM3 = W/m³, M2M3 = m²/m³; holdup, loading and free area are fractions, not percentages. Blank means unavailable, not zero. Root and continuation arrays are JSON cells. The JSON companion preserves every saved field, source property and provenance record without rounding.</p>
+      {downloadStatus && <p role="status">{downloadStatus}</p>}
+      {downloadError && <p role="alert">{downloadError}</p>}
+    </section>
     <details onToggle={e => setInspectionOpen(e.currentTarget.open)}><summary className="cursor-pointer font-semibold">Historical engine selection provenance and raw trial inspection (not downstream selection)</summary>
     {run.summaryOnly && !fullRun ? inspectionError
       ? <div role="alert">{inspectionError} <Button size="sm" variant="outline" onClick={() => setInspectionRetry(value => value + 1)}>Retry scientific detail</Button></div>
