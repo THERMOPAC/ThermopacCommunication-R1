@@ -1,0 +1,789 @@
+{
+  "status": "PASS conditional numerical mathematics; HOLD actual terminal DSD, transmission and equipment performance",
+  "basis": {
+    "d32_mm": 6.068,
+    "Qc_m3_h": 3.82179423,
+    "rhoC_kg_m3": 869,
+    "rhoD_kg_m3": 1015,
+    "muC_Pa_s": 0.0598,
+    "muD_Pa_s": 0.001416,
+    "sigma_N_m": 0.011,
+    "g_m_s2": 9.80665
+  },
+  "top_reservation_mm": [
+    700,
+    1600
+  ],
+  "open_area_fraction": 0.4,
+  "A_m2": 0.3848451000647496,
+  "U_m_s": 0.002758537157299701,
+  "Uj_m_s": 0.006896342893249253,
+  "bulk_root_mm": 1.4553431783600201,
+  "jet_root_mm": 2.3391713819830944,
+  "jet_root_Re": 0.2344226016151315,
+  "model": {
+    "Jj": "A*0.4*alpha*pVlocal(d)*max(Uj-vt(d),0) [m3/s/mm]",
+    "Kj": "0.4*integral pVlocal(d)*max(Uj-vt,0) dd [m/s], full-area referenced",
+    "Kopening": "Kj/0.4 [m/s], opening-area referenced",
+    "pVj": "pVlocal*max(Uj-vt,0)/Kopening [1/mm]",
+    "alpha": "Unknown local opening holdup, uniformly assumed with local DSD across openings. Not actual terminal DSD or selected-trial holdup.",
+    "support": "(0,infinity) local lognormal; gross mean-jet flux only below exact jet root. Numerical z>=-16, extended to -18 checked.",
+    "omitted_Kj_over_U_bound": 6.413519204949397e-58,
+    "classification": "I: vt<U persistent bulk-upflow eligible; II: U<=vt<Uj locally lifted, bulk-settling eligible, NOT automatically returned; III: vt>=Uj not lifted by mean jet. Boundaries have zero measure.",
+    "drag": "Inherited SN isolated spherical immobile-interface model; not validated for actual interacting terminal flow.",
+    "undefined": "At alpha=0 no physical crossing cohort exists. Normalized mathematical kernel requires Kj>0."
+  },
+  "rows": [
+    {
+      "s": 0.35,
+      "muN": 1.496779061486286,
+      "muV": 1.8642790614862859,
+      "K_opening_m_s": 0.0000021200746281062795,
+      "Kj_full_area_m_s": 8.480298512425118e-7,
+      "Kj_over_U": 0.0003074201299041547,
+      "gross_Q_m3_h_per_unit_alpha": 0.001174896478653549,
+      "gross_crossing_volume_fractions": {
+        "I": 0.02221304187674575,
+        "II": 0.9777869583347133,
+        "III": 0
+      },
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "gross_upcrossing_volume_CDF": 4.249484328497827e-10,
+          "survival_above_cutoff": 0.9999999997825798,
+          "local_volume_CDF": 1.3665526778585503e-13
+        },
+        {
+          "cutoff_mm": 1,
+          "gross_upcrossing_volume_CDF": 0.00013513418544262021,
+          "survival_above_cutoff": 0.9998648660245548,
+          "local_volume_CDF": 5.0058443481926115e-8
+        },
+        {
+          "cutoff_mm": 1.455,
+          "gross_upcrossing_volume_CDF": 0.022151527357266856,
+          "survival_above_cutoff": 0.9778484728541904,
+          "local_volume_CDF": 0.00001044935990232596
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "gross_upcrossing_volume_CDF": 0.02221304187674575,
+          "survival_above_cutoff": 0.9777869583347133,
+          "local_volume_CDF": 0.000010480873058377986
+        },
+        {
+          "cutoff_mm": 2.081,
+          "gross_upcrossing_volume_CDF": 0.6442831037962241,
+          "survival_above_cutoff": 0.3557168963629534,
+          "local_volume_CDF": 0.000613220153471714
+        },
+        {
+          "cutoff_mm": 2.3391713819830944,
+          "gross_upcrossing_volume_CDF": 1,
+          "survival_above_cutoff": 0,
+          "local_volume_CDF": 0.0018746367669092996
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 1.6688985959317788
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 2.003588011407739
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 2.2231218145644185
+        }
+      ],
+      "d32_gross_flux_mm": 1.9430889521376402,
+      "earlier_full_bore": {
+        "K_m_s": 3.725489837235409e-9,
+        "K_over_U": 0.0000013505309607220394,
+        "gross_jet_to_full_bore_coefficient_ratio": 227.62908725898262
+      },
+      "illustrative_eventual_scenarios": {
+        "classII_all_return_classI_all_outlet": {
+          "outlet_fraction": 0.02221304187674575,
+          "return_fraction": 0.9777869583347133,
+          "outlet_m3_h_per_unit_alpha": 0.000026098024681172406,
+          "return_m3_h_per_unit_alpha": 0.001148798454220819
+        },
+        "no_return_all_outlet": {
+          "outlet_fraction": 1,
+          "return_fraction": 0,
+          "outlet_m3_h_per_unit_alpha": 0.001174896478653549
+        },
+        "qualification": "Conditional zero-final-inventory illustrations, not predictions or paired rigorous bounds. No-return/all-outlet needs a transport mechanism for class II, not uniform bulk flow."
+      },
+      "checks": {
+        "coarse_refined_relative_error": 3.350323685147316e-9,
+        "main_refined_relative_error": 1.9708401577389623e-10,
+        "support_CDF_flux_balance_units_refinement": "PASS"
+      }
+    },
+    {
+      "s": 0.44,
+      "muN": 1.3190290614862858,
+      "muV": 1.8998290614862858,
+      "K_opening_m_s": 0.000013030747958570384,
+      "Kj_full_area_m_s": 0.000005212299183428154,
+      "Kj_over_U": 0.0018895156694319862,
+      "gross_Q_m3_h_per_unit_alpha": 0.007221340082929754,
+      "gross_crossing_volume_fractions": {
+        "I": 0.09435539707854146,
+        "II": 0.9056446030629929,
+        "III": 0
+      },
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "gross_upcrossing_volume_CDF": 9.60532943520372e-7,
+          "survival_above_cutoff": 0.9999990396069371,
+          "local_volume_CDF": 1.894765188939972e-9
+        },
+        {
+          "cutoff_mm": 1,
+          "gross_upcrossing_volume_CDF": 0.0034985826363384508,
+          "survival_above_cutoff": 0.9965014175044078,
+          "local_volume_CDF": 0.000007879844824006107
+        },
+        {
+          "cutoff_mm": 1.455,
+          "gross_upcrossing_volume_CDF": 0.09418772833891309,
+          "survival_above_cutoff": 0.9058122718026241,
+          "local_volume_CDF": 0.00026461619400341415
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "gross_upcrossing_volume_CDF": 0.09435539707854146,
+          "survival_above_cutoff": 0.9056446030629929,
+          "local_volume_CDF": 0.00026514413397992826
+        },
+        {
+          "cutoff_mm": 2.081,
+          "gross_upcrossing_volume_CDF": 0.779586578541062,
+          "survival_above_cutoff": 0.22041342154131083,
+          "local_volume_CDF": 0.003998121058822493
+        },
+        {
+          "cutoff_mm": 2.3391713819830944,
+          "gross_upcrossing_volume_CDF": 1,
+          "survival_above_cutoff": 0,
+          "local_volume_CDF": 0.008506259657942076
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 1.4666426284742315
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.8840629228344226
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 2.177509150209105
+        }
+      ],
+      "d32_gross_flux_mm": 1.800850340661081,
+      "earlier_full_bore": {
+        "K_m_s": 1.3240647942577836e-7,
+        "K_over_U": 0.000047998802218560464,
+        "gross_jet_to_full_bore_coefficient_ratio": 39.36589210764384
+      },
+      "illustrative_eventual_scenarios": {
+        "classII_all_return_classI_all_outlet": {
+          "outlet_fraction": 0.09435539707854146,
+          "return_fraction": 0.9056446030629929,
+          "outlet_m3_h_per_unit_alpha": 0.0006813724109640244,
+          "return_m3_h_per_unit_alpha": 0.006539967672987797
+        },
+        "no_return_all_outlet": {
+          "outlet_fraction": 1,
+          "return_fraction": 0,
+          "outlet_m3_h_per_unit_alpha": 0.007221340082929754
+        },
+        "qualification": "Conditional zero-final-inventory illustrations, not predictions or paired rigorous bounds. No-return/all-outlet needs a transport mechanism for class II, not uniform bulk flow."
+      },
+      "checks": {
+        "coarse_refined_relative_error": 2.239165075579308e-9,
+        "main_refined_relative_error": 1.317179698645532e-10,
+        "support_CDF_flux_balance_units_refinement": "PASS"
+      }
+    },
+    {
+      "s": 0.7,
+      "muN": 0.578029061486286,
+      "muV": 2.048029061486286,
+      "K_opening_m_s": 0.00010926142496678605,
+      "Kj_full_area_m_s": 0.00004370456998671442,
+      "Kj_over_U": 0.015843386365509863,
+      "gross_Q_m3_h_per_unit_alpha": 0.06055016259536627,
+      "gross_crossing_volume_fractions": {
+        "I": 0.38742565823743563,
+        "II": 0.6125743418393661,
+        "III": 0
+      },
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "gross_upcrossing_volume_CDF": 0.002738434924196256,
+          "survival_above_cutoff": 0.9972615651626439,
+          "local_volume_CDF": 0.000045021457878032644
+        },
+        {
+          "cutoff_mm": 1,
+          "gross_upcrossing_volume_CDF": 0.09373675439070574,
+          "survival_above_cutoff": 0.9062632456966717,
+          "local_volume_CDF": 0.0017181027371592661
+        },
+        {
+          "cutoff_mm": 1.455,
+          "gross_upcrossing_volume_CDF": 0.38713286467899816,
+          "survival_above_cutoff": 0.6128671353978192,
+          "local_volume_CDF": 0.008423427502450339
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "gross_upcrossing_volume_CDF": 0.38742565823743563,
+          "survival_above_cutoff": 0.6125743418393661,
+          "local_volume_CDF": 0.008431157715626867
+        },
+        {
+          "cutoff_mm": 2.081,
+          "gross_upcrossing_volume_CDF": 0.9171220473314772,
+          "survival_above_cutoff": 0.08287795269660563,
+          "local_volume_CDF": 0.030133902072507723
+        },
+        {
+          "cutoff_mm": 2.3391713819830944,
+          "gross_upcrossing_volume_CDF": 1,
+          "survival_above_cutoff": 0,
+          "local_volume_CDF": 0.04347041298403944
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 1.0152323517051902
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.5821970135078112
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 2.0531319691466274
+        }
+      ],
+      "d32_gross_flux_mm": 1.4323331222624407,
+      "earlier_full_bore": {
+        "K_m_s": 0.000007444186731301113,
+        "K_over_U": 0.0026985994049788828,
+        "gross_jet_to_full_bore_coefficient_ratio": 5.870966374734616
+      },
+      "illustrative_eventual_scenarios": {
+        "classII_all_return_classI_all_outlet": {
+          "outlet_fraction": 0.38742565823743563,
+          "return_fraction": 0.6125743418393661,
+          "outlet_m3_h_per_unit_alpha": 0.02345868659989353,
+          "return_m3_h_per_unit_alpha": 0.037091476000123094
+        },
+        "no_return_all_outlet": {
+          "outlet_fraction": 1,
+          "return_fraction": 0,
+          "outlet_m3_h_per_unit_alpha": 0.06055016259536627
+        },
+        "qualification": "Conditional zero-final-inventory illustrations, not predictions or paired rigorous bounds. No-return/all-outlet needs a transport mechanism for class II, not uniform bulk flow."
+      },
+      "checks": {
+        "coarse_refined_relative_error": 1.3814944743728574e-9,
+        "main_refined_relative_error": 8.126455064427773e-11,
+        "support_CDF_flux_balance_units_refinement": "PASS"
+      }
+    },
+    {
+      "s": 1,
+      "muN": -0.6969709385137142,
+      "muV": 2.303029061486286,
+      "K_opening_m_s": 0.00024107230787522542,
+      "Kj_full_area_m_s": 0.00009642892315009018,
+      "Kj_over_U": 0.03495654314277328,
+      "gross_Q_m3_h_per_unit_alpha": 0.133596714883797,
+      "gross_crossing_volume_fractions": {
+        "I": 0.5982635519298084,
+        "II": 0.40173644814012127,
+        "III": 0
+      },
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "gross_upcrossing_volume_CDF": 0.03791294268881745,
+          "survival_above_cutoff": 0.9620870574053921,
+          "local_volume_CDF": 0.0013669418762812002
+        },
+        {
+          "cutoff_mm": 1,
+          "gross_upcrossing_volume_CDF": 0.27019759524946807,
+          "survival_above_cutoff": 0.7298024048398511,
+          "local_volume_CDF": 0.010638604012970537
+        },
+        {
+          "cutoff_mm": 1.455,
+          "gross_upcrossing_volume_CDF": 0.5980117213686573,
+          "survival_above_cutoff": 0.40198827870129156,
+          "local_volume_CDF": 0.026926122702004354
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "gross_upcrossing_volume_CDF": 0.5982635519298084,
+          "survival_above_cutoff": 0.40173644814012127,
+          "local_volume_CDF": 0.02694079232144349
+        },
+        {
+          "cutoff_mm": 2.081,
+          "gross_upcrossing_volume_CDF": 0.9571828148776904,
+          "survival_above_cutoff": 0.04281718514488378,
+          "local_volume_CDF": 0.058186560760273155
+        },
+        {
+          "cutoff_mm": 2.3391713819830944,
+          "gross_upcrossing_volume_CDF": 1,
+          "survival_above_cutoff": 0,
+          "local_volume_CDF": 0.073079632751586
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.6872022281615292
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.322843354792144
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.9359238903171483
+        }
+      ],
+      "d32_gross_flux_mm": 1.0997857293148745,
+      "earlier_full_bore": {
+        "K_m_s": 0.00003274901018265417,
+        "K_over_U": 0.011871875677292592,
+        "gross_jet_to_full_bore_coefficient_ratio": 2.9444835923976926
+      },
+      "illustrative_eventual_scenarios": {
+        "classII_all_return_classI_all_outlet": {
+          "outlet_fraction": 0.5982635519298084,
+          "return_fraction": 0.40173644814012127,
+          "outlet_m3_h_per_unit_alpha": 0.07992604517253431,
+          "return_m3_h_per_unit_alpha": 0.05367066972060509
+        },
+        "no_return_all_outlet": {
+          "outlet_fraction": 1,
+          "return_fraction": 0,
+          "outlet_m3_h_per_unit_alpha": 0.133596714883797
+        },
+        "qualification": "Conditional zero-final-inventory illustrations, not predictions or paired rigorous bounds. No-return/all-outlet needs a transport mechanism for class II, not uniform bulk flow."
+      },
+      "checks": {
+        "coarse_refined_relative_error": 1.4870535913757976e-9,
+        "main_refined_relative_error": 8.747402802100623e-11,
+        "support_CDF_flux_balance_units_refinement": "PASS"
+      }
+    }
+  ],
+  "ledger": {
+    "status": "Conserving architecture ready for closures; not a calibrated solver",
+    "rate_units": "m3/s of tagged dispersed NMP at fixed reference density; I is m3, dI/dt is m3/s",
+    "opening": "Qgross = A*alpha*Kj = Qfirst + Qreup; gross crossing events need not be unique supplied volume",
+    "jet_zone": "dIjet/dt = Qgross - Rjet - Tjq + Tqj",
+    "quiet_and_withdrawal_zone": "dIquiet/dt = Tjq - Tqj - Rquiet - Qout",
+    "total": "d(Ijet+Iquiet)/dt = Qfirst + Qreup - Rjet - Rquiet - Qout",
+    "definitions": "Rjet and Rquiet are actual downward fluxes across the external lower return boundary, distinguished by route; Tjq/Tqj are internal jet/quiet exchanges, which cancel. Return-path inventory is included in its originating zone until boundary crossing. Qout is actual raffinate interception, not arrival at a whole-plane proxy.",
+    "unique_pulse_absorbing_return": "V0 = Vreturned_jet(t)+Vreturned_quiet(t)+Vout(t)+Ijet(t)+Iquiet(t), initially zero downstream inventory; stop each tag at its first external exit. For re-entry track the same tag, not a new cohort.",
+    "optional_conditional": "For noninteracting unchanged-diameter tags, rI,rII are probabilities of irreversible jet return. Given no jet return, qk,ok,ik are quiet-return, outlet and residual-inventory fractions with qk+ok+ik=1. Rjet/V0=sum wk*rk; Rquiet/V0=sum wk*(1-rk)*qk; Vout/V0=sum wk*(1-rk)*ok; I/V0=sum wk*(1-rk)*ik. No probabilities or rates assigned.",
+    "survival": "Sk(t)=1-FjetReturn,k(t)-FquietReturn,k(t)-Fout,k(t) for mutually exclusive absorbing first exits. Survival includes trapped and transiting volume, not removal.",
+    "transformations": "Coalescence/breakup require volume-conserving size-transition operators and tagged-volume mixing, not disappearance sinks. Initial class labels track origin, not current size.",
+    "separate_sources": "Fresh distributor NMP has a separate ledger/source Ffresh and its own DSD; do not use the fresh feed rate as Qfirst, Qgross or alpha. Dissolved NMP requires separate species/phase-transfer balances.",
+    "turbulence": "Actual gross flux is integral over opening area of E[alpha(d,x,t)*max(uz-vt,0)] dd dA, with matching downward crossings. Mean positive-part replacement omits velocity/concentration correlations and recrossings; do not add an invented turbulence factor."
+  },
+  "sourceSha256": {
+    "deliverables/kuhni-upward-transport-dsd.mjs": "9eb5dfa276d69e3b4348378b2b8f7efe9939f2423c81875ae7313be73804f048",
+    "deliverables/kuhni-upward-transport-dsd.json": "e49382aa51dc1017603a53fae875f636854a1acd491a3b2db8c3ad1540d3935a",
+    "deliverables/kuhni-outlet-transmission.md": "57b5dbbfc597c4dd30a04f6d403f0829985e297cac224d79e65b1960ba442394",
+    "deliverables/kuhni-end-section-preliminary-calculation.input.json": "3e65f398cfd714f599ab7fcb420e07c4a4d3c6637053a71498567099413536d2"
+  },
+  "checks": {
+    "protected_files_unchanged": 359,
+    "protected_sha256": {
+      "deliverables/approved-stage5-internals/compartment.svg": "3590ecabb29812a7a04333ebcc51364a86d9cec765c48ca78ab0db494304cbbf",
+      "deliverables/approved-stage5-internals/ga.svg": "fd8baba9025fb497f3025fdadb2269262cea481fbb41c1618f4675424654d8dc",
+      "deliverables/approved-stage5-internals/preservation.json": "cf29b44cce671ee5dcd03f2ee055877fbc4aceebf0e7505c71a2aae685c08969",
+      "deliverables/approved-stage5-internals/rotor.svg": "55b90ba65668793cd4a4307c9e77fc2f12577fb7c7aeb70aa1619c1feb715eef",
+      "deliverables/approved-stage5-internals/section.svg": "03414ebfeb51a94f299bb50ad20707a650e91a6191301bf21e95c1cfb9ecd06e",
+      "deliverables/approved-stage5-internals/stage5-r3-design-data.pdf": "f20f122140c0d97bfefa97a7da00acb1d70dae903906b74220dc35f6ef332be1",
+      "deliverables/approved-stage5-internals/stage5-r3-drawings.pdf": "8e8261ed0ddc0be5855f49e754012564e95dac7ebf62dcf8ef5596fc3d131007",
+      "deliverables/approved-stage5-internals/stage5-r5-design-data.pdf": "af2645655e4f2ec5776d57c1c993a41dba9f61c2e8f24844e876b021d949aad8",
+      "deliverables/approved-stage5-internals/stage5-r5-drawings.pdf": "2f419cecb5fb5d37dca3e822fd48a8b4810510ffff6c126ed2dbe52966f5156b",
+      "deliverables/approved-stage5-internals/stator.svg": "40a82c6684be9394caccd731dd1192a407ea55093071cd496b0c5a9ad689be72",
+      "deliverables/disengagement-assessment/assessment.json": "4ce8c767e7d50d8fae44cb863a79c3dd297f2cf606e1585d50a5eed0d89b2871",
+      "deliverables/disengagement-assessment/report.html": "efac6b82f3986dce12badd5e3d4aba6a5e8af6e3d2917436b4fbba854fce4c73",
+      "deliverables/disengager-drag-calculations.md": "52a061ecebc348d59e133d4e126c3a474309b025b280c4253cf0512aabfe54c2",
+      "deliverables/disengager-drag-comparison.ts": "5f8efc0a9da09c0cab1b02fe4d96cc49ceea9db211b0d9d50192eecd2d895827",
+      "deliverables/disengager-drag-evidence.md": "2dd4f6daeed609685b9727e24079b263e1854f1b2ef3eb649e1d730638746009",
+      "deliverables/disengager-drag-myint-2006.pdf": "8986cba980b1db3590a48c5b608efb3a0ce71b0f0b9094d9c92e289a52f66b85",
+      "deliverables/disengager-drag-myint-2006.txt": "511b6dcdfe83a48698999536301b3f94a02825824ff3da30832fd91aafd24fdf",
+      "deliverables/disengager-drag-results.json": "1974671d608d21f5a37642d249d4a7a7db3e9f63fc1836d671f5e0cd9f454729",
+      "deliverables/disengager-input-audit.md": "d5af8b9e9d7ce6052a093b0dd4e7f15ba2c2cdd55046f05b16deae63655bb302",
+      "deliverables/disengager-input-audit.ts": "ec9e839a7dd40c986cab19b9540dbe9b1ce3c5194b04fc76f68835e2f0d44b88",
+      "deliverables/disengager-investigation-literature.md": "7ea9881f7fd6501ab4c2d18246c21a4ff73ba23ee15cb49b4a9d1cad619eb8f0",
+      "deliverables/disengager-preliminary-proposal-diagram-qa.png": "be0f521d39530cf244348566a40380c611fe25bdf2624b37325fda4eca1c0f6a",
+      "deliverables/disengager-preliminary-proposal-pdf-qa.png": "55a230dd225dfabefacae5f8069a6d457632ff21df4bfd99084bccd278b3bb6b",
+      "deliverables/disengager-preliminary-proposal-qa.png": "7cd00af0a82cfe55312705cd00368ba30f528db8049cf25a5404851add42ee8c",
+      "deliverables/disengager-preliminary-proposal.html": "ccee4896c2f010e0497fd831fb85b54b920c2b0eb9f4798ee5f70af91916442c",
+      "deliverables/disengager-preliminary-proposal.mjs": "5f53947379c9c5d2924762fb7f18bc1571d1cb77a01da6f7169411c2c249ca7d",
+      "deliverables/disengager-preliminary-proposal.pdf": "18a3c0cc715ac7e3cc379b2ae4c40e82153b70c6cdb5b68dd792a6d27ccdda62",
+      "deliverables/disengager-preliminary-proposal.results.json": "6c839099d9fe7999d0dd45ba6a4091fcca565a2201c1172fcbcc509d39517ff6",
+      "deliverables/ecr-assembly-reconciliation/application-files-after.sha256": "3bf5edf167fb4ea2c60d348b78e65855dc1455d92a734b0c3045d8b943388c29",
+      "deliverables/ecr-assembly-reconciliation/application-files-before.sha256": "3bf5edf167fb4ea2c60d348b78e65855dc1455d92a734b0c3045d8b943388c29",
+      "deliverables/ecr-assembly-reconciliation/approved-component-manifest.json": "a957da5e22ee44b80193348aed5f3025f85757a7142188eb77a607631b32ba22",
+      "deliverables/ecr-assembly-reconciliation/approved-component-manifest.sha256": "5e838df20fb8b942f924fd4adb1debaab4b26cfe4451b04e8d31030a3408d314",
+      "deliverables/ecr-assembly-reconciliation/assembly-reconciliation.json": "f93b3d6254204982bff2fe0b363d463271a68a7dc6b3406073d17b6aeaf70e04",
+      "deliverables/ecr-assembly-reconciliation/build-report.mjs": "ec929fe5835374a55cb25d5ced3fea768ac61aa440d9b385a762bc7ea0dc57ce",
+      "deliverables/ecr-assembly-reconciliation/column-review.svg": "d27eebc6a1510c8cffe1a7b961539723d25e488e11735f8c2c6e9beca8c52b6b",
+      "deliverables/ecr-assembly-reconciliation/end-zones-review.svg": "0333abc9db242bc51fce6698a5b3fe99d76a6f576ad70e14face5bd23fa7e7f0",
+      "deliverables/ecr-assembly-reconciliation/inspect-report.py": "9cd34d596b8e57c7b7fe6a06336a6e7871f3ba1bf8513aac54f1c5d5432d755e",
+      "deliverables/ecr-assembly-reconciliation/inspection.json": "7909d6d802767efabe5d36ff5390d82f4fcc74f4ba6a46a88d776249aa4543c0",
+      "deliverables/ecr-assembly-reconciliation/preservation-verification.json": "caced2a38bbbf631e47a10c6189a046653a3103fb0dc96f11e566bf8b24e027e",
+      "deliverables/ecr-assembly-reconciliation/read-evidence.ts": "8a8a95895c27f6bdd4fc4db5604364ba31c78a0e0a76ff95312c9941e6fd7d8a",
+      "deliverables/ecr-assembly-reconciliation/reconcile.mjs": "4f37090b27c6017a00da98078130f7445b398abfed3362c53fbd0baefdc4bae9",
+      "deliverables/ecr-assembly-reconciliation/report-text.txt": "50b8116f1afee73b634fc865950750073ecdf44e3ee1fd22f024f8704aefe9ea",
+      "deliverables/ecr-assembly-reconciliation/review-page-1.png": "4034ec4c476650c8a506355a49b29d238f385a768dec9edfbf607772150baff3",
+      "deliverables/ecr-assembly-reconciliation/review-page-10.png": "16fd239efca6aad8ddfde7d0cf99202af9083f0c2f8360dd69e7a7c3c195fcd0",
+      "deliverables/ecr-assembly-reconciliation/review-page-11.png": "16cf68eea555f9c2ead490ca0a01581e62b62b5e5f4bb68850924201909d8924",
+      "deliverables/ecr-assembly-reconciliation/review-page-12.png": "2261e32cd0f56a99363aa0daa15c07800b55aa120f0b9cc3525c15c1ac97a24b",
+      "deliverables/ecr-assembly-reconciliation/review-page-15.png": "ae993db237b501894e9debbe656a4ebc0bbeac76f80764a59060b5f80b7a4f05",
+      "deliverables/ecr-assembly-reconciliation/review-page-16.png": "17690a19a6d709be4c86c0c63d1c02d79772224c55aa6c1e3d1d4c5f43c217d4",
+      "deliverables/ecr-assembly-reconciliation/review-page-17.png": "e662a2667890564c56f6b5d4797767f04e3b09a263f47f6fbedba771909319dc",
+      "deliverables/ecr-assembly-reconciliation/review-page-5.png": "e3ddb4df4659a72dfe197605a74a9f5303919afc732cb657230c31729be2032c",
+      "deliverables/ecr-assembly-reconciliation/review-page-6.png": "4a1824d896374deb245b11021604372812354bf8db24c3778351668af6959b0a",
+      "deliverables/ecr-assembly-reconciliation/review-page-8.png": "8dbc020baca0e00d20902896ec0289e6af0bb08081da90dcda97c5ec2a25b344",
+      "deliverables/ecr-assembly-reconciliation/saved-evidence-after.json": "66e8e5d790c9ef70a1e464f9fc54054d1a1a8918709b2870cfbd15161a0ce7d6",
+      "deliverables/ecr-assembly-reconciliation/saved-evidence.json": "66e8e5d790c9ef70a1e464f9fc54054d1a1a8918709b2870cfbd15161a0ce7d6",
+      "deliverables/ecr-assembly-reconciliation/support-interface-review.svg": "da70027dcf184ad9d8c42f492bdad04f74def612587090eb45b74fccefee8ce3",
+      "deliverables/ecr-assembly-reconciliation/top-interface-review.svg": "540809b415f101d621556272c1df406250bf37ef71d95b0fa81e42918e2248ca",
+      "deliverables/ecr-assembly-reconciliation/whole-column-reconciliation.html": "9199f6b2daa8dc4a0d4fef84a8933a010aa0b23b03fcdc3329f516ac8a130467",
+      "deliverables/ecr-assembly-reconciliation/whole-column-reconciliation.pdf": "bd8e2fa6252b78debda864c2ebc77f1971bee10fd21bf4e6b5e4dd1da97ec243",
+      "deliverables/ecr-final-closure/build-closure.mjs": "06a07c0fd12b180e4850e18f29112e19bb44f7851d9203bed11397297c214642",
+      "deliverables/ecr-final-closure/closure-calculations.json": "8eaf6ee2f5505bb1c4baafd2b0d924beda1c2d72ed50c116d2a8cb2dd01e412d",
+      "deliverables/ecr-final-closure/compartment-review.svg": "162c182551c26447fe15cab24c355054928ca4c8399c710f53d83e9ecbdf04bf",
+      "deliverables/ecr-final-closure/final-engineering-closure.html": "8ecd32666273756b2965f6e613e4a28a0c56141e5c2ea97879e118aa241c5756",
+      "deliverables/ecr-final-closure/final-engineering-closure.pdf": "6dbd1f53256262c74c5ac9b2211d28f92c3e1f1643f56ee0ffe44fdb98db8b6d",
+      "deliverables/ecr-final-closure/final-engineering-closure.txt": "fbb28358314de868a9be70e3eac36b4052e6742f10f9bec0aa44533d681451e9",
+      "deliverables/ecr-final-closure/flow-path-review.svg": "01c022fcd059f14e69640d2a289c4671de9bcc1c84129f66df5013c75f5d9ed0",
+      "deliverables/ecr-final-closure/inspect-closure.py": "1c48c422ff3f841fe61103b9109a711df899fc42390455c12ee9643b79ea83ac",
+      "deliverables/ecr-final-closure/review-page-1.png": "7e3f6744ed26d560e5a9b79e999534832c531812c95e010918efe8c69edc3fff",
+      "deliverables/ecr-final-closure/review-page-11.png": "ac00aac1c3ed0b44324eab3cc098ddc10b00a58904e8c8346472d6e71a8ab17b",
+      "deliverables/ecr-final-closure/review-page-12.png": "d1457afdf959c6c57daa3fac4d9af589a58ffcef9e0a842ef7afa4f6534c526d",
+      "deliverables/ecr-final-closure/review-page-13.png": "ae6f0e9d486327202badb68dd38e57a2abe1e8e0c41ed3dd894539130568c91b",
+      "deliverables/ecr-final-closure/review-page-14.png": "b253e4812cd09064e2a61c12e45af3e977cb80c1c5a66f74a5044bd5ff0c89f6",
+      "deliverables/ecr-final-closure/review-page-21.png": "a3549a3bcd6533977b70fcacbd4787f9b1688f811b45dc728eca9753bcc8e41d",
+      "deliverables/ecr-final-closure/review-page-7.png": "b1ee484d6554ea3787d9d6849e56c0341dacc2450f2366867253dd93f794e663",
+      "deliverables/ecr-final-closure/stator-review.svg": "70dd47416b5a8cd9aa1d5f14a194f0ed49ad2cd11ac34320d6f8abd60b65dade",
+      "deliverables/ecr-final-closure/turbine-review.svg": "2f660aa230a8661a2852b6b4a85830e4bac8c16e770f81536bab844e3ed472e1",
+      "deliverables/ecr-final-closure/verification.json": "f237ab71734e18fcfb831944ec0f123866047889093c05eb9a003056c853122c",
+      "deliverables/kuhni-dsd-moment-analysis.json": "05fdfd81bf631523739293adceaccf25c5d1f58ca9098cd9b90fa42fcd4ffa71",
+      "deliverables/kuhni-dsd-moment-analysis.md": "71926b735a6c30164bb3f2477fdef05868b038ea64d7b022df6e4cdc8384c07f",
+      "deliverables/kuhni-dsd-moment-analysis.mjs": "403a254f53ee2954b38242571ea81c431b64f61d435bfc2ec01458fad135ef9b",
+      "deliverables/kuhni-end-section-preliminary-calculation.html": "2bf6ae2fbb45f196813ad0fff3358eee4e9614af0640fccc5c46b74b16158f92",
+      "deliverables/kuhni-end-section-preliminary-calculation.input.json": "3e65f398cfd714f599ab7fcb420e07c4a4d3c6637053a71498567099413536d2",
+      "deliverables/kuhni-end-section-preliminary-calculation.md": "c89b9d26820532acc1bf5a8b3f19c801c85bc8e5188476dd7e17960cb82191fd",
+      "deliverables/kuhni-end-section-preliminary-calculation.results.json": "8984c7352a2ac168ce2f0ac8895c8e095217eff615fe5a5c97c6850943d23789",
+      "deliverables/kuhni-end-section-preliminary-calculation.ts": "915dbcb1ee2b7a813ace8a76c8f003af8987d8f75cc62314ee1403da02c1e894",
+      "deliverables/kuhni-outlet-dsd-literature.md": "3dfb037b785048007f3236d5785772408a2d381d9cea0861d033e1fed956898e",
+      "deliverables/kuhni-outlet-dsd-sources/asadollahzadeh-2017-preview.txt": "a0dcdbae055d34629303f890460f92a701cae1bfa7ebd4c2c52683038d6c84bd",
+      "deliverables/kuhni-outlet-dsd-sources/conditional-tail-results.json": "7c125ce1dbfce1972fe4bfbb4ba43e5cca1ddae941d55dc90edb318b0b330aa1",
+      "deliverables/kuhni-outlet-dsd-sources/final-search-record.json": "22cae4260e0bc65b76b1edd08176fca98476c6b6a8dc7d1f1bee5532c09bae76",
+      "deliverables/kuhni-outlet-dsd-sources/garthe-2006-existing-pdf-extraction.txt": "8803889ae9933d2859d663f83c2beca8518de1d347e89289974a2ec66344a8ed",
+      "deliverables/kuhni-outlet-dsd-sources/garthe-repository-record.txt": "e8ab09dd47d29fca06e1d395987130ed75d9294eb5e5294f59abd9f37e79391c",
+      "deliverables/kuhni-outlet-dsd-sources/gomes-2009-abstract.txt": "f67a55cf05e8d9f613f8fe6d32d814fab93f63612719fff09f246fdbf24e8216",
+      "deliverables/kuhni-outlet-dsd-sources/oliveira-2008-existing-pdf-extraction.txt": "b49f6c010eb27031ef33e5067fafb0a42edbe79bb41866647da7afc0cc5bb5a9",
+      "deliverables/kuhni-outlet-dsd-sources/oliveira-2008-html-webfetch.txt": "70e8ec8f9838f4c46d125c3daae35e49259aff089649be1039236bc90e3d2bac",
+      "deliverables/kuhni-outlet-dsd-sources/oliveira-2008-webfetch.txt": "4a80942afb13f7b7cdd4ada9c97a199413684dab11404cf7b95720735e03063b",
+      "deliverables/kuhni-outlet-dsd-sources/oliveira-download-access-response.html": "11fc8fe9394196f167142b35d148479d1bf56a70077aa9887a5b334e39abc028",
+      "deliverables/kuhni-outlet-dsd-sources/oliveira-equation2.gif": "922c31c295951e5e34241806eb0cc3b6bbff852b9417314d6b1bc0f4a0e3183e",
+      "deliverables/kuhni-outlet-dsd-sources/oliveira-equations4-5.gif": "19d9326aab17af0a446d6a251e16b181502d9fe1bf7857d058114a854392cfbe",
+      "deliverables/kuhni-outlet-dsd-sources/search-record.json": "d57e0423a7b317b5e4de264cb9b19ccea102c15ad0e042acb7a0b96f07bb33bd",
+      "deliverables/kuhni-outlet-dsd-sources/shirvani-2016-existing-pdf-extraction.txt": "2a2fbb1fa0f6fc518e502f34ea933a98c0a542082829fdea65b71b101a3f3dc8",
+      "deliverables/kuhni-outlet-transmission.json": "5719c2cb47292b35d0918d9fc773e29f28640389ae39d31c4197b048a479f691",
+      "deliverables/kuhni-outlet-transmission.md": "57b5dbbfc597c4dd30a04f6d403f0829985e297cac224d79e65b1960ba442394",
+      "deliverables/kuhni-outlet-transmission.mjs": "fa8bc7de64b2979abe43d7503ba41f68369869eb732af32838ae294393c98c58",
+      "deliverables/kuhni-successor-review/audit-read.ts": "93f96e7cde4e4a113d56e71cbd4f8a6ce6940ead0edf86f6d34760e8da4690ac",
+      "deliverables/kuhni-successor-review/audit-replay.ts": "2fa16ec9176be6b669787e772801f45ccd87b97026108c4e3ee5cb8fc7f709ad",
+      "deliverables/kuhni-successor-review/build-report.mjs": "5c72959148b2cbb32f8033bf35794ac43fcd0df13091c6020c853c5a6d06532d",
+      "deliverables/kuhni-successor-review/engineering-review-report.html": "e018605661d3ab936cdf95828e97aaa102fab540266bdf81bf15ad770a5b2f4f",
+      "deliverables/kuhni-successor-review/engineering-review-report.pdf": "68c0acdecf873575ce1c6134e0c5e6cc94eb39e8fdd78646b9d9eeefaea443d6",
+      "deliverables/kuhni-successor-review/engineering-review-report.txt": "86c688738a9b34835f3e7b8b263b71e0762c14a3305452567fe6ca338efb243a",
+      "deliverables/kuhni-successor-review/geometry-proposal.json": "90ce3f0e163ef0f62fade159a8261a5262d492ceafb520f45a6ed264f73a8bcd",
+      "deliverables/kuhni-successor-review/geometry-proposal.md": "9e86fc78c53b32cd9255b52098354c3642f9486c63dbcb0c01e3fa8db7b681fb",
+      "deliverables/kuhni-successor-review/geometry-proposal.mjs": "7906aa4fc41c01c0405e67088da09999b6e0c754a8835ec85d3325a5161f7816",
+      "deliverables/kuhni-successor-review/inspect-report.py": "e820950c040fb7efbc02b752fe3003cb35b8aa7efffd2ce8a8aefdcaac906266",
+      "deliverables/kuhni-successor-review/proposed-compartment.svg": "87a3d66418753929c10370dd7a18b9f28bf9ffe986fcf61e7882f73962ccbef6",
+      "deliverables/kuhni-successor-review/proposed-stator.svg": "70dd47416b5a8cd9aa1d5f14a194f0ed49ad2cd11ac34320d6f8abd60b65dade",
+      "deliverables/kuhni-successor-review/proposed-turbine.svg": "2f660aa230a8661a2852b6b4a85830e4bac8c16e770f81536bab844e3ed472e1",
+      "deliverables/kuhni-successor-review/ranking-evidence.json": "90e64389db04b75564be25756c163dba8380387ae91de7db18bc7f7bcaaf54c4",
+      "deliverables/kuhni-successor-review/render-sources.py": "96b09532860b7cfbba108b13465d7796bb69632f5703004ce63de84c759182be",
+      "deliverables/kuhni-successor-review/review-page-1.png": "31da21367bd6f0e9e127d8724a9a1bcb832365c44f85ff4cfecbe31529f02750",
+      "deliverables/kuhni-successor-review/review-page-12.png": "255cb6587ba2de01c35488a26a23faa5b087a091182e165049ad0bfdb5076852",
+      "deliverables/kuhni-successor-review/review-page-17.png": "038cd315fe95155a8e5547bc969bc409e92d2bd3effa2fcf7847f109d649d399",
+      "deliverables/kuhni-successor-review/review-page-2.png": "0fcdf3b0601881f99a7ed3672327476a7a793a2fd900010e3fbafda71516823e",
+      "deliverables/kuhni-successor-review/review-page-20.png": "2fd70e2b4dee67f1b071599c7442d89841a407468ba04bff8d2bff8e457ec6c3",
+      "deliverables/kuhni-successor-review/review-page-21.png": "c9727def95b0326c9e8ac67e723216fb7828b41418c85a5b83f65d6df5ff97e8",
+      "deliverables/kuhni-successor-review/review-page-22.png": "74254600318254742509c953098f4dfbe495411f72c1b8e71ae6d30baed7da3c",
+      "deliverables/kuhni-successor-review/review-page-28.png": "d42d689b256fd76287baf340dce2c9c1bacf7b1374696cfbc695d8bfed0ed47d",
+      "deliverables/kuhni-successor-review/saved-evidence.json": "a20f1b5039e3b9f56c99dd8964f126e39c5ee5e9b4ce184910e947785f9e7fc8",
+      "deliverables/kuhni-successor-review/source-review.md": "1f11b0af88bd861660022729b6079f45f461241ae1dcdda7735bdd5fd8963b6c",
+      "deliverables/kuhni-successor-review/sources/asadollahzadeh-pdf-page-1.png": "df7b9f1df72bcc2fb685b85c5d99bdfde0827c5d290241f5fd1f8dcc2306470f",
+      "deliverables/kuhni-successor-review/sources/asadollahzadeh-pdf-page-1.txt": "927ad32e9126360c6e97b926e4fec0d2dcbc9a1a654113a42ca69176d5f19557",
+      "deliverables/kuhni-successor-review/sources/asadollahzadeh-pdf-page-2.png": "2642af46208f0769e0a5e1664d62777ff06c1a0a47e86d2c929304d90b71653d",
+      "deliverables/kuhni-successor-review/sources/asadollahzadeh-pdf-page-2.txt": "9349e3f4f122824448fc42679aa6ea0d0e9c44bf82b24103b9ab75de24436bb2",
+      "deliverables/kuhni-successor-review/sources/asadollahzadeh-pdf-page-3.png": "f0e69bd0b772ccfa4f86ac79b3e92271322f358c02a91375679a4ee87d9caa3f",
+      "deliverables/kuhni-successor-review/sources/asadollahzadeh-pdf-page-3.txt": "84f5838e4432ddf59213dad23077f6f7b6051e1cabe17965f2fb7c98dee4b896",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-189.png": "fbfcbef790e2e82d736558ff27399bc4d249bf400f26a09f37ac5cd3bb340158",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-189.txt": "33f3ba6dda5162c0569e37a747981c2c9b3e92731da0dc98ad232a8d419b5e6d",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-72.png": "7f546d8437062bc16561c826164e9948d124410450ff451884afd88d80ec59bf",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-72.txt": "413c7bc070b0fc6f1243bdd742e4f4a3cfdad2a4c3a0a649489ddec0457a917a",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-73.png": "ba4ff50442b9119da71d2d4176175e42164f5347e2a5ea7f1b77447ac9630d52",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-73.txt": "3713a8dcd5e08504d1bda57557411191b47ed22b929aef8f97a734d5e401c30a",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-74.png": "6e88d553abc5836a36d0bac107370bab2c1a630c97e9b02210e245915f30e12b",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-74.txt": "b9499af30e83684e72747b0f1c8a42db178768da941470891d9a444048038e19",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-75.png": "0499ffbc4d4621d2e3e0ee7bfaed10ab117e2f694391e7b5cf5a80b22c87e366",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-75.txt": "cbf2d4d3ef09663dd43adfcb0af15b57eb4f959482c4b4158df48a6a7655e2f7",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-76.png": "01c11df7b1d6ea466fe39f882b4c3bd1cbb3a4286afae439c3674eaf9a5d2231",
+      "deliverables/kuhni-successor-review/sources/garthe-pdf-page-76.txt": "7f11e408b985f1fd8a52634e0a09e3d5a7b76dcfb3ffd6fcf1a723efe8b908c0",
+      "deliverables/kuhni-successor-review/sources/oliveira-pdf-page-1.png": "82e02ad50e0fc8ea2a17c36c37819009c48e46729738badbc275a66bec3c3284",
+      "deliverables/kuhni-successor-review/sources/oliveira-pdf-page-1.txt": "87af95e3a7d049c3601343df8a03e98b807110b0e7db6d305c29cdab17d1ecde",
+      "deliverables/kuhni-successor-review/sources/oliveira-pdf-page-2.png": "7f3265945e75f41da54a42e9e8ae424161079c082e569c45681cad34522e9c4a",
+      "deliverables/kuhni-successor-review/sources/oliveira-pdf-page-2.txt": "c66e9f7d907505fc4b67d5d8590e91c67079c9301b8f7721ace2127dc2ff4b0b",
+      "deliverables/kuhni-successor-review/sources/oliveira-pdf-page-3.png": "687d9f68b39397a5f3120a332d8f2dffd31543afc4a167821cbb2f78e513811b",
+      "deliverables/kuhni-successor-review/sources/oliveira-pdf-page-3.txt": "c621e0752def5755a1e9185931864a27d7c307719d109c602f8b5327e0a2a4cf",
+      "deliverables/kuhni-successor-review/stage3-audit.md": "8dae72925b0aa760ce5bfcc6c2b7d6f286ed7ccab5ffc1c3fc2fc984a43592f4",
+      "deliverables/kuhni-terminal-coalescence-review.md": "ca9fbc741d1ae4f45e526d043a7d0c6186d3db8765c37d7d7fc73a6ff756ca6b",
+      "deliverables/kuhni-top-dsd-investigation.contact-sheet.png": "90645f724f24533739ff8e6b15497cbdcfd5d3a89bdc1062bd5f5c105d421c79",
+      "deliverables/kuhni-top-dsd-investigation.html": "1aa4c179f8922aac460e4c647589c9c43408fedcb1018a1b9ae20241f93f5da7",
+      "deliverables/kuhni-top-dsd-investigation.mjs": "056795ea962728dc5daeaa958a406832d96f4f83dadfe9c471216a32f6eadc7f",
+      "deliverables/kuhni-top-dsd-investigation.page4-qa.png": "f6bae0c3a7560e630c0d49b9091533b0e36fb5e82a3413b0d7d35b1c7d1cb7ff",
+      "deliverables/kuhni-top-dsd-investigation.page5-qa.png": "3b29d99d6dd22d9fb8e4b469e4a760f37b3e0270c319d9ed2e43dc6a546ff841",
+      "deliverables/kuhni-top-dsd-investigation.page7-qa.png": "6bef22a4b954af780f807e1709e33ac99b266e814b028549fc34a47039734cc1",
+      "deliverables/kuhni-top-dsd-investigation.pdf": "a1288ef8feae4de2061d313ed20130f9cc7c3028d2b5a1c4837cf4c95b3b8182",
+      "deliverables/kuhni-top-dsd-investigation.preview-1.png": "816dc873ebedd0606dc6ce7e7afa0119e15d927a7bdfb2b1d7398d6ee7b19d98",
+      "deliverables/kuhni-top-dsd-investigation.preview-2.png": "dfde4f1d46453576673066fc1697ed47fb5f0e94b5f6ac8ff34ae7c68dac51ba",
+      "deliverables/kuhni-top-dsd-investigation.preview-3.png": "82c27ced0c64766ce9a05e5a7dba4f63c55227c48837bba4898e6b653336bd6f",
+      "deliverables/kuhni-top-dsd-investigation.preview-4.png": "427891bbb492c31db89d9e791906b3dbae5497231792073639344f0e135decc2",
+      "deliverables/kuhni-top-dsd-investigation.preview-5.png": "921f7137999c31d14b4eaf9709d26f2596bb33f5709052c5a34d85f063ecb11f",
+      "deliverables/kuhni-top-dsd-investigation.preview-6.png": "02a003c6eef95f1d66514ab776b3a8ec0202a4021304251e6a59dcc122613148",
+      "deliverables/kuhni-top-dsd-investigation.preview-7.png": "8d28f008c0e30669ed7705a0ed584b5313df1978e6436bdda1efdb9003872903",
+      "deliverables/kuhni-top-dsd-investigation.results.json": "4373cdd03c1e3fc64a188ab21922df94c6f5037967614adfed1bc619cf0cdfc8",
+      "deliverables/kuhni-upward-transport-dsd.json": "e49382aa51dc1017603a53fae875f636854a1acd491a3b2db8c3ad1540d3935a",
+      "deliverables/kuhni-upward-transport-dsd.md": "d725a40352b13a4fa226622712e84f00780bafada5e6b636c2dd9a82f2689722",
+      "deliverables/kuhni-upward-transport-dsd.mjs": "9eb5dfa276d69e3b4348378b2b8f7efe9939f2423c81875ae7313be73804f048",
+      "deliverables/p1-full-30-200-rpm-sweep/common.ts": "20f83973b0bb3f8fe3b26ad6cd07a9f46349f08f77c88076535049d8dbcb2b88",
+      "deliverables/p1-full-30-200-rpm-sweep/comparison-summary.json": "830172663671edfd93f70793d685b675e83ae654ab14349c4a3e6f12a97a7735",
+      "deliverables/p1-full-30-200-rpm-sweep/compute-terminal.json": "9af688226ad07e38aaaf35758facb2f185f0e0de5b09b920679b37908bf8a761",
+      "deliverables/p1-full-30-200-rpm-sweep/diameters.csv": "bec7d8d56b56d7e57360551f5a06db2714c2030ea5a299031bc416006a88b517",
+      "deliverables/p1-full-30-200-rpm-sweep/extract.ts": "d3a870ebb81938625cd523d1832ca2033a49e0db564ccccd707d61cc80e084e9",
+      "deliverables/p1-full-30-200-rpm-sweep/finalize-report.ts": "6d9d3938bb692061c4ee290c9c7bb1c31c3a04f0d0ea898a4eac95ce26c36629",
+      "deliverables/p1-full-30-200-rpm-sweep/full-sweep-csvs.zip": "9e88880150ffe92cebe5cbdbb7a8b8be938527ba9ca263e1500def0788f5e536",
+      "deliverables/p1-full-30-200-rpm-sweep/geometry-rpm-grid.csv": "f55c6435e9986494e9b672ee25cf4575a851f4d8c8ca24c4fef1134916f014a5",
+      "deliverables/p1-full-30-200-rpm-sweep/geometry-windows.csv": "4625818cc1c19d915ad9129a71baca7e44ea39587bf03e1aee377b4bb2029e23",
+      "deliverables/p1-full-30-200-rpm-sweep/hypothetical-selected-result.json": "0cb086e3cba29d70645b7ad8a6a25475012df52fbee65741d28d152197212c64",
+      "deliverables/p1-full-30-200-rpm-sweep/input-manifest.json": "ecc14ef90bcf4b75666ec3d156eafebd28b3e871536f5fb4b030d6b7b7023a93",
+      "deliverables/p1-full-30-200-rpm-sweep/input.json": "1d87dfd0e15e0592b46b67fd9675020e3f745d60061a20f8c0a350769d7f0a96",
+      "deliverables/p1-full-30-200-rpm-sweep/manifest.json": "ee5edb683c09d51599303d58b37584ff9fad71d8996ddcbaf6b27463e6b0d257",
+      "deliverables/p1-full-30-200-rpm-sweep/numerical-differences.csv": "86bd67b026582d6c5d84dc36a836f1f6002272882e65a223590037f012df8dd6",
+      "deliverables/p1-full-30-200-rpm-sweep/progress.jsonl": "18d49723fba0b1378838d0e1681ab1dad58afa26fd00dc8126e2edc8e2cee621",
+      "deliverables/p1-full-30-200-rpm-sweep/report.html": "e3a7ca083aed87d50dfdc093d30e53b78bc5f549a7d0f1c411a81db1c4645a45",
+      "deliverables/p1-full-30-200-rpm-sweep/report.md": "e75e469ea0fecda12999d2f9416def294903aa2b89d9468ca964c4c54b5dd3de",
+      "deliverables/p1-full-30-200-rpm-sweep/report.ts": "b30a6a332ee245738e49de676d0b0e032045b11429626c1c4d963956b1c87c80",
+      "deliverables/p1-full-30-200-rpm-sweep/result.json": "fe523527db2be6d17d1f922f9ad209d207a8c10f81d2e96e28a83536fd56f2fa",
+      "deliverables/p1-full-30-200-rpm-sweep/run-start.json": "f438f66fe06433203a49c07f6f56d3db884278a6f951575b8b2aeb187470cf1d",
+      "deliverables/p1-full-30-200-rpm-sweep/run.ts": "a53b00991ddabc414d62759428e80923072c0799c66eaccfacb6da8f27deacdf",
+      "deliverables/p1-full-30-200-rpm-sweep/saved-comparator.json": "1fd7089039001cc9092456b07c8e8ce13e55be55003f780ebe4a50337af2eadc",
+      "deliverables/p1-full-30-200-rpm-sweep/scenarios.csv": "f984735ed643c573bcd252de2522174c32b3ec873b4f7aa5d39b9902401f7887",
+      "deliverables/p1-full-30-200-rpm-sweep/summary.json": "cda5587a65d3d3f054869159a51c9675b4a03fabba6be3076bb3a8d6a3875157",
+      "deliverables/p1-full-30-200-rpm-sweep/terminal.json": "a7ee9b1c453687c1bb3c8cd0c345398a0299f2d54c505e8bee42d7f7ab798482",
+      "deliverables/p1-hydraulic-comparison/all-feasible-comparison.csv": "3beb7ed5fa45ced29d59770a7e21bd01a6185cc62ca62ff69e449972bf3ba113",
+      "deliverables/p1-hydraulic-comparison/methodology.json": "324f50ced85fa3b76a8a7d43a60c8bc5b8188e061d4465c70a753e7a7b0ab56c",
+      "deliverables/p1-hydraulic-comparison/output-manifest.json": "bc9273c7373a187844297901b5b2cc4f13104048d457768d0052aae8776d95a8",
+      "deliverables/p1-hydraulic-comparison/per-diameter.csv": "4a712897ae981ee4e71cd1ef6b31a2efc2612927aae31ed7bed94d4f37e2203c",
+      "deliverables/p1-hydraulic-comparison/report.html": "60cd5a7c3483a1e5064afb143c54ca481313db419e3716d114f256f9b9f8de29",
+      "deliverables/p1-hydraulic-comparison/report.md": "6a42a711bb237ef0e7a2221038b19786219684715a547f981963757b804c989e",
+      "deliverables/p1-hydraulic-comparison/reproduce.mjs": "b5861f725ba1f3fd65e29a5b48a8518f9cef3bb39262a05b1ccf72e11b45ea2e",
+      "deliverables/p1-hydraulic-comparison/scenario-evidence.csv": "2e42f83ee47648a431b7cfc7fd443bf9b5404f12dd6e6e56ffec297d5761774f",
+      "deliverables/p1-hydraulic-comparison/summary.json": "7e41ff488842fd8182e719929477696d87faf48ac3b6b7e3d9f7ab141ae37f7e",
+      "deliverables/p1-research-regression/compare.mjs": "5b7700abf7008a044cd1dc5b64ead3a8c98ee69183d7e05c572b9f169ca0c0ed",
+      "deliverables/p1-research-regression/existing-preview.jpg": "29bce6eaaa1b2b0be1d62c5ed43f6b93598c45532fd8288cab45187a00708a9a",
+      "deliverables/p1-research-regression/extract.ts": "e92594caa7dfad1496b758912d0bb2c8e1b606047afe9365a341e05ca881ea13",
+      "deliverables/p1-research-regression/feasible-rpm-comparison.csv": "8324d48a1f1618e5ef32996b8895cb9da723ebfa0b64e1addd0bf1d7059beab3",
+      "deliverables/p1-research-regression/integrated-saved-artifact.json": "a05bde53ec44dfcbd8a1d60247536361887f2244f0ba8460f992fec5137457dc",
+      "deliverables/p1-research-regression/metric-summary.csv": "6848b19ceecae6ec4794c0349381fb221996f450aade11c082bf2d2185a057bc",
+      "deliverables/p1-research-regression/numerical-differences.csv": "0a3b93c11224c8a9d06d4206781a9b67cada239f21b2fbc4df94b3701cde2e15",
+      "deliverables/p1-research-regression/report.html": "a7a669cf6163aca6adcdc3d9f08a15e37e996e522ce6e1618e8a43d98a4a58e7",
+      "deliverables/p1-research-regression/report.md": "c119c2ce4da58f9838021ade6dad3c18b18d17ab40ecd895681dbb4210d4e7d9",
+      "deliverables/p1-research-regression/summary.json": "4e272789930e91a9b04342ce14022be3c40b3788d4937c0b4f74a6d92eeb9f82",
+      "deliverables/phase-orientation-audit/evidence.json": "aef6ca704012075de451ea5ce3695992226a6ed280971c7564f33c4908612209",
+      "deliverables/phase-orientation-audit/report.html": "9bc534fe889f01bf00318ab4afd6de9fed36b683b0df5b8715ff86b3cc29adf0",
+      "deliverables/phase-orientation-audit/report.md": "310f1d03ad465b4aee3692c8c0fcde3e0bfbb14620b9c2256c9b5e49ae1e0c8e",
+      "deliverables/r1-design-data/fixture-design-data-page-1.png": "c8846a6888c2ceea6de62eb82fc51190c4c92eb83798d57d552c2440069e3cc6",
+      "deliverables/r1-design-data/fixture-design-data-page-12.png": "3048bff7a11438e52380e1195cb8674e51e16a46392a592f8742c35f373eeccb",
+      "deliverables/r1-design-data/fixture-design-data-page-17.png": "04d962f68f46ae4f98b6e0dc9fb646b9378a6813967d598eef4591b06dc0de72",
+      "deliverables/r1-design-data/fixture-design-data-page-2.png": "ecc8c14e30ddb69d240990f6f797b0e92fe315a68fee07a2cde6810f8f831dac",
+      "deliverables/r1-design-data/fixture-design-data-page-21.png": "5f9942be78794770090b6c3640a676969d1d2f3911393e78b1439d447b77f0e2",
+      "deliverables/r1-design-data/fixture-design-data-page-27.png": "db8e4c00a6c6af426d4c034bd5d716db61d894d0f1677f98591ea9dc7fa8e4f7",
+      "deliverables/r1-design-data/fixture-design-data-page-3.png": "6306ee2bbc54fe2b8afe226f6b6173f3372942caefdd72dede26ca8f9bcc6f6e",
+      "deliverables/r1-design-data/fixture-design-data-page-32.png": "b9bc63af8e1019b9f4bafe12b70561ae3602c34f610301865437df46c4109b2c",
+      "deliverables/r1-design-data/fixture-design-data-page-33.png": "3a7312e2fea667d1048bc97b53695852590ee6f92fee106b1fcb266065490e7f",
+      "deliverables/r1-design-data/fixture-design-data-page-52.png": "4ab6cb77be59ba20c316ee9e5880bcb1dbe438fed442935600b2b9b68c07f9d6",
+      "deliverables/r1-design-data/fixture-design-data.pdf": "eb90a42806ec6ec875875d0ca5edd8fc4bfd42f901a3cba3ef086b921e46ab1d",
+      "deliverables/r1-design-data/fixture-saved-design-data-download.png": "62db07ca2f597dd4cd27dbbf6e6d789ee540a9afc3c0c8f4aef533bea37d7f4f",
+      "deliverables/r1-drawings/fixture-browser-compartment-1440.png": "95452569c791eb96be81619593c4f4b4bb8731bebaabb4470bf4e245af02e96b",
+      "deliverables/r1-drawings/fixture-browser-compartment-390.png": "70815cfa7d95bf12253098a3646eca4182fb430da518800a68aa60e43a74d3cc",
+      "deliverables/r1-drawings/fixture-browser-compartment-saved-desktop.png": "7c97e2c447d5fa1abb8799306b152763ef2dca741eeb784cc078c686ef25cdb2",
+      "deliverables/r1-drawings/fixture-browser-ga-1440.png": "36a459188837eec9704bb7bc08ab7a87896b067dec6cc1affd14e0dd4da64e54",
+      "deliverables/r1-drawings/fixture-browser-ga-390.png": "d2e06c36ca01520c77263289ae3139b936074d2817eecb759402f89338d866e8",
+      "deliverables/r1-drawings/fixture-browser-ga-saved-desktop.png": "ecc1fb5629336b39c065c77e02e1d5c804642fa2a99af65fdf7814f442753639",
+      "deliverables/r1-drawings/fixture-browser-rotor-1440.png": "779f1955e48b4bf38b347e8e0f3346157912599c22f8e823f5ee8a66d96e3809",
+      "deliverables/r1-drawings/fixture-browser-rotor-390.png": "4baaf8fb63167269aeaa12105b4dc1abeef771bb758ea422a1e34a4553e85e80",
+      "deliverables/r1-drawings/fixture-browser-rotor-saved-desktop.png": "6838bf15f0ac4554dca2f699305576792928c7b065f07509e23b84b60873e966",
+      "deliverables/r1-drawings/fixture-browser-section-1440.png": "1583bd69f82a319dae1d6a2d9fd0cbce524811bf50a1682491f4058588f7d6dc",
+      "deliverables/r1-drawings/fixture-browser-section-390.png": "9276987223def5fbdecbd2f87d8d09b26c126c2adb00c66a68569d300b7a69ee",
+      "deliverables/r1-drawings/fixture-browser-section-saved-desktop.png": "082a595cee992697e0c266765d356e5da1003a6d8e66d09e4023f5860c8855f5",
+      "deliverables/r1-drawings/fixture-browser-stator-1440.png": "5da047a25154c8c3c1ec4a7eb6175844a4f3248490dafd99f09bf0f9b290ed4c",
+      "deliverables/r1-drawings/fixture-browser-stator-390.png": "357f94f3b40667ae8728ba58d12fa530b2e518dca9fad3c42903dd2eaf9a04f7",
+      "deliverables/r1-drawings/fixture-browser-stator-saved-desktop.png": "2b53ad781145a3fca56202f2a17a99800a5740ba4733806bc41b5158056036be",
+      "deliverables/r1-drawings/fixture-compartment.svg": "f1d47c18fb0762d371efb7e784fa061a26cfdad05a517e5df739b833b959a2ce",
+      "deliverables/r1-drawings/fixture-dimensioned-five-view-package.pdf": "0f090a6dda9db1039067b1ba210150e4e73e8ecd56b6707dbc37e050f7593005",
+      "deliverables/r1-drawings/fixture-ga.svg": "1cdb249b9c7d82849014f37dca66182e6d40bb65b978481cfa5f4f7873f8eefb",
+      "deliverables/r1-drawings/fixture-pdf-compartment.png": "4ae1c692558eef445b2b3a5d642c0e11d56b94eb95d8956ab3e345516ef3854a",
+      "deliverables/r1-drawings/fixture-pdf-ga.png": "52f2f493dab11243364826f8cb72d4790958b62dcd8fe8040df85f2f8af16287",
+      "deliverables/r1-drawings/fixture-pdf-rotor.png": "c2d3a4e7c2f603f7934e0ba1d0f043ffd49c1d3fc50ec63b9d083271445e1a8c",
+      "deliverables/r1-drawings/fixture-pdf-section.png": "addfb2847ee1a812def4e2fe4fbd9a7b0acb7ab8fbc9544ba35b60f055dffba5",
+      "deliverables/r1-drawings/fixture-pdf-stator.png": "4cf0adeb98a5bd4996f31173c9dd730a8d796a1f7cce8da412ab6fe2b2e44a25",
+      "deliverables/r1-drawings/fixture-r1-dimensioned-drawings.zip": "88da3c2189504e23041ab2b4805ee245e8ec9b1224684b04639bac776b1a7be6",
+      "deliverables/r1-drawings/fixture-rotor.svg": "392d863d401aa68fbafcb3c61308a2e66edded5b232e36818030e549e91cc02d",
+      "deliverables/r1-drawings/fixture-section.svg": "83884c995661ee38a2730828e4b074a13a4aa0689dee54cf959a74c7bb5194be",
+      "deliverables/r1-drawings/fixture-stator.svg": "b0e721b7b4ba026437b835dce1f887de3ef0393f0f93e8a0e7b626d692103029",
+      "deliverables/r1-drawings/stage5-r3-design-data.pdf": "f87464431290b9fb6b7876d60d781f601726c3ae8a9e4b2eacc1c917370e0342",
+      "deliverables/r1-drawings/stage5-r3-dimensioned-v2-compartment.svg": "c5bfa2d319aa8bdf0554421a5d8e00387a136c590b4d0d943618639a2c27c58d",
+      "deliverables/r1-drawings/stage5-r3-dimensioned-v2-ga.svg": "43fbaff760e43605fc2c2c18c66a91e48c2a687cb2fbc268046e97945a4fd398",
+      "deliverables/r1-drawings/stage5-r3-dimensioned-v2-rotor.svg": "bf996f82a744b77f68d0e3770b73378f1826efec27b22d2cad7a2f65f35481e0",
+      "deliverables/r1-drawings/stage5-r3-dimensioned-v2-section.svg": "31918c98b09b9d94f4fc6261a1d157c23f2b9bae75133899fe956e0ece5f6482",
+      "deliverables/r1-drawings/stage5-r3-dimensioned-v2-stator.svg": "8b1665f570f302e3c01d3b0efd4111cbf69dc02b7d0cd0e58c39389d2425c658",
+      "deliverables/r1-drawings/stage5-r3-dimensioned-v2.pdf": "840e02478865ad6a9c9b70707ce2f52adb0f8011083ebeada45b487e9b0f0075",
+      "deliverables/reverse-hydraulic-audit/report.html": "14a08654c90c6ef909b029078a2d3429679bea5651dac7f8ea3307ebfc938e6e",
+      "deliverables/reverse-hydraulic-audit/report.md": "1e824459983ce387a9f9f4a70587290a6c3b50add58ed24772e6d1531a4ff616",
+      "deliverables/rrbo-hydraulic-implementation/report.html": "e3cea9c145512d7ad6da17f8c10541e93212b7ca5d573a126402d4d4fcc936bb",
+      "deliverables/rrbo-hydraulic-implementation/report.md": "daee36aaf59c67f205f135fa147c235acbc53038fb8d35bccd1a33c3fc4fe864",
+      "deliverables/rrbo-hydraulic-method/assumptions-register.md": "16ef8d3a15a768a1cb095e03b0064a5178f28ae85d4ecdf076f0e6b4ea09a6b5",
+      "deliverables/rrbo-hydraulic-method/report.html": "71c2616411d617c73a673ae9c3809ba680a2dffab748ba576721bce36ae64217",
+      "deliverables/rrbo-hydraulic-method/report.md": "0721efa52515f6615db41c3f47e180ad87e9780e2d672f2a6cab71e632d7a48a",
+      "deliverables/rrbo-hydraulic-method/source-matrix.md": "6b7c38f25f18749150e8b5e84b1166e68d232ff0aa6ee252a67776e666b7862e",
+      "deliverables/rrbo-hydraulic-method/sources/barry-parlange-2018.pdf": "30d0a85718a2625fd1888b1166162e3e0d020e688553605214829df3c7e4d8e6",
+      "deliverables/rrbo-hydraulic-method/sources/barry-parlange-2018.txt": "c0a5ec10427fbedeaab28d830a39f3e1c002a78f79af8a7b6d434e26a75dd1e1",
+      "deliverables/rrbo-hydraulic-method/sources/garthe-2006.pdf": "39a39035d63f0b84bc74957ccf17b7a8c67ec456e73e4277491bc2cbb2bd53fc",
+      "deliverables/rrbo-hydraulic-method/sources/garthe-2006.txt": "8803889ae9933d2859d663f83c2beca8518de1d347e89289974a2ec66344a8ed",
+      "deliverables/rrbo-stage3-candidate/diameters.csv": "e49ff974ce9eb2a1b5a169873ef52a8e6fb665a1cdf78fda999e69c01c2f53f3",
+      "deliverables/rrbo-stage3-candidate/exit-code.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "deliverables/rrbo-stage3-candidate/extract.ts": "6b33c5b2b16b274e02784cd2516552c3a0310b96b733edcadc891a85e5da7d9f",
+      "deliverables/rrbo-stage3-candidate/geometry-rpm-grid.csv": "995b15e2323a53e6cd0817ef2404d5010162e72c672e7c6e914fe951da2b2aab",
+      "deliverables/rrbo-stage3-candidate/input.json": "061fa3f2d28e60938138cb55a5a43667da11ccdda466fac9a18098468ba618ec",
+      "deliverables/rrbo-stage3-candidate/manifest.json": "523abe1eebaf1460784ce979455481bf4e647f271235f63147bb2b411504eb3d",
+      "deliverables/rrbo-stage3-candidate/preflight.json": "837e77dbacb1db6c79bd5326398b308a66dd4e92520caac450e51461882a5fc0",
+      "deliverables/rrbo-stage3-candidate/progress.jsonl": "1b62b1f905de35049cd9e98877211cccc9d619935d03330c7638b3d6b2245a1f",
+      "deliverables/rrbo-stage3-candidate/report-build.json": "5f85398f7c2f4a34ee36a71082e09e709ee4a4e361c091192bb5ea88f438e525",
+      "deliverables/rrbo-stage3-candidate/report.html": "81665583f479f8aa94d753917d51d44c2e5c518cd7fd8f4bcb5252f8aa21f125",
+      "deliverables/rrbo-stage3-candidate/report.md": "abb492dcda776c1f1c25160de19a2fa4b4c6b44693d9a87473e7b3f552d5144e",
+      "deliverables/rrbo-stage3-candidate/report.ts": "201139ffebbafc2a9beec2252c3baf110bf2f6f0f3bbc82d7b83bd363ae7b237",
+      "deliverables/rrbo-stage3-candidate/result.json": "8bef79ff9be32bfd16c2c219eba321c2d8c9a024729a886f30213b9b71995b05",
+      "deliverables/rrbo-stage3-candidate/run.ts": "7fb649c44eca2d93caf053ba1d03854c0741b251421c2dde8ebb8c5ef9b0be4e",
+      "deliverables/rrbo-stage3-candidate/runner.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "deliverables/rrbo-stage3-candidate/runner.pid": "076f930a276c7570b2e4e53a3ea1c94fb19a4ea08565dca041cd0c17ce1a1f2b",
+      "deliverables/rrbo-stage3-candidate/scenarios.csv": "366e0304e25a9e254e9da5a407b1a96f515e6e3a6b9c77f81774d6648a46825e",
+      "deliverables/rrbo-stage3-candidate/source.json": "aeef586f907f9b1ccaef7ba4af837d667a2d64a09bf34be768c1dbd9bda091fd",
+      "deliverables/rrbo-stage3-candidate/summary.json": "9ac1508592df6c0510186c90f95eedf0be99d7d162777f254a394c7484b6cb2b",
+      "deliverables/rrbo-stage3-candidate/trials.csv": "5621d57c7eb6e759d84149763f349c5c1eea5ad0a60ce30fcf82466f33418903",
+      "deliverables/stage2-report-corrected/Project-236-Stage2-corrected.pdf": "a768285d2309ac30e1c90dda56b54663169c3deb2e960e59069e8eb514f8a5a9",
+      "deliverables/stage2-report-corrected/audit.md": "f6b5239715776f91a514c0e1d7784fdd6e1869e2792fefd4e57d75dae30b24b8",
+      "deliverables/stage2-report-corrected/frozen-job.json": "5bc0e999a2f9a177c6f25b85c325c6dbfd2ff8fc55f9f64b4b0c8eb92e39ef9e",
+      "deliverables/stage2-report-corrected/page-1.png": "100bbd08df3fab499bb8226208845d09f343d0b4c34f654dbca101327bf65497",
+      "deliverables/stage2-report-corrected/page-10.png": "6adca83ba87813e73f0025f8b88ad6d98552526a3209ae5a19ddb77dac070a1c",
+      "deliverables/stage2-report-corrected/page-11.png": "d93b70c2fea6fcca651875540ab34129981287df6523062f3eb029fc6bbef563",
+      "deliverables/stage2-report-corrected/page-12.png": "84c5a49e0358d9632db02614cd42e1bb6d3d5f2140141c0687070e621f9e811c",
+      "deliverables/stage2-report-corrected/page-13.png": "9cf8b425bea28136cdb4bae2c92ede537b2503f634f89a8285023547c1fae978",
+      "deliverables/stage2-report-corrected/page-14.png": "c394ae6056f6d75c5def14e5ee912c9defb6e23b26064c400734a42eee59f2e0",
+      "deliverables/stage2-report-corrected/page-15.png": "62e0660cd18d1ce0257931098b7ba2e9776bb1ab3eca9074c917bfb5e14c074c",
+      "deliverables/stage2-report-corrected/page-16.png": "3792aaeaa3774d3337205a12bb54ef61b3c8e142658bcb1bbae5a229fe927e45",
+      "deliverables/stage2-report-corrected/page-2.png": "db8cff8a758580ee294446723d15e96bc64dc8ca9cd7dc83d11432b22a4b6338",
+      "deliverables/stage2-report-corrected/page-23.png": "b0702fbcfb90ffa5139d393a6bedc89a5eb208be621a6048ab4bc0410b3df263",
+      "deliverables/stage2-report-corrected/page-3.png": "445886e5e56a38c42e10d4e901010a763efd5ba66b378ef7852b2bc30a9df937",
+      "deliverables/stage2-report-corrected/page-39.png": "82042d7998db2383ea684f013026ae969306eb2e5f54160622363fa9ba38b4a4",
+      "deliverables/stage2-report-corrected/page-4.png": "6449260dac46dbd97e49aaf533c182a725a7ffb8a588e23daaba5179768807ee",
+      "deliverables/stage2-report-corrected/page-44.png": "8fb1127e233fc531be417f3d2e070cda2351c6a8f1a6cf326777b5b8aca0de21",
+      "deliverables/stage2-report-corrected/page-45.png": "b174b8f33f270b4e5161c9ff0fa2e4f10c5dcfe5a90d590387954ef6dca6f603",
+      "deliverables/stage2-report-corrected/page-48.png": "c6848ba113cd198227528a5246c4e9b828d86d35691458cf2b578d86c520563a",
+      "deliverables/stage2-report-corrected/page-49.png": "6e695bc50c1ce6c4543d1ea9ae3e213550909abe0be65ad1af61e860a6cd4fcc",
+      "deliverables/stage2-report-corrected/page-5.png": "9cff07d7ee5776fc76beea9ad8897c3b7d631128f96195ce7658f1b6b7358358",
+      "deliverables/stage2-report-corrected/page-50.png": "4b917170185dc6aad0afeade8a1e1aa74c14449a396832f42344013c039d1c36",
+      "deliverables/stage2-report-corrected/page-51.png": "4b12a74c9740a23e5894b25f5f72c214160931a4e29cdd7d90191b914f62a031",
+      "deliverables/stage2-report-corrected/page-52.png": "511d434351924151380f1735f4005601145447f21fdee3844cb57de1d01cc5cf",
+      "deliverables/stage2-report-corrected/page-53.png": "e05836de42cebe505a2c0825792bf045f54227c78c07c8b653dd8c58f2547e67",
+      "deliverables/stage2-report-corrected/page-6.png": "cc0a73054b592f259f0c2edf105891084656ec4198430669cfd53bdf1aab81a9",
+      "deliverables/stage2-report-corrected/page-7.png": "5a9d4546604f3127339812ee4c4092a514213431b874685687a3d2eda04a3592",
+      "deliverables/stage2-report-corrected/page-8.png": "f5bfa3db1db2777f57ce6f1e9a64c36f96f8345bf9f7566a8ec0b9bc06251a5f",
+      "deliverables/stage2-report-corrected/page-9.png": "4c9691622d2dbb8a9f2c01a79f4cd6a614ba59f94cca32b66db46ce0a892b6ee",
+      "deliverables/stage2-report-corrected/report-text.txt": "77bcd4ffb2c9bc4e186536e39120be149066ee10e78d98a57dd42b24ab64bcca",
+      "deliverables/stage2-report-corrected/verification.json": "6feb95ddff6eb6c0c5e499e2564721e0819964f88d34664d28a0c028390f8126",
+      "deliverables/stage2-report-corrected/verify.ts": "530bff936c600968b455fdfc06506adbffdf78b041b5ded7eeb37b66d373117a",
+      "deliverables/stage3-no-diameter-investigation/all-rrbo-trials.csv": "f972b6cf800b3fdf765efa1869dd16a35bedd367de7cb6bf5825ff764162e7a8",
+      "deliverables/stage3-no-diameter-investigation/build-report.mjs": "bd8de4ba139d3f828394111035a0f3e8b2b16c11c7a7f93e882179d9cefc8b3b",
+      "deliverables/stage3-no-diameter-investigation/report.html": "274a51b7bb92a5a329781258346fd87897bc20320a6f42db2f2b58afe4e8dd5d",
+      "deliverables/stage3-no-diameter-investigation/report.md": "b79e55d45d305e666e95fa35759087dc3cf2202bd86eae3067606a6eb31b6418",
+      "deliverables/stage3-no-diameter-investigation/saved-evidence.json": "660b0cabdb68a921d255692eadb4edc4671493304dfd46297d1026e5f923aaa2",
+      "deliverables/stage5-current-269/actual-component-basis.png": "dd9bdd79009297d564b8a769cc4d20813d4adc27a219099f447b79f36302c5ad",
+      "deliverables/stage5-current-269/actual-component-drawing.png": "779f1dc3a09a458422b461373cdecd5bb31d7186d40ceb76f3f2aa5bb1495539",
+      "deliverables/stage5-current-269/actual-component-preview.png": "c67efe0f3ba864992cf9af291589ac696550dbf92af915583e1cef0f80e9d229",
+      "deliverables/stage5-current-269/browser-verification.json": "510b4fcf6b67ab331924ea66f06f42d9776b267b99c7ee2f3c44d272c7ec3a23",
+      "deliverables/stage5-current-269/compartment.svg": "bba8b769af923090d4dfd8139b09ee5c6f9551f73a5a79f59697cd6c4b458788",
+      "deliverables/stage5-current-269/current-preview.json": "b2a51d5fb3aeda46b14a7424620d9182dd29a768c4c13150dd4829789ccf62f0",
+      "deliverables/stage5-current-269/ga-pdf.png": "bcd8b3261b2ad283d04e790fe326a92c99e62e118ec0868c4c0d5aac2e772708",
+      "deliverables/stage5-current-269/ga.svg": "68ce79e23e3a2e0d9511c190745e24b88d23ba2cce88d100c3fa442ddd674026",
+      "deliverables/stage5-current-269/preliminary-current-basis.pdf": "b1ed356552a8b3e9dbef7a7c9230087fe642fdd73bc9af62992488f6119e7dd4",
+      "deliverables/stage5-current-269/rotor.svg": "c3657395be23f2564992009c92df4136fea0270e4b7f32496b01a1c4c1a2c26b",
+      "deliverables/stage5-current-269/section.svg": "81c423ec0aee0bb1e34849bd7e59a5c73e9a8d2a336f99f865804efc404514da",
+      "deliverables/stage5-current-269/stator-pdf.png": "e499052226547997093b5dc5b902059df522f1703f641611655476b613aba517",
+      "deliverables/stage5-current-269/stator.svg": "aa1e8b4324077f93e913013bef769c77e29199a3cec4b5317334665767268cfb",
+      "deliverables/top-disengager-final-review.diagram-qa.png": "02fcca1d40764dd16c2f25a55454a88c38aa9652321aeb15fe1d1e8e538f6c0e",
+      "deliverables/top-disengager-final-review.html": "00481969471be4c33a2a16131751a85fa2072b0d05b76e1f9c1d7560a1924405",
+      "deliverables/top-disengager-final-review.mjs": "d88c724782c1c68288a647234f4278ec4dfa6711668df1cb00a891b4c98851cc",
+      "deliverables/top-disengager-final-review.pdf": "74491cde3ea1c7f546bac28486af2b9372a43ba5d54d8db465317fc0f8916c75",
+      "deliverables/top-disengager-final-review.pdf-page3-qa.png": "cbb8778e1099301ac8fb33d9684b5c24a0f8457eb056af531568db28efc1c908",
+      "deliverables/top-disengager-final-review.pdf-page6-qa.png": "5ccac6330a1144d3236021f1b24c0a3db4bb59827c6df29e5897f3bbc5fe490d",
+      "deliverables/top-disengager-final-review.pdf-page8-qa.png": "9d9248d5eef732e983af4e1c5ee9c11f50cfd85fc07073ca9276e7e841d51bdb",
+      "deliverables/top-disengager-final-review.results.json": "9b4f64e51a45a6de70e907e1dcaa6db8157fe2843bea82813d9999c27086f0a2",
+      "deliverables/top-disengager-layout.md": "e4de18bd06ccd8c6368aa914d2046b2133b480144cd73d132b80d066265e03b9",
+      "deliverables/top-disengager-physics.md": "2fe559bc9b9eb1e8431314880fa7b52f4b6d2b90016c91613eb9c7c5de481562",
+      "deliverables/top-disengager-physics.mjs": "374fad6b1ec8b7d1378d92274f8f437761348d21e85f48eb49521e6834d43b32",
+      "deliverables/top-disengager-physics.results.json": "3bc8994bf868fa4e1cb32ef4e11b7a702630b6c09d936d75e53ea76618b52666",
+      "deliverables/top-disengager-physics.tables.md": "9b30a115980f1304d8ddb4497014139aae8ff4aaec67075117eac6d35fe99da3"
+    },
+    "status": "PASS",
+    "no_app_DB_network_or_workflow_access": true
+  }
+}

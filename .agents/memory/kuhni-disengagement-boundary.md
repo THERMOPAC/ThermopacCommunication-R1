@@ -26,3 +26,9 @@ A full-bore positive-mean-slip flux is a surrogate, not the actual terminal-stat
 **Why:** Stator jets and turbulent recrossings can export larger drops that subsequently return, while the full-bore kernel excludes them by construction. Assuming this kernel describes actual stator escape would omit a potentially important return mechanism.
 
 **How to apply:** State the crossing plane, conserved solvent-volume/mass denominator, outlet and return boundaries. Keep fresh-distributor input separate from the terminal-origin cohort; track coalescence as conserved material redistribution, not disappearance.
+
+Model the top as terminal crossings → jet/return exchange → quiet-zone evolution → lateral withdrawal. A droplet that becomes settling-eligible after jet decay has not necessarily returned.
+
+**Why:** In a monotone one-dimensional decaying jet, the point where carrier speed equals settling speed is a stable trapping point for an overdamped drop. Genuine return needs cross-stream transport into a return path; reducing a full-section mean velocity at fixed area and flow also violates continuity.
+
+**How to apply:** Separate return eligibility, actual external return and accumulated inventory. Use continuity-respecting spatial velocity fields and conservative inter-zone exchanges; never divide independently prescribed opening and bulk fluxes to infer a removal efficiency.

@@ -1661,3 +1661,17 @@ mtime_ms = 1790008838400
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/d245ab05-f766-4afb-9a99-3ef3c7c13428/458c827d-2570-4bc9-836f-ded67b547ad2"
 storage_version_token = "1790008894244610"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "ZhrTPqUBFXpR4y7wMo9fy"
+uri = "file://deliverables/kuhni-terminal-chain.md"
+type = "text"
+title = "Kühni Top — Terminal-to-Withdrawal Model"
+description = "First opening-flux calculation and conserved-volume model for jet return, quiet-zone evolution and raffinate withdrawal. Separates return eligibility from actual return; no geometry or equipment selection."
+logical_id = "50fc7b09-b410-435b-9ce3-09755da3b33c"
+content_hash = "sha256:78f2e10f737e17bd701405f6e617d5d3ef60fd60f811ab1996b0da1457c13a24"
+size = 12847
+mtime_ms = 1790010066359
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/50fc7b09-b410-435b-9ce3-09755da3b33c/88268e5c-255e-487b-8bb5-cd27c1ba9d69"
+storage_version_token = "1790010274630253"
+content_type = "text/markdown"
