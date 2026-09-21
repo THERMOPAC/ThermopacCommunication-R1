@@ -1,0 +1,10 @@
+{
+  "reproduce.mjs": "b5861f725ba1f3fd65e29a5b48a8518f9cef3bb39262a05b1ccf72e11b45ea2e",
+  "report.md": "6a42a711bb237ef0e7a2221038b19786219684715a547f981963757b804c989e",
+  "report.html": "60cd5a7c3483a1e5064afb143c54ca481313db419e3716d114f256f9b9f8de29",
+  "summary.json": "7e41ff488842fd8182e719929477696d87faf48ac3b6b7e3d9f7ab141ae37f7e",
+  "methodology.json": "324f50ced85fa3b76a8a7d43a60c8bc5b8188e061d4465c70a753e7a7b0ab56c",
+  "per-diameter.csv": "4a712897ae981ee4e71cd1ef6b31a2efc2612927aae31ed7bed94d4f37e2203c",
+  "all-feasible-comparison.csv": "3beb7ed5fa45ced29d59770a7e21bd01a6185cc62ca62ff69e449972bf3ba113",
+  "scenario-evidence.csv": "2e42f83ee47648a431b7cfc7fd443bf9b5404f12dd6e6e56ffec297d5761774f"
+}

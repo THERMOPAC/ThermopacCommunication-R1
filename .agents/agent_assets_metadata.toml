@@ -1493,3 +1493,45 @@ mtime_ms = 1789967740063
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8eeff017-97e8-42db-a87a-db3d94c39808/d2412585-23b7-4e73-9ede-1a84cba951b8"
 storage_version_token = "1789967750683301"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "bpmnc8kHmgg3_o990v4H0"
+uri = "file://deliverables/p1-hydraulic-comparison/report.html"
+type = "html"
+title = "Hydraulic comparison of feasible column diameters"
+description = "All 13 feasible diameters compared without RPM-window preferences. Includes loading margins, holdup separation, droplet size, area, capacity, root evidence and qualification limits."
+logical_id = "4416110b-b195-498d-b26d-b112defa69cf"
+content_hash = "sha256:60cd5a7c3483a1e5064afb143c54ca481313db419e3716d114f256f9b9f8de29"
+size = 125449
+mtime_ms = 1789968876035
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/4416110b-b195-498d-b26d-b112defa69cf/2f2b1626-5596-48e4-8500-ef046481ad11"
+storage_version_token = "1789968919307891"
+content_type = "text/html"
+
+[[outputs]]
+id = "m-Msd8iYvgIN_HHkLGGUx"
+uri = "file://deliverables/p1-hydraulic-comparison/per-diameter.csv"
+type = "table"
+title = "Best hydraulic-headroom point per diameter"
+description = "Thirteen diameter comparisons with explicit margins and six-scenario evidence."
+logical_id = "83826b77-8d43-42f5-8c6c-ec897705a4c8"
+content_hash = "sha256:4a712897ae981ee4e71cd1ef6b31a2efc2612927aae31ed7bed94d4f37e2203c"
+size = 10686
+mtime_ms = 1789968875915
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/83826b77-8d43-42f5-8c6c-ec897705a4c8/4e236113-2b28-4364-a089-9917ab0ac32e"
+storage_version_token = "1789968921086646"
+content_type = "text/csv"
+
+[[outputs]]
+id = "raLW_NRseoSfduviqh-Vq"
+uri = "file://deliverables/p1-hydraulic-comparison/all-feasible-comparison.csv"
+type = "table"
+title = "All 158 feasible hydraulic candidates"
+description = "Saved-result comparison including hydraulic headroom and interfacial-area trade-offs; no model rerun."
+logical_id = "0f8a60ba-1726-4a71-8de9-4be0a5b5ef09"
+content_hash = "sha256:3beb7ed5fa45ced29d59770a7e21bd01a6185cc62ca62ff69e449972bf3ba113"
+size = 101547
+mtime_ms = 1789968875919
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/0f8a60ba-1726-4a71-8de9-4be0a5b5ef09/c2d051b9-e20c-44bc-ae0b-4db0a3c44253"
+storage_version_token = "1789968923367376"
+content_type = "text/csv"
