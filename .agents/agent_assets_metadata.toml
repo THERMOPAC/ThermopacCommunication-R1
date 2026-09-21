@@ -1619,3 +1619,17 @@ mtime_ms = 1790005776569
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/0f054fc9-2d99-4992-bcf5-6037cc084ec2/5c8e6544-ff46-479b-87bd-a6417f13a6e1"
 storage_version_token = "1790005814717593"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "kRVQjglGRS0X7_LSyAgsZ"
+uri = "file://deliverables/kuhni-top-dsd-investigation.pdf"
+type = "pdf"
+title = "Kühni Top Disengagement — DSD and Entrainment Investigation"
+description = "Seven-page scientific review of measured Kühni distributions, all four requested fine-volume cutoffs, terminal coalescence and outlet-flux limitations. No capture size, separator or diameter change selected; Ø700 × 1600 remains a layout reservation."
+logical_id = "0261a736-9d3a-4d20-9fe5-0c04816ef6c9"
+content_hash = "sha256:a1288ef8feae4de2061d313ed20130f9cc7c3028d2b5a1c4837cf4c95b3b8182"
+size = 220280
+mtime_ms = 1790007574238
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/0261a736-9d3a-4d20-9fe5-0c04816ef6c9/810369a5-29fa-4643-aaae-8c7d5f0c0f33"
+storage_version_token = "1790007680531221"
+content_type = "application/pdf"

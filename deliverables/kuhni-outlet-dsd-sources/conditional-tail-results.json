@@ -1,0 +1,111 @@
+{
+  "basis": "Analyst calculation, hypothetical number-lognormal local population, not measured RRBO/NMP",
+  "d32mm": 6.068,
+  "tails": [
+    {
+      "s": 0.28,
+      "GSD": 1.3231298123374369,
+      "at": [
+        {
+          "d": 0.5,
+          "volumePercent": 6.833700160984896e-18,
+          "numberPercent": 1.0615715820699385e-14
+        },
+        {
+          "d": 1.455,
+          "volumePercent": 0.000008025231500394716,
+          "numberPercent": 0.0005410481380799112
+        },
+        {
+          "d": 2.081,
+          "volumePercent": 0.0037150868566056846,
+          "numberPercent": 0.089791125345626
+        }
+      ]
+    },
+    {
+      "s": 0.35,
+      "GSD": 1.4190675485932571,
+      "at": [
+        {
+          "d": 0.5,
+          "volumePercent": 1.3665525473280446e-11,
+          "numberPercent": 1.963120794096108e-8
+        },
+        {
+          "d": 1.455,
+          "volumePercent": 0.001044936056361275,
+          "numberPercent": 0.0675157201023029
+        },
+        {
+          "d": 2.081,
+          "volumePercent": 0.06132201916437323,
+          "numberPercent": 1.4530478665086857
+        }
+      ]
+    },
+    {
+      "s": 0.44,
+      "GSD": 1.552707218511336,
+      "at": [
+        {
+          "d": 0.5,
+          "volumePercent": 1.8947650293651882e-7,
+          "numberPercent": 0.00024024840907298602
+        },
+        {
+          "d": 1.455,
+          "volumePercent": 0.026461621560657612,
+          "numberPercent": 1.5956157347494997
+        },
+        {
+          "d": 2.081,
+          "volumePercent": 0.39981209377152516,
+          "numberPercent": 9.139257138688958
+        }
+      ]
+    },
+    {
+      "s": 0.7,
+      "GSD": 2.0137527074704766,
+      "at": [
+        {
+          "d": 0.5,
+          "volumePercent": 0.004502146168092675,
+          "numberPercent": 3.4687786954081345
+        },
+        {
+          "d": 1.455,
+          "volumePercent": 0.8423426888234186,
+          "numberPercent": 38.589547657131746
+        },
+        {
+          "d": 2.081,
+          "volumePercent": 3.013389972400807,
+          "numberPercent": 58.75202197407372
+        }
+      ]
+    },
+    {
+      "s": 1,
+      "GSD": 2.718281828459045,
+      "at": [
+        {
+          "d": 0.5,
+          "volumePercent": 0.13669419175622463,
+          "numberPercent": 50.15254491100636
+        },
+        {
+          "d": 1.455,
+          "volumePercent": 2.692612043579402,
+          "numberPercent": 85.81347736741934
+        },
+        {
+          "d": 2.081,
+          "volumePercent": 5.818656022977739,
+          "numberPercent": 92.36155803087443
+        }
+      ]
+    }
+  ]
+}

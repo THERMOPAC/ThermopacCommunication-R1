@@ -1,0 +1,351 @@
+close advertisement
+
+Advertisement
+
+Site Notice
+
+Update: [RSS feeds](https://pubs.acs.org/pages/rss) and article metrics are now available. Learn more on our [Platform Migration page](https://pubs.acs.org/pages/platform-migration).
+
+Dismiss
+
+[ACS](http://www.acs.org/)
+
+[ACS Publications](https://pubs.acs.org/)
+
+[C&EN](https://cen.acs.org/)
+
+[CAS](https://www.cas.org/)
+
+_User Tools Dropdown_
+
+[Access through Institution](https://pubs.acs.org/institutional-login?returnUrl=https%3a%2f%2fpubs.acs.org%2fiecred%2farticle-abstract%2f48%2f7%2f3580%2f1215514%2fEffects-of-Mass-Transfer-on-the-Steady-State-and%3fredirectedFrom%3dfulltext)
+
+\|
+
+[Sign In](https://pubs.acs.org/ExternalAuthentication/OIDCLogin?returnUrl=https%3a%2f%2fpubs.acs.org%2fiecred%2farticle-abstract%2f48%2f7%2f3580%2f1215514%2fEffects-of-Mass-Transfer-on-the-Steady-State-and%3fredirectedFrom%3dfulltext)
+
+[![ACS Publications. Most Cited. Most Trusted. Most Read.](https://acs.silverchair-cdn.com/data/SiteBuilderAssetsOriginals/Live/Images/umbrella/ACSPubs_logo_tagline_RGB_rebrand.svg)](https://pubs.acs.org/)
+
+Search Dropdown Menu
+
+header search
+
+Search input auto suggest
+
+filter your searchAll ContentJournalsIndustrial & Engineering Chemistry Research
+
+Search
+
+[Advanced Search](https://pubs.acs.org/advanced-search)
+
+_Toggle Menu_ Menu
+
+[Industrial & Engineering Chemistry Research](https://pubs.acs.org/iecred)
+
+Menu
+
+Close navigation menu
+
+Article navigation
+
+[![Industrial & Engineering Chemistry Research Cover Image for Volume 48, Issue 7](https://acs.silverchair-cdn.com/acs/content_public/journal/iecred/issue/48/7/2/m_iecred.2009.48.issue-7.xlargecover.jpeg?Expires=1793030964&Signature=ySYzJTZS5ll-wEa2xN4xBdR8FoZLV~qDoLnDKxh7mOQjdpKosZktgYqf69S-J3kYW0k~vMaX3rMx12DzP7Km1AaIr8AuZcfEIqWN3hgUx4jXZpk7FxCYAXy4oUz5CiaI82sTbjrmDya0M6CSVbLfgnxUOR0f8IovspHY1lQTjbFAju~AyBR1x8KeiIHaCW9Z~YOMXxSJ6dWCipbmRH0MhPKZVdFSphXQoXXZnmW7BRVK10-H-4saCyLftmuYlSyoGtxwKxGOfWdhxtfpSlxublI5D2EYZrGQ6XeqZZZ1N0ICokRx0VpA56386s~XpvXWhJvfiEHjBBPpNBw4-MhJkw__&Key-Pair-Id=APKAIE5G5CRDK6RD3PGA)](https://pubs.acs.org/iecred/issue/48/7)
+
+[Volume 48, Issue 7](https://pubs.acs.org/iecred/issue/48/7)
+
+April 01, 2009
+
+Article Contents
+
+- [Abstract](https://pubs.acs.org/iecred/article-abstract/48/7/3580/1215514/Effects-of-Mass-Transfer-on-the-Steady-State-and?redirectedFrom=fulltext#203582104)
+
+
+Article Navigation
+
+Separations\|February 19, 2009
+
+_Available to Purchase_
+
+# Effects of Mass Transfer on the Steady State and Dynamic Performance of a Kühni Column − Experimental Observations
+
+Luísa N. Gomes†;
+
+Close author information for Luísa N. Gomes
+
+Luísa N. Gomes
+†
+
+Instituto Superior de Engenharia do Porto, Dep. Eng. Química, Rua Dr. António Bernardino de Almeida 431, 4200-072 Porto, Portugal, Lehrstuhl für Fluidverfahrenstechnik Technical University of Munich, Boltzmannstr. 15, D-85748 Garching bei München, Germany, and Dep. Química/CICECO, Universidade de Aveiro, Campus de Santiago, 3810-193 Aveiro, Portugal
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Lui%cc%81sa+N.+Gomes)
+
+Margarida L. Guimarães†;
+
+Close author information for Margarida L. Guimarães
+
+Margarida L. Guimarães
+†
+
+Instituto Superior de Engenharia do Porto, Dep. Eng. Química, Rua Dr. António Bernardino de Almeida 431, 4200-072 Porto, Portugal, Lehrstuhl für Fluidverfahrenstechnik Technical University of Munich, Boltzmannstr. 15, D-85748 Garching bei München, Germany, and Dep. Química/CICECO, Universidade de Aveiro, Campus de Santiago, 3810-193 Aveiro, Portugal
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Margarida+L.+Guimara%cc%83es)
+
+Johann Stichlmair‡;
+
+Close author information for Johann Stichlmair
+
+Johann Stichlmair
+‡
+
+Instituto Superior de Engenharia do Porto, Dep. Eng. Química, Rua Dr. António Bernardino de Almeida 431, 4200-072 Porto, Portugal, Lehrstuhl für Fluidverfahrenstechnik Technical University of Munich, Boltzmannstr. 15, D-85748 Garching bei München, Germany, and Dep. Química/CICECO, Universidade de Aveiro, Campus de Santiago, 3810-193 Aveiro, Portugal
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Johann+Stichlmair)
+
+José J. Cruz-Pinto\*§
+
+Close author information for José J. Cruz-Pinto
+
+José J. Cruz-Pinto
+\*§
+
+Instituto Superior de Engenharia do Porto, Dep. Eng. Química, Rua Dr. António Bernardino de Almeida 431, 4200-072 Porto, Portugal, Lehrstuhl für Fluidverfahrenstechnik Technical University of Munich, Boltzmannstr. 15, D-85748 Garching bei München, Germany, and Dep. Química/CICECO, Universidade de Aveiro, Campus de Santiago, 3810-193 Aveiro, Portugal
+
+\* To whom correspondence should be addressed. Tel: 00-351-234-370733/360. Fax:
+
+00-351-234-3700084
+
+. E-mail: [jj.cruz.pinto@ua.pt](mailto:jj.cruz.pinto@ua.pt).
+
+Search for other works by this author on:
+
+
+[This Site](https://pubs.acs.org/iecred/search-results?f_AllAuthors=Jose%cc%81+J.+Cruz-Pinto)
+
+Author & Article Information
+
+
+\* To whom correspondence should be addressed. Tel: 00-351-234-370733/360. Fax:
+
+00-351-234-3700084
+
+. E-mail: [jj.cruz.pinto@ua.pt](mailto:jj.cruz.pinto@ua.pt).
+
+
+†
+
+Instituto Superior de Engenharia do Porto.
+
+‡
+
+Lehrstuhl für Fluidverfahrenstechnik Technical University of Munich, Boltzmannstr.
+
+§
+
+Universidade de Aveiro, Campus de Santiago.
+
+Publisher: American Chemical Society
+
+
+Received:July 03, 2008
+
+Revision Received:November 16, 2008
+
+Accepted:January 19, 2009
+
+Published Online:February 19, 2009
+
+Published in Issue:April 01, 2009
+
+Online ISSN: 1520-5045
+
+Print ISSN: 0888-5885
+
+Copyright © 2009 American Chemical Society
+
+_Ind. Eng. Chem. Res._ (2009) 48 (7): 3580–3588.
+
+[https://doi.org/10.1021/ie801034a](https://doi.org/10.1021/ie801034a)
+
+Article history
+
+Received:
+
+July 03, 2008
+
+Revision Received:
+
+November 16, 2008
+
+Accepted:
+
+January 19, 2009
+
+Published Online:
+
+February 19, 2009
+
+Published in Issue:
+
+April 01, 2009
+
+- _Views Icon_Views _Open Menu_  - Article contents
+  - Figures & tables
+  - Video
+  - Audio
+  - Supporting Information
+  - Peer Review
+- _Cite Icon_ Cite
+
+- [Permissions](https://marketplace.copyright.com/rs-ui-web/mp/search/all/10.1021%2Fie801034a)
+
+- _Share Icon_Share  - Facebook
+  - X
+  - LinkedIn
+  - Email
+  - Reddit
+  - Bluesky
+  - WeChat
+
+Citation
+
+Luísa N. Gomes, Margarida L. Guimarães, Johann Stichlmair, José J. Cruz-Pinto; Effects of Mass Transfer on the Steady State and Dynamic Performance of a Kühni Column − Experimental Observations. _Ind. Eng. Chem. Res._ 1 April 2009; 48 (7): 3580–3588. [https://doi.org/10.1021/ie801034a](https://doi.org/10.1021/ie801034a)
+
+Download citation file:
+
+- [Ris (Zotero)](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=0)
+- [Reference Manager](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=0)
+- [EasyBib](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=0)
+- [Bookends](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=0)
+- [Mendeley](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=0)
+- [Papers](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=0)
+- [EndNote](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=1)
+- [RefWorks](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=3)
+- [BibTex](https://pubs.acs.org/Citation/Download?resourceId=1215514&resourceType=3&citationFormat=2)
+
+toolbar search
+
+Search Dropdown Menu
+
+toolbar search
+
+Search input auto suggest
+
+filter your searchAll ContentJournalsIndustrial & Engineering Chemistry Research
+
+Search
+
+[Advanced Search](https://pubs.acs.org/advanced-search)
+
+Open figure viewer
+
+## Abstract
+
+Experimental data obtained in a pilot-scale Kühni liquid−liquid extraction column were used to obtain local drop size distributions, dispersed-phase hold-up profiles, and solute concentrations. To obtain information about the dynamic behavior of the column, several experiments were planned and performed, under both steady and controlled transient conditions, with and without mass transfer. The analysis of the effects of the presence of a transferring solute (not of the mass transfer flux itself) on the dispersion’s steady state and dynamic behavior was the main objective. For this, we imposed forced step variations in the operating conditions − agitation intensity and continuous and dispersed-phase flowrates.
+
+**Subjects** [Surface tension](https://pubs.acs.org/search-results?page=1&tax=1097), [Extraction](https://pubs.acs.org/search-results?page=1&tax=21), [Hydrodynamics](https://pubs.acs.org/search-results?page=1&tax=3439), [Mass transfer](https://pubs.acs.org/search-results?page=1&tax=576), [Solution chemistry](https://pubs.acs.org/search-results?page=1&tax=664)
+
+Copyright © 2009 American Chemical Society
+
+You do not currently have access to this content.
+
+### ACS Login
+
+[Log In](https://pubs.acs.org/ExternalAuthentication/OIDCLogin?returnUrl=https%3a%2f%2fpubs.acs.org%2fiecred%2farticle-abstract%2f48%2f7%2f3580%2f1215514%2fEffects-of-Mass-Transfer-on-the-Steady-State-and%3fredirectedFrom%3dfulltext)
+
+Purchased this content as a guest? Enter your email address to restore access.
+
+Please enter valid email address.
+
+
+Email address must be 94 characters or fewer.
+
+
+Email Address
+
+Restore Access
+
+Pay-Per-View Access
+
+$48.00
+
+[Buy This Article](https://pubs.acs.org/store/add/1215514/3)
+
+### READ
+
+- [Journals](https://pubs.acs.org/journals)
+- [Books & References](https://pubs.acs.org/books)
+- [C&EN](https://cen.acs.org/)
+
+### PUBLISH
+
+- [Submit a Manuscript](https://publish.acs.org/)
+- [Author Resources](https://researcher-resources.acs.org/)
+- [Peer Review](https://researcher-resources.acs.org/publish/peer_reviews)
+- [Purchase Author Services](https://authoringservices.acs.org/)
+- [Explore Open Access](https://acsopenscience.org/)
+
+### SUBSCRIBE
+
+- [Librarians & Account Managers](https://solutions.acs.org/)
+- [Open Science for Institutions](https://acsopenscience.org/institutions)
+- [Inquire About Access](https://solutions.acs.org/contact-us/inquire-about-subscriptions/)
+
+### HELP
+
+- [Support FAQ](https://acs.service-now.com/acs?id=kb_home)
+- [Live Chat with Agent](https://acs.service-now.com/acs)
+
+### RESOURCES
+
+- [About ACS Publications](https://pubs.acs.org/pages/about)
+- [ChemRxiv](https://chemrxiv.org/engage/chemrxiv/public-dashboard)
+- [Blog](https://axial.acs.org/)
+- [Events](https://www.acs.org/events.html)
+- [Join ACS](https://www.acs.org/membership.html)
+- [For Advertisers](https://acsmediakit.org/products/acs-journals)
+
+[![American Chemical Society logo](https://acs.silverchair-cdn.com/ImageLibrary/ACSPubs_logo_tagline_Knockout.svg?versionId=3826)](https://pubs.acs.org/iecred/article-abstract/48/7/3580/1215514/Effects-of-Mass-Transfer-on-the-Steady-State-and?redirectedFrom=fulltext#)
+
+1155 Sixteenth Street N.W.
+
+Washington, DC 20036
+
+- Copyright © 2026 American Chemical Society.
+
+
+- [Terms of use](https://www.acs.org/terms.html)
+- [Privacy Policy](https://www.acs.org/privacy.html)
+- Manage Cookies
+- [Accessibility](https://pubs.acs.org/pages/accessibility)
+
+- [Facebook](https://www.facebook.com/ACSPublications/)
+- [X](https://x.com/ACSPublications)
+- [BlueSky](https://bsky.app/profile/pubs.acs.org)
+- [YouTube](https://www.youtube.com/user/AmerChemSoc)
+- [RSS Feed](https://pubs.acs.org/pages/rss)
+
+Close dialog
+
+Close dialog
+
+This Feature Is Available To Subscribers Only
+
+[Sign In](https://pubs.acs.org/sign-in?returnUrl=%2fiecred%2farticle-abstract%2f48%2f7%2f3580%2f1215514%2fEffects-of-Mass-Transfer-on-the-Steady-State-and%3fredirectedFrom%3dfulltext) or [Create an Account](https://pubs.acs.org/my-account/register?siteId=1000165&returnUrl=%2fiecred%2farticle-abstract%2f48%2f7%2f3580%2f1215514%2fEffects-of-Mass-Transfer-on-the-Steady-State-and%3fredirectedFrom%3dfulltext)
+
+Close subscription notice
+
+Close access options
+
+## Sharing Unavailable
+
+Sharing content requires targeting cookies to be enabled. Please update your cookie preferences to use this feature.
+
+Update Cookie PreferencesCancel

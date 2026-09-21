@@ -1,0 +1,462 @@
+[Skip to main content](https://www.sciencedirect.com/science/article/abs/pii/S0263876216302763#main) [Skip to article](https://www.sciencedirect.com/science/article/abs/pii/S0263876216302763#article)
+
+[![Chemical Engineering Research and Design](https://ars.els-cdn.com/content/image/1-s2.0-S0263876216X00123-cov200h.gif)](https://www.sciencedirect.com/journal/chemical-engineering-research-and-design/vol/117/suppl/C)
+
+## [Chemical Engineering Research and Design](https://www.sciencedirect.com/journal/chemical-engineering-research-and-design "Go to Chemical Engineering Research and Design on ScienceDirect")
+
+Date: January 2017
+
+Pages: 637-647
+
+Volume: [Volume 117](https://www.sciencedirect.com/journal/chemical-engineering-research-and-design/vol/117/suppl/C "Go to table of contents for this volume/issue")
+
+View accessibility information
+
+## Published by: Elsevier
+
+### Published by
+
+[![Elsevier](https://www.sciencedirect.com/us-east-1/prod/4c0cf18f3b8f21b90169bd07223635ac1936560d/image/elsevier-non-solus.svg)](https://www.sciencedirect.com/journal/chemical-engineering-research-and-design "Go to Chemical Engineering Research and Design on ScienceDirect")
+
+Show more
+
+Research article
+
+[Get rights and content](https://s100.copyright.com/AppDispatchServlet?publisherName=ELS&contentID=S0263876216302763&orderBeanReset=true)
+
+# Using maximum entropy, Gamma, Inverse Gaussian and Weibull approach for prediction of drop size distribution in a liquid–liquid extraction column
+
+Author links open overlay panel [MehdiAsadollahzadeh](https://www.sciencedirect.com/author/59537107400/mehdi-asadollahzadeh), [RezvanTorkaman](https://www.sciencedirect.com/author/55769911100/rezvan-torkaman), [MeisamTorab-Mostaedi](https://www.sciencedirect.com/author/24802308700/meisam-torab-mostaedi), [JaberSafdari](https://www.sciencedirect.com/author/15832848800/jaber-safdari)
+
+Show more
+
+Cite
+
+Add to Mendeley
+
+Share
+
+[10.1016/j.cherd.2016.08.025](https://doi.org/10.1016/j.cherd.2016.08.025)
+
+[Access through **your organization**](https://www.sciencedirect.com/user/institution/login?targetUrl=%2Fscience%2Farticle%2Fpii%2FS0263876216302763) [Purchase PDF](https://www.sciencedirect.com/getaccess/pii/S0263876216302763/purchase)
+
+More actions
+
+## Article preview
+
+- [Abstract](https://www.sciencedirect.com/science/article/abs/pii/S0263876216302763#abstracts)
+- [Introduction](https://www.sciencedirect.com/science/article/abs/pii/S0263876216302763#introduction)
+- [Section snippets](https://www.sciencedirect.com/science/article/abs/pii/S0263876216302763#section-snippets)
+- [References (21)](https://www.sciencedirect.com/science/article/abs/pii/S0263876216302763#references)
+
+## Highlights
+
+- •
+Mean [drop size](https://www.sciencedirect.com/topics/engineering/drop-size) and size distribution is measured in a Kühni extraction column.
+
+- •
+The [maximum entropy](https://www.sciencedirect.com/topics/engineering/maximum-entropy) principle is used to predict the [drop size distributions](https://www.sciencedirect.com/topics/engineering/drop-size-distribution).
+
+- •
+Gamma, Inverse Gaussian, Weibull functions were used for [drop size](https://www.sciencedirect.com/topics/engineering/drop-size) distributions.
+
+- •
+Empirical correlations are proposed to predict Sauter mean drop size.
+
+
+## Abstract
+
+In this study, drop size distribution and Sauter mean drop diameters were measured and correlated under operating variables and physical properties of the systems using a 113 mm diameter Kühni column. Three systems including toluene-water, _n_-butyl acetate-water and _n_-butanol-water were experimented in this column. The countercurrent flow pattern of the liquid phases was characterized regarding the Sauter mean drop diameter and drop size distribution; a photographic method was used to assess drop sizes. The following operating variables were studied: rotor speed, flow rate of both liquid phases and interfacial tension. The drop size distribution and Sauter mean drop diameter were found to depend largely on the rotor speed and interfacial tension, albeit, only partially dependent on the phase velocities. The [maximum entropy](https://www.sciencedirect.com/topics/engineering/maximum-entropy) principle and the conventional probability distribution functions (Gamma, Inverse Gaussian, Weibull) have already been applied to estimate the drop size distribution. Experimental results show that the maximum entropy function describes the drop size distribution better than the conventional probability distribution functions for three systems in a Kühni column extractor. An empirical correlation is proposed for the estimation of the Sauter mean drop diameter. The acquired information would be useful in design of liquid–liquid extraction columns.
+
+## Graphical abstract
+
+![](https://ars.els-cdn.com/content/image/1-s2.0-S0263876216302763-fx1.jpg)
+
+1. [Download: Download high-res image (176KB)](https://ars.els-cdn.com/content/image/1-s2.0-S0263876216302763-fx1_lrg.jpg "Download high-res image (176KB)")
+2. [Download: Download full-size image](https://ars.els-cdn.com/content/image/1-s2.0-S0263876216302763-fx1.jpg "Download full-size image")
+
+## Keywords
+
+Kühni column extractor
+
+;
+
+Drop size distribution
+
+;
+
+Sauter mean drop diameter
+
+;
+
+Probability distribution functions
+
+- [Previous article in this issue](https://www.sciencedirect.com/science/article/pii/S0263876216304294)
+- [Next article in this issue](https://www.sciencedirect.com/science/article/pii/S0263876216302854)
+
+## Introduction
+
+Liquid–liquid extraction is an important separation process. Various types of solvent extraction columns have been used for a range of applications in the chemical, petroleum, nuclear, hydrometallurgical industries and other areas for many years (Aguailar and Cortina, 2013, Kislik, 2012). Knowledge of the hydrodynamic parameters including drop size is of fundamental importance in the design of liquid–liquid extraction columns (Asadollahzadeh et al., 2016b, Yuan et al., 2014). In solvent extraction processes, for instance, the interfacial area of the dispersion, controls the mass transfer rate and it is a key parameter for the design and scaling-up of gravity settlers that ensure the ultimate liquid phases separation (Asadollahzadeh et al., 2016a, Asadollahzadeh et al., 2016c, Godfrey and Slater, 1994).
+
+Mechanically agitated extraction columns, are widely used in industry. For this type of extractor, there are two different methods of phase agitation: rotary agitation by discs, turbines etc. and agitation by pulsators. The Kühni column is one type of extraction column in which the necessary interface for mass transfer is achieved with turbines placed one above the other compartments (Hemmati et al., 2015a). The agitated column is universally suitable for all types of liquid–liquid extraction applications. Therefore, the change in mean drop size and drop size distribution with agitation speed is very important in these extractors (Hemmati et al., 2015b, Oliveira et al., 2008). The unified correlations for prediction of the drop size in mechanically agitated columns are shown in Table 1.
+
+A unified correlation for prediction of the drop size in mechanically agitated columns, namely Kühni, rotating disc, asymmetric rotating disc and Wirtz-II is reported by (Kumar and Hartland, 1996).
+
+As a general trend, the Sauter mean drop diameter decreases everywhere in the extraction column with agitation, while the drop size distribution becomes narrower. On the other hand, an increase in the flow rates results in larger drops, an effect which has been found to be more significant for the dispersed phase flow rate in comparison with the continuous one (Tsouris et al., 1990).
+
+Oliveira et al. (2008) studied the experiments in a short Kühni column extractor and observed that smaller drops and more uniform drop size distributions were obtained with the increase of rotor speed and column stage number, thus indicating the predominance of the drop breakage phenomena in the short columns.
+
+The adequacies of various conventional probability density functions such as Normal, Log-normal, Gamma, Inverse Gaussian and Weibull functions were investigated by researchers for the prediction of drop size distribution in the liquid–liquid extraction column. The description of these functions is shown in Table 2 (Montgomery and Runger, 1994).
+
+Other general features of size distribution for dispersed systems are investigated by (Mugele and Evans, 1951). A modification of the log-probability equation, called the upper-limit equation and Nukiyama–Tanasawa equation were used for dispersed spray data. The results obtained the mean diameters accurately and it indicated the type of distribution function that may be derivable from mechanical principles (Mugele and Evans, 1951).
+
+There are many innovative and exciting statistical methods now being developed and applied to predict experimental data. The maximum entropy principle (MEP) has been successfully applied to many problems arising in a wide variety of fields such as physical, chemical, biological, computer science, etc. The maximum entropy method allows determining the least biased probability distribution function when the information available is limited by some macroscopic constraints. Nonetheless, no research work for using statistical maximum entropy method was reported in the Kühni pilot plant column for determination of drop size distribution.
+
+In this study, the drop size of the dispersed phase was measured over a wide range of operating conditions using a 113 mm diameter Kühni column. The experimental data were then compared with the literature correlations. The maximum entropy method according the previous research work in the multi-impeller extraction contactor (Asadollahzadeh et al., 2015) and stochastic density function (Weibull, Inverse Gaussian, Gamma) were used for prediction of drop size distributions in the Kühni pilot plant column. In the process of making these comparisons, estimates will be made of the constant parameters in the maximum entropy approach as a function of effective variables. In addition, an empirical correlation was developed to predict the mean drop size based on the experimental data and the literature data for different liquid systems.
+
+## Organizational access
+
+Get full-text access by signing in with your organisation [Access through **your organization**](https://www.sciencedirect.com/user/institution/login?targetUrl=%2Fscience%2Farticle%2Fpii%2FS0263876216302763)
+
+### Other access options
+
+[Purchase PDF](https://www.sciencedirect.com/getaccess/pii/S0263876216302763/purchase)
+
+[Need help with access?](https://service.elsevier.com/app/answers/list/c/10543/supporthub/sciencedirect/)
+
+## Section snippets
+
+### Fitting performance evaluation
+
+The coefficient of determination (R2) is used to evaluate the performance of the probability distribution functions. This coefficient defined as a percentage indicates how much of the total variation in the dependent variable can be accounted for by the experimental distribution. A higher R2 represents a better fit using the theoretical or empirical function. The definition of the R2 is:R=1−σd,xσdwhere R is the correlation coefficient and _σ_ d is the standard deviation of the experimental data
+
+### Kühni pilot scale unit
+
+A pilot scale Kühni extraction column was used in these experiments. Two sides of the column were made of stainless steel and the other sides were made of Pyrex glass. The inlets and outlets of the column were connected to four stainless steel tanks, each having a 100 l capacity. The flow rates of the two phases were graded by two rotameters; fine control being achieved by means of stainless steel needle valves, which were 700 mm in length and with an inside diameter of 113 mm, at 10 stages.
+
+### Mean drop size
+
+The effects of the operating variables, rotor speed and interfacial tension on the Sauter mean drop diameter in a Kühni column are shown in Fig. 2. As can be seen in this figure, agitation has a strong effect on the Sauter mean diameter. For the three systems, it was found that as the agitation speed is increased, the mean drop size significantly decreases. The agitation rate is raised to higher shear stress and to intense drop breaking and consequently, the Sauter mean diameter will decrease.
+
+### Conclusion
+
+The effects of agitation speed, dispersed phase and continuous phase flow rates, interfacial tension, mass transfer direction, and the height of column on drop sizes were studied experimentally in a pilot scale Kühni column. The drop size could be decreased with increasing agitation speed and decreasing dispersed phase flow rate, but the continuous phase flow rate had not a significant effect. Also, it is observed that the direction of mass transfer was influenced in the Sauter mean drop
+
+## References (21)
+
+- M. Asadollahzadeh _et al._
+
+### [Holdup, characteristic velocity and slip velocity between two phases in a multi-impeller column for high/medium/low interfacial tension systems](https://www.sciencedirect.com/science/article/pii/S0255270115301501)
+
+
+
+
+### Chem. Eng. Process.
+
+
+
+(2016)
+
+- A. Hemmati _et al._
+
+### [Mass transfer coefficients in a Kühni extraction column](https://www.sciencedirect.com/science/article/pii/S026387621400313X)
+
+
+
+
+### Chem. Eng. Res. Des.
+
+
+
+(2015)
+
+- A. Hemmati _et al._
+
+### [A study of drop size distribution and mean drop size in a perforated rotating disc contactor (PRDC)](https://www.sciencedirect.com/science/article/pii/S0263876215000386)
+
+
+
+
+### Chem. Eng. Res. Des.
+
+
+
+(2015)
+
+- M. Aguailar _et al._
+
+### Solvent Extraction and Liquid Membranes
+
+
+(2013)
+
+- A.M.I. Al-Rahawi
+
+### New predictive correlations for the drop size in a rotating disc contactor liquid–liquid extraction column
+
+
+
+
+### Chem. Eng. Technol.
+
+
+
+(2007)
+
+- D.R. Arnold _et al._
+
+### Drop size distribution and interfacial area in agitated contractors
+
+
+
+
+### ISEC’74
+
+
+
+(1974)
+
+- M. Asadollahzadeh _et al._
+
+### Use of axial dispersion model for determination of Sherwood number and mass transfer coefficients in a perforated rotating disc contactor
+
+
+
+
+### Chin. J. Chem. Eng
+
+
+
+(2016)
+
+- M. Asadollahzadeh _et al._
+
+### The effects of operating parameters on stage efficiency in an Oldshue-Rushton column
+
+
+
+
+### Chem. Ind. Chem. Eng. Q.
+
+
+
+(2016)
+
+- M. Asadollahzadeh _et al._
+
+### Using maximum entropy approach for prediction of drop size distribution in a pilot plant multi-impeller extraction contactor
+
+
+
+
+### RSC Adv.
+
+
+
+(2015)
+
+- A. Fischer
+
+### Hydrodynamik und Stoffaustausch in einer Flussig- Flussig-Ruhrextraktionskolonne
+
+
+(1973)
+
+
+There are more references available in the full text version of this article.
+
+[View full text](https://www.sciencedirect.com/science/article/pii/S0263876216302763)
+
+## Recommended articles
+
+### Based on reading popularity
+
+- Research article
+
+
+
+[Synergistic antifungal mechanism of eugenol and citral against _Aspergillus niger_: Molecular Level](https://www.sciencedirect.com/science/article/pii/S0926669024004126)
+
+YihuiWang, …, JianJu
+
+Industrial Crops and Products • Volume 213 • 2024 • Article 118435
+
+- Review articleOpen access
+
+
+
+[Nano-drug delivery system for the treatment of multidrug-resistant breast cancer: Current status and future perspectives](https://www.sciencedirect.com/science/article/pii/S0753332224012125)
+
+LanwenGao, …, YuCai
+
+Biomedicine & Pharmacotherapy • Volume 179 • 2024 • Article 117327
+
+- Review article
+
+
+
+[Nanoprimers in sustainable seed treatment: Molecular insights into abiotic-biotic stress tolerance mechanisms for enhancing germination and improved crop productivity](https://www.sciencedirect.com/science/article/pii/S0048969724052689)
+
+AmrutaShelar, …, RajendraPatil
+
+Science of The Total Environment • Volume 951 • 2024 • Article 175118
+
+- Review articleOpen access
+
+
+
+[A comprehensive review of mycotoxins, their toxicity, and innovative detoxification methods](https://www.sciencedirect.com/science/article/pii/S2214750025000708)
+
+RavikantShekhar, …, P.Rachitha
+
+Toxicology Reports • Volume 14 • 2025 • Article 101952
+
+- Research article
+
+
+
+[Hybrid ANN-PSO modeling and risk assessment approach of molybdenum separation from tungsten in sulfate solutions by liquid–liquid extraction process with D2EHPA](https://www.sciencedirect.com/science/article/pii/S138358662400248X)
+
+BenyaminShakib, …, Rajesh KumarJyothi
+
+Separation and Purification Technology • Volume 340 • 2024 • Article 126509
+
+- Review article
+
+
+
+[Kinetics of solvent extraction of _f_-elements: а critical review on extraction systems and measurement techniques](https://www.sciencedirect.com/science/article/pii/S0167732224020841)
+
+Ekaterina A.Konopkina, …, Petr I.Matveev
+
+Journal of Molecular Liquids • Volume 414, Part A • 2024 • Article 126025
+
+
+## Cited by (26)
+
+- Research article
+
+
+
+[Observational comparative study in Kühni and ORC agitated columns for the mechanism and performance of molybdenum extraction under various hydrodynamic conditions](https://www.sciencedirect.com/science/article/pii/S0017931021014368)
+
+Shakib B., …, Asadollahzadeh M.
+
+International Journal of Heat and Mass Transfer • Volume 185 • 2022 • Article 122337
+
+
+Show abstract
+
+
+
+
+The present work is expressed to interpret the hydrodynamic parameters of rotation extraction columns in the reactive and non-reactive systems. The solvent extraction technique has been utilized for optimizing the transportation of molybdenum ions to the organic phase in two agitated columns (ORC and Kühni columns). Dispersed phase volume fraction, average droplet diameter, slip velocity, size distribution, and ions permeability of the aqueous phase have been investigated in terms of changing the operational variables including the agitation rate, flow rate of the inlet dispersed and continuous phases, column geometry, and reaction conditions. By considering the reactive and non-reactive conditions, the responses investigated indicated that the alteration in the agitation rate and reaction systems on the hydrodynamic parameters is considerable in comparison with the column geometry as well as both phase flow rates. Previous experimental research works for anticipating the drop behavior, holdup values, and slip velocity of droplets in different rotary columns have been reviewed and several new models have been derived by considering the geometric parameters and reactive or physical systems. The solvent extraction findings showed that the rotary extraction columns could be utilized as a suitable mass transfer device for chemical reaction systems.
+
+- Research article
+
+
+
+[Statistics of ceramic strength: Use ordinary Weibull distribution function or Weibull statistical fracture theory?](https://www.sciencedirect.com/science/article/pii/S0272884220313092)
+
+Lei W.-S., …, Qian G.
+
+Ceramics International • Volume 46 • 2020
+
+
+
+
+
+Citation Excerpt:
+
+
+
+All these empirical distribution functions do not necessarily have any theoretical basis. Today, the ordinary Weibull distribution Equation (10) has been used in many other fields such as the liquid drop size distribution in the liquid–liquid extraction process for chemical separation applications \[20\] and wind speed and wind energy distributions in renewable energy industry \[21\]. Two key points are taken from Weibull statistical fracture theory for the uniaxial flexure:
+
+
+
+
+Show abstract
+
+
+
+
+“Weibull statistics” for strength distribution analysis refers to either the ordinary Weibull distribution function or the Weibull statistical fracture theory. The ordinary Weibull distribution function is an empirical distribution function on an equal footing with other type of classical empirical distributions such as normal and log-normal distributions for fitting the statistical data of various random variables nonexclusive to materials strength. It has no explicit physical meaning and cannot be used for size scaling and prediction of strength. The Weibull statistical fracture theory is a weakest-link statistical fracture model for a solid with the strength distribution of an elemental volume being described by the ordinary Weibull distribution function. It has the capability of size scaling and prediction of strength for specimens with different geometries and different loading modes. The three-parameter Weibull statistical fracture theory in uniaxial flexure of prismatic beams is reformulated and validated by both numerical and real strength experiments of different ceramics.
+
+- Research article
+
+
+
+[Effects of nanoparticles on the drop behavior in the Oldshue-Rushton extraction column by using central composite design method](https://www.sciencedirect.com/science/article/pii/S138358661732926X)
+
+Torkaman R., …, Torab‑Mostaedi M.
+
+Separation and Purification Technology • Volume 197 • 2018
+
+
+
+
+
+Citation Excerpt:
+
+
+
+Recently, Asadollahzadeh and co-workers developed a theoretical approach to analytical determination of the drop size distributions based on the maximum entropy principle. It was shown that this model based on the maximum entropy principle can describe the actual data more accurately than the popular probability distribution function in terms of root mean square error \[17,18\]. In recent years, a great deal of effort has been devoted to obtain the experimental data by using nanofluids in the laboratory-scale process.
+
+
+
+
+Show abstract
+
+
+
+
+The experimental conditions for the determination of drop size and size distribution in the presence of silica nanoparticles (0.025 and 0.05 wt%) were studied by using the pilot plant Oldshue-Rushton extraction column. The effects of the three parameters such as rotor speed, dispersed phase flow rate as well as continuous phase flow rate were investigated by means of the central composite design (CCD), which is a subcategory of response surface methodology (RSM). The experiment was carried out by using toluene-water system and the results indicated that the nanoparticles reduce the Sauter mean drop size in the extraction column, albeit with a slight variation in the drop size distribution observed in the column. The operating parameters and the drop size is correlated by using central composite design and then tested on the basis of the goodness-of-fit statistics by the analysis of the variance. A new family of the probability distribution function based on the principle of the pre-exponential term to the maximum entropy method was studied for the prediction of drop size distribution. As a result, we found that MEP and pre-exponential term of MEP can provide a better alternative for the prediction of drop size distribution.
+
+- Research article
+
+
+
+[Three-dimensional stochastic modeling of metallic surface roughness resulting from pure waterjet peening](https://www.sciencedirect.com/science/article/pii/S0020722517316798)
+
+Xie J., Rittel D.
+
+International Journal of Engineering Science • Volume 120 • 2017
+
+
+Show abstract
+
+
+
+
+We propose a new approach named FEM-Stochastic approach for predicting the surface roughness resulting from waterjet peening of a metallic surface. This approach consists three aspects. One is Coupled Eulerian Lagrangian (CEL) simulation for studying the deformation behavior of single droplet; the second is the stochastic analysis for synthesizing a deformed surface; the third is to calculate the surface roughness parameters. CEL simulation results agree well with the liquid impact theory. Four situations with a different number of droplets (1000, 5000, 10,000 and 20,000) are analyzed, for which the deformed target surfaces and corresponding roughness profiles are shown and compared. Calculated values of roughness parameters indicate that there are three stages of evolution for the arithmetic average height _Ra_ and quadrature average _Rq_. Those are: roughness increase stage, roughness decrease and roughness steady-state stage, respectively. The total roughness _Rt_ and kurtosis parameter _Rku_ decline gradually when more and more droplets are modeled because the sharp ridges formed by fewer droplets are obliterated by the impingement of subsequent droplets. Skewness parameter _Rsk_ values are all negative, no matter how many droplets, moreover, its absolute value becomes increasingly smaller as the number of droplet changes from 1000 to 20,000. The present spatial model of droplets, although still incomplete, is capable of synthesizing a deformed surface and calculating the relevant roughness parameters.
+
+- [Drop size correlation and population balance model for an agitated-pulsed solvent extraction column](http://www.scopus.com/scopus/inward/record.url?partnerID=10&rel=3.0.0&view=basic&eid=2-s2.0-85087314550&md5=7df2d686a3dfc063a838a8e155694d6)
+
+Tan B., …, Qi T.
+
+AIChE Journal • Volume 66 • 2020 • Article e16279
+
+- [Optimization of lanthanum extraction in asymmetric rotation pilot plant column by using central composite methodology](http://www.scopus.com/scopus/inward/record.url?partnerID=10&rel=3.0.0&view=basic&eid=2-s2.0-85078433113&md5=ab16ac0922dba2482f786b5a771475e)
+
+Asadollahzadeh M., …, Torab‑Mostaedi M.
+
+Geosystem Engineering • Volume 23 • 2020
+
+
+[View all citing articles on Scopus](http://www.scopus.com/scopus/inward/citedby.url?partnerID=10&rel=3.0.0&eid=2-s2.0-84999097970&md5=6e2b542d49a454d6c6f23db1a365f7fc)
+
+## Metrics
+
+### Citations
+
+- Citation Indexes25
+
+### Captures
+
+- Mendeley Readers27
+
+![PlumX Metrics Logo](https://cdn.plu.mx/3ba727faf225e19d2c759f6ebffc511d/plumx-logo.png)[View details](https://plu.mx/plum/a/?doi=10.1016%2Fj.cherd.2016.08.025&theme=plum-sciencedirect-theme&hideUsage=true)
+
+© 2016 Institution of Chemical Engineers. Published by Elsevier B.V. All rights reserved.
+
+Persistent link using digital object identifier (DOI)

@@ -14,3 +14,9 @@ An enlarged top's local settling-area PASS does not establish an integrated NMP 
 **Why:** Fine drops can settle in the enlarged section but be swept upward again where the opposing continuous-phase velocity increases. A capture size selected for reliable small-deformation modeling is not evidence that the actual carryover distribution is bounded by that size.
 
 **How to apply:** Check the full return path, including transitions and the unchanged throat. Do not credit coalescence, a collected-liquid downcomer or an external guard separator without qualifying its collection and return duties. Keep spatial-layout PASS separate from capture/entrainment HOLD, and include any additional separator equipment outside the vessel envelope explicitly.
+
+Do not select top capture duty or separation equipment from an arbitrary fine-drop screening failure. Establish the relevance of that size to the dispersed-volume tail and physical entrainment first.
+
+**Why:** The user explicitly rejected promoting the 500-µm sensitivity into a design duty. Published local Kühni number distributions, even at the last active stage, are not outlet flux distributions; rescaling a donor width to the calculated mean does not validate the RRBO/NMP tail.
+
+**How to apply:** Report transferred distribution widths as conditional sensitivities, not expected fractions or confidence bands. Separate number, local-volume and one-way exit-flux weighting. Apply same-population moment bounds only to the population whose mean they describe; never use them as bounds on preferentially transported outlet fines. Retain the top as a layout reservation until this evidence supports a separation duty.

@@ -1,0 +1,971 @@
+          Brazilian Journal
+            of Chemical                                                                                            ISSN 0104-6632
+                                                                                                                   Printed in Brazil
+            Engineering                                                                                       www.abeq.org.br/bjche
+
+
+  Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+
+
+
+
+    A STUDY OF THE DROP SIZE DISTRIBUTIONS
+     AND HOLD-UP IN SHORT KÜHNI COLUMNS
+         N. S. Oliveira1, D. Moraes Silva1, M. P. C. Gondim1 and M. Borges Mansur2*
+                                                      1
+                                                       Escola de Engenharia, UFMG,
+                                  Rua Espírito Santo 35, CEP 30160-030, Belo Horizonte - MG, Brazil.
+                                   2
+                                    Departamento de Engenharia Metalúrgica e de Materiais, UFMG,
+                                        Phone: +(55) (31) 3409-1810, Fax: +(55) (31) 3409-1815,
+                              Rua Espírito Santo 35, 2° andar, CEP 30160-030, Belo Horizonte - MG, Brazil.
+                                                 E-mail: marcelo.mansur@demet.ufmg.br
+
+                                              (Received: May 18, 2007 ; Accepted: May 05, 2008)
+
+       Abstract - The hydrodynamic behaviour of a short Kühni column was investigated under no mass transfer
+       conditions using the binary system water (continuous phase) and Exxsol D-80 (dispersed phase). The counter-
+       current flow pattern of the liquid phases was characterised regarding the Sauter mean drop diameter, drop size
+       distribution and hold-up; a photographic method was used to assess drop sizes. The following operating
+       variables were studied: rotor speed, flow rate of both liquid phases and column stage. The log-normal
+       probability density function was found to be adequate to fit the experimental drop size distributions along the
+       column. As expected, smaller drops and more uniform drop size distributions were obtained with the increase
+       of rotor speed and column stage number, thus indicating the predominance of drop breakage phenomena in
+       short columns. The total hold-up was influenced mainly by rotor speed and flow rate of the dispersed phase.
+       Recommended correlations available in the literature were found to be inadequate for predicting experimental
+       drop sizes and hold-up, so alternative expressions, valid only for short Kühni columns, were proposed.
+       Keywords: Liquid-liquid extraction; Kühni column; Hydrodynamics; Drop size distributions; Short columns.
+
+
+
+
+                    INTRODUCTION                                          complex to be predicted based solely on theory. As
+                                                                          recently pointed out by Grinbaum (2006), there is
+    Pilot-plant testing is an expensive and time-                         still a wide gap between the development of new
+consuming procedure that still remains an almost                          models by academia and their application by
+inevitable preliminary step in order to obtain a full-                    industrial R&D personnel, so column piloting is, at
+scale design for liquid-liquid extraction columns. In                     present, the easiest, fastest, and most accurate
+such equipment, extraction kinetics and mass                              method to supply data for industrial column design.
+transfer rates between liquid phases are closely                              In this context, considerable effort has been made
+related to the interfacial area (Ji et al., 2006), which,                 over the years aiming at reducing piloting. It has
+in turn, is very susceptible to contaminants and                          focused on the development of: (1) cheaper
+depends upon the column geometry, hydrodynamics,                          alternative experimental procedures using single
+mass transfer direction, turbulence level, physical                       drops (Bahmanyar et al., 1990; Cabassud et al.,
+properties of liquid phases, column height, flow                          1990; Seikova et al., 1992; Fang et al., 1995; Modes
+rates, temperature, etc. The knowledge of the mean                        et al., 1999) and/or short columns (Fan et al., 1987;
+drop size and drop size distributions along the                           Mansur et al., 2003) to get reliable design data, and
+equipment is fundamental to get a realistic                               (2) mathematical models incorporating the complex
+description of column performance, but is still to                        nature of the macroscopic dispersed phase interaction
+
+*To whom correspondence should be addressed
+730                           N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim and M. Borges Mansur
+
+as well as the microscopic interphase mass transfer                  sizes along the column until a steady-state distribution
+occurring in the continuously turbulent flow field,                  is achieved (Tsouris et al., 1990; Moreira et al., 2005).
+which results in a distributed population of drops                   On the other hand, a contrary behaviour, resulting in
+(Valentas, 1966; Gourdon et al., 2004; Kronberger et                 relatively larger drops, has been observed in the upper
+al., 1995; Sechremeli et al., 2006; Attarakih et al.,                stages of the column due to the continuous phase feed
+2006). Empirical correlations to predict single                      effect, thus indicating that drop breakage dominates in
+operating variables (Kumar and Hartland, 1994, 1995,                 the base of the column, whereas coalescence and
+1996), neural networks for control purposes (Boger and               breakage rates reach equilibrium in the upper stages
+Haim, 1993) and computational fluid dynamics (CFD)                   (Tsouris et al., 1990). Consequently, a variation in drop
+modelling of both hydrodynamics and/or mass transfer                 size distribution produces a hold-up profile exhibiting a
+along a given column geometry (Nabli et al., 1998;                   maximum value along the column depending on the
+Mate et al., 2000; Bardin-Monnier et al., 2003) have                 operating conditions, which can be used to determine
+been applied to simulate liquid-liquid extraction                    the column flooding. A unified correlation for the
+column operation.                                                    prediction of total hold-up of the dispersed phase in
+    As a general trend, the Sauter mean diameter                     columns has been proposed by Kumar and Hartland
+decreases everywhere in the extraction column with                   (1995) for engineering calculations. This correlation
+agitation, while the drop size distribution becomes                  predicted the experimental hold-up obtained by Kentish
+narrower. On the other hand, an increase in the flow                 (1996) in a Kühni column (72mm diameter, 25 stages)
+rates results in larger drops, an effect which has been              to within a deviation of 17.7% for the system acetic
+found to be more significant for the dispersed phase                 acid-water-MIBK (methyl isobutyl ketone).
+flow rate in comparison with the continuous one                          Despite the obvious importance of knowledge of
+(Tsouris et al., 1990). In the absence of turbulence or              drop size for the theoretical description of extraction
+for low agitation levels (ReR  10,000), the average                 operation in columns, Grimbaum (2006) points out
+size of drops is controlled by the balance between                   that this is a far more problematic variable than hold-
+buoyancy and interfacial tensions and is given by the                up. In some practical situations, drops are quite
+following equation (Bailes et al., 1986):                            difficult to observe and sometimes just impossible to
+                                                                     be measured as no dispersion is clearly identified.
+                   0.5
+         § J ·                                                       Moreover, when dispersion is observed, drops are
+d32   C1 ¨     ¸                                         (1)         not spherical at all but form big bulges or lumps. In
+         © 'Ug ¹
+                                                                     the case of agitated columns, however, drops are
+                                                                     practically spherical for a broad range of operational
+where C1 is an empirical parameter depending on
+the column geometry, mass transfer direction,                        conditions, so CFD or drop-population balances can
+temperature and physical properties. For a rotating                  describe their behaviour with satisfactory accuracy.
+disc contactor, similar values for C1 have been                      Therefore, at the current stage of knowledge, piloting
+found by Chang-Kakoti et al. (1985) and Moreira                      and modelling contributions are both important (and
+et al. (2005) for drops of n-butyl alcohol (C1 = 1.3)                also complementary) for improving the design
+and n-heptane (C1 = 1.4 ± 0.2) in water,                             procedure for extraction columns.
+respectively. More turbulent conditions (ReR >                           In the present work, experimental drop size
+10,000) will result in smaller drops that can be                     distributions and hold-up have been measured in a
+conveniently predicted by empirical or semi-                         short Kühni column (150 mm diameter and 5 stages)
+empirical correlations such as those proposed by                     using the binary system water (continuous phase)
+Fischer (1973) and Kumar and Hartland (1996) for                     and kerosene Exxsol D-80 (dispersed phase) at room
+the Kühni column. Experimental investigations                        temperature in order to investigate the hydrodynamic
+carried out in a rotating disc contactor have shown                  behaviour of ascending drops in short columns under
+that mean drop sizes are strongly influenced by                      normal operating conditions in the range of 7225 
+rotor speed, column height and dispersed phase                       ReR  21675. According to Fan et al. (1987), the
+flow rate when ReR > 10,000 (Yamaguchi et al.,                       main difficulties to be recognised in a short column
+2002; Moreira et al., 2005).                                         are the end effects and inlet drops being of
+    With respect to drop size distributions, experimental            uncharacteristic size for a given geometry and degree
+studies with agitated columns have shown that                        of agitation, so the aim of this work is to gain a
+distributions of rising organic drops dispersed in a                 better understanding of drop behaviour in short
+continuous aqueous phase are broad in the first stages,              columns in order to provide basic data required for
+becoming narrower and shifting toward smaller drop                   column design at reduced cost.
+
+                                             Brazilian Journal of Chemical Engineering
+                             A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                        731
+
+                 EXPERIMENTAL                                            for the photographic determination of drop size
+                                                                         distributions in a rotating disc contactor has been
+Kühni Pilot Scale Unit                                                   adopted in this study. The following operating
+                                                                         variables and range levels were investigated in this
+    The current experimental work was carried out in                     work: rotor speed (60, 90, 120, 150 and 180 rpm),
+a short Kühni column of 5 stages and 150 mm                              flow rate of the continuous phase (1.24 and 2.00
+diameter which was built in a cylindrical precision                      L/min), flow rate of the dispersed phase (1.24 and
+bore glass section. Each stage was equipped with a                       2.00 L/min) and stage number from the bottom of the
+six-blade turbine agitator (rotor diameter = 85 mm                       column (0 or distributor, 1, 3 and 5). These variables
+and rotor height = 10 mm) with accurate speed                            and levels have been chosen based on a previous
+control, and stator plate (fractional free cross-                        study (Mansur et al., 2003). Under this range of
+sectional area = 30 %) spacing of 70 mm. All the                         operating variables, the short Kühni column described
+internal parts of the column were constructed in AISI                    in Section 2.1 operates at 7225  ReR  21675
+316 stainless steel. Teflon annular gaskets were fixed                   conditions.
+on the stators to prevent any liquid from passing                            Firstly, the column was filled with the continuous
+between the stators and the column wall.                                 aqueous phase until it reached a previously set level (1-
+    The dispersed phase was introduced into the column                   2 mm above the top stage); this was done carefully in
+using a conical distributor of 92 mm diameter made of                    order to avoid the formation of small bubbles below the
+AISI 316 stainless steel centrally located in the base of                plates. The rotor motor was started and agitation speed
+the column. In the distributor, a total of 170 holes of 1                adjusted. Then both phases were fed to the column at a
+mm diameter each are distributed into five concentrical                  specified throughput and allowed to circulate in the unit
+circles. The diameter of the smaller circle of holes is 37               for 30 minutes according to Figure 1 (closed system) to
+mm and the distance between each circle of holes is 9                    assure that the hydrodynamic steady-state condition has
+mm; in each circle, the distance between holes is                        been reached.
+around 6-7 mm.                                                               A digital camera (Nikon® Coolpix 990) was
+    In the unit, all piping was constructed of resistant                 suitably placed 200 mm from the column wall to
+plastic and pumps were helicoidal provided with a PID                    provide photographs of the two-phase mixture at a
+system for precise flow rate control. Tanks were made                    given operating condition for drop size
+of polypropylene. A scheme of the experimental pilot                     measurements. A graduated scale was fixed by the
+scale unit used in this work is shown in Figure 1.                       side of the column as a size reference. In the
+                                                                         photographs obtained from runs at 150 and 180
+Reagents                                                                 rpm, drops of stages 3 and 5 were photographed
+                                                                         using the zoom mode of the camera in order to
+    Runs were carried out in the absence of mass                         obtain clearer pictures of the fine drops. The
+transfer using water as the continuous phase and                         photographs were analysed with the aid of the
+commercial kerosene Exxsol D-80 (Exxon Mobil,                            software Quantikov Image Analyser (version 5.1
+predominantly aliphatic, aromatic max. of 0.5%wt.) as                    for Windows®) for drop size determination. All
+the dispersed phase, at room temperature. Distilled                      drops were assumed to be spherical because they
+water and Exxsol D-80 were mutually saturated                            did not exhibit very significant deviations from
+before being fed into the column in order to prevent                     spherical shape for the operating conditions
+miscibility effects from interfering with drop size                      evaluated in this work. Drops were measured in
+measurements. The physicochemical properties of                          the vertical position only according to Moreira et
+saturated liquids at 25°C are given in Table 1. After                    al. (2005) and measured drop values were
+each run, the column was cleaned using a solution of                     multiplied by a factor of 0.8 in order to correct the
+non-surface-active detergent, then thoroughly rinsed                     parallax deformation of drops photographed inside
+with tap water and finally cleaned with distilled water.                 the column. A minimum of 400 drops was
+All joints and pipes were washed to ensure thorough                      analysed for each experimental condition in order
+removal of the detergent.                                                to guarantee the statistical significance of the
+                                                                         determined size distributions (Colella et al., 1999).
+Experimental and Image Analysis Procedures                                   The total hold-up of the dispersed phase was
+                                                                         assessed using the shut-down method (Gayler et al.,
+   The same experimental methodology and image                           1951). Measurements were done in triplicate to
+analysis procedure proposed by Moreira et al. (2005)                     verify experimental reproducibility.
+
+
+                    Brazilian Journal of Chemical Engineering Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+732                           N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim and M. Borges Mansur
+
+
+
+
+                                              stage 5
+
+
+                                              stage 4
+
+                                              stage 3
+
+                                              stage 2
+
+
+                                              stage 1
+
+
+                                              stage 0
+
+
+
+
+                               Figure 1: Experimental arrangement of the pilot unit.
+
+                     Table 1: Physicochemical properties of saturated liquid phases (25°C).
+                                                             Water                                    Exxsol D-80
+ Density (kg/m3)                                              996                                         801
+ Viscosity (kg/m.s)                                          0.0011                                     0.0016
+ Interfacial tension (N/m)                                                               0.017
+
+
+
+           RESULTS AND DISCUSSION                                     obtained in more turbulent conditions, as verified also
+                                                                      for other types of liquid-liquid columns (Tsouris et al.,
+Drop Size Distributions in a Short Kühni Column                       1990; Moreira et al., 2005). It was also observed that,
+   The drop diameters determined in the analysis of                   for a given stage, the distribution became narrower as
+the photographs of the two-phase mixture were used                    the rotor speed increased (this is rather evident in
+to establish the corresponding drop size distributions                Figure 2 for stage 5). Furthermore, for a given rotor
+considering 18 equally spaced size classes in the                     speed, the drop size distribution was broader at the
+range 0.0  d (mm)  9.0 for all analyzed operating                   bottom of the column than at the top. Such behaviour
+conditions.                                                           was attributed to an increase in the frequency of drop
+   The effect of rotor speed on the experimental                      collisions with the internals of the column due to the
+drop size distributions at different positions along the              increase in the shear force produced by the rotors to
+short Kühni column (stages 0, 1, 3 and 5) is shown in                 break the dispersed phase into smaller drops. The
+Figure 2 at constant flow rates of both phases (Qc =                  effect of rotors in order to enhance drop breakage was
+1.24 L/min and Qd = 2.00 L/min). It was observed                      not significant at stage 0, which contains no rotor, and
+that drop size distributions shifted to the left with the             the small shift to the left observed in the drop size
+increase of agitation, thus evidencing that smaller                   distribution at 180 rpm could be attributed to the
+drops and more homogeneous distributions are                          turbulence effect from stage 1.
+
+
+                                             Brazilian Journal of Chemical Engineering
+                                                    A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                                                  733
+
+                                               Stage 0                                                                              Stage 1
+                                 Qc = 1240 mL/min e Qd = 2000 mL/min                                                  Qc = 1240 mL/min e Qd =2000 mL/min
+                   140                                                                                  140
+
+                                                                            60 rpm                                                                              60 rpm
+                   120                                                                                  120
+                                                                            90 rpm                                                                              90 rpm
+                   100                                                      120 rpm                     100                                                     120 rpm
+                                                                            150 rpm                                                                             150 rpm
+       Frequency
+
+
+
+
+                                                                                            Frequency
+                    80                                                                                   80                                                     180 rpm
+                                                                            180 rpm
+                    60                                                                                   60
+
+                    40                                                                                   40
+
+                    20                                                                                   20
+
+                     0                                                                                    0
+                         0   1   2       3      4     5     6     7    8        9     10                      0   1   2    3     4     5     6      7       8       9     10
+                                             Drop Diameter (mm)                                                                Drop Diameter (mm)
+
+
+
+                                               Stage 3                                                                              Stage 5
+                                 Qc = 1240 mL/min e Qd =2000 mL/min                                                   Qc = 1240 mL/min e Qd = 2000 mL/min
+                   200                                                                                  200
+                   180                                                     60 rpm                       180
+                                                                                                                                                                60 rpm
+                   160                                                     90 rpm                       160                                                     90 rpm
+                   140                                                     120 rpm                      140                                                     120 rpm
+                                                                           150 rpm          Frequency                                                           150 rpm
+    Frequency
+
+
+
+
+                   120                                                                                  120
+                                                                           180 rpm                                                                              180 rpm
+                   100                                                                                  100
+                   80                                                                                   80
+                   60                                                                                   60
+                   40                                                                                   40
+                   20                                                                                   20
+                    0                                                                                    0
+                         0   1   2      3      4     5     6      7    8       9      10                      0   1   2    3     4     5      6     7       8        9    10
+                                             Drop Diameter (mm)                                                                Drop Diameter (mm)
+
+
+                                     Figure 2: Effect of rotor speed on the drop size distributions at stages 0, 1, 3
+                                       and 5 in the short Kühni column (Qc = 1.24 L/min and Qd = 2.00 L/min).
+
+
+   Figure 3 shows the influence of the stage number                                        rate of the dispersed phase for the operational
+on the experimental drop size distributions measured                                       conditions investigated. On the contrary, the flow
+in a short Kühni column at changing rotor speeds                                           rate of the continuous phase affected significantly
+and fixed flow rates of both phases. The measured                                          the drop size distributions at higher levels of
+drop sizes ranged from 0.5 to 8.5 mm for the                                               agitation, e.g., 150 and 180 rpm. Again, for rotor
+operational conditions investigated. Broader                                               speeds lower than 120 rpm, a small breakage
+distributions were found at lower rotor speeds and at                                      frequency might explain the lack of an effect of the
+stages near to the bottom of the column, thus                                              flow rate of the continuous phase on the drop size
+evidencing how inaccurate the use of a                                                     distributions. In fact, the increase of the flow rate of
+representative mean drop size is for these                                                 the continuous phase led to an increase in the drag
+populations. According to Figure 3, drop size                                              force, which then resulted in a reduction in the
+distributions did not change significantly at stages 0,                                    ascending velocity of the drop and thus to an
+1 and 3 if rotor speeds were lower than (or equal to)                                      increase in the drop residence time in the column.
+120 rpm. Actually, for these slow rotor speeds, the                                        Consequently, the frequency of drop collisions with
+breakage frequency was too small to bring about                                            the internals of the column is increased, so smaller
+significant changes in the size distribution for the                                       drops were then obtained. In addition, no significant
+small differences in column stages 0, 1 and 3. The                                         effect was identified on the drop size distributions
+same behaviour was verified for the other flow rate                                        measured at stages 0 and 1 for the flow rate levels
+levels investigated as well.                                                               studied.
+   The effect of flow rates of the continuous and                                              Apart from the qualitative analysis of the effects
+dispersed phases on the experimental drop size                                             of the considered operating variables upon the drop
+distributions at changing rotor speeds and at stages 3                                     size distributions, an attempt was made to enable
+and 5 of the short Kühni column is shown in Figure                                         some quantitative representation of these effects. In
+4. No significant effect was observed for the flow                                         this study, the log-normal probability density
+
+                                     Brazilian Journal of Chemical Engineering Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+734                                                            N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim and M. Borges Mansur
+
+function (Eq. 2) was chosen for representing the                                                                                      the log-normal function was already found to be
+experimental drop size distributions:                                                                                                 adequate for describing drop size distributions in
+                                                                                                                                      extraction columns (Giles et al., 1971; Tsouris et al.,
+                                         ª § ln d  P ·2 º                                                                            1990; Moreira et al., 2005). For a given diameter di,
+                               1                                                                                                      the corresponding cumulative frequency Fi is
+plg (d)                             exp «  ¨         ¸ »                                                           (2)
+                              2Sd V     «¬ © 2V ¹ »¼                                                                                  expressed as follows:
+
+                                                                                                                                                                 di
+in which d is the drop diameter and P and V are
+parameters to be fitted. It should be emphasised that
+                                                                                                                                      Fi                     ³ p(x)dx
+                                                                                                                                                             0
+                                                                                                                                                                                                                                             (3)
+
+
+
+
+                                                    60 rpm                                                                                                                                    90 rpm
+                                      Qc = 1240 mL/min e Qd = 2000 mL/min                                                                                                       Qc = 1240 mL/min e Qd = 2000 mL/min
+                    120                                                                                                                             120
+
+                    100                                                                                 Stage 0                                     100                                                                       Stage 0
+                                                                                                        Stage 1                                                                                                               Stage 1
+                    80                                                                                  Stage 3                                         80                                                                    Stage 3
+      Frequency
+
+
+
+
+                                                                                                                                        Frequency
+                                                                                                        Stage 5                                                                                                               Stage 5
+                    60                                                                                                                                  60
+
+                    40                                                                                                                                  40
+
+                    20                                                                                                                                  20
+
+                     0                                                                                                                                   0
+                          0     1     2       3      4     5         6                  7       8           9       10                                       0        1         2       3          4     5     6      7   8       9     10
+                                                   Drop Diameter (mm)                                                                                                                            Drop Diameter (mm)
+
+
+                                                                                                                          120 rpm
+                                                                                                            Qc = 1240 mL/min e Qd = 2000 mL/min
+                                                                                  140
+
+                                                                                  120                                                                                         Stage 0
+                                                                                                                                                                              Stage 1
+                                                                                  100
+                                                                                                                                                                              Stage 3
+                                                                  Frequency
+
+
+
+
+                                                                                  80                                                                                          Stage 5
+
+                                                                                  60
+
+                                                                                  40
+
+                                                                                  20
+
+                                                                                   0
+                                                                                        0       1           2       3       4     5                 6            7        8         9       10
+                                                                                                                          Drop Diameter (mm)
+
+                                                        150 rpm                                                                                                                               180 rpm
+                                          Qc = 1240 mL/min e Qd = 2000 mL/min                                                                                                   Qc = 1240 mL/min e Qd = 2000 mL/min
+                    180                                                                                                                             200
+
+                    160                                                                                                                             180
+                                                                                                         Stage 0                                                                                                              Stage 0
+                    140                                                                                                                             160
+                                                                                                         Stage 1                                                                                                              Stage 1
+                                                                                                                                                    140
+                    120                                                                                  Stage 3                                                                                                              Stage 3
+                                                                                                                                      Frequency
+        Frequency
+
+
+
+
+                                                                                                                                                    120                                                                       Stage 5
+                    100                                                                                  Stage 5
+                                                                                                                                                    100
+                     80
+                                                                                                                                                        80
+                     60
+                                                                                                                                                        60
+                     40                                                                                                                                 40
+                     20                                                                                                                                 20
+                      0                                                                                                                                 0
+                          0     1     2        3      4     5                 6             7       8           9    10                                      0        1         2       3          4     5     6      7   8       9     10
+                                                   Drop Diameter (mm)                                                                                                                            Drop Diameter (mm)
+
+
+                                    Figure 3: Effect of number of stage on the drop size distributions at changing rotor
+                                        speeds in the short Kühni column (Qc = 1.24 L/min and Qd = 2.00 L/min).
+
+
+
+                                                                                                Brazilian Journal of Chemical Engineering
+                                                                               A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                                                                                        735
+
+
+                                                                 Stage 3 - 90 rpm                                                                                                       Stage 5 - 90 rpm
+
+                120                                                                                                                                 120
+                                                                           Qd = 2000 mL/min and Qc = 1240 mL/min                                                                                        Qd = 2000 mL/min and Qc = 1240 mL/min
+                100                                                        Qd = 2000 mL/min and Qc = 2000 mL/min                                    100                                                 Qd = 2000 mL/min and Qc = 2000 mL/min
+                                                                           Qd = 1240 mL/min and Qc = 1240 mL/min                                                                                        Qd = 1240 mL/min and Qc = 1240 mL/min
+                      80                                                                                                                                   80
+                                                                           Qd = 1240 mL/min and Qc = 2000 mL/min                                                                                        Qd = 1240 mL/min and Qc = 2000 mL/min
+
+
+
+
+                                                                                                                                   Frequency
+Frequency
+
+
+
+
+                      60                                                                                                                                   60
+
+
+                      40                                                                                                                                   40
+
+
+                      20                                                                                                                                   20
+
+
+                            0                                                                                                                               0
+                                 0       1       2       3        4        5         6       7       8           9        10                                    0       1       2        3         4              5        6         7          8
+                                                                 Drop Diameter (mm)                                                                                                       Drop Diameter (mm)
+
+                                                                 Stage 3 - 120 rpm                                                                                                      Stage 5 - 120 rpm
+                    140                                                                                                                             140
+                                                                          Qd = 2000 mL/min and Qc = 1240 mL/min                                                                                        Qd = 2000 mL/min and Qc = 1240 mL/min
+                    120                                                                                                                             120
+                                                                          Qd = 2000 mL/min and Qc = 2000 mL/min                                                                                        Qd = 2000 mL/min and Qc = 2000 mL/min
+
+                    100                                                   Qd = 1240 mL/min and Qc = 1240 mL/min                                                                                        Qd = 1240 mL/min and Qc = 1240 mL/min
+                                                                                                                                                    100
+                                                                          Qd = 1240 mL/min and Qc = 2000 mL/min                                                                                        Qd = 1240 mL/min and Qc = 2000 mL/min
+    Frequency
+
+
+
+
+                                                                                                                                   Frequency
+
+
+                            80                                                                                                                             80
+
+                            60                                                                                                                             60
+
+                            40                                                                                                                             40
+
+                            20                                                                                                                             20
+
+                             0                                                                                                                             0
+                                 0       1       2       3        4        5         6       7       8       9           10                                     0       1       2        3          4             5         6        7          8
+                                                                 Drop Diameter (mm)                                                                                                       Drop Diameter (mm)
+
+
+                                                                   Stage 3 - 150 rpm                                                                                                      Stage 5 - 150 rpm
+                            200                                                                                                                            300
+                                                                           Qd = 2000 mL/min and Qc = 1240 mL/min                                                                                            Qd = 2000 mL/min and Qc = 1240 mL/min
+                            180
+                                                                           Qd = 2000 mL/min and Qc = 2000 mL/min                                           250                                              Qd = 2000 mL/min and Qc = 2000 mL/min
+                            160
+                                                                           Qd = 1240 mL/min and Qc = 1240 mL/min                                                                                            Qd = 1240 mL/min and Qc = 1240 mL/min
+                            140
+                                                                           Qd = 1240 mL/min and Qc = 2000 mL/min                                           200                                              Qd = 1240 mL/min and Qc = 2000 mL/min
+            Frequência
+
+
+
+
+                            120
+                                                                                                                                               Frequency
+
+
+
+
+                            100                                                                                                                            150
+                                80
+
+                                60                                                                                                                         100
+
+                                40
+                                                                                                                                                            50
+                                20
+
+                                 0                                                                                                                              0
+                                     0       1       2       3        4        5         6       7       8       9        10                                        0       1       2        3          4             5         6        7          8
+                                                                   Drop Diameter (mm)                                                                                                        Drop Diameter (mm)
+
+                                                                  Stage 3 - 180 rpm                                                                                                      Stage 5 - 180 rpm
+
+                            250                                                                                                                            250
+                                                                           Qd = 2000 mL/min and Qc = 1240 mL/min                                                                                        Qd = 2000 mL/min and Qc = 1240 mL/min
+
+                                                                           Qd = 2000 mL/min and Qc = 2000 mL/min                                                                                        Qd = 2000 mL/min and Qc = 2000 mL/min
+                            200                                                                                                                            200
+                                                                           Qd = 1240 mL/min and Qc = 1240 mL/min                                                                                        Qd = 1240 mL/min and Qc = 1240 mL/min
+
+                                                                           Qd = 1240 mL/min and Qc = 2000 mL/min                                                                                        Qd = 1240 mL/min and Qc = 2000 mL/min
+                Frequency
+
+
+
+
+                            150
+                                                                                                                                               Frequency
+
+
+
+
+                                                                                                                                                           150
+
+
+                            100                                                                                                                            100
+
+
+                                50                                                                                                                          50
+
+
+                                 0                                                                                                                              0
+                                     0       1       2       3        4        5         6       7       8           9        10                                    0       1       2        3          4             5         6        7          8
+                                                                  Drop Diameter (mm)                                                                                                         Drop Diameter (mm)
+
+
+
+                                     Figure 4: Effect of flow rates of the continuous and dispersed phases on the drop size distributions at
+                                                  changing rotor speeds in the short Kühni column (stage numbers 3 and 5).
+
+
+
+                                                         Brazilian Journal of Chemical Engineering Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+736                                                N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim and M. Borges Mansur
+
+    For each diameter di, the experimental cumulative                                             P (2.08 r 0.45)  (0.34 r 0.27)Qc  (0.08 r 0.07)E 
+frequency was estimated as the number of drops with                                                                                                                          (4)
+                                                                                                   (0.52 r 0.17)N R  (0.05 r 0.04)Qc E 
+a diameter equal to or smaller than di divided by the
+total number of analysed drops plus two. The values                                                (0.21 r 0.11)Qc N R  (0.03 r 0.01)Q c EN R
+of di as a function of Fi were used in the fitting of the
+inverse cumulative log-normal distribution to the                                                  V (0.62 r 0.19)  (0.15 r 0.10)Qd  (0.16 r 0.12)Qc 
+data set with the aid of the software Statistica®,                                                                                                                           (5)
+                                                                                                   (0.04 r 0.02)N R  (0.09 r 0.06)Qd Qc 
+thereby determining the parameters P and V for each
+set of studied operating conditions.                                                               (0.02 r 0.01)Qc N R
+    As far as the fitting determination coefficient (R²)
+is concerned, the log-normal function represented the                                           in which Qd and Qc are given in L/min and NR in rps.
+data well within the investigated range of operating                                            According to Eq. (4), the increase of the operating
+parameters, as most of the fittings exhibited values                                            variables rotor speed, stage number and flow rate of
+of R² greater than 0.970, the minimum value being                                               the continuous phase results in smaller drops, as
+equal to 0.927. No significant correlation between P                                            verified experimentally. The effect of variable rotor
+and V was found (p-level < 0.05), whose values were                                             speed was found to be statistically more significant
+thus chosen to represent the drop size distributions in                                         for the conditions investigated. The effect of the flow
+the short Kühni column.                                                                         rate of the dispersed phase was found to be non-
+    The parameters P and V were fitted in order to                                              significant from the statistical point of view.
+obtain empirical correlations that related these                                                Comparative plots shown in Figure 5 indicated that
+parameters to the corresponding values of flow                                                  Eq. (4) suitably reproduced the parameter P with a
+rates of the continuous and dispersed phases, rotor                                             deviation lower than 15% while Eq. (5) reproduced
+speed and stage number. After a series of trial-                                                the parameter V with 20% deviation. However, the
+and-error tests, the following functions, whose                                                 use of Eqs. (4) and (5) is restricted to the operational
+linear coefficients were adjusted by multiple linear                                            conditions (1.24 d Qc d 2.00 L/min; 1.24 d Qd d 2.00
+regression, were found to be adequate to estimate                                               L/min; 60 d NR d 180 rpm), chemical system and
+the parameters of the log-normal drop size                                                      column characteristics (short Kühni column, 150 mm
+distribution in the short Kühni column for 7225                                                diameter and 5 stages) investigated in this work. It is
+ReR  21675 including 95% confidence interval                                                   important to emphasise that, for both fitted functions,
+(p-value < 0.05; R² equal to 0.96 and 0.67,                                                     the analysis of residuals did not show any evidence
+respectively) for the operational conditions                                                    against the adequacy of the least squares method
+investigated in this work:                                                                      employed in the regression (Montgomery, 1991).
+
+
+
+
+                       1.5                                                                                   0.45
+
+                                                                                                                                             + 20 %
+                       1.3
+                                                                                                             0.40
+                                         +15 %
+                       1.0
+                                                                                                                                                             - 20 %
+      P experimental
+
+
+
+
+                                                                                            V experimental
+
+
+
+
+                       0.8                                                                                   0.35
+                                                                - 15 %
+
+                       0.5
+                                                                                                             0.30
+                       0.3
+
+
+                       0.0                                                                                   0.25
+                         0.00   0.25   0.50       0.75       1.00        1.25   1.50                            0.25   0.30      0.35                 0.40            0.45
+                                              P calculated                                                                    V calculated
+
+
+                         (a)                                                      (b)
+  Figure 5: Comparison between the predictions of Eqs. (4) and (5) and the parameters of the fitted log-normal
+                   distribution using experimental data: (a) parameter P; (b) parameter V.
+
+
+                                                                    Brazilian Journal of Chemical Engineering
+                                        A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                          737
+
+Sauter Mean Drop Diameter in a Short Kühni                                            7225), independent of the operating variables
+Column                                                                                number of the stage and flow rates of both liquid
+                                                                                      phases, so all experimental drop sizes measured at 60
+    The effect of the operating variables rotor speed                                 rpm (16 points) were fit to Eq. (1), resulting in C1 =
+and stage number on the Sauter mean drop diameter                                     1.5 ± 0.1 (error 7.1%), a value similar to previous
+in a short Kühni column is shown in Figure 6. As                                      results obtained by Chang-Kakoti et al. (1985) and
+expected, smaller drops were found at higher rotor                                    Moreira et al. (2005) in a rotating disc contactor. In
+speeds and along the column height. The explanation                                   the case of drops measured at stage 0, the average
+for both effects is related to the increase in the                                    drop size was found to be d32 = (4.6 ± 0.4) mm (13
+frequency of drop collisions against the internal parts                               points, error 8.7%); this value could be predicted by
+of the column in more turbulent environments during                                   using Eq. (1), e.g., d32 = 4.5 mm.
+their ascending path inside the equipment. But the                                       The correlations proposed by Fischer (1973) and
+significance of the combined effect of these variables                                Kumar and Hartland (1996) underpredicted the
+changed considerably depending on the column                                          experimental Sauter mean drop diameters with 66%
+stage. At stages 0 and 1, for instance, drops sizes                                   and 75% error, so these correlations seem to be
+were found to be practically unchanged, independent                                   inadequate for describing drop sizes in a short Kühni
+of rotor speed. This occurred because there is no                                     column. So, the following empirical correlation was
+rotor in stage 0 and also because drops still did not                                 derived, which is valid for 1.24 d Qc d 2.00 L/min,
+reach a stable size at stage 1. However, at stages 3                                  1.24 d Qd d 2.00 L/min and 60 d NR d 180 rpm
+and 5, drops became smaller and smaller with the                                      conditions (p-level < 0.05 including 95% of
+increase of agitation and this effect was found to be                                 confidence level, R² = 0.92):
+more significant when rotor speed changed from 120
+to 150 rpm, as shown in Figures 6(a) and 6(b). The                                    d32    5.43 r 0.35  1.38 r 0.22 N R 
+effect was less pronounced when the flow rate of the                                                                                       (6)
+continuous phase was diminished, as can be seen                                       [(0.57 r 0.15)  0.10 r 0.02 E]Qc N R
+from Figures 6(b) and 6(c). Actually, the effect of
+flow rates of the continuous and dispersed phases on                                  in which d32 is given in mm, Qc in L/min and NR in rps.
+the Sauter mean drop diameter were less significant                                   According to Eq. (6), the Sauter mean drop size
+for the operational range studied in comparison to                                    diminishes with the increase of the operating variables
+the variables rotor speed and stage number. In the                                    rotor speed and stage number, thus corroborating the
+case of the flow rate of the dispersed phase, no                                      experimental observation (Figure 6). No significant
+significant change in drop size was verified for the                                  statistical effect was found for the flow rate of the
+operating range investigated.                                                         dispersed phase. As shown in Figure 7, the
+    As shown in Figure 6, the Sauter mean drop                                        experimental data was suitably predicted by Eq. (6)
+diameter is practically constant at 60 rpm (ReR =                                     with a relative deviation within 10% on average.
+
+
+           6                                                                          6
+
+           5                                                                          5
+
+           4                                                                          4
+d32 (mm)
+
+
+
+
+                                                                           d32 (mm)
+
+
+
+
+           3                                                                          3
+
+           2                                                                          2
+                    E0   E1                                                                      E0   E1
+           1        E3   E5                                                           1
+                                                                                                 E3   E5
+           0                                                                          0
+               60        90          120          150          180                          60        90         120           150   180
+                              Rotor Speed (rpm)                                                            Rotor Speed (rpm)
+
+                                  (a)                                                                          (b)
+
+
+
+                         Brazilian Journal of Chemical Engineering Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+738                             N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim and M. Borges Mansur
+
+                                            6
+
+                                            5
+
+                                            4
+
+
+
+
+                              d32 (mm)
+                                            3
+
+                                            2
+                                                                     E0         E1
+                                            1
+                                                                     E3         E5
+                                            0
+                                                                    60            90              120              150       180
+                                                                                           Rotor Speed (rpm)
+                                                       (c)
+                  Figure 6: Experimental Sauter mean drop diameter in a short Kühni column:
+                      (a) Qc = Qd = 2.00 L/min; (b) Qc = 2.00 L/min and Qd = 1.24 L/min;
+                                   (c) Qc = 1.24 L/min and Qd = 2.00 L/min.
+
+
+                                                            6
+
+
+                                                            5
+
+                                                                                       + 10 %
+                                                            4
+                                         d32 experimental
+
+
+
+
+                                                            3
+                                                                                                              - 10 %
+
+                                                            2
+
+
+                                                            1
+
+
+                                                            0
+                                                                0           1          2           3           4         5         6
+                                                                                             d32 calculated
+
+                         Figure 7: Comparison between experimental Sauter mean drop
+                                    diameters and the predictions of Eq. (6).
+
+
+Total Hold-up in a Short Kühni Column                                                                  the interval of 95% confidence level.
+                                                                                                           The correlation by Kumar and Hartland (1995)
+    Figure 8 shows the behaviour of the experimental                                                   overpredicted the total hold-up values measured in
+total hold-up measured in a short Kühni column. As                                                     the short Kühni column by 60%. Therefore, the
+expected, a higher hold-up was obtained upon                                                           following equation was derived including 95% of
+increasing the operating variables rotor speed and                                                     confidence level (p-level < 0.05 and R² = 0.97):
+flow rate of the dispersed phase. In the former effect,
+                                                                                                                          r 0.2 1.6r 0.3
+the increase of agitation results in smaller drops that                                                 I (0.6 r 0.2)Q0.8
+                                                                                                                      d        NR                          (7)
+exhibit relatively higher residence times, while in the
+latter one, the greater the volume of the organic                                                      in which Qd is given in L/min and NR in rps. According
+phase fed to the column, the larger the hold-up. On                                                    to Eq. (7), the combined effect of the operating
+the other hand, a slightly smaller hold-up was                                                         variables rotor speed and flow rate of the dispersed
+measured with the increase of the continuous phase.                                                    phase was predominant, as shown in Figure 8. It is
+Such a trend was not expected and is probably due to                                                   interesting to note that total hold-up was found to be
+experimental errors in the measurement of hold-up,                                                     statistically constant at low agitation conditions (NR <
+which were done in triplicate. As shown in Figure 8,                                                   120 rpm), independent of flow rate levels of both
+the experimental changes in the measured hold-up                                                       phases. A comparison between experimental and
+with the flow rate of the continuous phase are within                                                  calculated hold-up is shown in Figure 9.
+
+
+
+                                                                         Brazilian Journal of Chemical Engineering
+                               A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                                                          739
+
+
+                                                              8
+
+                                                              7             Qc = 1.24 L/min; Qd = 1.24 L/min
+                                                                            Qc = 1.24 L/min; Qd = 2.00 L/min
+                                                              6
+
+
+
+
+                                 to t a l h o ld -u p ( % )
+                                                                            Qc = 2.00 L/min; Qd = 1.24 L/min
+                                                              5             Qc = 2.00 L/min; Qd = 2.00 L/min
+
+                                                              4
+
+                                                              3
+
+                                                              2
+
+                                                              1
+
+                                                              0
+                                                                  0.5   1.0              1.5          2.0          2.5           3.0       3.5
+
+                                                                                               rotor speed (rps)
+
+             Figure 8: Effect of operating conditions on the total hold-up in a short Kühni column.
+                                                              7
+
+                                                              6
+                                                                                                        + 15%
+                                                              5
+                                 hold-up calculated
+
+
+
+
+                                                              4
+
+                                                                                                                             - 15%
+                                                              3
+
+                                                              2
+
+
+                                                              1
+
+                                                              0
+                                                                    0   1            2            3            4         5           6     7
+
+                                                                                           hold-up experimental
+
+
+           Figure 9: Comparison between experimental total hold-up and the predictions of Eq. (7).
+
+                 CONCLUSIONS                                                                                                    ACKNOWLEDGEMENTS
+
+   The use of short columns to obtain design data for                                                          The authors are grateful to Dr. Lúcio C.M. Pinto
+extraction columns is an alternative way to reduce                                                          (Centro de Desenvolvimento da Tecnologia Nuclear,
+costs in piloting investigations. As verified in this                                                       CDTN/CNEN) for providing the software Quantikov
+work, short columns exhibit similar hydrodynamic                                                            image analyzer, to Fundação de Amparo à Pesquisa
+behaviour with regard to drop size, drop size                                                               do Estado de Minas Gerais (FAPEMIG, Project TEC
+distribution and total hold-up as those found in                                                            304/02) for the financial support to build the Kühni
+longer columns. However, empirical correlations                                                             column unit at UFMG, to CNPq (Conselho Nacional
+valid for longer columns should be adapted;                                                                 de Desenvolvimento Científico e Tecnológico) for
+expressions were proposed in this work valid for a                                                          the research grants to undergraduate students and
+short Kühni column (150 mm diameter, 5 stages)                                                              especially to Dr. Michael John Slater (Department of
+with operational conditions ranging from 7225  ReR                                                         Chemical Engineering, University of Bradford, UK)
+ 21675, e.g., 60  NR  180 rpm, 1.24  Qc  2.00                                                          for his lovely enthusiasm and for the short Kühni
+L/min, 1.24  Qd  2.00 L/min. It was also verified                                                         column that made possible this research work in
+that the effect of drop breakage dominates in the                                                           Belo Horizonte, MG, Brazil.
+whole short Kühni column for the range of operating
+conditions investigated, similarly to what is
+commonly verified in the bottom section of long                                                                                          NOMENCLATURE
+extraction columns. Further investigations using
+short columns, including mass transfer effects to                                                           C1               parameter of Eq. (1)       dimensionless
+hydrodynamics, are suggested.                                                                               d                drop diameter                         m
+
+                  Brazilian Journal of Chemical Engineering Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+740                           N. S. Oliveira, D. Moraes Silva, M. P. C. Gondim and M. Borges Mansur
+
+d32      Sauter mean drop diameter                   m              Bardin-Monnier, N., Guiraud, P. and Gourdon, C.,
+DR       rotor diameter                              m                  Residence time distribution of droplets within
+E        stage number                     dimensionless                 discs and doughnuts pulsed extraction columns
+Fi       cumulative frequency             dimensionless                 via Lagrangian experiments and simulations,
+         function defined by Eq. (3)                                    Chem. Eng. J., 94, p. 241 (2003).
+g        acceleration due to gravity              m.s-2             Boger, Z. and Haim, M.B., Application of neural
+NR       rotor speed                                 s-1                networks for SX, In: Solvent Extraction in the
+plg(d)   log-normal probability           dimensionless                 Process Industries, Longsdail, D. H. and Slater,
+         density function defined by                                    M. J. (Eds.), Elsevier, London, p. 1198 (1993).
+         Eq. (2)                                                    Cabassud, M., Gourdon, C. and Casamatta, G.,
+Q        flow rate                               m3.s-1                 Single drop break-up in a Kühni column, Chem.
+ReR      Reynolds number of rotor         dimensionless                 Eng. J., 44, p. 27 (1990).
+                                                 Uc N R DR 2        Chang-Kakoti, D. K., Fei, W-.Y., Godfrey, J. C. and
+                                         ReR                            Slater, M. J., Drop sizes and distributions in
+                                                     Xc
+                                                                        RDC’s used for liquid-liquid extraction, J. Sep.
+x        spatial coordinate                               m             Process. Technol., 6, p. 40 (1985).
+                                                                    Colella, D., Vinci, D., Bagatin, R., Masi, M. and
+Greeks Letters                                                          Bakr, E.A., A study on coalescence and breakage
+                                                                        mechanisms in three different bubble columns,
+J        interfacial tension                  N.m-1                     Chem. Eng. Sci., 54, p. 4767 (1999).
+P        median of the probability    dimensionless                 Fan, Z., Oloidi, J. O. and Slater, M. J., Liquid-liquid
+         density function,                                              extraction column design data acquisition from
+U        density                             kg.m-3                     short columns, Chem. Eng. Res. Des., 65, p. 243
+I        volume fraction hold-up of dimensionless                       (1987).
+         the dispersed phase                                        Fang, J., Godfrey, J. C., Mao, Z.-Q., Slater, M. J. and
+V        standard deviation of the    dimensionless                     Gourdon, C., Single liquid drop breakage
+         probability density function                                   probabilities and characteristic velocities in Kühni
+'U       density difference between          kg.m-3                     columns, Chem. Eng. Technol., 18, p. 41 (1995).
+         phases                                                     Fischer, A., Hydrodynamik und Stoffaustausch in
+ȣ        viscosity                             Pa.s                     einer     Flüssig-Flüssig-Rührextraktionskolonne,
+                                                                        PhD. Thesis, n. 5016, ETH Zurich, Switzerland
+Subscripts                                                              (1973).
+                                                                    Gayler, R., Roberts, N. M., Pratt, H. R. C., Holdup
+                                                                        and pressure drop in packed columns, Trans. Inst.
+c        continuous phase                                (-)
+                                                                        Chem. Eng., 29, p. 110 (1951).
+d        dispersed phase                                 (-)        Giles, J. W., Hanson, C. and Marsland, J. G., Drop
+                                                                        size distributions in agitated liquid-liquid systems
+                                                                        with simultaneous interface mass transfer and
+                  REFERENCES                                            chemical reaction, In: Proc. of the Int. Solvent
+                                                                        Extraction Conference, 94 (1971).
+Attarakih, M. M., Bart, H.-J. and Faqir, N. M.,                     Gourdon, C., Casamata, G. and Muratet, G.,
+   Numerical solution of the bivariate population                       Population balance based modelling of solvent
+   balance      equation      for   the     interacting                 extraction columns, In: Godfrey, J.C., Slater, M.J.
+   hydrodynamics and mass transfer in liquid-liquid                     (Eds.), Liquid-liquid extraction equipment. John
+   extraction columns, Chem. Eng. Sci. 61, p. 113                       Wiley & Sons, p. 137 (1994).
+   (2006).                                                          Grinbaum, B., The Existing models for simulation of
+Bahmanyar, H., Chang-Kakoti, D. K., Garro, L.,                          pulsed and reciprocating columns – How well do
+   Liang, T.-B. and Slater, M.J., Mass transfer from                    they work in the real world?, Solv. Extr. and Ion
+                                                                        Exch., 24, p. 795 (2006).
+   single drops in rotating disc, pulsed sieve plate
+                                                                    Ji, J., Mensforth, K. H., Perera, J. M. and Stevens, G.
+   and packed liquid-liquid extraction columns,                         W., The role of kinetics in the extraction of zinc
+   Chem. Eng. Res. Des., 68, p. 74 (1990).                              with D2EHPA in a packed column,
+Bailes, P. J., Gledhill, J., Godfrey, J. C. and Slater,                 Hydrometallurgy, 84, p. 139 (2006).
+   M. J., Hydrodynamic behavior of packed, rotating                 Kentish, S., Forward mixing in a countercurrent
+   disc and Kühni liquid/liquid extraction columns,                     solvent extraction contactor, PhD Thesis,
+   Chem. Eng. Res. Des., 64, p. 43 (1986).                              University of Melbourne, Australia (1996).
+
+                                            Brazilian Journal of Chemical Engineering
+                                A Study of the Drop Size Distributions and Hold-up in Short Kühni Columns                    741
+
+Kronberger, T., Ortner, A., Zulehner, W. and Bart,                      Moreira, E., Pimenta, L. M., Carneiro, L. L., Faria,
+  H.-J., Numerical simulation of extraction                                R.C.L., Mansur, M.B. and Ribeiro Jr., C. P.,
+  columns using a drop population model,                                   Hydrodynamic behaviour of a rotating disc
+  Computers Chem. Eng., 19, p. S639 (1995).                                contactor under low agitation conditions, Chem.
+Kumar, A. and Hartland, S., A unified correlation for                      Eng. Commun., 192, p. 1017 (2005).
+  the prediction of dispersed-phase hold-up in                          Nabli, M. S. A., Guiraud, P. and Gourdon, C., CFD
+  liquid-liquid extraction columns, Ind. Eng. Chem.                        contribution to a design procedure for discs and
+  Res., 34, p. 3925 (1995).                                                doughnuts extraction columns, Trans. IChemE.,
+Kumar, A. and Hartland, S., Empirical prediction of                        76, p. 951 (1998).
+  operating variables, In: Godfrey, J.C., Slater, M.J.                  Sechremeli, D., Stampouli, A. and Stamatoudis, M.,
+  (Eds.), Liquid-liquid extraction equipment. John                         Comparison of mean drop sizes and drop size
+  Wiley & Sons, p. 625 (1994).                                             distributions in agitated liquid–liquid dispersions
+Kumar, A. and Hartland, S., Unified correlations for the                   produced by disk and open type impellers, Chem.
+  prediction of drop size in liquid-liquid extraction                      Eng. J., 117, p. 117 (2006).
+  columns, Ind. Eng. Chem. Res., 35, p. 2682 (1996).                    Seikova, I., Gourdon, C. and Casamatta, G., Single-
+Mansur, M. B., Slater, M. J., Biscaia Jr. and E. C.,                       drop transport in a Kühni extraction column,
+  Reactive extraction of zinc sulphate with                                Chem. Eng. Sci., 47, v. 15-16, p. 4141 (1992).
+  D2EHPA in a short Kühni column used in batch                          Tsouris, C., Ferreira, R. and Tavlarides, L. L.,
+  mode, Ind. Eng. Chem. Res., 72, p. 4068 (2003).                          Characterization of hydrodynamic parameters in a
+Mate, A., Masbernat, O. and Gourdon, C., Detachment                        multistage column contactor, Can. J. Chem. Eng.,
+  of a drop from an internal wall in a pulsed liquid-                      68, p. 913 (1990).
+  liquid column, Chem. Eng. Sci., 55, p. 2073 (2000).                   Valentas, K. J., Bilous, O. and Amundson, N. R.,
+Modes, G., Bart, H.-J., Rodriguez-Perancho D. and                          Breakage and coalescence in dispersed phase
+  Bröder, D., Simulation of the fluid dynamics of                          systems, Ind. Eng. Chem. Fundam., 5, p. 271
+  solvent extraction columns from single droplet                           (1966).
+  parameters, Chem. Eng. Technol., 22, v. 3, p. 231                     Yamaguchi., M., Yamashita H. and Noda, H.,
+  (1999).                                                                  Hydrodynamics and mass transfer of a rotating disc
+Montgomery, D. C., Design and analysis of                                  column, In: Sole, K.C., Cole, P.M., Preston, J.S. and
+  experiments, 3rd ed, John Wiley & Sons,                                  Robinson, D.J. (Eds.), Proc. of the Int. Solvent
+  Singapore (1991).                                                        Extraction Conference p. 1334 (2002).
+
+
+
+
+                   Brazilian Journal of Chemical Engineering Vol. 25, No. 04, pp. 729 - 741, October - December, 2008
+

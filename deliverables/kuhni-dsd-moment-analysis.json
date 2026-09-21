@@ -1,0 +1,230 @@
+{
+  "basis": "Stipulated calculated compartment d32=6.068 mm, NOT measured exit d32; bounds apply only to that same population; offline mathematics, no fitted distribution",
+  "cdf_definition": "Fv(c)=P_volume(0<d<=c); strict below is P_volume(d<c)",
+  "d32_mm": 6.068,
+  "bounds": [
+    {
+      "cutoff_mm": 0.5,
+      "lower_fraction": 0,
+      "upper_supremum_fraction": 0.08239947264337509
+    },
+    {
+      "cutoff_mm": 1,
+      "lower_fraction": 0,
+      "upper_supremum_fraction": 0.16479894528675018
+    },
+    {
+      "cutoff_mm": 1.455,
+      "lower_fraction": 0,
+      "upper_supremum_fraction": 0.2397824653922215
+    },
+    {
+      "cutoff_mm": 2.081,
+      "lower_fraction": 0,
+      "upper_supremum_fraction": 0.3429466051417271
+    }
+  ],
+  "bimodals": [
+    {
+      "diameters_mm": [
+        0.4,
+        12
+      ],
+      "volume_fractions": [
+        0.03370990839451732,
+        0.9662900916054826
+      ],
+      "number_fractions": [
+        0.9989394641337548,
+        0.0010605358662452158
+      ],
+      "reconstructed_d32_mm": 6.067999999999915,
+      "fractions": [
+        {
+          "cutoff_mm": 0.5,
+          "volume_fraction": 0.03370990839451732
+        },
+        {
+          "cutoff_mm": 1,
+          "volume_fraction": 0.03370990839451732
+        },
+        {
+          "cutoff_mm": 1.455,
+          "volume_fraction": 0.03370990839451732
+        },
+        {
+          "cutoff_mm": 2.081,
+          "volume_fraction": 0.03370990839451732
+        }
+      ]
+    },
+    {
+      "diameters_mm": [
+        1.5,
+        12
+      ],
+      "volume_fractions": [
+        0.13965533477728606,
+        0.8603446652227139
+      ],
+      "number_fractions": [
+        0.9881108543111167,
+        0.011889145688883329
+      ],
+      "reconstructed_d32_mm": 6.067999999999999,
+      "fractions": [
+        {
+          "cutoff_mm": 0.5,
+          "volume_fraction": 0
+        },
+        {
+          "cutoff_mm": 1,
+          "volume_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.455,
+          "volume_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "volume_fraction": 0.13965533477728606
+        }
+      ]
+    }
+  ],
+  "lognormal": [
+    {
+      "status": "UNFITTED sensitivity, not a predicted DSD",
+      "geometric_sd": 1.3,
+      "sigma_ln": 0.26236426446749106,
+      "mu_number_ln_d_over_1mm": 1.6309415433123668,
+      "mu_volume_ln_d_over_1mm": 1.8374465651210696,
+      "number_moments_mm_power_k": [
+        1,
+        5.287571395346022,
+        29.950712117708033,
+        181.74092113025242
+      ],
+      "numeric_d32_mm": 6.068,
+      "numeric_volume_inverse_moment_per_mm": 0.1647989452867497,
+      "fractions": [
+        {
+          "cutoff_mm": 0.5,
+          "volume_fraction": 2.571906492288334e-22
+        },
+        {
+          "cutoff_mm": 1,
+          "volume_fraction": 1.2489622872830734e-12
+        },
+        {
+          "cutoff_mm": 1.455,
+          "volume_fraction": 1.2441723956390518e-8
+        },
+        {
+          "cutoff_mm": 2.081,
+          "volume_fraction": 0.000012758959772296029
+        }
+      ]
+    },
+    {
+      "status": "UNFITTED sensitivity, not a predicted DSD",
+      "geometric_sd": 1.5,
+      "sigma_ln": 0.4054651081081644,
+      "mu_number_ln_d_over_1mm": 1.3920241767533723,
+      "mu_volume_ln_d_over_1mm": 1.8852300384328686,
+      "number_moments_mm_power_k": [
+        1,
+        4.367650203850964,
+        22.48508636663392,
+        136.43950407273462
+      ],
+      "numeric_d32_mm": 6.067999999999998,
+      "numeric_volume_inverse_moment_per_mm": 0.16479894528674988,
+      "fractions": [
+        {
+          "cutoff_mm": 0.5,
+          "volume_fraction": 1.0149561801060611e-10
+        },
+        {
+          "cutoff_mm": 1,
+          "volume_fraction": 0.0000016633052386857017
+        },
+        {
+          "cutoff_mm": 1.455,
+          "volume_fraction": 0.00009778504693626936
+        },
+        {
+          "cutoff_mm": 2.081,
+          "volume_fraction": 0.002240713698629991
+        }
+      ]
+    },
+    {
+      "status": "UNFITTED sensitivity, not a predicted DSD",
+      "geometric_sd": 2,
+      "sigma_ln": 0.6931471805599453,
+      "mu_number_ln_d_over_1mm": 0.6018965266907823,
+      "mu_volume_ln_d_over_1mm": 2.043255568445386,
+      "number_moments_mm_power_k": [
+        1,
+        2.321289925762359,
+        8.711979923979758,
+        52.86429417870917
+      ],
+      "numeric_d32_mm": 6.067999999999989,
+      "numeric_volume_inverse_moment_per_mm": 0.1647989452867498,
+      "fractions": [
+        {
+          "cutoff_mm": 0.5,
+          "volume_fraction": 0.00003943720229627758
+        },
+        {
+          "cutoff_mm": 1,
+          "volume_fraction": 0.001600247799629786
+        },
+        {
+          "cutoff_mm": 1.455,
+          "volume_fraction": 0.008047029460230863
+        },
+        {
+          "cutoff_mm": 2.081,
+          "volume_fraction": 0.029344377088475773
+        }
+      ]
+    },
+    {
+      "status": "UNFITTED sensitivity, not a predicted DSD",
+      "geometric_sd": 2.5,
+      "sigma_ln": 0.9162907318741551,
+      "mu_number_ln_d_over_1mm": -0.29594270180990145,
+      "mu_volume_ln_d_over_1mm": 2.222823414145523,
+      "number_moments_mm_power_k": [
+        1,
+        1.1318479498619611,
+        2.9662306549200994,
+        17.99908761405516
+      ],
+      "numeric_d32_mm": 6.068000000000031,
+      "numeric_volume_inverse_moment_per_mm": 0.16479894528675,
+      "fractions": [
+        {
+          "cutoff_mm": 0.5,
+          "volume_fraction": 0.0007303906328514626
+        },
+        {
+          "cutoff_mm": 1,
+          "volume_fraction": 0.00763538267744016
+        },
+        {
+          "cutoff_mm": 1.455,
+          "volume_fraction": 0.021867176228614952
+        },
+        {
+          "cutoff_mm": 2.081,
+          "volume_fraction": 0.05196482948848715
+        }
+      ]
+    }
+  ],
+  "assertions": "Passed normalization, analytic/numeric number moments k=0..3, d32, inverse volume moment, truncated volume fractions, and bimodal reconstruction"
+}

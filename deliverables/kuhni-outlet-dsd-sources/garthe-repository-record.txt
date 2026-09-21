@@ -1,0 +1,43 @@
+User: Guest
+[![](https://mediatum.ub.tum.de/static/img/login.svg)Login](https://mediatum.ub.tum.de/login "Login")
+
+- [de](https://mediatum.ub.tum.de/601973?id=601973&change_language=de)
+- [en](https://mediatum.ub.tum.de/601973?id=601973&change_language=en)
+
+[Advanced search](https://mediatum.ub.tum.de/603795?searchmode=extended)
+
+[![](https://mediatum.ub.tum.de/static/img/document.svg)](https://mediatum.ub.tum.de/601973?style=full_standard "Document view")[![](https://mediatum.ub.tum.de/static/img/text.svg)](https://mediatum.ub.tum.de/601973?style=full_text "Text view")
+
+[mediaTUM Gesamtbestand](https://mediatum.ub.tum.de/604993) [Elektronische Prüfungsarbeiten](https://mediatum.ub.tum.de/69514) [Fachgebiet](https://mediatum.ub.tum.de/603786) [Daniel Garthe](https://mediatum.ub.tum.de/601973)
+
+[![](https://mediatum.ub.tum.de/thumbnail/601973)](https://mediatum.ub.tum.de/doc/601973/601973.pdf "Open fulltext in new window")
+
+[If you experience problems opening the document, please try this link.](https://mediatum.ub.tum.de/download/601973/601973.pdf)
+
+Original title:Fluiddynamics and Mass Transfer of Single Particles and Swarms of Particles in Extraction ColumnsTranslated title:Fluiddynamik und Stofftransport von Einzelpartikeln und Partikelschwärmen in ExtraktionskolonnenAuthor:[Garthe, Daniel](mailto:daniel.garthe@gmx.de "open in new window")![](https://mediatum.ub.tum.de/static/img/email.svg)Year:2006Document type:DissertationFaculty/School:Fakultät für MaschinenwesenAdvisor:Weuster-Botz, Dirk (Prof. Dr.)Referee:Stichlmair, Johann (Prof. Dr. Dr. habil.); Blaß, Eckhart (Prof. Dr. Dr. E.h.)Format:TextLanguage:enSubject group:CIT Chemie-Ingenieurwesen, Technische Chemie, BiotechnologieKeywords:Single Particle; Swarm of Particles; Fluiddynamics; Mass Transfer; RDC; PSE; Kühni; Structured Packing; Swarm Influence; Characteristic Velocity; Single Drop Breakage; Mass Transfer Performance; Liquid/Liquid-Extraction; Solvent-Extraction; Scale-up; Dimensioning; Drop Population Balance Model; Drops; Rigid SpheresTranslated keywords:Einzelpartikel; Partikelschwärme; Fluiddynamik; Stofftransport; RDC; PSE; Kühni; geordnete Packung; Schwarmeinfluss; Charakteristische Geschwindigkeit; Tropfenzerfall; Trennleistung; Flüssig/flüssig-Extraktion; Solventextraktion; Scale-up; Dimensionierung; Tropfen-Populations-Bilanz-Modell; Tropfen; Starre KugelAbstract:
+
+To this day a liquid/liquid-extraction column can be reliably dimensioned only from preliminary tests in pilot plant columns using the original fluids. The disadvantage of this procedure is that large quantities of fluids are necessary which are often difficult to provide. For this reason, the aim of the chemical industry is to develop new dimensioning techniques. To achieve this goal, attention has turned to the investigation of the fundamental behaviour of single particles (drops and rigid spheres) in extraction columns. The main objective of this work is the investigation of the influence of column internals such as sieve trays, structured packings or agitators on the velocities, the breakage mechanisms and the mass transfer rates of single drops. When the fundamental behaviour of single drops is properly understood, the interactions of drops in a swarm have to be studied for an accurate scale-up. Thus, fluiddynamics and mass transfer rates of swarms of drops in different extractors are examined and a new model to predict the hold-up influence on the motion of a swarm is presented.
+[«](https://mediatum.ub.tum.de/601973#! "Text reduzieren")
+
+To this day a liquid/liquid-extraction column can be reliably dimensioned only from preliminary tests in pilot plant columns using the original fluids. The disadvantage of this procedure is that large quantities of fluids are necessary which are often difficult to provide. For this reason, the aim of the chemical industry is to develop new dimensioning techniques. To achieve this goal, attention has turned to the investigation of the fundamental behaviour of single particles (drops and rigid sph...
+[»](https://mediatum.ub.tum.de/601973#! "gesamten Text zeigen")
+
+Translated abstract:
+
+Die Dimensionierung von Flüssig/flüssig-Extraktionskolonnen erfolgt in der Regel auf der Basis von Versuchen in halbtechnischen Anlagen. Dabei wird eine große Menge an Originalflüssigkeit benötigt, die oft nur schwer bereitgestellt werden kann. Aus diesem Grund zielen neue Entwicklungen darauf ab, die erforderlichen Vorversuche mit einzelnen Partikeln (Tropfen und starre Kugeln) in standardisierten Messzellen durchzuführen. Hauptgegenstand der vorliegenden Arbeit ist deshalb die Bestimmung der Geschwindigkeiten, des Zerfalls und des Stofftransports von Einzeltropfen unter Berücksichtigung von typischen Kolonneneinbauten wie z.B. Siebböden, geordnete Packungen oder Rührer. Für das Scale-up von der Einzeltropfen-Messzelle auf technische Extraktoren ist die Kenntnis des Verhaltens von Partikelschwärmen notwendig. Die vorliegende Arbeit befasst sich deshalb zusätzlich mit der Modellierung der Bewegung von Partikelschwärmen in unterschiedlichen Extraktorbauarten auf der Basis von Einzelpartikel-Untersuchungen.
+[«](https://mediatum.ub.tum.de/601973#! "Text reduzieren")
+
+Die Dimensionierung von Flüssig/flüssig-Extraktionskolonnen erfolgt in der Regel auf der Basis von Versuchen in halbtechnischen Anlagen. Dabei wird eine große Menge an Originalflüssigkeit benötigt, die oft nur schwer bereitgestellt werden kann. Aus diesem Grund zielen neue Entwicklungen darauf ab, die erforderlichen Vorversuche mit einzelnen Partikeln (Tropfen und starre Kugeln) in standardisierten Messzellen durchzuführen. Hauptgegenstand der vorliegenden Arbeit ist deshalb die Bestimmung der G...
+[»](https://mediatum.ub.tum.de/601973#! "gesamten Text zeigen")
+
+Publication :Universitätsbibliothek der Technischen Universität MünchenWWW:[https://mediatum.ub.tum.de/?id=601973](https://mediatum.ub.tum.de/?id=601973 "open in new window")Date of submission:19.01.2006Oral examination:13.04.2006File size:3739894 bytesPages:272Urn (citeable URL):[https://nbn-resolving.org/urn:nbn:de:bvb:91-diss20060515-1631220060](https://nbn-resolving.org/urn:nbn:de:bvb:91-diss20060515-1631220060 "open in new window")[![](https://mediatum.ub.tum.de/static/img/bibtex.gif) BibTeX](https://mediatum.ub.tum.de/export/601973/bibtex "Open BibTeX information in new window")
+
+**Occurrences:**
+
+- [mediaTUM Gesamtbestand](https://mediatum.ub.tum.de/604993) [Elektronische Prüfungsarbeiten](https://mediatum.ub.tum.de/69514) [Fachgebiet](https://mediatum.ub.tum.de/603786)
+
+- [mediaTUM Gesamtbestand](https://mediatum.ub.tum.de/604993) [Elektronische Prüfungsarbeiten](https://mediatum.ub.tum.de/69514) [Fachgebiet](https://mediatum.ub.tum.de/603786) [Chemie-Ingenieurwesen, Technische Chemie, Biotechnologie](https://mediatum.ub.tum.de/603795)
+
+- [mediaTUM Gesamtbestand](https://mediatum.ub.tum.de/604993) [Elektronische Prüfungsarbeiten](https://mediatum.ub.tum.de/69514) [School](https://mediatum.ub.tum.de/603787) [TUM School of Engineering and Design](https://mediatum.ub.tum.de/1631371)
+
+- [mediaTUM Gesamtbestand](https://mediatum.ub.tum.de/604993) [Einrichtungen](https://mediatum.ub.tum.de/670273) [Schools](https://mediatum.ub.tum.de/670274) [TUM School of Engineering and Design](https://mediatum.ub.tum.de/1631378) [Prüfungsarbeiten](https://mediatum.ub.tum.de/670508) [Dissertationen](https://mediatum.ub.tum.de/680889)
