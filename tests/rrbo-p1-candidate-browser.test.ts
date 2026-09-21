@@ -11,7 +11,7 @@ import { P1CandidatePanel, P1CandidateResults } from '../client/src/components/e
 it('screenshots read-only SSR P1 components with the existing isolated report, without HTTP or calculation', async () => {
   const input = JSON.parse(readFileSync('deliverables/rrbo-stage3-candidate/input.json', 'utf8'));
   const result = JSON.parse(readFileSync('deliverables/rrbo-stage3-candidate/result.json', 'utf8'));
-  const run = { id: 'read-only-existing-report-fixture', result, basis: input.basis,
+  const run = { id: 'read-only-existing-report-fixture', result, basis: input.basis, phaseConfiguration: input.basis.phaseConfiguration,
     sourceSnapshotHash: input.provenance.sourceSnapshotHash, propertyTemperatureC: input.basis.operatingTemperatureC };
   const markup = renderToStaticMarkup(React.createElement('main', { className: 'mx-auto max-w-7xl p-4' },
     React.createElement('h1', { className: 'mb-3 font-semibold' }, 'Read-only visual fixture — existing isolated report, not a new app run'),

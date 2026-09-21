@@ -9,7 +9,6 @@ import {
   createKuhniHydrodynamicRun,
   getKuhniHydrodynamicRuns,
   getKuhniGeometryResolverRuns,
-  createStage3Stage4OptimizerRun,
   getStage3Stage4OptimizerRuns,
   getLatestCompletedJobCPhysicalSizing,
   getLatestPartialTransferPhysicalSizing,
@@ -198,13 +197,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
       const designId = Number(req.params.id);
       if (!Number.isInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       try {
-        // New runs use the bounded Stage-3/4 optimizer. The resolver service
-        // remains available below only for immutable historical replay.
-        return res.status(201).json(await createStage3Stage4OptimizerRun(
-          Number((req.user as any).id),
-          designId,
-          req.body,
-        ));
+        return res.status(409).json({ error: 'STAGE3_UNIFIED_RUN_REQUIRED', endpoint: `/api/ecr-pre-pilot/designs/${designId}/stage3-candidates`, message: 'Reload Stage 3 and run using the saved Stage 1 snapshot hash. Legacy execution is retired; historical authority is unchanged.' });
       } catch (error: any) {
         return res.status(error.message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422).json({ error: error.message });
       }
@@ -219,11 +212,7 @@ export function setupEcrPrePilotRoutes(app: Express): void {
         return res.status(400).json({ error: 'Invalid ECR Pre-Pilot design id' });
       }
       try {
-        return res.status(201).json(await createStage3Stage4OptimizerRun(
-          Number((req.user as any).id),
-          designId,
-          req.body,
-        ));
+        return res.status(409).json({ error: 'STAGE3_UNIFIED_RUN_REQUIRED', endpoint: `/api/ecr-pre-pilot/designs/${designId}/stage3-candidates`, message: 'Reload Stage 3 and run using the saved Stage 1 snapshot hash. Legacy execution is retired; historical authority is unchanged.' });
       } catch (error: any) {
         const message = error?.message ?? 'ECR_STAGE3_STAGE4_OPTIMIZER_FAILED';
         const status = message === 'ECR_PRE_PILOT_DESIGN_NOT_FOUND' ? 404 : 422;

@@ -8,14 +8,23 @@ import {
   canonicalizeStage3Stage4OptimizerControls,
   ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION as VERSION,
   ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH as HASH,
+  ECR_STAGE3_STAGE4_OPTIMIZER_VERSION as NMP_VERSION,
+  ECR_STAGE3_STAGE4_OPTIMIZER_HASH as NMP_HASH,
 } from './stage3-stage4-optimizer';
 
 export const P1_CANDIDATE_KIND = 'RRBO_P1_CANDIDATE_ONLY';
+export const NMP_CANDIDATE_KIND = 'NMP_STAGE3_CANDIDATE_ONLY';
+export function stage3CandidateMethod(phase: unknown) {
+  if (phase === 'rrbo-continuous-nmp-dispersed') return { version: VERSION, implementationHash: HASH, candidateKind: P1_CANDIDATE_KIND, entryPoint: 'optimizeStage3Stage4P1ForReview' };
+  if (phase === 'nmp-continuous-rrbo-dispersed') return { version: NMP_VERSION, implementationHash: NMP_HASH, candidateKind: NMP_CANDIDATE_KIND, entryPoint: 'optimizeStage3Stage4' };
+  throw new Error('STAGE3_REQUIRES_EXPLICIT_SAVED_PHASE');
+}
 const session = randomUUID();
 const active = new Map<string, Promise<void>>();
 const persistenceFailures = new Map<string, string>();
 
 export function calculateP1InWorker(basis: unknown, snapshotHash: string, controls: unknown): Promise<any> {
+  const method = stage3CandidateMethod((basis as any)?.phaseConfiguration);
   return new Promise((resolveResult, reject) => {
     let received = false;
     const builtModule = resolve('dist/p1-optimizer.cjs');
@@ -23,10 +32,10 @@ export function calculateP1InWorker(basis: unknown, snapshotHash: string, contro
     const worker = new Worker(`
       const { parentPort, workerData } = require('node:worker_threads');
       if (workerData.module.endsWith('.ts')) require('tsx/cjs');
-      const { optimizeStage3Stage4P1ForReview } = require(workerData.module);
-      try { parentPort.postMessage({result: optimizeStage3Stage4P1ForReview(workerData.basis, workerData.snapshotHash, workerData.controls)}); }
+       const calculate = require(workerData.module)[workerData.entryPoint];
+       try { parentPort.postMessage({result: calculate(workerData.basis, workerData.snapshotHash, workerData.controls)}); }
       catch (error) { parentPort.postMessage({error: error.message}); }
-    `, { eval: true, workerData: { module: modulePath, basis, snapshotHash, controls } });
+     `, { eval: true, workerData: { module: modulePath, basis, snapshotHash, controls, entryPoint: method.entryPoint } });
     const timer = setTimeout(() => { void worker.terminate(); reject(new Error('P1_CANDIDATE_TIME_LIMIT')); }, 15 * 60_000);
     worker.once('message', message => {
       received = true;
@@ -49,12 +58,12 @@ async function savedBasis(userId: number, designId: number, client: QueryClient 
 }
 
 async function append(userId: number, designId: number, basis: any, metadata: any, result: any = null, client: QueryClient = pool) {
-  const payload = { candidateKind: P1_CANDIDATE_KIND, metadata, result };
+  const payload = { candidateKind: stage3CandidateMethod(basis.phaseConfiguration).candidateKind, metadata, result };
   const hash = kuhniRunHash({ basis, payload });
   await client.query(`INSERT INTO ecr_pre_pilot_kuhni_geometry_resolver_runs
     (design_id,created_by,stage1_snapshot_hash,process_basis,theoretical_stage_authority,result_snapshot,implementation_hash,immutable_hash)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-  [designId, userId, basis.stage1SnapshotHash, basis, { candidateOnly: true, designNt: 7 }, payload, HASH, hash]);
+  [designId, userId, basis.stage1SnapshotHash, basis, { candidateOnly: true, designNt: 7 }, payload, metadata.implementationHash, hash]);
 }
 
 export async function getP1Candidates(userId: number, designId: number, candidateId?: string) {
@@ -64,18 +73,23 @@ export async function getP1Candidates(userId: number, designId: number, candidat
 
 async function candidateViews(client: QueryClient, userId: number, designId: number, snapshotHash: string, candidateId?: string) {
   const rows = await client.query(`SELECT DISTINCT ON (result_snapshot#>>'{metadata,id}')
-      process_basis AS basis,result_snapshot AS payload,immutable_hash AS hash,created_at AS "createdAt"
+      process_basis AS basis,result_snapshot AS payload,immutable_hash AS hash,
+      implementation_hash AS "implementationHash",created_at AS "createdAt"
     FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
-    WHERE design_id=$1 AND created_by=$2 AND result_snapshot->>'candidateKind'=$3
+    WHERE design_id=$1 AND created_by=$2 AND result_snapshot->>'candidateKind'=ANY($3::text[])
       AND ($4::text IS NULL OR result_snapshot#>>'{metadata,id}'=$4)
     ORDER BY result_snapshot#>>'{metadata,id}',created_at DESC,id DESC`,
-  [designId, userId, P1_CANDIDATE_KIND, candidateId ?? null]);
+  [designId, userId, [P1_CANDIDATE_KIND, NMP_CANDIDATE_KIND], candidateId ?? null]);
   return rows.rows.map((row: any) => {
     if (kuhniRunHash({ basis: row.basis, payload: row.payload }) !== row.hash) throw new Error('P1_CANDIDATE_INTEGRITY_FAILURE');
     const { metadata, result } = row.payload;
+    const method = stage3CandidateMethod(row.basis.phaseConfiguration);
+    if (row.payload.candidateKind !== method.candidateKind) throw new Error('P1_CANDIDATE_METHOD_INTEGRITY_FAILURE');
+    if (metadata.version !== method.version || metadata.implementationHash !== method.implementationHash) throw new Error('P1_CANDIDATE_METHOD_INTEGRITY_FAILURE');
+    if (row.implementationHash !== method.implementationHash) throw new Error('P1_CANDIDATE_LEDGER_IMPLEMENTATION_HASH_FAILURE');
     if (result) {
       const { calculationHash, ...calculation } = result;
-      if (result.engine.version !== VERSION || result.engine.implementationHash !== HASH || kuhniRunHash(calculation) !== calculationHash) throw new Error('P1_CANDIDATE_METHOD_INTEGRITY_FAILURE');
+      if (result.engine.version !== method.version || result.engine.implementationHash !== method.implementationHash || kuhniRunHash(calculation) !== calculationHash) throw new Error('P1_CANDIDATE_METHOD_INTEGRITY_FAILURE');
     }
     const persistenceError = persistenceFailures.get(metadata.id);
     return { ...metadata,
@@ -86,7 +100,7 @@ async function candidateViews(client: QueryClient, userId: number, designId: num
   }).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
-export async function startP1Candidate(userId: number, designId: number, input: any) {
+export async function startP1Candidate(userId: number, designId: number, input: any, p1Only = true) {
   if (!input || typeof input !== 'object' || Array.isArray(input)
     || Object.keys(input).some(key => key !== 'sourceSnapshotHash')) {
     throw new Error('P1_PHASE_OVERRIDE_NOT_ALLOWED: Phase is owned by saved Stage 1; submit only sourceSnapshotHash.');
@@ -106,23 +120,24 @@ export async function startP1Candidate(userId: number, designId: number, input: 
     // stable until intent commits, so a concurrent Stage-1 save cannot race it.
     const { snapshot, basis: saved } = await savedBasis(userId, designId, client, true);
     if (input.sourceSnapshotHash !== snapshot.immutableHash) throw new Error('P1_STAGE1_CHANGED_RELOAD_REQUIRED');
-    if (saved.operatingTemperatureC !== 40) throw new Error('P1_REQUIRES_SAVED_40C_BASIS');
-    if (saved.phaseConfiguration !== 'rrbo-continuous-nmp-dispersed') {
+    const method = stage3CandidateMethod(saved.phaseConfiguration);
+    if (method.candidateKind === P1_CANDIDATE_KIND && saved.operatingTemperatureC !== 40) throw new Error('P1_REQUIRES_SAVED_40C_BASIS');
+    if (p1Only && saved.phaseConfiguration !== 'rrbo-continuous-nmp-dispersed') {
       throw new Error('P1_REQUIRES_SAVED_RRBO_CONTINUOUS: Change phase to RRBO continuous / NMP dispersed in Stage 1 and save Stage 1 before calculating P1.');
     }
     const basis = saved;
-    const inputHash = kuhniRunHash({ basis, controls, version: VERSION, implementationHash: HASH });
+    const inputHash = kuhniRunHash({ basis, controls, version: method.version, implementationHash: method.implementationHash });
     const history = await candidateViews(client, userId, designId, snapshot.immutableHash);
     const existing = history.find((item: any) => item.inputHash === inputHash && ['running', 'completed'].includes(item.status));
     if (existing) {
       await client.query('COMMIT');
       return existing;
     }
-    if (active.has(key)) throw new Error('P1_CANDIDATE_ALREADY_RUNNING');
+    if (active.has(key) || history.some((item: any) => item.status === 'running')) throw new Error('P1_CANDIDATE_ALREADY_RUNNING');
     const metadata = { id: randomUUID(), inputHash, session, status: 'running', sourceSnapshotHash: snapshot.immutableHash,
       originalPhaseConfiguration: saved.phaseConfiguration, phaseConfiguration: saved.phaseConfiguration,
       phaseSource: 'SAVED_STAGE1',
-      propertyTemperatureC: saved.operatingTemperatureC, version: VERSION, implementationHash: HASH,
+      propertyTemperatureC: saved.operatingTemperatureC, version: method.version, implementationHash: method.implementationHash,
       candidateOnly: true, controls, requestedAt: new Date().toISOString() };
     await append(userId, designId, basis, metadata, null, client);
     await client.query('COMMIT');
@@ -141,7 +156,7 @@ export async function startP1Candidate(userId: number, designId: number, input: 
   const task = calculateP1InWorker(basis, metadata.sourceSnapshotHash, controls)
     .then(result => {
       const { calculationHash, ...calculation } = result;
-      if (result.engine?.version !== VERSION || result.engine?.implementationHash !== HASH || kuhniRunHash(calculation) !== calculationHash) {
+      if (result.engine?.version !== metadata.version || result.engine?.implementationHash !== metadata.implementationHash || kuhniRunHash(calculation) !== calculationHash) {
         throw new Error('P1_WORKER_METHOD_INTEGRITY_FAILURE');
       }
       return append(userId, designId, basis, { ...metadata, status: 'completed' }, result);
@@ -158,6 +173,10 @@ export async function startP1Candidate(userId: number, designId: number, input: 
 
 export async function getP1CandidateBasis(userId: number, designId: number) {
   const { snapshot, basis } = await savedBasis(userId, designId);
+  const method = stage3CandidateMethod(basis.phaseConfiguration);
   return { sourceSnapshotHash: snapshot.immutableHash, sourceSavedAt: snapshot.savedAt,
-    sourceName: 'Saved Stage 1', basis, methodVersion: VERSION, candidateOnly: true };
+    sourceName: 'Saved Stage 1', basis, methodVersion: method.version, candidateOnly: true };
 }
+
+export const startStage3Candidate = (userId: number, designId: number, input: any) =>
+  startP1Candidate(userId, designId, input, false);

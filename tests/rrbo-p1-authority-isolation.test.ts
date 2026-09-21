@@ -14,6 +14,7 @@ import {
   STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH, deriveStage4PrePilotSizing,
 } from '../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service';
 import { pool } from '../server/db';
+import { getKuhniGeometryResolverRuns } from '../server/ecr-pre-pilot-service';
 
 // Independently reconstructed from git HEAD's original descriptor and Stage-4
 // hash object before P1 changes, not from the runtime constants under test.
@@ -40,7 +41,7 @@ describe('P1 review cannot invalidate current saved authority', () => {
       expect(source).toContain("AND result_snapshot->'engine'->>'version'=$4");
       expect(source).toContain('ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH');
     }
-    expect(readFileSync('server/ecr-pre-pilot-service.ts', 'utf8')).toContain("result_snapshot->>'candidateKind' IS DISTINCT FROM 'RRBO_P1_CANDIDATE_ONLY'");
+    expect(readFileSync('server/ecr-pre-pilot-service.ts', 'utf8')).toContain("AND NOT (result_snapshot ? 'candidateKind')");
     const source = readFileSync('server/ecr-pre-pilot/stage3-stage4-optimizer.ts', 'utf8');
     const currentDispatcher = source.slice(source.indexOf('export function optimizeStage3Stage4('), source.indexOf('export function replayLegacyStage3Stage4('));
     expect(currentDispatcher).toContain("optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'CORRECTED')");
@@ -74,5 +75,25 @@ describe('P1 review cannot invalidate current saved authority', () => {
     };
     expect(() => deriveStage4PrePilotSizing(review)).toThrow('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');
     expect(pool.query).not.toHaveBeenCalled();
+  });
+  it.each([
+    [false, false], [true, false], [false, true], [true, true],
+  ])('excludes both candidate envelopes in the actual resolver selector (latest=%s historical=%s)', async (latest, historicalOnly) => {
+    const candidateRows = ['RRBO_P1_CANDIDATE_ONLY', 'NMP_STAGE3_CANDIDATE_ONLY', 'FUTURE_CANDIDATE_ONLY']
+      .map(candidateKind => ({ result: { candidateKind, metadata: { candidateOnly: true }, result: null } }));
+    const query = vi.mocked(pool.query);
+    query.mockClear();
+    query.mockImplementationOnce(async () => ({ rows: [] }) as any);
+    query.mockImplementationOnce(async (sql: any, values: any) => {
+      expect(values.slice(0, 2)).toEqual([123, 7]);
+      // Emulate the actual JSON-key exclusion, not an unconditional empty mock:
+      // without the guard these wrappers reach UNKNOWN_ENGINE_VERSION replay.
+      const excludesCandidates = String(sql).includes("AND NOT (result_snapshot ? 'candidateKind')");
+      return { rows: candidateRows.filter(row => !excludesCandidates || !('candidateKind' in row.result)) } as any;
+    });
+    expect(await getKuhniGeometryResolverRuns(7, 123, latest, historicalOnly)).toEqual(latest ? null : []);
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[1][0]).toContain("AND NOT (result_snapshot ? 'candidateKind')");
+    query.mockClear();
   });
 });

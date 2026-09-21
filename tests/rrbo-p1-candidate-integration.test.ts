@@ -14,9 +14,9 @@ vi.mock('node:worker_threads', async () => {
     terminate = vi.fn(async () => 0);
   } };
 });
-import { startP1Candidate, getP1Candidates, getP1CandidateBasis } from '../server/ecr-pre-pilot/p1-candidate-service';
+import { startP1Candidate, startStage3Candidate, getP1Candidates, getP1CandidateBasis } from '../server/ecr-pre-pilot/p1-candidate-service';
 import { kuhniRunHash } from '../server/ecr-pre-pilot/kuhni-hydrodynamics';
-import { ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION as VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH as HASH } from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
+import { ECR_STAGE3_STAGE4_OPTIMIZER_VERSION as NMP_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH as NMP_HASH, ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION as VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH as HASH } from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
 let rows: any[] = [];
 let client: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> };
@@ -33,7 +33,7 @@ beforeEach(() => {
     if (sql.includes('pg_try_advisory_xact_lock')) return { rows: [{ acquired: true }] };
     if (sql.includes('FROM ecr_pre_pilot_designs')) return { rows: values[1] === 7 ? [{ input_data: {} }] : [] };
     if (sql.startsWith('INSERT')) {
-      rows.push({ basis: values[3], payload: values[5], hash: values[7], createdAt: new Date(rows.length * 1000).toISOString() });
+      rows.push({ basis: values[3], payload: values[5], implementationHash: values[6], hash: values[7], createdAt: new Date(rows.length * 1000).toISOString() });
       return { rows: [] };
     }
     if (sql.includes('SELECT DISTINCT')) {
@@ -52,6 +52,37 @@ beforeEach(() => {
 });
 const input = { sourceSnapshotHash: 'source' };
 describe('P1 candidate integration without scientific optimizer execution', () => {
+  it.each([
+    ['rrbo-continuous-nmp-dispersed', 'optimizeStage3Stage4P1ForReview', VERSION, HASH, 'RRBO_P1_CANDIDATE_ONLY'],
+    ['nmp-continuous-rrbo-dispersed', 'optimizeStage3Stage4', NMP_VERSION, NMP_HASH, 'NMP_STAGE3_CANDIDATE_ONLY'],
+  ])('dispatches saved %s with frozen identity and candidate-only persistence', async (phase, entryPoint, version, implementationHash, kind) => {
+    mocks.basis.mockReturnValue({ ...sourceBasis, phaseConfiguration: phase });
+    const pending = await startStage3Candidate(7, 201, input);
+    expect(mocks.workers[0].options.workerData.entryPoint).toBe(entryPoint);
+    expect(pending.version).toBe(version);
+    expect(rows[0].payload.candidateKind).toBe(kind);
+    expect(rows[0].payload.engine).toBeUndefined();
+    const calculation = { engine: { version, implementationHash }, status: 'NO_SECOND_DIAMETER' };
+    mocks.workers[0].emit('message', { result: { ...calculation, calculationHash: kuhniRunHash(calculation) } });
+    await vi.waitFor(() => expect(rows).toHaveLength(2));
+    expect((await getP1Candidates(7, 201))[0].status).toBe('completed');
+    const terminalRow = rows[rows.length - 1];
+    const intactEnvelopeHash = terminalRow.hash;
+    terminalRow.implementationHash = 'corrupt-ledger-column-only';
+    expect(kuhniRunHash({ basis: terminalRow.basis, payload: terminalRow.payload })).toBe(intactEnvelopeHash);
+    await expect(getP1Candidates(7, 201)).rejects.toThrow('P1_CANDIDATE_LEDGER_IMPLEMENTATION_HASH_FAILURE');
+    expect(mocks.query.mock.calls.some(([sql]) => sql.includes('implementation_hash AS "implementationHash"'))).toBe(true);
+    expect([...client.query.mock.calls, ...mocks.query.mock.calls].every(([sql]) => !/\bUPDATE\b|\bDELETE\b/.test(sql))).toBe(true);
+  });
+  it('rejects ambiguous saved phase and method overrides without calculation', async () => {
+    await expect(startStage3Candidate(7, 202, { ...input, method: 'P1' })).rejects.toThrow('OVERRIDE_NOT_ALLOWED');
+    await expect(startStage3Candidate(7, 202, { sourceSnapshotHash: 'old' })).rejects.toThrow('STAGE1_CHANGED');
+    mocks.basis.mockReturnValue({ ...sourceBasis, phaseConfiguration: 'auto' });
+    await expect(startStage3Candidate(7, 202, input)).rejects.toThrow('EXPLICIT_SAVED_PHASE');
+    await expect(getP1CandidateBasis(7, 202)).rejects.toThrow('EXPLICIT_SAVED_PHASE');
+    expect(mocks.workers).toHaveLength(0);
+    expect(rows).toHaveLength(0);
+  });
   it('persists candidate intent, dispatches exact P1 in a worker, deduplicates, and restores complete results', async () => {
     const original = structuredClone(sourceBasis);
     const pending = await startP1Candidate(7, 100, input);
@@ -64,7 +95,8 @@ describe('P1 candidate integration without scientific optimizer execution', () =
     expect(client.query.mock.calls.some(([sql]) => sql.endsWith('FOR SHARE'))).toBe(true);
     expect(mocks.query).not.toHaveBeenCalled();
     const worker = mocks.workers[0];
-    expect(worker.code).toContain('optimizeStage3Stage4P1ForReview(workerData.basis, workerData.snapshotHash, workerData.controls)');
+    expect(worker.options.workerData.entryPoint).toBe('optimizeStage3Stage4P1ForReview');
+    expect(worker.code).toContain('calculate(workerData.basis, workerData.snapshotHash, workerData.controls)');
     expect(worker.options.workerData.basis.phaseConfiguration).toBe(sourceBasis.phaseConfiguration);
     expect(worker.options.workerData.snapshotHash).toBe('source');
     expect(sourceBasis).toEqual(original);

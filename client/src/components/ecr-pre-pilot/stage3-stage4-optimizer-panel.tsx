@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Play, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Stage3GeometryBasisReport } from "./stage3-geometry-basis-report";
 import { P1CandidatePanel } from "./p1-candidate-panel";
@@ -157,7 +157,6 @@ export function Stage3Stage4OptimizerPanel({
 }) {
   const [run, setRun] = useState<OptimizerRun | null>(null);
   const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const selectedFreeAreaSensitivity =
     run?.selectedOrientationDiagnostics?.freeAreaSensitivity ?? run?.freeAreaSensitivity;
@@ -202,40 +201,17 @@ export function Stage3Stage4OptimizerPanel({
     void load();
   }, [load]);
 
-  const execute = async () => {
-    if (!designId) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `/api/ecr-pre-pilot/designs/${designId}/stage3-stage4-optimizer/runs`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        },
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error ?? "Stage 3/4 optimizer could not complete.");
-      setRun(payload as OptimizerRun);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Stage 3/4 optimizer could not complete.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const geometry = run?.selectedGeometry;
   const window = run?.selectedOperatingWindow;
   return (
     <section className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3">
       <P1CandidatePanel designId={designId} refreshToken={refreshToken} />
-      <p className="mb-2 text-xs font-semibold">Existing authority method (legacy hydraulic model) — separate from corrected P1 candidates</p>
+      <p className="mb-2 text-xs font-semibold">Existing saved authority — read-only, unchanged by Stage 3 candidates</p>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-950">
-            Stage 3/4 fixed-geometry optimizer
+            Saved geometry and operating window
           </h3>
           <p className="mt-1 max-w-3xl text-[10px] leading-4 text-indigo-900">
             Published design/search envelope uses only hc/D = 0.20–0.30, rotor/D = 0.33–0.50,
@@ -251,15 +227,6 @@ export function Stage3Stage4OptimizerPanel({
               20.0 rpm minimum (fixed)
             </span>
           </div>
-          <Button
-            type="button"
-            onClick={() => void execute()}
-            disabled={!designId || submitting || loading}
-            className="h-8 shrink-0 gap-1.5 bg-indigo-900 px-3 text-xs hover:bg-indigo-800"
-          >
-            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {submitting ? "Optimizing…" : "Run Stage 3/4 optimizer"}
-          </Button>
         </div>
       </div>
       <Stage3GeometryBasisReport run={run} />

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ start: vi.fn(), list: vi.fn(), basis: vi.fn(), auth: vi.fn() }));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: mocks.auth }));
 vi.mock('../server/ecr-pre-pilot/p1-candidate-service', () => ({
-  startP1Candidate: mocks.start, getP1Candidates: mocks.list, getP1CandidateBasis: mocks.basis,
+  startP1Candidate: mocks.start, startStage3Candidate: mocks.start, getP1Candidates: mocks.list, getP1CandidateBasis: mocks.basis,
 }));
 import { setupP1CandidateRoutes } from '../server/ecr-pre-pilot/p1-candidate-routes';
 const root = '/api/ecr-pre-pilot/designs/:id/stage3-p1-candidates';
@@ -23,6 +23,16 @@ async function invoke(method: string, suffix = '', request: any = {}) {
   return res;
 }
 describe('actual P1 HTTP handlers with mocked storage service', () => {
+  it('registers the unified authenticated candidate endpoint and forwards the hash-only request', async () => {
+    const middleware = handlers.get('POST /api/ecr-pre-pilot/designs/:id/stage3-candidates')!;
+    expect(middleware[0]).toBe(mocks.auth);
+    mocks.start.mockResolvedValue({ candidateOnly: true });
+    const res: any = { status: vi.fn(() => res), json: vi.fn() };
+    const body = { sourceSnapshotHash: 'saved' };
+    await middleware[1]({ params: { id: '12' }, user: { id: 7 }, body }, res);
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(mocks.start).toHaveBeenCalledWith(7, 12, body);
+  });
   it('dispatches explicit candidate requests asynchronously and forwards the authenticated owner', async () => {
     mocks.start.mockResolvedValue({ id: 'candidate', status: 'running', candidateOnly: true });
     const body = { sourceSnapshotHash: 'source' };

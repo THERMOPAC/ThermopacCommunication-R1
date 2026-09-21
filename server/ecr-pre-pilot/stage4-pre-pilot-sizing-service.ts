@@ -522,6 +522,7 @@ export async function loadStage4PrePilotSizingAuthority(
        FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
       WHERE design_id=$1 AND created_by=$2
         AND stage1_snapshot_hash=$3
+        AND NOT (result_snapshot ? 'candidateKind')
         AND result_snapshot->'engine'->>'version'=$4
         AND implementation_hash=$5
         AND result_snapshot->'engine'->>'implementationHash'=$5

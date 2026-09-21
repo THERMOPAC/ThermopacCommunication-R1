@@ -14,7 +14,7 @@ export function P1CandidateResults({ run }: { run: any }) {
   const [geometryIndex, setGeometryIndex] = useState(0);
   const [rpm, setRpm] = useState("");
   const result = run?.result;
-  const orientation = result?.orientationComparison?.find((item: any) => item.orientation === "rrbo-continuous-nmp-dispersed");
+   const orientation = result?.orientationComparison?.find((item: any) => item.orientation === run.phaseConfiguration);
   const grid: any[] = orientation?.geometryGrid ?? [];
   const diameters = [...new Set(grid.map(item => item.geometry.columnDiameterM))].sort((a, b) => a - b);
   const currentDiameter = diameters.includes(Number(diameter)) ? Number(diameter) : diameters[0];
@@ -25,7 +25,7 @@ export function P1CandidateResults({ run }: { run: any }) {
   return <div className="mt-3 min-w-0 space-y-3 break-words text-xs">
     <p><strong>Candidate calculation: {result.status}</strong> — {result.selectedGeometry ? "Selected within candidate only" : "No geometry selected; feasible trials below remain visible."}</p>
     <p>Unchanged selection preference: 20 rpm contiguous fixed-geometry window and second-smallest adequate diameter. Hydraulic feasibility is not selection. {(result.blockers ?? []).join("; ")}</p>
-    <p>Source snapshot {run.sourceSnapshotHash}; property temperature {run.propertyTemperatureC} °C. {run.stale && <strong className="text-amber-800">Historical input: current Stage 1 has changed.</strong>}</p>
+     <p>Engine: {result.engine?.version}; phase: {run.phaseConfiguration}. Source snapshot {run.sourceSnapshotHash}; property temperature {run.propertyTemperatureC} °C. {run.stale && <strong className="text-amber-800">Historical input: current Stage 1 has changed.</strong>}</p>
     <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left font-semibold">All evaluated diameters (no union of different geometries into an operating window)</caption>
       <thead><tr>{["D (m)", "Feasible trials", "Best fixed-geometry span (rpm)", "Rejection reasons"].map(title => <th className="p-1" key={title}>{title}</th>)}</tr></thead>
       <tbody>{diameters.map(d => {
@@ -47,7 +47,7 @@ export function P1CandidateResults({ run }: { run: any }) {
     {trial && <><p>{trial.status}: {(trial.reasons ?? []).join("; ") || "Hydraulic constraints pass"}. Rotor Re {number(trial.rotorReynolds)}; tip {number(trial.tipSpeedMS)} m/s; P/V {number(trial.powerVolumeWM3)} W/m³.</p>
       <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left font-semibold">Six sensitivity scenarios — operating holdup is not modeled flood holdup</caption><thead><tr>{["Interface", "C32", "d32 m", "φ operating", "φ flood", "Capacity m/s", "Loading", "Area m²/m³", "Re terminal", "Re characteristic", "We", "Eo", "Oh c", "Oh d"].map(title => <th className="p-1" key={title}>{title}</th>)}</tr></thead>
         <tbody>{trial.hydraulicMethod?.scenarios?.map((s: any, index: number) => <tr className="border-t" key={index}>{[s.interfaceScenario, s.coefficient, s.d32M, s.operatingHoldup, s.floodHoldup, s.capacityMS, s.loading, s.interfacialAreaM2M3, s.terminalRe, s.characteristicRe, s.diagnostics?.weberTerminal, s.diagnostics?.eotvos, s.diagnostics?.ohnesorgeContinuous, s.diagnostics?.ohnesorgeDispersed].map((v, i) => <td className="p-1" key={i}>{typeof v === "string" ? v : number(v)}</td>)}</tr>)}</tbody></table></div>
-      {!trial.hydraulicMethod && <p>No scenario result: this trial was rejected before the P1 scenario calculation.</p>}
+       {!trial.hydraulicMethod && <p>Six-scenario P1 diagnostics are not available for this trial. See the complete engine-specific diagnostics below.</p>}
       <details><summary>Complete trial diagnostics, continuation, residuals and qualification</summary><pre className="max-h-96 overflow-auto whitespace-pre-wrap">{JSON.stringify(trial, null, 2)}</pre></details>
     </>}
     <details><summary>Saved input properties and candidate provenance</summary><pre className="max-h-72 overflow-auto whitespace-pre-wrap">{JSON.stringify({ basis: run.basis, originalPhase: run.originalPhaseConfiguration, candidatePhase: run.phaseConfiguration, engine: result.engine, controls: result.controls }, null, 2)}</pre></details>
@@ -66,20 +66,22 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
-  const base = `/api/ecr-pre-pilot/designs/${designId}/stage3-p1-candidates`;
+   const base = `/api/ecr-pre-pilot/designs/${designId}/stage3-candidates`;
   useEffect(() => {
     let cancelled = false;
-    let polling = true;
+     let sequence = 0;
     setBasis(null); setHistory([]); setSelectedId(""); setRun(null); setError("");
     if (!designId) return;
     const load = async () => {
+       const current = ++sequence;
+       setBasis(null);
       try {
         const [nextBasis, rows] = await Promise.all([request(`${base}/basis`), request(base)]);
-        if (!cancelled) { setBasis(nextBasis); setHistory(rows); setError(""); polling = rows.some((item: any) => item.status === "running"); }
-      } catch (e) { if (!cancelled) { setBasis(null); setError((e as Error).message); } }
+         if (!cancelled && current === sequence) { setBasis(nextBasis); setHistory(rows); setError(""); }
+       } catch (e) { if (!cancelled && current === sequence) { setBasis(null); setError((e as Error).message); } }
     };
     void load();
-    const timer = setInterval(() => { if (polling) void load(); }, 5000);
+     const timer = setInterval(() => { void load(); }, 5000);
     const refresh = () => { void load(); };
     window.addEventListener("focus", refresh);
     window.addEventListener("ecr-stage1-saved", refresh);
@@ -99,24 +101,24 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
     return () => { cancelled = true; };
   }, [base, selected?.id, selected?.status, selected?.stale]);
   return <section className="mb-4 rounded border border-amber-300 bg-amber-50 p-3">
-    <h4 className="font-semibold">Corrected P1 — independent Stage 3 candidate</h4>
-    <p className="mt-1 text-xs">Conditional pre-pilot method: Np=1.2; C32=0.36 / 0.42 / 0.43; Barry–Parlange mobile and Schiller–Naumann immobile interfaces; corrected Garthe superficial swarm/slip and lower-branch operating holdup. Maximum modeled-capacity loading 0.70 in every scenario.</p>
+     <h4 className="font-semibold">Stage 3 calculation — candidate / pending review</h4>
+     <p className="mt-1 text-xs">Method selected automatically from saved Stage 1: {basis ? `${basis.methodVersion} — ${basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" ? "corrected P1 RRBO-continuous method" : "existing NMP-continuous method"}` : "waiting for an explicit, valid saved phase"}. No manual method selection.</p>
+     {basis?.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" && <p className="mt-1 text-xs">Conditional pre-pilot method: Np=1.2; C32=0.36 / 0.42 / 0.43; Barry–Parlange mobile and Schiller–Naumann immobile interfaces; corrected Garthe superficial swarm/slip and lower-branch operating holdup. Maximum modeled-capacity loading 0.70 in every scenario.</p>}
     <p className="mt-1 text-xs">Interface mobility, inversion, entrainment, disengagement, turbulence, Schiller–Naumann range and spherical-drop qualification remain UNKNOWN. Lower-branch continuation is quasi-steady admissibility, not dynamic stability. Extrapolated screening only, not observed flooding or commercial qualification. Running this candidate never adopts geometry, changes saved Stage 1, or replaces Stage 3/4 authority.</p>
     <p className="mt-2 text-xs">Saved property temperature: {basis ? `${basis.basis.operatingTemperatureC} °C` : "not loaded"}; saved phase: {basis?.basis.phaseConfiguration ?? "not loaded"}. P1 requires saved 40 °C properties.</p>
     <p className="my-2 text-xs">Phase and properties come only from Saved Stage 1{basis?.sourceSavedAt ? ` (${basis.sourceSavedAt})` : ""}. No candidate phase override.</p>
-    {basis && basis.basis.phaseConfiguration !== "rrbo-continuous-nmp-dispersed" && <p role="alert" className="my-2 text-xs">Change phase to RRBO continuous / NMP dispersed in Stage 1 and save Stage 1 before calculating P1.</p>}
-    <Button size="sm" disabled={!designId || !basis || basis.basis.phaseConfiguration !== "rrbo-continuous-nmp-dispersed" || busy || basis.basis.operatingTemperatureC !== 40 || history.some(item => item.status === "running")} onClick={async () => {
+     <Button size="sm" disabled={!designId || !basis || !["rrbo-continuous-nmp-dispersed", "nmp-continuous-rrbo-dispersed"].includes(basis.basis.phaseConfiguration) || busy || (basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" && basis.basis.operatingTemperatureC !== 40) || history.some(item => item.status === "running")} onClick={async () => {
       setBusy(true); setError("");
       try {
         await request(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceSnapshotHash: basis.sourceSnapshotHash }) });
         setReload(value => value + 1);
-      } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
-    }}>{busy ? "Submitting…" : "Calculate P1 candidate (no adoption)"}</Button>
+       } catch (e) { setBasis(null); setError((e as Error).message); } finally { setBusy(false); }
+     }}>{busy ? "Submitting…" : "Run Stage 3"}</Button>
     {error && <p role="alert" className="mt-2 text-xs text-red-800">{error}</p>}
     {!!history.length && <label className="mt-3 block text-xs">Candidate history <select className="ml-2 max-w-full border bg-white p-1" value={selected?.id ?? ""} onChange={e => setSelectedId(e.target.value)}>{history.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status}{item.stale ? " — historical Stage 1" : ""}</option>)}</select></label>}
     {selected && <p className="mt-2 text-xs">{selected.status === "running" ? "Calculating in background; safe to leave and reload. No authority will be replaced. A lost server process is reported interrupted after 16 minutes." : selected.status}{selected.error ? `: ${selected.error}` : ""}</p>}
     {selected?.originalPhaseConfiguration && selected.originalPhaseConfiguration !== selected.phaseConfiguration && <p className="mt-2 text-xs">Historical candidate used an explicit phase override: saved {selected.originalPhaseConfiguration} → candidate {selected.phaseConfiguration}. Original evidence is preserved; this is not the current saved Stage 1 phase.</p>}
-    {!history.length && <p className="mt-2 text-xs">No saved P1 candidates. The earlier isolated report is not an adopted app result.</p>}
+     {!history.length && <p className="mt-2 text-xs">No saved Stage 3 candidates. Existing authority remains unchanged.</p>}
     <P1CandidateResults key={run?.id ?? "none"} run={run} />
   </section>;
 }

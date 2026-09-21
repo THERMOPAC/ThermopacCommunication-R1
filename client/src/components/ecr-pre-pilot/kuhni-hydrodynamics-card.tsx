@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { ChevronDown, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Stage3Stage4OptimizerPanel } from "./stage3-stage4-optimizer-panel";
@@ -892,15 +891,12 @@ export function KuhniHydrodynamicsCard({
   thermodynamicDependencyReady: boolean;
   thermodynamicDependencyError?: string | null;
 }) {
-  const { toast } = useToast();
   const [latest, setLatest] = useState<KuhniRun | null>(null);
   const [runs, setRuns] = useState<KuhniRun[]>([]);
   const [resolverLatest, setResolverLatest] = useState<KuhniRun | null>(null);
   const [resolverRuns, setResolverRuns] = useState<KuhniRun[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [optimizerRefreshToken, setOptimizerRefreshToken] = useState(0);
 
   const loadRuns = async () => {
     if (!designId) return;
@@ -936,34 +932,6 @@ export function KuhniHydrodynamicsCard({
     void loadRuns();
   }, [designId]);
 
-  const handleRun = async () => {
-    if (!designId) {
-      toast({
-        title: "Stage 3 run blocked",
-        description: "Save Stage 1 before running the geometry resolver.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setSubmitting(true);
-    setLoadingError(null);
-    try {
-      const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/stage3-stage4-optimizer/runs`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error ?? payload.message ?? "Hydrodynamic screening could not start.");
-      setOptimizerRefreshToken((value) => value + 1);
-      await loadRuns();
-      toast({ title: "Stage 3/4 optimizer complete", description: "The current Stage-1-authoritative optimizer geometry and RPM window were persisted immutably." });
-    } catch (error: unknown) {
-      setLoadingError(error instanceof Error ? error.message : "Stage 3/4 optimization could not start.");
-      toast({ title: "Stage 3/4 optimizer failed", description: error instanceof Error ? error.message : "The run could not be completed.", variant: "destructive" });
-    } finally {
-      setSubmitting(false);
-    }
-  };
   const legacyResolverLatest = asRecord(resolverLatest?.engine)?.id === "kuhni_geometry_resolver"
     ? resolverLatest
     : null;
@@ -983,21 +951,11 @@ export function KuhniHydrodynamicsCard({
               </CardDescription>
             </div>
           </div>
-          <Button
-            type="button"
-            onClick={handleRun}
-            disabled={!designId || submitting || loading}
-            className="h-8 gap-1.5 bg-slate-900 px-3 text-xs hover:bg-slate-700"
-          >
-            {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            {submitting ? "Optimizing geometry…" : "Run current optimizer"}
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4 px-4 py-4">
         <Stage3Stage4OptimizerPanel
           designId={designId}
-          refreshToken={optimizerRefreshToken}
         />
         <div className={`rounded-md border p-3 ${thermodynamicDependencyReady ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/70"}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
