@@ -29,9 +29,37 @@ export function P1CandidateResults({ run }: { run: any }) {
   const geometry = geometries[geometryIndex] ?? geometries[0];
   const trial = geometry?.trials?.find((item: any) => String(item.rpm) === rpm) ?? geometry?.trials?.find((item: any) => item.status === "FEASIBLE") ?? geometry?.trials?.[0];
   if (!result) return null;
+  const automatic = run.automaticSelection;
+  const selected = automatic?.selected;
   return <div className="mt-3 min-w-0 space-y-3 break-words text-xs">
-    <p><strong>Candidate calculation: {result.status}</strong> — {result.selectedGeometry ? "Selected within candidate only" : "No geometry selected; feasible trials below remain visible."}</p>
-    <p>Unchanged selection preference: 20 rpm contiguous fixed-geometry window and second-smallest adequate diameter. Hydraulic feasibility is not selection. {(result.blockers ?? []).join("; ")}</p>
+    {automatic && <section className="rounded border border-blue-300 bg-blue-50 p-3" data-testid="automatic-stage3-selection">
+      <h3 className="font-semibold">Current automatic Stage 3 result — preliminary hydraulic screening</h3>
+      <p>{automatic.status}</p>
+      {selected ? <>
+        <p className="font-semibold">Column D {number(selected.geometry.columnDiameterM)} m · rotor {number(selected.geometry.rotorDiameterM)} m · pitch {number(selected.geometry.compartmentHeightM)} m · free area {number(selected.geometry.freeArea)} · {number(selected.trial.rpm)} rpm</p>
+        <p>Worst-six loading {number(selected.loading)} · margin to 0.70 {number(.70 - selected.loading)} · minimum holdup gap {number(selected.minimumHoldupGap)} · minimum interfacial area {number(selected.minimumInterfacialAreaM2M3)} m²/m³</p>
+        <p>Governing φ {number(selected.trial.hydraulicMethod?.governing?.operatingHoldup)} · d32 {number(selected.trial.hydraulicMethod?.governing?.d32M)} m · capacity {number(selected.trial.hydraulicMethod?.governing?.capacityMS)} m/s</p>
+        <p>Stage 4 HETS uses this exact automatic geometry. No manual selection or approval is required. Extrapolated preliminary screening is not model governance or separation qualification.</p>
+      </> : <p role="alert">No eligible configuration. Stage 4 is blocked; there is no historical or manual fallback.</p>}
+      <p>{automatic.status === "SMALLEST_FEASIBLE_NO_RESOLVED_KNEE" ? "No resolved interior diminishing-returns evidence; automatically using smallest eligible diameter." : "Maximum positive discrete global chord departure over the full configured envelope."}</p>
+      <details className="mt-2">
+        <summary className="cursor-pointer font-semibold">System shortlist and diameter-to-diameter comparison</summary>
+        <p>{automatic.rationale} {automatic.sensitivity}. Normalized score is not scientific confidence. Bounds and grid can change the result.</p>
+        <p>Full configured diameter grid (m): {automatic.configuredSearch?.find((g: any) => g.orientation === run.phaseConfiguration)?.diameterM?.join(", ")}. Eligible envelope (m): {automatic.eligibleDiameterBoundsM?.join("–") ?? "none"}.</p>
+        <p>Policy {automatic.policy?.version} · selection hash {automatic.immutableHash}</p>
+        <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr>{["D m", "Count", "RPM / hc / rotor / free", "Worst loading", "A m²", "ΔA %", "Loading gain %", "E", "y−x", "Disposition"].map(h => <th key={h} className="p-1">{h}</th>)}</tr></thead>
+          <tbody>{automatic.references.map((p: any) => <tr key={p.geometry.columnDiameterM} className="border-t">
+            <td>{number(p.geometry.columnDiameterM)}</td><td>{p.feasibleConfigurationCount}</td>
+            <td>{[p.trial.rpm, p.geometry.compartmentHeightM, p.geometry.rotorDiameterM, p.geometry.freeArea].map(number).join(" / ")}</td>
+            <td>{number(p.loading)}</td><td>{number(p.areaM2)}</td><td>{number(p.areaIncreasePercent)}</td>
+            <td>{number(p.loadingImprovementPercent)}</td><td>{number(p.elasticity)}</td><td>{number(p.normalizedScore)}</td>
+            <td>{p.geometry.columnDiameterM === selected?.geometry.columnDiameterM ? "Automatically selected" : p.dominated ? "Size dominated" : "Nondominated reference"}</td>
+          </tr>)}</tbody></table></div>
+      </details>
+    </section>}
+    <details><summary className="cursor-pointer font-semibold">Historical engine selection provenance and raw trial inspection (not downstream selection)</summary>
+    <p><strong>Historical engine result: {result.status}</strong> — {result.selectedGeometry ? "Legacy engine selection" : "Legacy engine selected no geometry."}</p>
+    <p>The legacy 20 rpm window preference and second-smallest adequate diameter do not gate automatic P1 selection or downstream HETS. {(result.blockers ?? []).join("; ")}</p>
      <p>Engine: {result.engine?.version}; phase: {run.phaseConfiguration}. Source snapshot {run.sourceSnapshotHash}; property temperature {run.propertyTemperatureC} °C. {run.stale && <strong className="text-amber-800">Historical input: current Stage 1 has changed.</strong>}</p>
     <div className="overflow-x-auto"><table className="w-full text-left"><caption className="text-left font-semibold">All evaluated diameters (no union of different geometries into an operating window)</caption>
       <thead><tr>{["D (m)", "Feasible trials", "Best fixed-geometry span (rpm)", "Rejection reasons"].map(title => <th className="p-1" key={title}>{title}</th>)}</tr></thead>
@@ -41,7 +69,7 @@ export function P1CandidateResults({ run }: { run: any }) {
         const reasons = [...new Set(trials.flatMap(item => item.reasons ?? []))];
         return <tr key={d} className="border-t"><td className="p-1">{number(d)}</td><td>{trials.filter(item => item.status === "FEASIBLE").length}</td><td>{number(Math.max(0, ...groups.map(item => item.operatingWindow?.widthRpm ?? 0)))}</td><td>{reasons.join("; ") || "None"}</td></tr>;
       })}</tbody></table></div>
-    <label className="block">Inspect diameter <select className="ml-2 border p-1" value={currentDiameter ?? ""} onChange={e => { setDiameter(e.target.value); setGeometryIndex(0); setRpm(""); }}>{diameters.map(d => <option key={d} value={d}>{d} m</option>)}</select></label>
+    <label className="block">Inspect raw diameter evidence (not a selection) <select className="ml-2 border p-1" value={currentDiameter ?? ""} onChange={e => { setDiameter(e.target.value); setGeometryIndex(0); setRpm(""); }}>{diameters.map(d => <option key={d} value={d}>{d} m</option>)}</select></label>
     <div className="max-h-72 overflow-auto"><table className="w-full text-left"><thead><tr>{["Geometry", "hc / rotor (m)", "hc/D / rotor/D", "Free area", "Feasible discrete RPM", "Window"].map(title => <th className="p-1" key={title}>{title}</th>)}</tr></thead>
       <tbody>{geometries.map((item, index) => <tr className="border-t" key={index}>
         <td><button className="underline" onClick={() => { setGeometryIndex(index); setRpm(""); }}>Inspect {index + 1}{item === geometry ? " ✓" : ""}</button></td>
@@ -62,6 +90,7 @@ export function P1CandidateResults({ run }: { run: any }) {
       const url = URL.createObjectURL(new Blob([JSON.stringify(run, null, 2)], { type: "application/json" }));
       const link = document.createElement("a"); link.href = url; link.download = `stage3-p1-candidate-${run.id}.json`; link.click(); URL.revokeObjectURL(url);
     }}>Export complete candidate JSON</Button>
+    </details>
   </div>;
 }
 
@@ -142,7 +171,7 @@ function CandidatePanel({ designId, refreshToken }: { designId: number | null; r
     setCurrentRun(null);
     if (current?.status === "completed") void request(`${base}/${current.id}`).then(value => { if (!cancelled) setCurrentRun(value); }).catch(e => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
-  }, [base, current?.id, current?.status]);
+  }, [base, current?.id, current?.status, basis?.sourceSnapshotHash]);
   useEffect(() => {
     let cancelled = false;
     setArchiveRun(null);
@@ -150,10 +179,10 @@ function CandidatePanel({ designId, refreshToken }: { designId: number | null; r
     return () => { cancelled = true; };
   }, [base, archived?.id, archived?.status]);
   return <section className="mb-4 rounded border border-amber-300 bg-amber-50 p-3">
-     <h4 className="font-semibold">Stage 3 calculation — candidate / pending review</h4>
+     <h4 className="font-semibold">Stage 3 — automatic preliminary hydraulic selection</h4>
      <p className="mt-1 text-xs">Method selected automatically from saved Stage 1: {basis ? `${basis.methodVersion} — ${basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" ? "corrected P1 RRBO-continuous method" : "existing NMP-continuous method"}` : "waiting for an explicit, valid saved phase"}. No manual method selection.</p>
      {basis?.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" && <p className="mt-1 text-xs">Conditional pre-pilot method: Np=1.2; C32=0.36 / 0.42 / 0.43; Barry–Parlange mobile and Schiller–Naumann immobile interfaces; corrected Garthe superficial swarm/slip and lower-branch operating holdup. Maximum modeled-capacity loading 0.70 in every scenario.</p>}
-    <p className="mt-1 text-xs">Interface mobility, inversion, entrainment, disengagement, turbulence, Schiller–Naumann range and spherical-drop qualification remain UNKNOWN. Lower-branch continuation is quasi-steady admissibility, not dynamic stability. Extrapolated screening only, not observed flooding or commercial qualification. Running this candidate never adopts geometry, changes saved Stage 1, or replaces Stage 3/4 authority.</p>
+    <p className="mt-1 text-xs">Interface mobility, inversion, entrainment, disengagement, turbulence, Schiller–Naumann range and spherical-drop qualification remain UNKNOWN. Lower-branch continuation is quasi-steady admissibility, not dynamic stability. The separate automatic P1 selection supplies preliminary Stage 4 HETS geometry without changing saved Stage 1 or frozen historical authority. No manual approval is required.</p>
     <p className="mt-2 text-xs">Saved property temperature: {basis ? `${basis.basis.operatingTemperatureC} °C` : "not loaded"}; saved phase: {basis?.basis.phaseConfiguration ?? "not loaded"}. P1 requires saved 40 °C properties.</p>
     <p className="my-2 text-xs">Phase and properties come only from Saved Stage 1{basis?.sourceSavedAt ? ` (${basis.sourceSavedAt})` : ""}. No candidate phase override.</p>
      <Button size="sm" disabled={!!blockedReason || busy} onClick={async () => {
@@ -174,17 +203,17 @@ function CandidatePanel({ designId, refreshToken }: { designId: number | null; r
          {current.status === "running" && <p>Calculating in background; safe to leave and reload. No authority will be replaced. A lost server process is reported interrupted after 16 minutes.</p>}
        </div>
        : historyLoaded && basis && <p className="mt-3 text-xs"><strong>No Stage 3 calculation for latest saved Stage 1. Run Stage 3.</strong></p>}
-     <P1CandidateResults key={currentRun?.id ?? "none"} run={currentRun} />
+     <P1CandidateResults key={currentRun?.id ?? "none"} run={!basisError && !historyError && currentRun?.sourceSnapshotHash === basis?.sourceSnapshotHash ? currentRun : null} />
      {!!archive.length && <details className="mt-4 border-t border-amber-300 pt-3">
        <summary className="cursor-pointer text-xs font-semibold">Previous calculations (read-only)</summary>
        <div className="mt-2 text-xs">
-         <label>Historical snapshot <select className="ml-2 max-w-full border bg-white p-1" value={archived?.id ?? ""} onChange={e => setArchiveId(e.target.value)}>{archive.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status} — source {item.sourceSnapshotHash}</option>)}</select></label>
+         <label>Historical snapshot <select aria-label="Historical snapshot" className="ml-2 max-w-full border bg-white p-1" value={archived?.id ?? ""} onChange={e => setArchiveId(e.target.value)}>{archive.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status} — source {item.sourceSnapshotHash}</option>)}</select></label>
          {archived && <>
            <p className="mt-2"><strong>Read-only historical calculation.</strong> Source snapshot {archived.sourceSnapshotHash}; phase {archived.phaseConfiguration}; method {archived.version}; requested {archived.requestedAt}. This does not change the current result or Run Stage 3 input.</p>
            <p className="mt-2">{archived.status === "running" ? "This historical basis is still calculating in the background." : archived.status}{archived.error ? `: ${archived.error}` : ""}</p>
            {archived.originalPhaseConfiguration && archived.originalPhaseConfiguration !== archived.phaseConfiguration && <p className="mt-2">Historical candidate used an explicit phase override: saved {archived.originalPhaseConfiguration} → candidate {archived.phaseConfiguration}. Original evidence is preserved; this is not the current saved Stage 1 phase.</p>}
          </>}
-         <P1CandidateResults key={archiveRun?.id ?? "archive-none"} run={archiveRun} />
+         <P1CandidateResults key={archiveRun?.id ?? "archive-none"} run={archiveRun ? { ...archiveRun, automaticSelection: null } : null} />
        </div>
      </details>}
       {historyLoaded && !history.length && <p className="mt-2 text-xs">No saved Stage 3 candidates. Existing authority remains unchanged.</p>}

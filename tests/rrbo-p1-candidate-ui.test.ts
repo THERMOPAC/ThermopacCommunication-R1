@@ -13,7 +13,7 @@ describe('P1 candidate display independently of selection', () => {
     expect(html).not.toContain('Run current optimizer');
     expect(html).not.toContain('Run Stage 3/4 optimizer');
     expect(html).not.toContain('Calculate P1 candidate');
-    expect(html).toContain('Existing saved authority');
+    expect(html).toContain('Frozen historical authority');
   });
   it('shows feasible diameters, fixed geometry, RPM, six scenarios and rejection diagnostics without a selected geometry', () => {
     const scenarios = [0.36, 0.42, 0.43].flatMap(coefficient => ['BARRY_PARLANGE_MOBILE', 'SCHILLER_NAUMANN_IMMOBILE'].map(interfaceScenario => ({
@@ -29,7 +29,7 @@ describe('P1 candidate display independently of selection', () => {
         ] }],
       },
     } }));
-    expect(html).toContain('No geometry selected');
+    expect(html).toContain('Legacy engine selected no geometry');
     expect(html).toContain('0.264');
     expect(html).toContain('LOADING_EXCEEDED');
     expect(html).toContain('φ operating');

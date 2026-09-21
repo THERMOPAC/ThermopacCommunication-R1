@@ -139,7 +139,12 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
   const sourceHash = stage5Hash({ sourceStage3, sourceStage4 });
   const h = row.result_snapshot.selectedStage3Hydraulics;
   const s = row.result_snapshot.hetsSizing;
-  const w = stage3.result_snapshot?.selectedOperatingWindow;
+  // Automatic P1 snapshots authorize a discrete point, not a contiguous RPM
+  // window. Preserve the exact inherited point as a zero-width envelope; no
+  // hydraulic calculation, ranking, or approval occurs in Stage 5.
+  const w = h?.source === 'AUTOMATIC_PRELIMINARY_P1_SELECTION'
+    ? { rpmMin: h.selectedRpm, rpmMax: h.selectedRpm }
+    : stage3.result_snapshot?.selectedOperatingWindow;
   if (!h || typeof h !== 'object' || !s || typeof s !== 'object' || !w || typeof w !== 'object')
     throw new Stage5Error('STAGE5_GOVERNING_BASIS_INVALID');
   const efficiencySizing = s.sizingMethod === 'ADOPTED_COMPARTMENT_EFFICIENCY';

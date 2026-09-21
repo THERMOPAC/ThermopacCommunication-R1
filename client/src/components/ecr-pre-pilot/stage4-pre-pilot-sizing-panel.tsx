@@ -866,6 +866,13 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
               {" "}{number(hydraulic.diameterM, "m")}. No Stage-3 hydraulic diameter or selected
               compartment height was recalculated.
             </p>
+            {hydraulic.source === "AUTOMATIC_PRELIMINARY_P1_SELECTION" && <p className="mt-2" data-testid="stage4-automatic-source">
+              <strong>Source: automatic preliminary P1 hydraulic selection.</strong>{" "}
+              Policy {text(record(record(hydraulic.automaticSelection).policy).version)} · candidate{" "}
+              {text(record(record(hydraulic.automaticSelection).source).candidateId)}.
+              Exact Stage 3 dimensions are retained. No RPM-window gate or manual approval.
+              Extrapolated hydraulic screening, not governed hydraulics or mass-transfer qualification.
+            </p>}
             {stage3HetsAdmission.status === "INDEPENDENTLY_CHECKED_PREPILOT_HETS_CANDIDATE" && (
               <p className="mt-1">
                 <strong>Stage-3 HETS-only admission:</strong> independently checked{" "}
@@ -873,7 +880,7 @@ export default function Stage4PrePilotSizingPanel({ designId }: Props) {
                 Stage 4, mass-transfer readiness, or commercial release authority.
               </p>
             )}
-            {optimizedStage3Geometry && (
+            {optimizedStage3Geometry && hydraulic.source !== "AUTOMATIC_PRELIMINARY_P1_SELECTION" && (
               <section
                 data-testid="stage4-current-ranking"
                 className="mt-3 rounded border border-emerald-200 bg-emerald-50/50 p-3"

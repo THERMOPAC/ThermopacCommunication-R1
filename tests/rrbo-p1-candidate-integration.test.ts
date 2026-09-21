@@ -62,7 +62,8 @@ describe('P1 candidate integration without scientific optimizer execution', () =
     expect(pending.version).toBe(version);
     expect(rows[0].payload.candidateKind).toBe(kind);
     expect(rows[0].payload.engine).toBeUndefined();
-    const calculation = { engine: { version, implementationHash }, status: 'NO_SECOND_DIAMETER' };
+    const calculation = { engine: { version, implementationHash }, status: 'NO_SECOND_DIAMETER',
+      processBasis: sourceBasis, stage1Authority: { snapshotHash: 'source' } };
     mocks.workers[0].emit('message', { result: { ...calculation, calculationHash: kuhniRunHash(calculation) } });
     await vi.waitFor(() => expect(rows).toHaveLength(2));
     expect((await getP1Candidates(7, 201))[0].status).toBe('completed');
@@ -102,7 +103,9 @@ describe('P1 candidate integration without scientific optimizer execution', () =
     expect(sourceBasis).toEqual(original);
     expect((await startP1Candidate(7, 100, input)).id).toBe(pending.id);
     expect(mocks.workers).toHaveLength(1);
-    const calculation = { engine: { version: VERSION, implementationHash: HASH }, status: 'NO_SECOND_DIAMETER', orientationComparison: [{ geometryGrid: [{ trials: [{ hydraulicMethod: { scenarios: [1, 2, 3, 4, 5, 6] } }] }] }] };
+    const calculation = { engine: { version: VERSION, implementationHash: HASH }, status: 'NO_SECOND_DIAMETER',
+      processBasis: sourceBasis, stage1Authority: { snapshotHash: 'source' },
+      orientationComparison: [{ geometryGrid: [{ trials: [{ hydraulicMethod: { scenarios: [1, 2, 3, 4, 5, 6] } }] }] }] };
     const result = { ...calculation, calculationHash: kuhniRunHash(calculation) };
     worker.emit('message', { result });
     await vi.waitFor(() => expect(rows).toHaveLength(2));

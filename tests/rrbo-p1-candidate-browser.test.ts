@@ -16,11 +16,13 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
       import React from 'react';
       import { createRoot } from 'react-dom/client';
       import { P1CandidatePanel } from './client/src/components/ecr-pre-pilot/p1-candidate-panel';
+      import Stage4PrePilotSizingPanel from './client/src/components/ecr-pre-pilot/stage4-pre-pilot-sizing-panel';
       const root = createRoot(document.getElementById('root'));
       window.mount = id => root.render(React.createElement(P1CandidatePanel, {designId:id, refreshToken:0}));
+      window.mountStage4 = id => root.render(React.createElement(Stage4PrePilotSizingPanel, {designId:id}));
       window.mount(236);
     `, resolveDir: process.cwd(), loader: 'tsx' },
-    bundle: true, write: false, platform: 'browser', jsx: 'automatic',
+    bundle: true, write: false, platform: 'browser', jsx: 'automatic', loader: { '.css': 'empty' },
     alias: { '@': resolve('client/src') },
   });
   const browser = await puppeteer.launch({
@@ -44,6 +46,16 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     page.on('request', req => {
       if (req.isNavigationRequest()) { void req.respond({ status: 200, contentType: 'text/html', body: '<div id="root"></div>' }); return; }
       if (!req.url().includes('/api/ecr-pre-pilot/designs/')) { void req.abort(); return; }
+      if (req.url().includes('/stage4/pre-pilot-sizing/latest')) {
+        void req.respond({ status: 200, contentType: 'application/json', body: JSON.stringify({
+          status: 'CALCULATED', mainOutputs: { diameterM: .7, activeHeightM: 4.2 },
+          hetsSizing: { sizingMethod: 'ADOPTED_COMPARTMENT_EFFICIENCY', stage3HydraulicColumnDiameterM: .7,
+            physicalCompartmentHeightM: .21, installedActiveHeightM: 4.2 },
+          selectedStage3Hydraulics: { source: 'AUTOMATIC_PRELIMINARY_P1_SELECTION', diameterM: .7,
+            compartmentHeightM: .21, automaticSelection: { policy: { version: 'controlled-auto-policy' },
+              source: { candidateId: 'latest-match' } } },
+        }) }); return;
+      }
       if (req.method() === 'POST') {
         posts++; postedBody = JSON.parse(req.postData() || '{}');
         void req.respond({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'submitted', status: 'running' }) });
@@ -121,24 +133,32 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     ];
     for (const item of candidateHistory) candidateDetails.set(item.id, {
       ...item, result: { status: item.id.toUpperCase(), blockers: [], orientationComparison: [], engine: { version: 'controlled-method' } },
+      ...(item.id === 'latest-match' ? { automaticSelection: {
+        status: 'AUTOMATIC_DISCRETE_KNEE_SELECTED', policy: { version: 'controlled-auto-policy' },
+        selected: { geometry: { columnDiameterM: .7, rotorDiameterM: .231, compartmentHeightM: .21, freeArea: .4 },
+          trial: { rpm: 30 }, loading: .3877, minimumHoldupGap: .1, minimumInterfacialAreaM2M3: 30 },
+        references: [],
+      } } : {}),
     });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: completed'));
-    await page.waitForFunction(() => document.body.textContent?.includes('Candidate calculation: LATEST-MATCH'));
-    await page.select('details select', 'older-match');
+    await page.waitForSelector('[data-testid=automatic-stage3-selection]');
+    expect(await page.$eval('[data-testid=automatic-stage3-selection]', e => e.textContent)).toContain('Column D 0.7 m');
+    expect(posts).toBe(0); // Viewing persisted evidence automatically selects; no user choice or approval.
+    await page.select('select[aria-label="Historical snapshot"]', 'older-match');
     expect(await page.$eval('body', e => e.textContent)).toContain('Latest calculation for current saved Stage 1: completed');
     // A newly inserted matching attempt automatically becomes current and is polled by its id.
     candidateHistory = [row('pending-match', 'latest-hash', '2025-01-04T00:00:00Z', 'running'), ...candidateHistory];
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
     await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: running'));
-    expect(await page.$eval('body', e => e.textContent)).not.toContain('Candidate calculation: LATEST-MATCH');
+    expect(await page.$('[data-testid=automatic-stage3-selection]')).toBeNull();
     // Saving Stage 1 cannot leave the archive selection pinned as the current result.
     basisHash = 'saved-again';
     const savedAgain = row('saved-again-result', basisHash, '2025-01-05T00:00:00Z');
     candidateHistory = [savedAgain, ...candidateHistory.filter(item => item.id !== 'pending-match')];
     candidateDetails.set(savedAgain.id, { ...savedAgain, result: { status: 'SAVED-AGAIN', blockers: [], orientationComparison: [], engine: { version: 'controlled-method' } } });
     await page.evaluate(() => window.dispatchEvent(new Event('ecr-stage1-saved')));
-    await page.waitForFunction(() => document.body.textContent?.includes('Candidate calculation: SAVED-AGAIN'));
+    await page.waitForFunction(() => document.body.textContent?.includes('Historical engine result: SAVED-AGAIN'));
     // Stale history remains archive-only and never fills the current area.
     basisHash = 'no-candidate-for-this-save';
     await page.evaluate(() => window.dispatchEvent(new Event('ecr-stage1-saved')));
@@ -148,6 +168,10 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     await submission;
     expect(postedBody).toEqual({ sourceSnapshotHash: 'no-candidate-for-this-save' });
     await Promise.all(pending);
+    await page.evaluate(() => (window as any).mountStage4(236));
+    await page.waitForSelector('[data-testid=stage4-automatic-source]');
+    expect(await page.$eval('[data-testid=stage4-automatic-source]', e => e.textContent)).toContain('controlled-auto-policy');
+    expect(await page.$eval('[data-testid=stage4-automatic-source]', e => e.textContent)).toContain('latest-match');
   } finally { await browser.close(); }
 }, 60_000);
 

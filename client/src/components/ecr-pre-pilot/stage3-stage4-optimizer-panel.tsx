@@ -207,7 +207,7 @@ export function Stage3Stage4OptimizerPanel({
   return (
     <section className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3">
       <P1CandidatePanel designId={designId} refreshToken={refreshToken} />
-      <p className="mb-2 text-xs font-semibold">Existing saved authority — read-only, unchanged by Stage 3 candidates</p>
+      <details><summary className="mb-2 cursor-pointer text-xs font-semibold">Frozen historical authority — read-only; separate from current automatic P1 selection</summary>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-950">
@@ -372,6 +372,7 @@ export function Stage3Stage4OptimizerPanel({
           </p>
         </div>
       )}
+      </details>
     </section>
   );
 }

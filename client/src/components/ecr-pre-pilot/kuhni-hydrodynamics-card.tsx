@@ -997,12 +997,12 @@ export function KuhniHydrodynamicsCard({
           </p>
         </div>
         <div className="rounded-md border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-4 text-amber-950">
-          <strong>Optimizer boundary.</strong> Stage 3 selects a fixed geometry and useful RPM window from the bounded screening grid. Stage 4 carries that immutable geometry into the fixed-N<sub>T</sub>=7 HETS screening route; no separation or commercial qualification is claimed.
+          <strong>Screening boundary.</strong> For current P1 evidence, Stage 3 automatically selects a preliminary geometry and discrete RPM using area versus worst-six-scenario hydraulic loading, without a window-width criterion. Stage 4 carries that exact selection into fixed-N<sub>T</sub>=7 HETS screening; no separation or commercial qualification is claimed.
         </div>
         <div className="rounded-md border border-slate-200 bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-600">Server-owned calculation authority</h3>
-            <span className="font-mono text-[10px] text-slate-400">POST /stage3-stage4-optimizer/runs · server-owned controls</span>
+            <span className="font-mono text-[10px] text-slate-400">POST /stage3-candidates · server-owned controls</span>
           </div>
           <p className="mt-2 text-[11px] leading-4 text-slate-600">
              Geometry, RPM and flooding design fraction are not user inputs. Every run snapshots the current Stage‑1 process basis and uses the immutable STAGE3_GEOMETRY_DESIGN_NT=7 basis while retaining any newest valid Stage‑2 accepted Predictive N_T as separate scientific reporting.

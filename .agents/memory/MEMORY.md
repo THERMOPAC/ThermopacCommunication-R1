@@ -140,3 +140,4 @@
 - [ECR R1 construction evidence](ecr-r1-construction-evidence.md) — ring/perforated stators are not interchangeable; source-specific stepped blades, shaft-area ambiguity and terminal-count limits.
 - [Stage-4 regression fixtures](stage4-regression-fixture-boundary.md) — a code checkout does not freeze DB authority; isolate missing-authority cases rather than relying on a historical design's identity.
 - [Garthe swarm velocity definitions](garthe-swarm-velocity-convention.md) — superficial swarm and interphase slip differ by (1−φ); low-Re hindrance and operating/flood holdup stay distinct.
+- [Automatic hydraulic selection](ecr-prepilot-automatic-hydraulic-selection.md) — system-owned diameter choice excludes RPM windows; conversational recommendations are not hard-coded targets.

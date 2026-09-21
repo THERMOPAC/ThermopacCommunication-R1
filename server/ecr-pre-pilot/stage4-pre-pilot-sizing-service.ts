@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { pool } from '../db';
+import { getP1Candidates } from './p1-candidate-service';
+import { AUTOMATIC_SELECTION_HASH, AUTOMATIC_SELECTION_VERSION } from './automatic-hydraulic-selection';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
 import {
   stage1EquilibriumScientificContentHash,
@@ -44,6 +46,11 @@ export const STAGE4_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.
 })).digest('hex');
 export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION =
   STAGE4_HETS_IMPLEMENTATION_VERSION;
+export const STAGE4_AUTOMATIC_HETS_VERSION = 'ECR_STAGE4_AUTOMATIC_P1_HETS_V1_NT7_ETA035';
+export const STAGE4_AUTOMATIC_HETS_HASH = kuhniRunHash({
+  version: STAGE4_AUTOMATIC_HETS_VERSION, selectionPolicy: AUTOMATIC_SELECTION_HASH,
+  designNt: 7, efficiency: .35, height: 'ceil(Nt/efficiency)*selected_hc',
+});
 export const STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH = createHash('sha256').update(JSON.stringify({
   version: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
   optimizerVersion: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
@@ -261,8 +268,14 @@ export function deriveStage4PrePilotSizing(input: {
       fail('STAGE4_OPTIMIZER_STAGE1_LINEAGE_STALE');
     }
   }
-  const optimizerGeometry = input.stage3.result.engine?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
+  const automatic = input.stage3.result.engine?.version === AUTOMATIC_SELECTION_VERSION
+    && input.stage3.result.engine?.implementationHash === AUTOMATIC_SELECTION_HASH;
+  if (automatic && input.stage3.result.automaticSelection?.source?.currentStage1Hash !== input.stage3.stage1SnapshotHash) {
+    fail('STAGE4_AUTOMATIC_SELECTION_STALE');
+  }
+  const optimizerGeometry = automatic || (input.stage3.result.engine?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
     && input.stage3.result.engine?.implementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
+    )
     ? input.stage3.result.stage4GeometryInput
     : null;
   const optimizedHydraulics = optimizerGeometry?.status === 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY'
@@ -311,12 +324,12 @@ export function deriveStage4PrePilotSizing(input: {
     classification: 'PRE-PILOT PREDICTIVE / SCREENING DESIGN',
     screeningNotice: 'PRE-PILOT SCREENING',
      implementation: {
-        version: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
-        implementationHash: STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH,
+        version: automatic ? STAGE4_AUTOMATIC_HETS_VERSION : STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION,
+        implementationHash: automatic ? STAGE4_AUTOMATIC_HETS_HASH : STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH,
     },
      currentOptimizer: optimizedHydraulics ? {
-       version: ECR_STAGE3_STAGE4_OPTIMIZER_VERSION,
-       implementationHash: ECR_STAGE3_STAGE4_OPTIMIZER_HASH,
+       version: input.stage3.result.engine.version,
+       implementationHash: input.stage3.result.engine.implementationHash,
        resultHash: optimizerGeometry!.optimizerResultHash ?? input.stage3.immutableHash,
      } : null,
     mainOutputs: {
@@ -354,10 +367,11 @@ export function deriveStage4PrePilotSizing(input: {
             ?? input.stage3.result.stage1Authority?.phaseConfiguration
             ?? null
           : null,
-       source: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION',
+       source: automatic ? 'AUTOMATIC_PRELIMINARY_P1_SELECTION' : 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION',
+       automaticSelection: automatic ? input.stage3.result.automaticSelection : null,
       stage3RunId: input.stage3.id,
       stage3ImmutableHash: input.stage3.immutableHash,
-       optimizerVersion: optimizedHydraulics ? ECR_STAGE3_STAGE4_OPTIMIZER_VERSION : null,
+       optimizerVersion: optimizedHydraulics ? input.stage3.result.engine.version : null,
         optimizerImplementationHash: optimizedHydraulics
           ? input.stage3.result.engine?.implementationHash ?? null
           : null,
@@ -387,8 +401,8 @@ export function deriveStage4PrePilotSizing(input: {
     // do not fabricate a compatibility finding when it is absent.
     stage2Stage1Compatibility: input.stage2Stage1Compatibility ?? null,
      stage3HetsAdmission: {
-         status: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY',
-         source: 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION',
+          status: automatic ? 'AUTOMATIC_PRELIMINARY_P1_SELECTION' : 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY',
+          source: automatic ? 'CURRENT_OWNED_SIX_SCENARIO_EVIDENCE_NOT_MODEL_GOVERNANCE' : 'PERSISTED_STAGE3_OPTIMIZER_GEOMETRY_NO_STAGE4_RESELECTION',
         },
     overallEfficiency: {
        value: STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,
@@ -452,14 +466,14 @@ function isCurrentStage4Calculation(
   const result = calculation.result_snapshot;
   const resultHydraulics = result?.selectedStage3Hydraulics;
   const currentHydraulics = authority.projection.selectedStage3Hydraulics;
-  return result?.currentOptimizer?.version === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
-    && result?.currentOptimizer?.implementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
+   return result?.currentOptimizer?.version === currentHydraulics.optimizerVersion
+    && result?.currentOptimizer?.implementationHash === currentHydraulics.optimizerImplementationHash
     && result?.currentOptimizer?.resultHash === currentHydraulics.optimizerResultHash
-    && result?.implementation?.version === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION
-    && result?.implementation?.implementationHash === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH
-    && result?.calculationModel === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION
-    && resultHydraulics?.optimizerVersion === ECR_STAGE3_STAGE4_OPTIMIZER_VERSION
-    && resultHydraulics?.optimizerImplementationHash === ECR_STAGE3_STAGE4_OPTIMIZER_HASH
+    && result?.implementation?.version === authority.projection.implementation.version
+    && result?.implementation?.implementationHash === authority.projection.implementation.implementationHash
+    && result?.calculationModel === authority.projection.implementation.version
+    && resultHydraulics?.optimizerVersion === currentHydraulics.optimizerVersion
+    && resultHydraulics?.optimizerImplementationHash === currentHydraulics.optimizerImplementationHash
     && resultHydraulics?.optimizerResultHash === currentHydraulics.optimizerResultHash
     && resultHydraulics?.stage3RunId === currentHydraulics.stage3RunId
     && resultHydraulics?.stage3ImmutableHash === currentHydraulics.stage3ImmutableHash
@@ -482,6 +496,28 @@ export async function loadStage4PrePilotSizingAuthority(
   );
   if (!design.rows[0]) fail('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
   const stage1 = validateStage1Snapshot(design.rows[0].input_data);
+  if (stage1.stage1.phaseConfiguration === 'rrbo-continuous-nmp-dispersed') {
+    const candidates = await getP1Candidates(userId, designId);
+    const current = candidates.find((c: any) => !c.stale && c.sourceSnapshotHash === stage1.immutableHash
+      && c.phaseConfiguration === stage1.stage1.phaseConfiguration);
+    const selection = current?.status === 'completed' ? current.automaticSelection : null;
+    if (!selection?.selected) fail('STAGE4_CURRENT_AUTOMATIC_P1_SELECTION_REQUIRED');
+    const chosen = selection.selected;
+    const stage3: Stage3Projection = {
+      id: current.ledgerId, immutableHash: current.immutableHash, stage1SnapshotHash: stage1.immutableHash,
+      result: {
+        engine: { version: AUTOMATIC_SELECTION_VERSION, implementationHash: AUTOMATIC_SELECTION_HASH },
+        automaticSelection: selection, selectedOrientation: current.phaseConfiguration,
+        stage4GeometryInput: { ...chosen.geometry, rpm: chosen.trial.rpm,
+          status: 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY', optimizerResultHash: selection.immutableHash },
+      },
+    };
+    const projection = deriveStage4PrePilotSizing({ stage3 });
+    const solverInput = { actualStage2Nt: null, stage1SnapshotHash: stage1.immutableHash,
+      stage2JobId: null, stage2ResultHash: null, stage3RunId: current.ledgerId,
+      stage3ImmutableHash: current.immutableHash, hydraulics: { diameterM: chosen.geometry.columnDiameterM } };
+    return { projection, solverInput, lineageHash: kuhniRunHash({ owner: { userId, designId }, solverInput, selection }) };
+  }
   const stage2Rows = await pool.query<PersistedStage2>(
     `SELECT id::text,design_id,created_by,input_snapshot,model_hash,engine_hash,status,result_snapshot FROM ecr_pre_pilot_predictive_nt_jobs
       WHERE design_id=$1 AND created_by=$2 AND status='completed'
@@ -799,16 +835,10 @@ export async function calculateStage4PrePilotSizing(userId: number, designId: nu
   );
   let calculation = (await lookup()).rows[0] ?? null;
   if (!isCurrentStage4Calculation(authority, calculation)) {
-    const optimized = authority.projection.implementation?.implementationHash
-      === STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH;
-    const implementationHash = optimized
-      ? STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_HASH
-      : STAGE4_HETS_IMPLEMENTATION_HASH;
+    const implementationHash = authority.projection.implementation.implementationHash;
     const result = {
       ...authority.projection,
-      calculationModel: optimized
-        ? STAGE4_OPTIMIZED_HETS_IMPLEMENTATION_VERSION
-        : STAGE4_HETS_IMPLEMENTATION_VERSION,
+      calculationModel: authority.projection.implementation.version,
     };
     await pool.query(
       `INSERT INTO ecr_pre_pilot_stage4_physical_sizing_calculations

@@ -4,6 +4,7 @@ import { Worker } from 'node:worker_threads';
 import { pool } from '../db';
 import { validateStage1Snapshot, makeStage1HydrodynamicProcessBasis } from './stage1';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
+import { resolveAutomaticHydraulicSelection } from './automatic-hydraulic-selection';
 import {
   canonicalizeStage3Stage4OptimizerControls,
   ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION as VERSION,
@@ -73,7 +74,7 @@ export async function getP1Candidates(userId: number, designId: number, candidat
 
 async function candidateViews(client: QueryClient, userId: number, designId: number, snapshotHash: string, candidateId?: string) {
   const rows = await client.query(`SELECT DISTINCT ON (result_snapshot#>>'{metadata,id}')
-      process_basis AS basis,result_snapshot AS payload,immutable_hash AS hash,
+      id::text AS "ledgerId",process_basis AS basis,result_snapshot AS payload,immutable_hash AS hash,
       implementation_hash AS "implementationHash",created_at AS "createdAt"
     FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
     WHERE design_id=$1 AND created_by=$2 AND result_snapshot->>'candidateKind'=ANY($3::text[])
@@ -92,12 +93,16 @@ async function candidateViews(client: QueryClient, userId: number, designId: num
       if (result.engine.version !== method.version || result.engine.implementationHash !== method.implementationHash || kuhniRunHash(calculation) !== calculationHash) throw new Error('P1_CANDIDATE_METHOD_INTEGRITY_FAILURE');
     }
     const persistenceError = persistenceFailures.get(metadata.id);
-    return { ...metadata,
+    const view = { ...metadata,
       status: persistenceError ? 'failed' : metadata.status === 'running' && Date.now() - Date.parse(metadata.requestedAt) > 16 * 60_000 ? 'interrupted' : metadata.status,
       ...(persistenceError ? { error: persistenceError } : {}),
       stale: metadata.sourceSnapshotHash !== snapshotHash, basis: row.basis, result,
-      createdAt: row.createdAt, immutableHash: row.hash, candidateOnly: true };
-  }).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+       createdAt: row.createdAt, ledgerId: row.ledgerId, immutableHash: row.hash, candidateOnly: true };
+    return { ...view, automaticSelection: view.status === 'completed' && !view.stale
+      && method.candidateKind === P1_CANDIDATE_KIND
+      ? resolveAutomaticHydraulicSelection(view, snapshotHash) : null };
+  }).sort((a: any, b: any) => Date.parse(b.requestedAt ?? b.createdAt) - Date.parse(a.requestedAt ?? a.createdAt)
+    || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export async function startP1Candidate(userId: number, designId: number, input: any, p1Only = true) {
