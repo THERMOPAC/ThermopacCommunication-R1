@@ -1,17 +1,22 @@
 import type { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
-import { getP1CandidateBasis, getP1Candidates, startP1Candidate, startStage3Candidate } from './p1-candidate-service';
+import { getP1CandidateBasis, getP1Candidates, getP1CandidateHistory, getP1CandidateSummary, startP1Candidate, startStage3Candidate } from './p1-candidate-service';
 
 export function setupP1CandidateRoutes(app: Express) {
   for (const endpoint of ['stage3-candidates', 'stage3-p1-candidates']) {
   const p1Path = `/api/ecr-pre-pilot/designs/:id/${endpoint}`;
-  for (const suffix of ['', '/basis', '/:candidateId']) {
+  for (const suffix of ['', '/basis', '/:candidateId/summary', '/:candidateId']) {
     app.get(p1Path + suffix, ensureAuthenticated, async (req: Request, res: Response) => {
       const designId = Number(req.params.id);
       if (!Number.isSafeInteger(designId) || designId <= 0) return res.status(400).json({ error: 'Invalid design id' });
       try {
         const userId = Number((req.user as any).id);
         if (suffix === '/basis') return res.json(await getP1CandidateBasis(userId, designId));
+        if (!suffix) return res.json(await getP1CandidateHistory(userId, designId));
+        if (suffix === '/:candidateId/summary') {
+          const summary = await getP1CandidateSummary(userId, designId, req.params.candidateId);
+          return summary ? res.json(summary) : res.status(404).json({ error: 'P1_CANDIDATE_NOT_FOUND' });
+        }
         const rows = await getP1Candidates(userId, designId, req.params.candidateId);
         if (suffix && !rows.length) return res.status(404).json({ error: 'P1_CANDIDATE_NOT_FOUND' });
         return res.json(suffix ? rows[0] : rows.map(({ result, ...row }: any) => ({ ...row, resultStatus: result?.status })));

@@ -14,7 +14,7 @@ vi.mock('node:worker_threads', async () => {
     terminate = vi.fn(async () => 0);
   } };
 });
-import { startP1Candidate, startStage3Candidate, getP1Candidates, getP1CandidateBasis } from '../server/ecr-pre-pilot/p1-candidate-service';
+import { startP1Candidate, startStage3Candidate, getP1Candidates, getP1CandidateBasis, getP1CandidateHistory, getP1CandidateSummary } from '../server/ecr-pre-pilot/p1-candidate-service';
 import { kuhniRunHash } from '../server/ecr-pre-pilot/kuhni-hydrodynamics';
 import { ECR_STAGE3_STAGE4_OPTIMIZER_VERSION as NMP_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH as NMP_HASH, ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION as VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH as HASH } from '../server/ecr-pre-pilot/stage3-stage4-optimizer';
 
@@ -39,6 +39,9 @@ beforeEach(() => {
     if (sql.includes('SELECT DISTINCT')) {
       const map = new Map();
       for (const row of rows) if (!values[3] || row.payload.metadata.id === values[3]) map.set(row.payload.metadata.id, row);
+      if (sql.includes("result_snapshot->'metadata' AS metadata")) return { rows: [...map.values()].map(row => ({
+        metadata: row.payload.metadata, resultStatus: row.payload.result?.status, createdAt: row.createdAt,
+      })) };
       return { rows: [...map.values()] };
     }
     throw new Error(`Unexpected SQL ${sql}`);
@@ -52,6 +55,37 @@ beforeEach(() => {
 });
 const input = { sourceSnapshotHash: 'source' };
 describe('P1 candidate integration without scientific optimizer execution', () => {
+  it('polls metadata without transferring/hashing results; verified summary and full Stage4 detail still reject corruption', async () => {
+    const calculation = { engine: { version: VERSION, implementationHash: HASH }, status: 'NO_SECOND_DIAMETER',
+      processBasis: sourceBasis, stage1Authority: { snapshotHash: 'source' }, orientationComparison: [] };
+    const result = { ...calculation, calculationHash: kuhniRunHash(calculation) };
+    const payload = { candidateKind: 'RRBO_P1_CANDIDATE_ONLY', metadata: {
+      id: 'saved', sourceSnapshotHash: 'source', status: 'completed', phaseConfiguration: sourceBasis.phaseConfiguration,
+      version: VERSION, implementationHash: HASH,
+    }, result };
+    rows.push({ basis: sourceBasis, payload, hash: kuhniRunHash({ basis: sourceBasis, payload }), implementationHash: HASH });
+    const history = await getP1CandidateHistory(7, 269);
+    expect(history[0].verification).toBe('METADATA_ONLY');
+    expect(history[0]).not.toHaveProperty('result');
+    expect(history[0]).not.toHaveProperty('automaticSelection');
+    expect(history[0]).not.toHaveProperty('basis');
+    const sql = mocks.query.mock.calls.find(([sql]) => sql.includes('SELECT DISTINCT'))![0];
+    expect(sql).not.toContain('result_snapshot AS payload');
+    expect(mocks.query.mock.calls.at(-1)![1]).toEqual([269, 7, ['RRBO_P1_CANDIDATE_ONLY', 'NMP_STAGE3_CANDIDATE_ONLY']]);
+    const summary = await getP1CandidateSummary(7, 269, 'saved');
+    expect(summary?.summaryOnly).toBe(true);
+    expect(summary?.automaticSelection).toBeTruthy();
+    expect(summary?.result).not.toHaveProperty('orientationComparison');
+    expect((await getP1Candidates(7, 269, 'saved'))[0].result).toEqual(result);
+    mocks.validate.mockReturnValue({ immutableHash: 'new-save' });
+    expect((await getP1CandidateSummary(7, 269, 'saved'))?.automaticSelection).toBeNull();
+    await expect(getP1CandidateSummary(8, 269, 'saved')).rejects.toThrow('NOT_FOUND');
+    payload.result.status = 'corrupted';
+    await expect(getP1CandidateSummary(7, 269, 'saved')).rejects.toThrow('INTEGRITY_FAILURE');
+    await expect(getP1Candidates(7, 269, 'saved')).rejects.toThrow('INTEGRITY_FAILURE');
+    expect(mocks.workers).toHaveLength(0);
+    expect(mocks.query.mock.calls.every(([sql]) => !/\bINSERT\b|\bUPDATE\b|\bDELETE\b/.test(sql))).toBe(true);
+  });
   it.each([
     ['rrbo-continuous-nmp-dispersed', 'optimizeStage3Stage4P1ForReview', VERSION, HASH, 'RRBO_P1_CANDIDATE_ONLY'],
     ['nmp-continuous-rrbo-dispersed', 'optimizeStage3Stage4', NMP_VERSION, NMP_HASH, 'NMP_STAGE3_CANDIDATE_ONLY'],

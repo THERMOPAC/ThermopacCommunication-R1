@@ -72,6 +72,39 @@ export async function getP1Candidates(userId: number, designId: number, candidat
   return candidateViews(pool, userId, designId, snapshot.immutableHash, candidateId);
 }
 
+/** Discovery only: never authority. Do not transfer or hash scientific grids on every poll. */
+export async function getP1CandidateHistory(userId: number, designId: number) {
+  const { snapshot } = await savedBasis(userId, designId);
+  const rows = await pool.query(`SELECT DISTINCT ON (result_snapshot#>>'{metadata,id}')
+      id::text AS "ledgerId", result_snapshot->'metadata' AS metadata,
+      result_snapshot#>>'{result,status}' AS "resultStatus", created_at AS "createdAt"
+    FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
+    WHERE design_id=$1 AND created_by=$2 AND result_snapshot->>'candidateKind'=ANY($3::text[])
+    ORDER BY result_snapshot#>>'{metadata,id}',created_at DESC,id DESC`,
+  [designId, userId, [P1_CANDIDATE_KIND, NMP_CANDIDATE_KIND]]);
+  return rows.rows.map(({ metadata, ...row }: any) => {
+    const persistenceError = persistenceFailures.get(metadata.id);
+    return { ...metadata, ...row, candidateOnly: true, verification: 'METADATA_ONLY',
+      stale: metadata.sourceSnapshotHash !== snapshot.immutableHash,
+      status: persistenceError ? 'failed' : metadata.status === 'running' && Date.now() - Date.parse(metadata.requestedAt) > 16 * 60_000 ? 'interrupted' : metadata.status,
+      ...(persistenceError ? { error: persistenceError } : {}) };
+  }).sort((a: any, b: any) => Date.parse(b.requestedAt ?? b.createdAt) - Date.parse(a.requestedAt ?? a.createdAt));
+}
+
+/** Same full integrity/ownership checks as Stage 4; only the response is reduced. */
+export async function getP1CandidateSummary(userId: number, designId: number, candidateId: string) {
+  const [run] = await getP1Candidates(userId, designId, candidateId);
+  if (!run) return null;
+  // A saved-basis change during the large verified read cannot expose old
+  // evidence as the current automatic selection.
+  const { snapshot } = await savedBasis(userId, designId);
+  const stale = run.sourceSnapshotHash !== snapshot.immutableHash;
+  const { result, ...metadata } = run;
+  return { ...metadata, stale, automaticSelection: stale ? null : run.automaticSelection, summaryOnly: true, result: result ? {
+    status: result.status, engine: result.engine, blockers: result.blockers,
+  } : null };
+}
+
 async function candidateViews(client: QueryClient, userId: number, designId: number, snapshotHash: string, candidateId?: string) {
   const rows = await client.query(`SELECT DISTINCT ON (result_snapshot#>>'{metadata,id}')
       id::text AS "ledgerId",process_basis AS basis,result_snapshot AS payload,immutable_hash AS hash,

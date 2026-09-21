@@ -35,6 +35,10 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     let temperature = 40;
     let failure = false;
     let historyFailure = false;
+    let summaryFailure = false;
+    let summaryStale = false;
+    const fullDetailRequests: string[] = [];
+    let summaryRequests = 0;
     let delay = 5600; // Longer than polling interval: previously every response was discarded.
     let posts = 0;
     let postedBody: any = null;
@@ -63,11 +67,18 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
       }
       if (req.method() !== 'GET') { void req.abort(); return; }
       const isBasis = req.url().endsWith('/basis');
-      const detailId = req.url().match(/\/stage3-candidates\/([^/?]+)$/)?.[1];
+      const isSummary = req.url().endsWith('/summary');
+      const detailId = req.url().match(/\/stage3-candidates\/([^/?]+)(?:\/summary)?$/)?.[1];
+      if (isSummary) summaryRequests++;
+      else if (detailId && !isBasis) fullDetailRequests.push(detailId);
       const body = isBasis
         ? { sourceSnapshotHash: basisHash, methodVersion: 'controlled-method', basis: { phaseConfiguration: phase, operatingTemperatureC: temperature } }
-        : detailId ? candidateDetails.get(detailId) : candidateHistory;
-      const fails = isBasis ? failure : historyFailure;
+        : detailId ? { ...candidateDetails.get(detailId), ...(isSummary ? { summaryOnly: true, stale: summaryStale } : {}) } : candidateHistory;
+      if (isSummary && body.result) {
+        const { status, engine, blockers } = body.result;
+        body.result = { status, engine, blockers };
+      }
+      const fails = isBasis ? failure : isSummary ? summaryFailure : historyFailure;
       pending.push((async () => {
         await new Promise(done => setTimeout(done, delay));
         await req.respond({ status: fails ? 422 : 200, contentType: 'application/json', body: JSON.stringify(fails ? { error: 'CONTROLLED_LOAD_FAILURE' } : body) }).catch(() => {});
@@ -144,7 +155,45 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: completed'));
     await page.waitForSelector('[data-testid=automatic-stage3-selection]');
     expect(await page.$eval('[data-testid=automatic-stage3-selection]', e => e.textContent)).toContain('Column D 0.7 m');
+    expect(await page.$eval('[data-testid=automatic-stage3-selection]', e => e.textContent)).toContain('Why this diameter');
+    expect(fullDetailRequests).toEqual([]);
     expect(posts).toBe(0); // Viewing persisted evidence automatically selects; no user choice or approval.
+    // A failed same-id summary must actually reload when Retry is clicked.
+    summaryFailure = true;
+    await mount(244);
+    await page.waitForFunction(() => document.body.textContent?.includes('Current candidate: CONTROLLED_LOAD_FAILURE'));
+    expect(await page.$('[data-testid=automatic-stage3-selection]')).toBeNull();
+    const failedRequests = summaryRequests;
+    summaryFailure = false;
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent === 'Retry loading')!.click());
+    await page.waitForSelector('[data-testid=automatic-stage3-selection]');
+    expect(summaryRequests).toBeGreaterThan(failedRequests);
+    expect(fullDetailRequests).toEqual([]);
+    // A stale verified response never appears as the blue current selection.
+    summaryStale = true;
+    await mount(245);
+    await page.waitForFunction(() => document.body.textContent?.includes('candidate detail is stale'));
+    expect(await page.$('[data-testid=automatic-stage3-selection]')).toBeNull();
+    summaryStale = false;
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent === 'Retry loading')!.click());
+    await page.waitForSelector('[data-testid=automatic-stage3-selection]');
+    expect(posts).toBe(0);
+    // Scientific grid and complete export remain lazy, separately from the summary.
+    await page.evaluate(() => [...document.querySelectorAll('summary')].find(e => e.textContent?.startsWith('Historical engine selection provenance'))!.click());
+    await page.waitForFunction(() => document.body.textContent?.includes('Historical engine result: LATEST-MATCH'));
+    expect(fullDetailRequests).toEqual(['latest-match']);
+    await page.evaluate(() => {
+      URL.createObjectURL = blob => {
+        (window as any).exportedCandidate = (blob as Blob).text();
+        return 'blob:controlled-export';
+      };
+      HTMLAnchorElement.prototype.click = () => {};
+      [...document.querySelectorAll('button')].find(b => b.textContent === 'Export complete candidate JSON')!.click();
+    });
+    expect(JSON.parse(await page.evaluate(() => (window as any).exportedCandidate))).toEqual(candidateDetails.get('latest-match'));
+    await page.evaluate(() => [...document.querySelectorAll('summary')].find(e => e.textContent === 'Previous calculations (read-only)')!.click());
+    await page.waitForFunction(() => document.body.textContent?.includes('Historical engine result: STALE-NEWEST'));
+    expect(fullDetailRequests).toContain('stale-newest');
     await page.select('select[aria-label="Historical snapshot"]', 'older-match');
     expect(await page.$eval('body', e => e.textContent)).toContain('Latest calculation for current saved Stage 1: completed');
     // A newly inserted matching attempt automatically becomes current and is polled by its id.
@@ -158,6 +207,8 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     candidateHistory = [savedAgain, ...candidateHistory.filter(item => item.id !== 'pending-match')];
     candidateDetails.set(savedAgain.id, { ...savedAgain, result: { status: 'SAVED-AGAIN', blockers: [], orientationComparison: [], engine: { version: 'controlled-method' } } });
     await page.evaluate(() => window.dispatchEvent(new Event('ecr-stage1-saved')));
+    await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: completed'));
+    await page.evaluate(() => [...document.querySelectorAll('summary')].find(e => e.textContent?.startsWith('Historical engine selection provenance'))!.click());
     await page.waitForFunction(() => document.body.textContent?.includes('Historical engine result: SAVED-AGAIN'));
     // Stale history remains archive-only and never fills the current area.
     basisHash = 'no-candidate-for-this-save';
@@ -198,7 +249,7 @@ it('screenshots read-only SSR P1 components with the existing isolated report, w
     page.on('request', request => void request.abort()); // No app/API/network access.
     await page.setViewport({ width: 1440, height: 1100 });
     await page.setContent(`<!doctype html><html><head><style>${readFileSync(cssPath, 'utf8')}</style></head><body>${markup}</body></html>`);
-    expect(await page.$eval('body', element => element.textContent)).toContain('No geometry selected');
+    expect(await page.$eval('body', element => element.textContent)).toContain('Legacy engine selected no geometry');
     expect(await page.$$eval('table:first-of-type tbody tr', elements => elements.length)).toBeGreaterThan(13);
     await page.screenshot({ path: '/tmp/rrbo-p1-candidate-desktop.png', fullPage: true });
     await page.setViewport({ width: 390, height: 844 });

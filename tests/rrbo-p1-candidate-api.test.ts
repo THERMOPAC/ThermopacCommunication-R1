@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ start: vi.fn(), list: vi.fn(), basis: vi.fn(), auth: vi.fn() }));
+const mocks = vi.hoisted(() => ({ start: vi.fn(), list: vi.fn(), history: vi.fn(), summary: vi.fn(), basis: vi.fn(), auth: vi.fn() }));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: mocks.auth }));
 vi.mock('../server/ecr-pre-pilot/p1-candidate-service', () => ({
   startP1Candidate: mocks.start, startStage3Candidate: mocks.start, getP1Candidates: mocks.list, getP1CandidateBasis: mocks.basis,
+  getP1CandidateHistory: mocks.history, getP1CandidateSummary: mocks.summary,
 }));
 import { setupP1CandidateRoutes } from '../server/ecr-pre-pilot/p1-candidate-routes';
 const root = '/api/ecr-pre-pilot/designs/:id/stage3-p1-candidates';
@@ -19,7 +20,7 @@ async function invoke(method: string, suffix = '', request: any = {}) {
   const middleware = handlers.get(`${method} ${root}${suffix}`)!;
   expect(middleware[0]).toBe(mocks.auth);
   const res: any = { statusCode: 200, status: vi.fn(function (code) { res.statusCode = code; return res; }), json: vi.fn(value => { res.body = value; return res; }) };
-  await middleware[1]({ params: { id: '12', candidateId: suffix === '/:candidateId' ? 'candidate' : undefined }, user: { id: 7 }, body: {}, ...request }, res);
+  await middleware[1]({ params: { id: '12', candidateId: suffix.startsWith('/:candidateId') ? 'candidate' : undefined }, user: { id: 7 }, body: {}, ...request }, res);
   return res;
 }
 describe('actual P1 HTTP handlers with mocked storage service', () => {
@@ -44,10 +45,23 @@ describe('actual P1 HTTP handlers with mocked storage service', () => {
   it('restores persisted list and complete detail without recalculating', async () => {
     const row = { id: 'candidate', status: 'completed', result: { status: 'NO_SECOND_DIAMETER', scenarios: [1, 2, 3, 4, 5, 6] } };
     mocks.list.mockResolvedValue([row]);
+    mocks.history.mockResolvedValue([{ id: 'candidate', status: 'completed', resultStatus: 'NO_SECOND_DIAMETER' }]);
     expect((await invoke('GET')).body).toEqual([{ id: 'candidate', status: 'completed', resultStatus: 'NO_SECOND_DIAMETER' }]);
+    expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.history).toHaveBeenCalledWith(7, 12);
     expect((await invoke('GET', '/:candidateId')).body).toEqual(row);
     expect(mocks.list).toHaveBeenLastCalledWith(7, 12, 'candidate');
     expect(mocks.start).not.toHaveBeenCalled();
+  });
+  it('serves only verified summaries with owner and candidate identity, and preserves full JSON endpoint', async () => {
+    mocks.summary.mockResolvedValue({ id: 'candidate', summaryOnly: true, automaticSelection: { status: 'verified' } });
+    expect((await invoke('GET', '/:candidateId/summary')).body.summaryOnly).toBe(true);
+    expect(mocks.summary).toHaveBeenCalledWith(7, 12, 'candidate');
+    expect(mocks.list).not.toHaveBeenCalled();
+    mocks.summary.mockResolvedValue(null);
+    expect((await invoke('GET', '/:candidateId/summary')).statusCode).toBe(404);
+    mocks.summary.mockRejectedValue(new Error('P1_CANDIDATE_INTEGRITY_FAILURE'));
+    expect((await invoke('GET', '/:candidateId/summary')).statusCode).toBe(422);
   });
   it('returns not-found for cross-design/missing candidate and rejects invalid design IDs', async () => {
     mocks.list.mockResolvedValue([]);
