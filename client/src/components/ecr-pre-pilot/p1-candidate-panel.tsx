@@ -3,10 +3,17 @@ import { Button } from "@/components/ui/button";
 
 const number = (value: unknown) => typeof value === "number" ? Number(value.toPrecision(6)).toString() : "—";
 async function request(url: string, init?: RequestInit) {
-  const response = await fetch(url, { credentials: "include", ...init });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error ?? "P1 request failed");
-  return body;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const response = await fetch(url, { credentials: "include", ...init, signal: controller.signal });
+    const body = await response.json().catch(() => { throw new Error(`Stage 3 returned an invalid response (HTTP ${response.status}).`); });
+    if (!response.ok) throw new Error(body.error ?? `Stage 3 request failed (HTTP ${response.status})`);
+    return body;
+  } catch (error) {
+    if (controller.signal.aborted) throw new Error("Stage 3 request timed out. Retry loading saved Stage 1.");
+    throw error;
+  } finally { clearTimeout(timer); }
 }
 
 export function P1CandidateResults({ run }: { run: any }) {
@@ -59,6 +66,10 @@ export function P1CandidateResults({ run }: { run: any }) {
 }
 
 export function P1CandidatePanel({ designId, refreshToken }: { designId: number | null; refreshToken: number }) {
+  return <CandidatePanel key={designId ?? "none"} designId={designId} refreshToken={refreshToken} />;
+}
+
+function CandidatePanel({ designId, refreshToken }: { designId: number | null; refreshToken: number }) {
   const [basis, setBasis] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -66,19 +77,33 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [basisError, setBasisError] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [historyLoaded, setHistoryLoaded] = useState(false);
    const base = `/api/ecr-pre-pilot/designs/${designId}/stage3-candidates`;
   useEffect(() => {
     let cancelled = false;
-     let sequence = 0;
-    setBasis(null); setHistory([]); setSelectedId(""); setRun(null); setError("");
+    let inFlight = false;
     if (!designId) return;
     const load = async () => {
-       const current = ++sequence;
-       setBasis(null);
-      try {
-        const [nextBasis, rows] = await Promise.all([request(`${base}/basis`), request(base)]);
-         if (!cancelled && current === sequence) { setBasis(nextBasis); setHistory(rows); setError(""); }
-       } catch (e) { if (!cancelled && current === sequence) { setBasis(null); setError((e as Error).message); } }
+      if (inFlight || cancelled) return;
+      inFlight = true;
+      setLoading(true);
+      // Independent resources: slow or corrupt history must not hide saved basis.
+      // Never supersede an in-flight poll or erase valid data to show refreshing.
+      await Promise.all([
+        request(`${base}/basis`).then(nextBasis => {
+          if (!nextBasis?.basis || !nextBasis.sourceSnapshotHash) throw new Error("Saved Stage 1 basis response is incomplete.");
+          if (!cancelled) { setBasis(nextBasis); setBasisError(""); }
+        }).catch(e => { if (!cancelled) setBasisError(`Saved Stage 1: ${e.message}`); }),
+        request(base).then(rows => {
+          if (!Array.isArray(rows)) throw new Error("Candidate history response is invalid.");
+          if (!cancelled) { setHistory(rows); setHistoryLoaded(true); setHistoryError(""); }
+        }).catch(e => { if (!cancelled) setHistoryError(`Candidate history: ${e.message}`); }),
+      ]);
+      inFlight = false;
+      if (!cancelled) setLoading(false);
     };
     void load();
      const timer = setInterval(() => { void load(); }, 5000);
@@ -93,6 +118,12 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [base, designId, refreshToken, reload]);
+  const blockedReason = !designId ? "Save Stage 1 and select a design before running Stage 3."
+    : basisError || historyError || (!basis ? "Loading saved Stage 1 basis…"
+    : !["rrbo-continuous-nmp-dispersed", "nmp-continuous-rrbo-dispersed"].includes(basis.basis.phaseConfiguration) ? "Stage 3 requires an explicit, valid saved phase."
+    : basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" && basis.basis.operatingTemperatureC !== 40 ? "P1 requires saved 40 °C properties."
+    : !historyLoaded ? "Loading candidate history…"
+    : history.some(item => item.status === "running") ? "A Stage 3 candidate is already running." : "");
   const selected = history.find(item => item.id === selectedId) ?? history[0];
   useEffect(() => {
     let cancelled = false;
@@ -107,18 +138,22 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
     <p className="mt-1 text-xs">Interface mobility, inversion, entrainment, disengagement, turbulence, Schiller–Naumann range and spherical-drop qualification remain UNKNOWN. Lower-branch continuation is quasi-steady admissibility, not dynamic stability. Extrapolated screening only, not observed flooding or commercial qualification. Running this candidate never adopts geometry, changes saved Stage 1, or replaces Stage 3/4 authority.</p>
     <p className="mt-2 text-xs">Saved property temperature: {basis ? `${basis.basis.operatingTemperatureC} °C` : "not loaded"}; saved phase: {basis?.basis.phaseConfiguration ?? "not loaded"}. P1 requires saved 40 °C properties.</p>
     <p className="my-2 text-xs">Phase and properties come only from Saved Stage 1{basis?.sourceSavedAt ? ` (${basis.sourceSavedAt})` : ""}. No candidate phase override.</p>
-     <Button size="sm" disabled={!designId || !basis || !["rrbo-continuous-nmp-dispersed", "nmp-continuous-rrbo-dispersed"].includes(basis.basis.phaseConfiguration) || busy || (basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" && basis.basis.operatingTemperatureC !== 40) || history.some(item => item.status === "running")} onClick={async () => {
+     <Button size="sm" disabled={!!blockedReason || busy} onClick={async () => {
       setBusy(true); setError("");
       try {
         await request(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceSnapshotHash: basis.sourceSnapshotHash }) });
         setReload(value => value + 1);
        } catch (e) { setBasis(null); setError((e as Error).message); } finally { setBusy(false); }
      }}>{busy ? "Submitting…" : "Run Stage 3"}</Button>
+    {loading && <p role="status" className="mt-2 text-xs">Loading saved Stage 1 and candidate history… Existing loaded data stays visible.</p>}
+    {blockedReason && <p className="mt-2 text-xs">{blockedReason}</p>}
+    {(basisError || historyError) && <p role="alert" className="mt-2 text-xs text-red-800">{[basisError, historyError].filter(Boolean).join(" ")}</p>}
+    {(basisError || historyError || error) && <Button size="sm" variant="outline" onClick={() => setReload(value => value + 1)}>Retry loading</Button>}
     {error && <p role="alert" className="mt-2 text-xs text-red-800">{error}</p>}
     {!!history.length && <label className="mt-3 block text-xs">Candidate history <select className="ml-2 max-w-full border bg-white p-1" value={selected?.id ?? ""} onChange={e => setSelectedId(e.target.value)}>{history.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status}{item.stale ? " — historical Stage 1" : ""}</option>)}</select></label>}
     {selected && <p className="mt-2 text-xs">{selected.status === "running" ? "Calculating in background; safe to leave and reload. No authority will be replaced. A lost server process is reported interrupted after 16 minutes." : selected.status}{selected.error ? `: ${selected.error}` : ""}</p>}
     {selected?.originalPhaseConfiguration && selected.originalPhaseConfiguration !== selected.phaseConfiguration && <p className="mt-2 text-xs">Historical candidate used an explicit phase override: saved {selected.originalPhaseConfiguration} → candidate {selected.phaseConfiguration}. Original evidence is preserved; this is not the current saved Stage 1 phase.</p>}
-     {!history.length && <p className="mt-2 text-xs">No saved Stage 3 candidates. Existing authority remains unchanged.</p>}
+     {historyLoaded && !history.length && <p className="mt-2 text-xs">No saved Stage 3 candidates. Existing authority remains unchanged.</p>}
     <P1CandidateResults key={run?.id ?? "none"} run={run} />
   </section>;
 }
