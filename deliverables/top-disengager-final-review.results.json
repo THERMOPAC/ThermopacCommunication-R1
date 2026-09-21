@@ -1,0 +1,42 @@
+{
+  "status": "REPORT_COMPLETE_TOP_RELEASE_HOLD",
+  "checks": {
+    "inputHashMatches": true,
+    "sourceHashMatches": true,
+    "selectedStackMm": 1600,
+    "totalAMm": 7473.205080756888,
+    "totalBMm": 9465.063509461097,
+    "assigned700Screen": false,
+    "assigned3000LocalArea": true,
+    "bare500MicronReturnThrough700": false
+  },
+  "protectedFileHashes": {
+    "deliverables/disengager-drag-calculations.md": "52a061ecebc348d59e133d4e126c3a474309b025b280c4253cf0512aabfe54c2",
+    "deliverables/disengager-drag-comparison.ts": "5f8efc0a9da09c0cab1b02fe4d96cc49ceea9db211b0d9d50192eecd2d895827",
+    "deliverables/disengager-drag-evidence.md": "2dd4f6daeed609685b9727e24079b263e1854f1b2ef3eb649e1d730638746009",
+    "deliverables/disengager-drag-myint-2006.pdf": "8986cba980b1db3590a48c5b608efb3a0ce71b0f0b9094d9c92e289a52f66b85",
+    "deliverables/disengager-drag-myint-2006.txt": "511b6dcdfe83a48698999536301b3f94a02825824ff3da30832fd91aafd24fdf",
+    "deliverables/disengager-drag-results.json": "1974671d608d21f5a37642d249d4a7a7db3e9f63fc1836d671f5e0cd9f454729",
+    "deliverables/disengager-input-audit.md": "d5af8b9e9d7ce6052a093b0dd4e7f15ba2c2cdd55046f05b16deae63655bb302",
+    "deliverables/disengager-input-audit.ts": "ec9e839a7dd40c986cab19b9540dbe9b1ce3c5194b04fc76f68835e2f0d44b88",
+    "deliverables/disengager-investigation-literature.md": "7ea9881f7fd6501ab4c2d18246c21a4ff73ba23ee15cb49b4a9d1cad619eb8f0",
+    "deliverables/disengager-preliminary-proposal-diagram-qa.png": "be0f521d39530cf244348566a40380c611fe25bdf2624b37325fda4eca1c0f6a",
+    "deliverables/disengager-preliminary-proposal-pdf-qa.png": "55a230dd225dfabefacae5f8069a6d457632ff21df4bfd99084bccd278b3bb6b",
+    "deliverables/disengager-preliminary-proposal-qa.png": "7cd00af0a82cfe55312705cd00368ba30f528db8049cf25a5404851add42ee8c",
+    "deliverables/disengager-preliminary-proposal.html": "ccee4896c2f010e0497fd831fb85b54b920c2b0eb9f4798ee5f70af91916442c",
+    "deliverables/disengager-preliminary-proposal.mjs": "5f53947379c9c5d2924762fb7f18bc1571d1cb77a01da6f7169411c2c249ca7d",
+    "deliverables/disengager-preliminary-proposal.pdf": "18a3c0cc715ac7e3cc379b2ae4c40e82153b70c6cdb5b68dd792a6d27ccdda62",
+    "deliverables/disengager-preliminary-proposal.results.json": "6c839099d9fe7999d0dd45ba6a4091fcca565a2201c1172fcbcc509d39517ff6",
+    "deliverables/kuhni-end-section-preliminary-calculation.html": "2bf6ae2fbb45f196813ad0fff3358eee4e9614af0640fccc5c46b74b16158f92",
+    "deliverables/kuhni-end-section-preliminary-calculation.input.json": "3e65f398cfd714f599ab7fcb420e07c4a4d3c6637053a71498567099413536d2",
+    "deliverables/kuhni-end-section-preliminary-calculation.md": "c89b9d26820532acc1bf5a8b3f19c801c85bc8e5188476dd7e17960cb82191fd",
+    "deliverables/kuhni-end-section-preliminary-calculation.results.json": "8984c7352a2ac168ce2f0ac8895c8e095217eff615fe5a5c97c6850943d23789",
+    "deliverables/kuhni-end-section-preliminary-calculation.ts": "915dbcb1ee2b7a813ace8a76c8f003af8987d8f75cc62314ee1403da02c1e894",
+    "deliverables/top-disengager-layout.md": "e4de18bd06ccd8c6368aa914d2046b2133b480144cd73d132b80d066265e03b9",
+    "deliverables/top-disengager-physics.md": "2fe559bc9b9eb1e8431314880fa7b52f4b6d2b90016c91613eb9c7c5de481562",
+    "deliverables/top-disengager-physics.mjs": "374fad6b1ec8b7d1378d92274f8f437761348d21e85f48eb49521e6834d43b32",
+    "deliverables/top-disengager-physics.results.json": "3bc8994bf868fa4e1cb32ef4e11b7a702630b6c09d936d75e53ea76618b52666",
+    "deliverables/top-disengager-physics.tables.md": "9b30a115980f1304d8ddb4497014139aae8ff4aaec67075117eac6d35fe99da3",
+    "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed"
+  }
+}

@@ -1605,3 +1605,17 @@ mtime_ms = 1790002830402
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c09f4c7e-1050-40ba-a1e2-817f215109b2/a8181921-c5a4-4cfc-b3d4-841f1ecd93d3"
 storage_version_token = "1790002882677395"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "xjmQPRvk3hvd9ax0YICdS"
+uri = "file://deliverables/top-disengager-final-review.pdf"
+type = "pdf"
+title = "Kühni ECR Top Disengager — Engineering Review"
+description = "Eight-page review: smaller-droplet sensitivity, drag and deformation limits, revised 1,600-mm height stack, outlet submergence, integrated geometry, and explicit PASS/HOLD classifications. Existing active, bottom, calculations and database records preserved."
+logical_id = "0f054fc9-2d99-4992-bcf5-6037cc084ec2"
+content_hash = "sha256:74491cde3ea1c7f546bac28486af2b9372a43ba5d54d8db465317fc0f8916c75"
+size = 303020
+mtime_ms = 1790005776569
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/0f054fc9-2d99-4992-bcf5-6037cc084ec2/5c8e6544-ff46-479b-87bd-a6417f13a6e1"
+storage_version_token = "1790005814717593"
+content_type = "application/pdf"
