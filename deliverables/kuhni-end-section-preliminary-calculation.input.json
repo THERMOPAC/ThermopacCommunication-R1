@@ -1,0 +1,1761 @@
+{
+  "provenance": {
+    "source": "Owner-scoped development DB BEGIN READ ONLY audit, 2026-09-21",
+    "designId": 269,
+    "projectNumber": 236,
+    "stage1Hash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "stage2JobId": "145e962e-892a-4424-aab9-91532af9f5ef",
+    "stage2SourceHash": "6ccf5381167d4deb01d313881b63f5bb537c8bc729e3902b2919fc1f4397fbe9",
+    "stage2PredictiveNt": 4,
+    "stage2ReleaseEligible": false,
+    "stage2Stage1InputDifferences": [],
+    "stage3Id": "69",
+    "stage3Hash": "4b60bbd4396e508ce58a2de945540035e46062396d94b000f89fdecd335c8e82",
+    "stage4Id": "17",
+    "stage4Stage2JobId": null,
+    "stage5Revision": 6,
+    "stage5Hash": "7642b42d3e02578e92a2bc3c55e9f38e3b0537aef9b0724fbfac2aa6b06f9bd6",
+    "dragSourceSha256": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed"
+  },
+  "stage1": {
+    "rrboGrade": "SN300",
+    "nmpWaterWt": 0.5,
+    "nmpInFeedWt": 0,
+    "nmpPurityWt": 99.5,
+    "satIdentity": "n-dodecane",
+    "saturatesWt": 85,
+    "monoIdentity": "n-propylbenzene",
+    "temperatureK": 313.15,
+    "diAromaticsWt": 4,
+    "feedSulfurPpm": 3500,
+    "maximumStages": 10,
+    "nmpDensityKgM3": 1015,
+    "monoAromaticsWt": 7,
+    "polyAromaticsWt": 2,
+    "rrboDensityKgM3": 869,
+    "solventOilRatio": 0.6,
+    "designBasisNotes": "",
+    "polarAromaticsWt": 2,
+    "projectReference": "236",
+    "designFeedRateLph": 4000,
+    "operatingPressure": "2.0",
+    "minimumRecoveryPct": 80,
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "maximumNmpRaffinateWt": 20,
+    "nmpDynamicViscosityCp": 1.416,
+    "operatingTemperatureC": 40,
+    "sulfurAllocationDiPct": 25,
+    "sulfurAllocationPaPct": 35,
+    "rrboDynamicViscosityCp": 59.8,
+    "sulfurAllocationSatPct": 0,
+    "sulfurAllocationMonoPct": 5,
+    "sulfurAllocationPolyPct": 35,
+    "targetRaffinateSulfurPpm": 2500,
+    "rrboInterfacialTensionMnM": 11,
+    "minimumRaffinateSaturatesWt": 90,
+    "targetRaffinatePolarAromaticsWt": 0.5,
+    "targetRaffinateTotalAromaticsWt": 7
+  },
+  "processBasis": {
+    "rrboFeed": {
+      "flowM3S": 0.0011111111111111111,
+      "identity": "RRBO_FEED",
+      "valueLph": 4000,
+      "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+      "densityKgM3": 869,
+      "dynamicViscosityPaS": 0.0598
+    },
+    "composition": {
+      "rrboGrade": "SN300",
+      "rrboFeedWt": {
+        "nmp": 0,
+        "saturates": 85,
+        "diAromatics": 4,
+        "monoAromatics": 7,
+        "polyAromatics": 2,
+        "polarAromatics": 2
+      },
+      "wetSolventWt": {
+        "nmp": 99.5,
+        "water": 0.5
+      }
+    },
+    "temperatureK": 313.15,
+    "schemaVersion": "ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1",
+    "wetSolventPhase": {
+      "flowM3S": 0.0005707717569786535,
+      "identity": "WET_NMP_SOLVENT_PHASE",
+      "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+      "densityKgM3": 1015,
+      "dynamicViscosityPaS": 0.001416,
+      "solventOilMassRatio": 0.6
+    },
+    "operatingPressure": "2.0",
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "stage1SnapshotHash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "interfacialTensionNM": 0.011,
+    "operatingTemperatureC": 40
+  },
+  "selected": {
+    "trial": {
+      "rpm": 30,
+      "d32M": 0.006068311766098487,
+      "holdup": 0.03171314375484263,
+      "powerW": 0.0857375235121828,
+      "psiWKg": 0.0012208038841756154,
+      "status": "FEASIBLE",
+      "reasons": [],
+      "freeArea": 0.4,
+      "validity": "SCALE_UP_EXTRAPOLATION",
+      "diameterM": 0.7,
+      "hcToColumn": 0.3,
+      "tipSpeedMS": 0.3628539514896211,
+      "floodHoldup": 0.17420968915511292,
+      "actualLoading": 0.3877218488990188,
+      "hydraulicPass": true,
+      "rotorReynolds": 387.71495819397984,
+      "rotorToColumn": 0.33,
+      "powerVolumeWM3": 1.0608785753486099,
+      "rotorDiameterM": 0.23099999999999998,
+      "hydraulicMethod": {
+        "jc": 0.002887164500533249,
+        "jd": 0.0014831207591901833,
+        "rpm": 30,
+        "powerW": 0.0857375235121828,
+        "status": "PREPILOT_EXTRAPOLATED_METHOD",
+        "methodId": "RRBO_WETNMP_KUHNI_HYDRAULIC_P1",
+        "diameterM": 0.7,
+        "governing": {
+          "d32M": 0.006068311766098487,
+          "loading": 0.3877218488990188,
+          "capacityMS": 0.011271702309615425,
+          "terminalRe": 3.23330070729163,
+          "coefficient": 0.36,
+          "diagnostics": {
+            "eotvos": 4.793101394644852,
+            "weberTerminal": 0.6444870805376384,
+            "swarmReAtFlood": 2.2556252696544696,
+            "ohnesorgeDispersed": 0.005440013120226095,
+            "ohnesorgeContinuous": 0.24829101889006736
+          },
+          "floodHoldup": 0.17420968915511292,
+          "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+          "continuation": [
+            {
+              "holdup": 0.0017131384572687902,
+              "flowFraction": 0.0625
+            },
+            {
+              "holdup": 0.003455040523296992,
+              "flowFraction": 0.125
+            },
+            {
+              "holdup": 0.005226888095177997,
+              "flowFraction": 0.1875
+            },
+            {
+              "holdup": 0.007029943152215667,
+              "flowFraction": 0.25
+            },
+            {
+              "holdup": 0.008865555459266268,
+              "flowFraction": 0.3125
+            },
+            {
+              "holdup": 0.010735171243533188,
+              "flowFraction": 0.375
+            },
+            {
+              "holdup": 0.01264034299897078,
+              "flowFraction": 0.4375
+            },
+            {
+              "holdup": 0.014582740602097802,
+              "flowFraction": 0.5
+            },
+            {
+              "holdup": 0.01656416395943352,
+              "flowFraction": 0.5625
+            },
+            {
+              "holdup": 0.01858655745175655,
+              "flowFraction": 0.625
+            },
+            {
+              "holdup": 0.020652026496307013,
+              "flowFraction": 0.6875
+            },
+            {
+              "holdup": 0.02276285661801764,
+              "flowFraction": 0.75
+            },
+            {
+              "holdup": 0.024921535509000368,
+              "flowFraction": 0.8125
+            },
+            {
+              "holdup": 0.02713077866737238,
+              "flowFraction": 0.875
+            },
+            {
+              "holdup": 0.029393559349572655,
+              "flowFraction": 0.9375
+            },
+            {
+              "holdup": 0.03171314375484263,
+              "flowFraction": 1
+            }
+          ],
+          "operatingRoots": [
+            0.03171314375484263,
+            0.4438659340969294
+          ],
+          "operatingHoldup": 0.03171314375484263,
+          "operatingSpeeds": {
+            "slipMS": 0.049748477301692295,
+            "superficialSwarmMS": 0.0481707966894392
+          },
+          "terminalSpeedMS": 0.03666566952730411,
+          "characteristicRe": 4.810784363082793,
+          "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+          "interfacialAreaM2M3": 31.35614481643421,
+          "characteristicFactor": 1.487886466060418,
+          "characteristicSpeedMS": 0.054554353458719666,
+          "forceBalanceResidualN": -2.710505431213761e-20,
+          "signedTerminalVelocityMS": -0.03666566952730411,
+          "signedOperatingVelocities": {
+            "dispersedMS": -0.04676675294809614,
+            "continuousMS": 0.002981724353596159,
+            "dispersedRelativeToContinuousMS": -0.049748477301692295
+          },
+          "operatingBalanceResidualMS": 0
+        },
+        "scenarios": [
+          {
+            "d32M": 0.006068311766098487,
+            "loading": 0.2610495201630956,
+            "capacityMS": 0.016741211617600425,
+            "terminalRe": 4.769491958519427,
+            "coefficient": 0.36,
+            "diagnostics": {
+              "eotvos": 4.793101394644852,
+              "weberTerminal": 1.4023817878420284,
+              "swarmReAtFlood": 3.3200236623492336,
+              "ohnesorgeDispersed": 0.005440013120226095,
+              "ohnesorgeContinuous": 0.24829101889006736
+            },
+            "floodHoldup": 0.1760539940483944,
+            "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+            "continuation": [
+              {
+                "holdup": 0.0011582800989322403,
+                "flowFraction": 0.0625
+              },
+              {
+                "holdup": 0.0023296217892857067,
+                "flowFraction": 0.125
+              },
+              {
+                "holdup": 0.0035143795146938463,
+                "flowFraction": 0.1875
+              },
+              {
+                "holdup": 0.004712923435073286,
+                "flowFraction": 0.25
+              },
+              {
+                "holdup": 0.005925640406962697,
+                "flowFraction": 0.3125
+              },
+              {
+                "holdup": 0.0071529350434264925,
+                "flowFraction": 0.375
+              },
+              {
+                "holdup": 0.008395230861534278,
+                "flowFraction": 0.4375
+              },
+              {
+                "holdup": 0.009652971526395961,
+                "flowFraction": 0.5
+              },
+              {
+                "holdup": 0.010926622201839108,
+                "flowFraction": 0.5625
+              },
+              {
+                "holdup": 0.012216671019081964,
+                "flowFraction": 0.625
+              },
+              {
+                "holdup": 0.013523630676209628,
+                "flowFraction": 0.6875
+              },
+              {
+                "holdup": 0.01484804018293319,
+                "flowFraction": 0.75
+              },
+              {
+                "holdup": 0.016190466767041754,
+                "flowFraction": 0.8125
+              },
+              {
+                "holdup": 0.017551507961189018,
+                "flowFraction": 0.875
+              },
+              {
+                "holdup": 0.018931793891246045,
+                "flowFraction": 0.9375
+              },
+              {
+                "holdup": 0.020331989790464678,
+                "flowFraction": 1
+              }
+            ],
+            "operatingRoots": [
+              0.020331989790464678,
+              0.5028574584388956
+            ],
+            "operatingHoldup": 0.020331989790464678,
+            "operatingSpeeds": {
+              "slipMS": 0.07589226971770345,
+              "superficialSwarmMS": 0.07434922886462791
+            },
+            "terminalSpeedMS": 0.05408609708643304,
+            "characteristicRe": 7.096462535065051,
+            "interfaceScenario": "BARRY_PARLANGE_MOBILE",
+            "interfacialAreaM2M3": 20.103109966154662,
+            "characteristicFactor": 1.487886466060418,
+            "characteristicSpeedMS": 0.08047397185693353,
+            "forceBalanceResidualN": 2.710505431213761e-20,
+            "signedTerminalVelocityMS": -0.05408609708643304,
+            "signedOperatingVelocities": {
+              "dispersedMS": -0.07294518512328484,
+              "continuousMS": 0.002947084594418604,
+              "dispersedRelativeToContinuousMS": -0.07589226971770345
+            },
+            "operatingBalanceResidualMS": -1.3877787807814457e-17
+          },
+          {
+            "d32M": 0.006068311766098487,
+            "loading": 0.3877218488990188,
+            "capacityMS": 0.011271702309615425,
+            "terminalRe": 3.23330070729163,
+            "coefficient": 0.36,
+            "diagnostics": {
+              "eotvos": 4.793101394644852,
+              "weberTerminal": 0.6444870805376384,
+              "swarmReAtFlood": 2.2556252696544696,
+              "ohnesorgeDispersed": 0.005440013120226095,
+              "ohnesorgeContinuous": 0.24829101889006736
+            },
+            "floodHoldup": 0.17420968915511292,
+            "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+            "continuation": [
+              {
+                "holdup": 0.0017131384572687902,
+                "flowFraction": 0.0625
+              },
+              {
+                "holdup": 0.003455040523296992,
+                "flowFraction": 0.125
+              },
+              {
+                "holdup": 0.005226888095177997,
+                "flowFraction": 0.1875
+              },
+              {
+                "holdup": 0.007029943152215667,
+                "flowFraction": 0.25
+              },
+              {
+                "holdup": 0.008865555459266268,
+                "flowFraction": 0.3125
+              },
+              {
+                "holdup": 0.010735171243533188,
+                "flowFraction": 0.375
+              },
+              {
+                "holdup": 0.01264034299897078,
+                "flowFraction": 0.4375
+              },
+              {
+                "holdup": 0.014582740602097802,
+                "flowFraction": 0.5
+              },
+              {
+                "holdup": 0.01656416395943352,
+                "flowFraction": 0.5625
+              },
+              {
+                "holdup": 0.01858655745175655,
+                "flowFraction": 0.625
+              },
+              {
+                "holdup": 0.020652026496307013,
+                "flowFraction": 0.6875
+              },
+              {
+                "holdup": 0.02276285661801764,
+                "flowFraction": 0.75
+              },
+              {
+                "holdup": 0.024921535509000368,
+                "flowFraction": 0.8125
+              },
+              {
+                "holdup": 0.02713077866737238,
+                "flowFraction": 0.875
+              },
+              {
+                "holdup": 0.029393559349572655,
+                "flowFraction": 0.9375
+              },
+              {
+                "holdup": 0.03171314375484263,
+                "flowFraction": 1
+              }
+            ],
+            "operatingRoots": [
+              0.03171314375484263,
+              0.4438659340969294
+            ],
+            "operatingHoldup": 0.03171314375484263,
+            "operatingSpeeds": {
+              "slipMS": 0.049748477301692295,
+              "superficialSwarmMS": 0.0481707966894392
+            },
+            "terminalSpeedMS": 0.03666566952730411,
+            "characteristicRe": 4.810784363082793,
+            "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+            "interfacialAreaM2M3": 31.35614481643421,
+            "characteristicFactor": 1.487886466060418,
+            "characteristicSpeedMS": 0.054554353458719666,
+            "forceBalanceResidualN": -2.710505431213761e-20,
+            "signedTerminalVelocityMS": -0.03666566952730411,
+            "signedOperatingVelocities": {
+              "dispersedMS": -0.04676675294809614,
+              "continuousMS": 0.002981724353596159,
+              "dispersedRelativeToContinuousMS": -0.049748477301692295
+            },
+            "operatingBalanceResidualMS": 0
+          },
+          {
+            "d32M": 0.007079697060448234,
+            "loading": 0.20427001443241755,
+            "capacityMS": 0.02139464899861421,
+            "terminalRe": 7.018544071576432,
+            "coefficient": 0.42,
+            "diagnostics": {
+              "eotvos": 6.523943564933272,
+              "weberTerminal": 2.602970788653123,
+              "swarmReAtFlood": 4.877937779918495,
+              "ohnesorgeDispersed": 0.005036473489731712,
+              "ohnesorgeContinuous": 0.22987281588143058
+            },
+            "floodHoldup": 0.17909632966113764,
+            "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+            "continuation": [
+              {
+                "holdup": 0.0009183957869664738,
+                "flowFraction": 0.0625
+              },
+              {
+                "holdup": 0.0018448953883032472,
+                "flowFraction": 0.125
+              },
+              {
+                "holdup": 0.002779669535959009,
+                "flowFraction": 0.1875
+              },
+              {
+                "holdup": 0.003722894813633332,
+                "flowFraction": 0.25
+              },
+              {
+                "holdup": 0.004674753937788528,
+                "flowFraction": 0.3125
+              },
+              {
+                "holdup": 0.0056354360561479385,
+                "flowFraction": 0.375
+              },
+              {
+                "holdup": 0.006605137065024837,
+                "flowFraction": 0.4375
+              },
+              {
+                "holdup": 0.007584059946949694,
+                "flowFraction": 0.5
+              },
+              {
+                "holdup": 0.008572415130200508,
+                "flowFraction": 0.5625
+              },
+              {
+                "holdup": 0.009570420871992644,
+                "flowFraction": 0.625
+              },
+              {
+                "holdup": 0.01057830366725325,
+                "flowFraction": 0.6875
+              },
+              {
+                "holdup": 0.011596298685092887,
+                "flowFraction": 0.75
+              },
+              {
+                "holdup": 0.012624650235295829,
+                "flowFraction": 0.8125
+              },
+              {
+                "holdup": 0.013663612267383786,
+                "flowFraction": 0.875
+              },
+              {
+                "holdup": 0.014713448905067837,
+                "flowFraction": 0.9375
+              },
+              {
+                "holdup": 0.015774435019195635,
+                "flowFraction": 1
+              }
+            ],
+            "operatingRoots": [
+              0.015774435019195635,
+              0.5396578274287502
+            ],
+            "operatingHoldup": 0.015774435019195635,
+            "operatingSpeeds": {
+              "slipMS": 0.09695396898085956,
+              "superficialSwarmMS": 0.09542457489731788
+            },
+            "terminalSpeedMS": 0.06822032188192545,
+            "characteristicRe": 10.429269133937375,
+            "interfaceScenario": "BARRY_PARLANGE_MOBILE",
+            "interfacialAreaM2M3": 13.368737293002404,
+            "characteristicFactor": 1.4859590575449446,
+            "characteristicSpeedMS": 0.1013726052090787,
+            "forceBalanceResidualN": 5.421010862427522e-20,
+            "signedTerminalVelocityMS": -0.06822032188192545,
+            "signedOperatingVelocities": {
+              "dispersedMS": -0.0940205311559748,
+              "continuousMS": 0.002933437824884744,
+              "dispersedRelativeToContinuousMS": -0.09695396898085956
+            },
+            "operatingBalanceResidualMS": -1.3877787807814457e-17
+          },
+          {
+            "d32M": 0.007079697060448234,
+            "loading": 0.2999024251775785,
+            "capacityMS": 0.014572357182959409,
+            "terminalRe": 4.767764650803443,
+            "coefficient": 0.42,
+            "diagnostics": {
+              "eotvos": 6.523943564933272,
+              "weberTerminal": 1.2011710331632064,
+              "swarmReAtFlood": 3.3416202679620737,
+              "ohnesorgeDispersed": 0.005036473489731712,
+              "ohnesorgeContinuous": 0.22987281588143058
+            },
+            "floodHoldup": 0.17789702395099494,
+            "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+            "continuation": [
+              {
+                "holdup": 0.0013546071303914275,
+                "flowFraction": 0.0625
+              },
+              {
+                "holdup": 0.0027266359665270557,
+                "flowFraction": 0.125
+              },
+              {
+                "holdup": 0.004116632219023926,
+                "flowFraction": 0.1875
+              },
+              {
+                "holdup": 0.005525169630821154,
+                "flowFraction": 0.25
+              },
+              {
+                "holdup": 0.006952852008777806,
+                "flowFraction": 0.3125
+              },
+              {
+                "holdup": 0.008400315447402038,
+                "flowFraction": 0.375
+              },
+              {
+                "holdup": 0.009868230767320331,
+                "flowFraction": 0.4375
+              },
+              {
+                "holdup": 0.011357306194302265,
+                "flowFraction": 0.5
+              },
+              {
+                "holdup": 0.012868290308398238,
+                "flowFraction": 0.5625
+              },
+              {
+                "holdup": 0.014401975297129124,
+                "flowFraction": 0.625
+              },
+              {
+                "holdup": 0.015959200551814372,
+                "flowFraction": 0.6875
+              },
+              {
+                "holdup": 0.017540856652193414,
+                "flowFraction": 0.75
+              },
+              {
+                "holdup": 0.019147889791676517,
+                "flowFraction": 0.8125
+              },
+              {
+                "holdup": 0.020781306704091028,
+                "flowFraction": 0.875
+              },
+              {
+                "holdup": 0.022442180162962712,
+                "flowFraction": 0.9375
+              },
+              {
+                "holdup": 0.024131655136556414,
+                "flowFraction": 1
+              }
+            ],
+            "operatingRoots": [
+              0.024131655136556414,
+              0.4878247408453268
+            ],
+            "operatingHoldup": 0.024131655136556414,
+            "operatingSpeeds": {
+              "slipMS": 0.06441811332117425,
+              "superficialSwarmMS": 0.06286359762596007
+            },
+            "terminalSpeedMS": 0.04634272233928148,
+            "characteristicRe": 7.084703067103985,
+            "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+            "interfacialAreaM2M3": 20.45143027774856,
+            "characteristicFactor": 1.4859590575449446,
+            "characteristicSpeedMS": 0.06886338801134576,
+            "forceBalanceResidualN": 5.421010862427522e-20,
+            "signedTerminalVelocityMS": -0.04634272233928148,
+            "signedOperatingVelocities": {
+              "dispersedMS": -0.06145955388461699,
+              "continuousMS": 0.002958559436557254,
+              "dispersedRelativeToContinuousMS": -0.06441811332117425
+            },
+            "operatingBalanceResidualMS": -1.3877787807814457e-17
+          },
+          {
+            "d32M": 0.007248261276173193,
+            "loading": 0.19697573887980502,
+            "capacityMS": 0.02218692151925466,
+            "terminalRe": 7.440334244431767,
+            "coefficient": 0.43,
+            "diagnostics": {
+              "eotvos": 6.838305924921553,
+              "weberTerminal": 2.85720208503704,
+              "swarmReAtFlood": 5.168649412380315,
+              "ohnesorgeDispersed": 0.0049775653405505485,
+              "ohnesorgeContinuous": 0.22718415244296603
+            },
+            "floodHoldup": 0.179516607037413,
+            "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+            "continuation": [
+              {
+                "holdup": 0.0008870210553039305,
+                "flowFraction": 0.0625
+              },
+              {
+                "holdup": 0.0017815916202655099,
+                "flowFraction": 0.125
+              },
+              {
+                "holdup": 0.0026838649296471156,
+                "flowFraction": 0.1875
+              },
+              {
+                "holdup": 0.00359399927500803,
+                "flowFraction": 0.25
+              },
+              {
+                "holdup": 0.004512158238389733,
+                "flowFraction": 0.3125
+              },
+              {
+                "holdup": 0.005438510939987305,
+                "flowFraction": 0.375
+              },
+              {
+                "holdup": 0.006373232300840475,
+                "flowFraction": 0.4375
+              },
+              {
+                "holdup": 0.0073165033216691,
+                "flowFraction": 0.5
+              },
+              {
+                "holdup": 0.008268511379078585,
+                "flowFraction": 0.5625
+              },
+              {
+                "holdup": 0.009229450540472105,
+                "flowFraction": 0.625
+              },
+              {
+                "holdup": 0.010199521899129423,
+                "flowFraction": 0.6875
+              },
+              {
+                "holdup": 0.01117893393104859,
+                "flowFraction": 0.75
+              },
+              {
+                "holdup": 0.012167902875297853,
+                "flowFraction": 0.8125
+              },
+              {
+                "holdup": 0.013166653139793111,
+                "flowFraction": 0.875
+              },
+              {
+                "holdup": 0.014175417734603252,
+                "flowFraction": 0.9375
+              },
+              {
+                "holdup": 0.015194438735093494,
+                "flowFraction": 1
+              }
+            ],
+            "operatingRoots": [
+              0.015194438735093494,
+              0.5449100347760498
+            ],
+            "operatingHoldup": 0.015194438735093494,
+            "operatingSpeeds": {
+              "slipMS": 0.1005411569796595,
+              "superficialSwarmMS": 0.09901349052957664
+            },
+            "terminalSpeedMS": 0.07063826336606946,
+            "characteristicRe": 11.053571414208058,
+            "interfaceScenario": "BARRY_PARLANGE_MOBILE",
+            "interfacialAreaM2M3": 12.577724358564168,
+            "characteristicFactor": 1.485628340216084,
+            "characteristicSpeedMS": 0.10494220596028038,
+            "forceBalanceResidualN": -1.0842021724855044e-19,
+            "signedTerminalVelocityMS": -0.07063826336606946,
+            "signedOperatingVelocities": {
+              "dispersedMS": -0.09760944678823356,
+              "continuousMS": 0.0029317101914259195,
+              "dispersedRelativeToContinuousMS": -0.1005411569796595
+            },
+            "operatingBalanceResidualMS": -1.3877787807814457e-17
+          },
+          {
+            "d32M": 0.007248261276173193,
+            "loading": 0.2886603628239462,
+            "capacityMS": 0.015139886948693638,
+            "terminalRe": 5.053609520140967,
+            "coefficient": 0.43,
+            "diagnostics": {
+              "eotvos": 6.838305924921553,
+              "weberTerminal": 1.3181335999218171,
+              "swarmReAtFlood": 3.5443080013239405,
+              "ohnesorgeDispersed": 0.0049775653405505485,
+              "ohnesorgeContinuous": 0.22718415244296603
+            },
+            "floodHoldup": 0.17849049461866784,
+            "branchStatus": "LOWER_QUASI_STEADY_ADMISSIBLE",
+            "continuation": [
+              {
+                "holdup": 0.0013083919956683456,
+                "flowFraction": 0.0625
+              },
+              {
+                "holdup": 0.002632960490936226,
+                "flowFraction": 0.125
+              },
+              {
+                "holdup": 0.003974192285265445,
+                "flowFraction": 0.1875
+              },
+              {
+                "holdup": 0.005332598185457553,
+                "flowFraction": 0.25
+              },
+              {
+                "holdup": 0.006708714674765811,
+                "flowFraction": 0.3125
+              },
+              {
+                "holdup": 0.008103105733310845,
+                "flowFraction": 0.375
+              },
+              {
+                "holdup": 0.009516364826851514,
+                "flowFraction": 0.4375
+              },
+              {
+                "holdup": 0.010949117083275851,
+                "flowFraction": 0.5
+              },
+              {
+                "holdup": 0.012402021678860725,
+                "flowFraction": 0.5625
+              },
+              {
+                "holdup": 0.013875774459469721,
+                "flowFraction": 0.625
+              },
+              {
+                "holdup": 0.015371110825500519,
+                "flowFraction": 0.6875
+              },
+              {
+                "holdup": 0.016888808913655656,
+                "flowFraction": 0.75
+              },
+              {
+                "holdup": 0.018429693113616894,
+                "flowFraction": 0.8125
+              },
+              {
+                "holdup": 0.019994637963603852,
+                "flowFraction": 0.875
+              },
+              {
+                "holdup": 0.021584572475777674,
+                "flowFraction": 0.9375
+              },
+              {
+                "holdup": 0.023200484950738592,
+                "flowFraction": 1
+              }
+            ],
+            "operatingRoots": [
+              0.023200484950738592,
+              0.4940735544431355
+            ],
+            "operatingHoldup": 0.023200484950738592,
+            "operatingSpeeds": {
+              "slipMS": 0.06688202175697805,
+              "superficialSwarmMS": 0.06533032641773032
+            },
+            "terminalSpeedMS": 0.04797878542891411,
+            "characteristicRe": 7.507785523507225,
+            "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+            "interfacialAreaM2M3": 19.205007159720576,
+            "characteristicFactor": 1.485628340216084,
+            "characteristicSpeedMS": 0.0712786433623413,
+            "forceBalanceResidualN": 5.421010862427522e-20,
+            "signedTerminalVelocityMS": -0.04797878542891411,
+            "signedOperatingVelocities": {
+              "dispersedMS": -0.06392628267638724,
+              "continuousMS": 0.002955739080590806,
+              "dispersedRelativeToContinuousMS": -0.06688202175697805
+            },
+            "operatingBalanceResidualMS": 0
+          }
+        ],
+        "epsilonWKg": 0.0012208038841756154,
+        "properties": {
+          "dispersed": {
+            "flowM3S": 0.0005707717569786535,
+            "identity": "WET_NMP_SOLVENT_PHASE",
+            "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+            "densityKgM3": 1015,
+            "dynamicViscosityPaS": 0.001416,
+            "solventOilMassRatio": 0.6
+          },
+          "continuous": {
+            "flowM3S": 0.0011111111111111111,
+            "identity": "RRBO_FEED",
+            "valueLph": 4000,
+            "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+            "densityKgM3": 869,
+            "dynamicViscosityPaS": 0.0598
+          },
+          "temperatureC": 40,
+          "interfacialTensionNM": 0.011
+        },
+        "tipSpeedMS": 0.3628539514896211,
+        "assumptions": [
+          "Np=1.2 fixed engineering assumption; distinct from Garthe source power number",
+          "C32=.36,.42,.43 conditional Sauter-mean proxy, not Hinze maximum stable diameter",
+          "Spherical drop and turbulent breakup assumptions remain unqualified; diagnostics are not acceptance thresholds",
+          "BP and SN interface scenarios are mandatory, neither is established as actual",
+          "Lower quasi-steady branch is not proof of dynamical stability; capacity is not observed flood"
+        ],
+        "powerNumber": 1.2,
+        "qualification": {
+          "inversion": "UNKNOWN",
+          "turbulence": "UNKNOWN",
+          "entrainment": "UNKNOWN",
+          "disengagement": "UNKNOWN",
+          "sphericalDrop": "UNKNOWN",
+          "interfaceMobility": "UNKNOWN",
+          "schillerNaumannRange": "UNKNOWN"
+        },
+        "rotorReynolds": 387.71495819397984,
+        "screeningPass": true,
+        "maximumLoading": 0.7,
+        "phaseDirection": "UPWARD_RRBO_CONTINUOUS_DOWNWARD_WET_NMP_DISPERSED",
+        "powerVolumeWM3": 1.0608785753486099,
+        "rotorDiameterM": 0.23099999999999998,
+        "capacityMeaning": "MODELED_TURNING_CAPACITY_NOT_OBSERVED_FLOOD",
+        "numericalPolicy": {
+          "status": "IMPLEMENTATION_ASSUMPTIONS_NOT_SOURCE_THRESHOLDS",
+          "continuationSteps": 16,
+          "bisectionIterations": 70,
+          "holdupMeshIntervals": 512,
+          "capacityRefinementIterations": 60
+        },
+        "acceptanceRecord": "USER_APPROVED_CONDITIONAL_PREPILOT_P1",
+        "sourcePowerNumber": 1.6693108280204627,
+        "compartmentHeightM": 0.21,
+        "sourceExtrapolation": {
+          "status": "EXTRAPOLATED",
+          "rotorToGartheMaximum": 2.717647058823529,
+          "viscosityToKhMaximum": 37.14285714285714,
+          "diameterToGartheMaximum": 4.605263157894736,
+          "compartmentToGartheMaximum": 2.916666666666667
+        },
+        "propertyQualification": "PROVISIONAL_SAVED_40C",
+        "signedDensityDifferenceKgM3": -146
+      },
+      "buoyancyDirection": "DISPERSED_DOWNWARD",
+      "sourceDiagnostics": [
+        "PREPILOT_EXTRAPOLATED_METHOD",
+        "INVERSION_ENTRAINMENT_UNKNOWN",
+        "TURBULENCE_SHAPE_DRAG_RANGE_UNQUALIFIED",
+        "MODELED_TURNING_CAPACITY_NOT_OBSERVED_FLOOD"
+      ],
+      "compartmentHeightM": 0.21,
+      "designFloodFraction": 0.7,
+      "interfacialAreaM2M3": 31.35614481643421,
+      "signedForceBalanceResidualN": -2.710505431213761e-20
+    },
+    "areaM2": 0.3848451000647496,
+    "loading": 0.3877218488990188,
+    "geometry": {
+      "freeArea": 0.4,
+      "hcToColumn": 0.3,
+      "rotorToColumn": 0.33,
+      "rotorDiameterM": 0.23099999999999998,
+      "columnDiameterM": 0.7,
+      "compartmentHeightM": 0.21
+    },
+    "dominated": false,
+    "elasticity": 0.18268022097438533,
+    "normalizedScore": 0.6247392185777636,
+    "minimumHoldupGap": 0.1424965454002703,
+    "areaIncreasePercent": 36.11111111111107,
+    "loadingImprovementPercent": 6.596785757408352,
+    "feasibleConfigurationCount": 12,
+    "minimumInterfacialAreaM2M3": 12.577724358564168
+  },
+  "stage4": {
+    "designStatus": "PRE-PILOT SCREENING",
+    "sizingMethod": "ADOPTED_COMPARTMENT_EFFICIENCY",
+    "compartmentHeightRule": "PERSISTED_STAGE3_SELECTED_hc",
+    "requiredActiveHeightM": 4.2,
+    "installedActiveHeightM": 4.2,
+    "physicalCompartmentHeightM": 0.21,
+    "designCompartmentEfficiency": 0.35,
+    "fixedDesignTheoreticalStages": 7,
+    "requiredPhysicalCompartments": 20,
+    "stage3HydraulicColumnDiameterM": 0.7,
+    "actualStage2TheoreticalStagesReference": null,
+    "impliedInstalledHetsMPerTheoreticalStage": 0.6
+  },
+  "boundaryScenarios": [
+    {
+      "N": 4,
+      "accepted": true,
+      "streams": {
+        "oilFeed": {
+          "mass": 100,
+          "flowMol": 0.6002063103195764,
+          "componentMass": [
+            85,
+            7,
+            4,
+            2,
+            2,
+            0,
+            0
+          ],
+          "massFractions": [
+            0.85,
+            0.07,
+            0.04,
+            0.02,
+            0.02,
+            0,
+            0
+          ],
+          "moleFractions": [
+            0.8314095020619517,
+            0.09703193550453776,
+            0.04686716619208694,
+            0.016475538558928395,
+            0.008215857682495201,
+            0,
+            0
+          ],
+          "componentMoles": [
+            0.49901722959724026,
+            0.05823917999234571,
+            0.02812996889528689,
+            0.009888722208982322,
+            0.00493120962572119,
+            0,
+            0
+          ]
+        },
+        "finalExtract": {
+          "mass": 64.45514424155104,
+          "flowMol": 0.6028759732383872,
+          "componentMass": [
+            4.261887301817112,
+            3.8842850247605796,
+            2.0524569673307558,
+            1.136376733865454,
+            1.665860184244899,
+            51.403072402486366,
+            0.05120562704587913
+          ],
+          "massFractions": [
+            0.06612175571037951,
+            0.06026338270540357,
+            0.03184318321651724,
+            0.017630504860974127,
+            0.02584526345953007,
+            0.7975014718739758,
+            0.0007944381732198406
+          ],
+          "moleFractions": [
+            0.041502150449334696,
+            0.053604386009817505,
+            0.023941719861466194,
+            0.009319755923912636,
+            0.006812931797172392,
+            0.8601044142245967,
+            0.004714641733699696
+          ],
+          "componentMoles": [
+            0.02502064934362862,
+            0.03231679638551491,
+            0.014433887662482256,
+            0.005618656922973054,
+            0.00410735288782706,
+            0.5185362858122866,
+            0.0028423442236745213
+          ]
+        },
+        "finalRaffinate": {
+          "mass": 95.54485575844896,
+          "flowMol": 0.616215668405932,
+          "componentMass": [
+            80.73811269818289,
+            3.1157149752394204,
+            1.9475430326692444,
+            0.8636232661345464,
+            0.3341398157551009,
+            8.296927597513639,
+            0.248794372954121
+          ],
+          "massFractions": [
+            0.8450283592692878,
+            0.032609970997458965,
+            0.02038354673529375,
+            0.009038930032171584,
+            0.0034972036233939592,
+            0.08683803572313152,
+            0.0026039536192624404
+          ],
+          "moleFractions": [
+            0.7692056605437797,
+            0.04206706342584335,
+            0.022226116496249726,
+            0.0069294980717633506,
+            0.001336961684251452,
+            0.1358234126218022,
+            0.022411287156310383
+          ],
+          "componentMoles": [
+            0.47399658025361163,
+            0.025922383606830794,
+            0.013696081232804637,
+            0.00427006528600927,
+            0.0008238567378941291,
+            0.08369651499391854,
+            0.013810186294863082
+          ]
+        },
+        "freshWetSolvent": {
+          "mass": 60,
+          "flowMol": 0.6188853313247427,
+          "componentMass": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            59.7,
+            0.3
+          ],
+          "massFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.995,
+            0.005
+          ],
+          "moleFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189856
+          ],
+          "componentMoles": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.6022328008062051,
+            0.016652530518537597
+          ]
+        }
+      }
+    },
+    {
+      "N": 7,
+      "accepted": true,
+      "streams": {
+        "oilFeed": {
+          "mass": 100,
+          "flowMol": 0.6002063103195764,
+          "componentMass": [
+            85,
+            7,
+            4,
+            2,
+            2,
+            0,
+            0
+          ],
+          "massFractions": [
+            0.85,
+            0.07,
+            0.04,
+            0.02,
+            0.02,
+            0,
+            0
+          ],
+          "moleFractions": [
+            0.8314095020619517,
+            0.09703193550453776,
+            0.04686716619208694,
+            0.016475538558928395,
+            0.008215857682495201,
+            0,
+            0
+          ],
+          "componentMoles": [
+            0.49901722959724026,
+            0.05823917999234571,
+            0.02812996889528689,
+            0.009888722208982322,
+            0.00493120962572119,
+            0,
+            0
+          ]
+        },
+        "finalExtract": {
+          "mass": 65.67682499697314,
+          "flowMol": 0.6115031985276675,
+          "componentMass": [
+            4.423653518486106,
+            4.112118465363674,
+            2.1365723946807704,
+            1.2006643065800267,
+            1.8273029608168017,
+            51.94277994606006,
+            0.03373340498570327
+          ],
+          "massFractions": [
+            0.06735486252098788,
+            0.06261140768533179,
+            0.03253160296313409,
+            0.018281399970771453,
+            0.027822644607150497,
+            0.7908844550334757,
+            0.0005136272191485801
+          ],
+          "moleFractions": [
+            0.04246967970862675,
+            0.05594793944561093,
+            0.02457130034217613,
+            0.00970807333681761,
+            0.0073677570053470014,
+            0.8568731426784674,
+            0.003062107482954268
+          ],
+          "componentMoles": [
+            0.025970344982270837,
+            0.034212343922023346,
+            0.015025428751224675,
+            0.005936517897005135,
+            0.004505406974744321,
+            0.5239806674803372,
+            0.00187248852006204
+          ]
+        },
+        "finalRaffinate": {
+          "mass": 94.32317500302698,
+          "flowMol": 0.6075884431166529,
+          "componentMass": [
+            80.57634648151388,
+            2.887881534636333,
+            1.8634276053192371,
+            0.7993356934199862,
+            0.17269703918325513,
+            7.75722005393997,
+            0.26626659501431343
+          ],
+          "massFractions": [
+            0.8542582083239677,
+            0.030616882166484075,
+            0.019755776936680056,
+            0.00847443582549394,
+            0.0018309078249084917,
+            0.08224087085375391,
+            0.002822918068711836
+          ],
+          "moleFractions": [
+            0.7785646517377018,
+            0.039544590326760755,
+            0.02156811949358669,
+            0.006504739115352881,
+            0.0007008076861910577,
+            0.12879134587298968,
+            0.02432574576741713
+          ],
+          "componentMoles": [
+            0.47304688461496935,
+            0.02402683607032242,
+            0.01310454014406227,
+            0.003952204311977251,
+            0.0004258026509770086,
+            0.07825213332586817,
+            0.014780041998476483
+          ]
+        },
+        "freshWetSolvent": {
+          "mass": 60,
+          "flowMol": 0.6188853313247427,
+          "componentMass": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            59.7,
+            0.3
+          ],
+          "massFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.995,
+            0.005
+          ],
+          "moleFractions": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.9730927044548102,
+            0.026907295545189856
+          ],
+          "componentMoles": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.6022328008062051,
+            0.016652530518537597
+          ]
+        }
+      }
+    }
+  ],
+  "rpmSensitivity": [
+    {
+      "rpm": 30,
+      "d32M": 0.006068311766098487,
+      "loading": 0.3877218488990188,
+      "hydraulicPass": true
+    },
+    {
+      "rpm": 35,
+      "d32M": 0.005043496659112002,
+      "loading": 0.545353313019996,
+      "hydraulicPass": true
+    },
+    {
+      "rpm": 40,
+      "d32M": 0.004296763014763119,
+      "loading": 0.740892789546816,
+      "hydraulicPass": false
+    },
+    {
+      "rpm": 45,
+      "d32M": 0.0037304255259047133,
+      "loading": 0.9775627738297573,
+      "hydraulicPass": false
+    },
+    {
+      "rpm": 50,
+      "d32M": 0.003287376040139267,
+      "loading": 1.258354631281098,
+      "hydraulicPass": false
+    },
+    {
+      "rpm": 55,
+      "d32M": 0.002932095850352729,
+      "loading": 1.5860939664311604,
+      "hydraulicPass": false
+    },
+    {
+      "rpm": 60,
+      "d32M": 0.0026413861131167676,
+      "loading": 1.9634800321800288,
+      "hydraulicPass": false
+    },
+    {
+      "rpm": 65,
+      "d32M": 0.0023994812616441635,
+      "loading": 2.393109838240288,
+      "hydraulicPass": false
+    },
+    {
+      "rpm": 70,
+      "d32M": 0.0021953094287860365,
+      "loading": 2.877493732819814,
+      "hydraulicPass": false
+    }
+  ],
+  "stage5": {
+    "dimensions": {
+      "rpmMax": 30,
+      "rpmMin": 30,
+      "designNt": 7,
+      "A01-boreM": 0.027999999999999997,
+      "A02-boreM": 0.027999999999999997,
+      "D01-boreM": 0.027999999999999997,
+      "I01-boreM": 0.017499999999999998,
+      "I02-boreM": 0.017499999999999998,
+      "P01-boreM": 0.06999999999999999,
+      "P02-boreM": 0.06999999999999999,
+      "P03-boreM": 0.06999999999999999,
+      "P04-boreM": 0.06999999999999999,
+      "S01-boreM": 0.017499999999999998,
+      "S02-boreM": 0.017499999999999998,
+      "V01-boreM": 0.027999999999999997,
+      "activeEndM": 5.075,
+      "bladeCount": 6,
+      "hubHeightM": 0.024,
+      "sealHeightM": 0.06999999999999999,
+      "selectedRpm": 30,
+      "shaftAreaM2": 0.0020696114270148756,
+      "topTangentM": 5.775,
+      "activeStartM": 0.875,
+      "bladeHeightM": 0.028,
+      "columnAreaM2": 0.38484510006474965,
+      "driveHeightM": 0.7,
+      "hubDiameterM": 0.07,
+      "rotorOffsetM": 0.105,
+      "shaftLengthM": 5.6,
+      "sealDiameterM": 0.10266666666666666,
+      "topHeadDepthM": 0.175,
+      "vesselHeightM": 5.95,
+      "A01-azimuthDeg": 270,
+      "A01-elevationM": 0.31499999999999995,
+      "A02-azimuthDeg": 270,
+      "A02-elevationM": 5.635,
+      "D01-elevationM": 0,
+      "I01-azimuthDeg": 45,
+      "I01-elevationM": 0.385,
+      "I02-azimuthDeg": 45,
+      "I02-elevationM": 5.285,
+      "P01-azimuthDeg": 0,
+      "P01-elevationM": 0.595,
+      "P02-azimuthDeg": 180,
+      "P02-elevationM": 0.45499999999999996,
+      "P03-azimuthDeg": 180,
+      "P03-elevationM": 5.355,
+      "P04-azimuthDeg": 0,
+      "P04-elevationM": 5.495,
+      "S01-azimuthDeg": 90,
+      "S01-elevationM": 0.7349999999999999,
+      "S02-azimuthDeg": 90,
+      "S02-elevationM": 5.215,
+      "V01-azimuthDeg": 315,
+      "V01-elevationM": 5.915,
+      "overallHeightM": 7,
+      "rotorDiameterM": 0.23099999999999998,
+      "sealElevationM": 5.95,
+      "shaftDiameterM": 0.044,
+      "skirtDiameterM": 0.7,
+      "supportHeightM": 0.35,
+      "A01-projectionM": 0.06999999999999999,
+      "A02-projectionM": 0.06999999999999999,
+      "D01-projectionM": 0.06999999999999999,
+      "I01-projectionM": 0.06999999999999999,
+      "I02-projectionM": 0.06999999999999999,
+      "P01-projectionM": 0.06999999999999999,
+      "P02-projectionM": 0.06999999999999999,
+      "P03-projectionM": 0.06999999999999999,
+      "P04-projectionM": 0.06999999999999999,
+      "S01-projectionM": 0.06999999999999999,
+      "S02-projectionM": 0.06999999999999999,
+      "V01-projectionM": 0.06999999999999999,
+      "bladeThicknessM": 0.003,
+      "columnDiameterM": 0.7,
+      "statorHoleCount": 84,
+      "bottomHeadDepthM": 0.175,
+      "compartmentCount": 20,
+      "driveBodyHeightM": 0.5249999999999999,
+      "shroudThicknessM": 0.002,
+      "statorLaneWidthM": 0.008,
+      "statorThicknessM": 0.004,
+      "supportArmDepthM": 0.027999999999999997,
+      "supportArmWidthM": 0.013999999999999999,
+      "A01-radialOffsetM": 0.35,
+      "A02-radialOffsetM": 0.35,
+      "D01-radialOffsetM": 0,
+      "I01-radialOffsetM": 0.35,
+      "I02-radialOffsetM": 0.35,
+      "P01-radialOffsetM": 0.35,
+      "P02-radialOffsetM": 0.35,
+      "P03-radialOffsetM": 0.35,
+      "P04-radialOffsetM": 0.35,
+      "S01-radialOffsetM": 0.35,
+      "S02-radialOffsetM": 0.35,
+      "V01-radialOffsetM": 0.21,
+      "compartment1-topM": 1.085,
+      "compartment2-topM": 1.295,
+      "compartment3-topM": 1.505,
+      "compartment4-topM": 1.7149999999999999,
+      "compartment5-topM": 1.925,
+      "compartment6-topM": 2.135,
+      "compartment7-topM": 2.3449999999999998,
+      "compartment8-topM": 2.5549999999999997,
+      "compartment9-topM": 2.7649999999999997,
+      "skirtAccessWidthM": 0.21,
+      "topDisengagementM": 0.7,
+      "bladeRadialLengthM": 0.08049999999999999,
+      "compartment10-topM": 2.975,
+      "compartment11-topM": 3.185,
+      "compartment12-topM": 3.395,
+      "compartment13-topM": 3.605,
+      "compartment14-topM": 3.815,
+      "compartment15-topM": 4.025,
+      "compartment16-topM": 4.234999999999999,
+      "compartment17-topM": 4.445,
+      "compartment18-topM": 4.654999999999999,
+      "compartment19-topM": 4.865,
+      "compartment20-topM": 5.075,
+      "compartmentHeightM": 0.21,
+      "driveBodyDiameterM": 0.35,
+      "grossFreeAreaRatio": 0.4,
+      "lowerShaftSupportM": 0.5249999999999999,
+      "rotorDiameterRatio": 0.33,
+      "skirtAccessHeightM": 0.175,
+      "statorRadialWidthM": 0.294,
+      "upperShaftSupportM": 5.425,
+      "compartment1-rotorM": 0.98,
+      "compartment2-rotorM": 1.19,
+      "compartment3-rotorM": 1.4,
+      "compartment4-rotorM": 1.6099999999999999,
+      "compartment5-rotorM": 1.8199999999999998,
+      "compartment6-rotorM": 2.0300000000000002,
+      "compartment7-rotorM": 2.24,
+      "compartment8-rotorM": 2.45,
+      "compartment9-rotorM": 2.66,
+      "headStraightFlangeM": 0,
+      "rotorAxialEnvelopeM": 0.032,
+      "rotorWallClearanceM": 0.2345,
+      "statorFreeAreaRatio": 0.4,
+      "statorHoleDiameterM": 0.046733285782191686,
+      "statorNetOpenAreaM2": 0.15241750918156238,
+      "A01-outsideDiameterM": 0.0336,
+      "A02-outsideDiameterM": 0.0336,
+      "D01-outsideDiameterM": 0.0336,
+      "I01-outsideDiameterM": 0.020999999999999998,
+      "I02-outsideDiameterM": 0.020999999999999998,
+      "P01-outsideDiameterM": 0.08399999999999999,
+      "P02-outsideDiameterM": 0.08399999999999999,
+      "P03-outsideDiameterM": 0.08399999999999999,
+      "P04-outsideDiameterM": 0.08399999999999999,
+      "S01-outsideDiameterM": 0.020999999999999998,
+      "S02-outsideDiameterM": 0.020999999999999998,
+      "V01-outsideDiameterM": 0.0336,
+      "bottomDisengagementM": 0.7,
+      "compartment1-bottomM": 0.875,
+      "compartment10-rotorM": 2.87,
+      "compartment11-rotorM": 3.08,
+      "compartment12-rotorM": 3.29,
+      "compartment13-rotorM": 3.5,
+      "compartment14-rotorM": 3.71,
+      "compartment15-rotorM": 3.92,
+      "compartment16-rotorM": 4.13,
+      "compartment17-rotorM": 4.34,
+      "compartment18-rotorM": 4.55,
+      "compartment19-rotorM": 4.76,
+      "compartment2-bottomM": 1.085,
+      "compartment20-rotorM": 4.97,
+      "compartment3-bottomM": 1.295,
+      "compartment4-bottomM": 1.505,
+      "compartment5-bottomM": 1.7149999999999999,
+      "compartment6-bottomM": 1.925,
+      "compartment7-bottomM": 2.135,
+      "compartment8-bottomM": 2.3449999999999998,
+      "compartment9-bottomM": 2.5549999999999997,
+      "drivePedestalHeightM": 0.175,
+      "rotorLowerClearanceM": 0.087,
+      "rotorUpperClearanceM": 0.087,
+      "shroudInnerDiameterM": 0.13,
+      "shroudOuterDiameterM": 0.23099999999999998,
+      "supportArmRadialEndM": 0.35,
+      "compartment10-bottomM": 2.7649999999999997,
+      "compartment11-bottomM": 2.975,
+      "compartment12-bottomM": 3.185,
+      "compartment13-bottomM": 3.395,
+      "compartment14-bottomM": 3.605,
+      "compartment15-bottomM": 3.815,
+      "compartment16-bottomM": 4.025,
+      "compartment17-bottomM": 4.234999999999999,
+      "compartment18-bottomM": 4.445,
+      "compartment19-bottomM": 4.654999999999999,
+      "compartment20-bottomM": 4.865,
+      "requiredActiveHeightM": 4.2,
+      "skirtAccessAzimuthDeg": 0,
+      "skirtAccessElevationM": -0.175,
+      "statorGrossOpenAreaM2": 0.15393804002589984,
+      "supportHousingHeightM": 0.027999999999999997,
+      "drivePedestalDiameterM": 0.35,
+      "installedActiveHeightM": 4.2,
+      "shaftLowerTerminationM": 0.5249999999999999,
+      "shaftOpeningClearanceM": 0.034,
+      "shaftUpperTerminationM": 6.125,
+      "statorOpeningDiameterM": 0.112,
+      "supportArmRadialStartM": 0.03849999999999999,
+      "calculatedFreeAreaRatio": 0.4,
+      "supportHousingDiameterM": 0.07699999999999999,
+      "bladeInnerSegmentHeightM": 0.016,
+      "bladeInnerSegmentLengthM": 0.03,
+      "bladeOuterSegmentHeightM": 0.028,
+      "bladeOuterSegmentLengthM": 0.05049999999999999,
+      "shaftBlockedFreeAreaRatio": 0.39604897959183677,
+      "designCompartmentEfficiency": 0.35,
+      "D01-surfaceEdgeElevationMaxM": 0.00020171625556501536,
+      "D01-surfaceEdgeElevationMinM": 0,
+      "V01-surfaceEdgeElevationMaxM": 5.920922719272909,
+      "V01-surfaceEdgeElevationMinM": 5.908287058636613,
+      "impliedInstalledHetsMPerTheoreticalStage": 0.6
+    },
+    "nozzles": [
+      {
+        "id": "P01",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/10; zone fraction 0.6; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.06999999999999999,
+        "region": "bottom",
+        "service": "RRBO feed",
+        "azimuthDeg": 0,
+        "elevationM": 0.595,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.08399999999999999
+      },
+      {
+        "id": "P02",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/10; zone fraction 0.4; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.06999999999999999,
+        "region": "bottom",
+        "service": "NMP-rich extract outlet",
+        "azimuthDeg": 180,
+        "elevationM": 0.45499999999999996,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.08399999999999999
+      },
+      {
+        "id": "P03",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/10; zone fraction 0.4; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.06999999999999999,
+        "region": "top",
+        "service": "NMP feed",
+        "azimuthDeg": 180,
+        "elevationM": 5.355,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.08399999999999999
+      },
+      {
+        "id": "P04",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/10; zone fraction 0.6; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.06999999999999999,
+        "region": "top",
+        "service": "RRBO-rich raffinate outlet",
+        "azimuthDeg": 0,
+        "elevationM": 5.495,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.08399999999999999
+      },
+      {
+        "id": "A01",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/25; zone fraction 0.2; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.027999999999999997,
+        "region": "bottom",
+        "service": "Low-shell flush",
+        "azimuthDeg": 270,
+        "elevationM": 0.31499999999999995,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.0336
+      },
+      {
+        "id": "A02",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/25; zone fraction 0.8; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.027999999999999997,
+        "region": "top",
+        "service": "High-shell equalization",
+        "azimuthDeg": 270,
+        "elevationM": 5.635,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.0336
+      },
+      {
+        "id": "S01",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/40; zone fraction 0.8; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.017499999999999998,
+        "region": "bottom",
+        "service": "Lower sample connection",
+        "azimuthDeg": 90,
+        "elevationM": 0.7349999999999999,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.020999999999999998
+      },
+      {
+        "id": "S02",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/40; zone fraction 0.2; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.017499999999999998,
+        "region": "top",
+        "service": "Upper sample connection",
+        "azimuthDeg": 90,
+        "elevationM": 5.215,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.020999999999999998
+      },
+      {
+        "id": "I01",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/40; zone fraction 0.3; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.017499999999999998,
+        "region": "bottom",
+        "service": "Lower instrument connection",
+        "azimuthDeg": 45,
+        "elevationM": 0.385,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.020999999999999998
+      },
+      {
+        "id": "I02",
+        "axis": "radial",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bore D/40; zone fraction 0.3; geometric allowance, not hydraulic/DN sizing.",
+        "boreM": 0.017499999999999998,
+        "region": "top",
+        "service": "Upper instrument connection",
+        "azimuthDeg": 45,
+        "elevationM": 5.285,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.35,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.020999999999999998
+      },
+      {
+        "id": "D01",
+        "axis": "down",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: bottom-pole axial drain; azimuth N/A.",
+        "boreM": 0.027999999999999997,
+        "region": "bottom-head",
+        "service": "Bottom-head drain",
+        "azimuthDeg": null,
+        "elevationM": 0,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.0336,
+        "surfaceEdgeElevationMaxM": 0.00020171625556501536,
+        "surfaceEdgeElevationMinM": 0
+      },
+      {
+        "id": "V01",
+        "axis": "up",
+        "note": "ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3_ADOPTED_COMPARTMENT_EFFICIENCY_ETA0.35; C: r=0.30D, ellipsoidal surface z=zT+0.20D; not absolute-high-point or vent-duty qualification.",
+        "boreM": 0.027999999999999997,
+        "region": "top-head",
+        "service": "Top-head crown-region vent",
+        "azimuthDeg": 315,
+        "elevationM": 5.915,
+        "projectionM": 0.06999999999999999,
+        "radialOffsetM": 0.21,
+        "classification": "System-generated",
+        "outsideDiameterM": 0.0336,
+        "surfaceEdgeElevationMaxM": 5.920922719272909,
+        "surfaceEdgeElevationMinM": 5.908287058636613
+      }
+    ]
+  }
+}

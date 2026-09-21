@@ -1,3 +1,4 @@
+- [Kühni disengagement sizing](kuhni-disengagement-boundary.md) — end sections require independent carryover/capture criteria; dissolved solvent and compartment mean drops cannot establish separator performance.
 - [Frozen Predictive N_T reporting semantics](predictive-nt-frozen-report-semantics.md) — 7C endpoint statuses are combined, not primary optimizer termination; feed-basis sulfur versus raffinate concentration target is a preserved historical basis mismatch, never demonstrated product compliance.
 - [Kühni paper audit boundary](kuhni-paper-audit-boundary.md) — missing extracted equations are not absent evidence; verify primary algebra and distinguish pre-pilot extrapolation from calibration.
 - [LLX localData hydration](llx-localdata-hydration.md) — inputs refetch must merge UNDER local values after first load or whole-section saves persist rollbacks (lost OT/OP/capacity).

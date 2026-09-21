@@ -1577,3 +1577,17 @@ mtime_ms = 1790000131557
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aca4888c-4ac2-4abc-aece-857eac370d0c/a974698d-aeb7-4a22-98ee-34dff300010e"
 storage_version_token = "1790000350693326"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "akPcWbnm7TaFr__tVIrjG"
+uri = "file://deliverables/kuhni-end-section-preliminary-calculation.html"
+type = "html"
+title = "Kühni end-section preliminary calculation — Project 236"
+description = "Self-contained top and bottom calculation cards with unbound N4/N7 outlet scenarios, terminal-velocity screening, critical drop-size sensitivities, and explicit geometry HOLD boundaries. No upstream design changes."
+logical_id = "58039b75-52c6-4b1b-8137-1c31ef664382"
+content_hash = "sha256:2bf6ae2fbb45f196813ad0fff3358eee4e9614af0640fccc5c46b74b16158f92"
+size = 29057
+mtime_ms = 1790001554246
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/58039b75-52c6-4b1b-8137-1c31ef664382/3781b62b-7d60-474a-b44b-437a7913ecdc"
+storage_version_token = "1790001596151938"
+content_type = "text/html"
