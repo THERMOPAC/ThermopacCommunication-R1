@@ -1675,3 +1675,31 @@ mtime_ms = 1790010066359
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/50fc7b09-b410-435b-9ce3-09755da3b33c/88268e5c-255e-487b-8bb5-cd27c1ba9d69"
 storage_version_token = "1790010274630253"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "PxseWh1KVqUjr6ZssvBtH"
+uri = "file://deliverables/kuhni-spatial-benchmark.md"
+type = "text"
+title = "Terminal jet/return — conditional spatial calculation"
+description = "Finite-Re laminar reduced-order field, size-resolved tagged-volume outcomes, verification and explicit limits on actual hole and outlet performance."
+logical_id = "b1f388d7-cbe7-48d6-aa05-059a7829760c"
+content_hash = "sha256:a67ad902cf6d878da63019d180e036696c6c5b2fc6a7132ce3b77347bcde89a5"
+size = 14306
+mtime_ms = 1790012619307
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/b1f388d7-cbe7-48d6-aa05-059a7829760c/e53247c8-d55e-48ff-a462-ca856488aebe"
+storage_version_token = "1790012710991726"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "f1LvydGcU-blD80J29rtn"
+uri = "file://deliverables/kuhni-spatial-benchmark.near-plate.svg"
+type = "image"
+title = "Near-plate velocity and droplet trajectories"
+description = "Annularized provisional geometry: calculated axial/radial flow and selected trajectories. Conditional model, not a fabrication drawing or calibrated flow map."
+logical_id = "dac1caf9-0fe0-4b8f-b3b1-cfaa95751006"
+content_hash = "sha256:9d2e8a07050631b842673d7afa34f1583a223d355e6829e0467fa010ee0a46ef"
+size = 502766
+mtime_ms = 1790012515028
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/dac1caf9-0fe0-4b8f-b3b1-cfaa95751006/b6301571-b85e-47c6-ba19-2619251ca85d"
+storage_version_token = "1790012714213998"
+content_type = "image/svg+xml"

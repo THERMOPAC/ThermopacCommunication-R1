@@ -32,3 +32,9 @@ Model the top as terminal crossings → jet/return exchange → quiet-zone evolu
 **Why:** In a monotone one-dimensional decaying jet, the point where carrier speed equals settling speed is a stable trapping point for an overdamped drop. Genuine return needs cross-stream transport into a return path; reducing a full-section mean velocity at fixed area and flow also violates continuity.
 
 **How to apply:** Separate return eligibility, actual external return and accumulated inventory. Use continuity-respecting spatial velocity fields and conservative inter-zone exchanges; never divide independently prescribed opening and bulk fluxes to infer a removal efficiency.
+
+Spatial droplet benchmarks require direct velocity-boundary checks on the interpolated field used by the tracker, not only solver residuals and volume conservation.
+
+**Why:** An unconstrained spline of a discretely clamped streamfunction can preserve divergence and section flux while introducing significant plate/wall slip. Return and contact probabilities are especially sensitive to this near-boundary error.
+
+**How to apply:** Verify no-slip and prescribed inlet derivatives after reconstruction; localize the earliest contact/exit event. Preserve unresolved plate-contact volume separately from return. Refinement differences are sensitivity observations, not certified probability error bounds.
