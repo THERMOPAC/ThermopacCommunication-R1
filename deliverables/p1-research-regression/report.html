@@ -1,0 +1,95 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>P1 saved-output regression</title><style>
+:root{color-scheme:light}body{max-width:1180px;margin:36px auto;padding:0 26px;background:#f5f8fa;color:#183347;font:15px/1.65 system-ui}main{background:white;padding:36px;border:1px solid #dbe4eb;border-radius:12px}h1{font-size:32px;line-height:1.2;margin:0 0 28px}h2{font-size:22px;border-top:1px solid #dbe4eb;margin-top:34px;padding-top:25px;color:#116274}p,td{overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f7f9;border:1px solid #dbe4eb;border-radius:8px;padding:20px;font:13px/1.6 ui-monospace,monospace}code{font-size:13px}strong{color:#08664b}.eyebrow{text-transform:uppercase;letter-spacing:1.3px;font-size:12px;color:#537584}.table-wrap{overflow:auto;margin:18px 0}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:10px 12px;border:1px solid #d8e2e8;text-align:left;vertical-align:top}th{background:#eaf3f5}tbody tr:nth-child(even){background:#f7fafb}footer{font-size:12px;color:#5c7180;margin-top:22px}@media(max-width:650px){body{padding:0 10px;margin:12px auto}main{padding:20px}h1{font-size:26px}}@media print{body{background:white;margin:0;padding:0}main{border:0;padding:0}h2{break-after:avoid}tr{break-inside:avoid}}
+</style></head><body><p class="eyebrow">Engineering regression evidence · saved outputs only</p><main><h1>P1 saved-output research regression</h1>
+<h2>Result</h2>
+<p>EXACT MATCH of compared saved numerical outputs; 0 non-exact raw comparisons; 0 outside comparator tolerance. 2569321 / 2569321 primitive/array-length comparisons exact.</p>
+<p>Project 236 / design 269. Latest current-Stage1-hash completed candidate <strong>b4b44349-5471-4b9c-acf8-d06e2cea8d42</strong>, ledger <strong>69</strong>. Database verified at 2026-09-21T04:42:24.304Z using explicit repeatable-read READ ONLY SELECT transaction, rolled back. No run, adoption, optimizer solve, input change or authority write. Ledger canonical integrity and complete saved-result calculation hash verified.</p>
+<p>Full RRBO-only universe: <strong>378 geometries, 3402 geometry/RPM trials, 20412 scenarios</strong>. Accepted 158; rejected 3244. Duplicate/missing/extra keys: 0. Cartesian coverage checked independently against saved controls × C32 {0.36, 0.42, 0.43} × both interface scenarios, not just equal row counts. Alternate phase excluded. Every accepted and rejected scenario, null root and branch status retained.</p>
+<h2>Numerical comparison (unrounded parsed doubles)</h2>
+<div class="table-wrap"><table><thead><tr><th>Metric</th><th>Count</th><th>Exact</th><th>Within tolerance incl exact</th><th>Null pairs</th><th>Max absolute</th><th>Max relative</th></tr></thead><tbody><tr><td>scenario.d32M</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.operatingHoldup</td><td>20412</td><td>20412</td><td>20412</td><td>16565</td><td>0</td><td>0</td></tr><tr><td>scenario.floodHoldup</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.capacityMS</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.loading</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.interfacialAreaM2M3</td><td>20412</td><td>20412</td><td>20412</td><td>16565</td><td>0</td><td>0</td></tr><tr><td>scenario.branchStatus</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.trialStatus</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.operatingRoots.length</td><td>20412</td><td>20412</td><td>20412</td><td>0</td><td>0</td><td>0</td></tr><tr><td>scenario.operatingRoots.[]</td><td>7694</td><td>7694</td><td>7694</td><td>0</td><td>0</td><td>0</td></tr></tbody></table></div>
+<p>All exported columns, nested roots, continuation, signed velocities, diagnostics and saved trial validity/qualification are checked; metric-summary.csv contains every metric. numerical-differences.csv contains every non-exact value, even within tolerance (header-only means no non-exact values).</p>
+<p>Comparator: absolute 1e-12 plus relative 1e-12 × max(|research|,|integrated|); relative error = absolute error / max(|research|,|integrated|), both zero gives 0. No denominator floor. This is a reporting comparator, <strong>not</strong> a changed 70% loading gate or 20-rpm adequacy policy. Blank CSV cells mean null, never zero; NaN/Infinity cause an explicit error. Array positions retain root/continuation sequence semantics; scenario and geometry joins never use row order.</p>
+<p>Keys: D on 0.1-m stored grid; hc/D, Dr/D, free area and C32 at hundredths; RPM integer. Each numeric key must be within 1e-12 of that grid. Binary decimal representations such as 0.30000000000000004 are normalized only for joins; raw numerical comparisons remain unrounded. 972 key-coordinate normalization events (including repeated lookups).</p>
+<h2>Controlling scenario and validity</h2>
+<p>Checked all 3402 trials against minimum <strong>raw</strong> scenario capacity, not rounded loading. 0 exact ties; implementation tie semantics retain the first scenario in stored scenario sequence (capacity &lt;=). Governing full object and trial d32, operating/flood holdup, loading and area are checked. Controlling labels: {"0.36 SCHILLER_NAUMANN_IMMOBILE":3402}.</p>
+<p>Uploaded scenarios CSV has no governing-boolean column. No governing flag was fabricated: labels and validity are compared using the supplementary research result.json, whose sibling CSV files are byte-identical to both uploads. The raw-capacity minimum is independently checked as a selection reduction only, not a hydraulic solve.</p>
+<p>Trial validity: {"PHYSICAL_INVALID":3244,"SCALE_UP_EXTRAPOLATION":158}. Branch statuses: {"NO_DILUTE_CONNECTED_ROOT":16565,"LOWER_QUASI_STEADY_ADMISSIBLE":3847}. Null operating holdup: 16565. Validity and qualifications remain preliminary/unqualified where saved; a regression match is not scientific qualification.</p>
+<h2>Feasible RPM sets</h2>
+<div class="table-wrap"><table><thead><tr><th>D m</th><th>Union RPMs across geometries</th><th>Union RPM count</th><th>Accepted geometry/RPM trials</th><th>Feasible fixed geometries / 27</th></tr></thead><tbody><tr><td>0.2</td><td>none</td><td>0</td><td>0</td><td>0 / 27</td></tr><tr><td>0.3</td><td>30</td><td>1</td><td>1</td><td>1 / 27</td></tr><tr><td>0.4</td><td>30</td><td>1</td><td>5</td><td>5 / 27</td></tr><tr><td>0.5</td><td>30, 35</td><td>2</td><td>10</td><td>8 / 27</td></tr><tr><td>0.6</td><td>30, 35</td><td>2</td><td>11</td><td>8 / 27</td></tr><tr><td>0.7</td><td>30, 35</td><td>2</td><td>12</td><td>9 / 27</td></tr><tr><td>0.8</td><td>30, 35</td><td>2</td><td>14</td><td>9 / 27</td></tr><tr><td>0.9</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr><tr><td>1</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr><tr><td>1.1</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr><tr><td>1.2</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr><tr><td>1.3</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr><tr><td>1.4</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr><tr><td>1.5</td><td>30, 35, 40</td><td>3</td><td>15</td><td>9 / 27</td></tr></tbody></table></div>
+<p>feasible-rpm-comparison.csv has all 378 <strong>fixed-geometry</strong> rows plus 14 explicitly labeled <strong>diameter unions</strong>. A union is not a fixed-geometry operating window. Discrete runs, longest grid run and rejection counts are separately compared. Saved selection: {"status":"NO_SECOND_ADEQUATE_DIAMETER","selectedGeometry":null,"selectedRpm":null}.</p>
+<h2>Scientific inputs and provenance</h2>
+<p>Research Stage1 hash: 549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b. Original frozen research phase: nmp-continuous-rrbo-dispersed; research used an isolated RRBO override. Current saved Stage1 hash: 06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f, with RRBO actually saved. Hash metadata differs; it is not evidence of different scientific properties.</p>
+<p>Every process-basis field (not merely selected rho/mu fields) is compared after excluding only stage1SnapshotHash: densities, viscosities, both flows, compositions, sigma, phase, temperatures, pressure, S/O, units/conversions/schema. Controls are recursively compared in full, including D/ratio/free-area/RPM grids and 20-rpm adequacy. Current saved Stage1 basis is also checked against result basis without removing its hash.</p>
+<p>Scientific basis:</p>
+<pre><code>{
+  "rrboFeed": {
+    "flowM3S": 0.0011111111111111111,
+    "identity": "RRBO_FEED",
+    "valueLph": 4000,
+    "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+    "densityKgM3": 869,
+    "dynamicViscosityPaS": 0.0598
+  },
+  "composition": {
+    "rrboGrade": "SN300",
+    "rrboFeedWt": {
+      "nmp": 0,
+      "saturates": 85,
+      "diAromatics": 4,
+      "monoAromatics": 7,
+      "polyAromatics": 2,
+      "polarAromatics": 2
+    },
+    "wetSolventWt": {
+      "nmp": 99.5,
+      "water": 0.5
+    }
+  },
+  "temperatureK": 313.15,
+  "schemaVersion": "ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1",
+  "wetSolventPhase": {
+    "flowM3S": 0.0005707717569786535,
+    "identity": "WET_NMP_SOLVENT_PHASE",
+    "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+    "densityKgM3": 1015,
+    "dynamicViscosityPaS": 0.001416,
+    "solventOilMassRatio": 0.6
+  },
+  "operatingPressure": "2.0",
+  "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+  "interfacialTensionNM": 0.011,
+  "operatingTemperatureC": 40
+}</code></pre>
+<p>Controls:</p>
+<pre><code>{
+  "rpmMax": 70,
+  "rpmMin": 30,
+  "rpmStep": 5,
+  "freeArea": [
+    0.2,
+    0.3,
+    0.4
+  ],
+  "hcToColumn": [
+    0.2,
+    0.25,
+    0.3
+  ],
+  "diameterMaxM": 1.5,
+  "diameterMinM": 0.2,
+  "diameterStepM": 0.1,
+  "rotorToColumn": [
+    0.33,
+    0.4,
+    0.5
+  ],
+  "compareOrientations": true,
+  "minimumUsefulWindowRpm": 20
+}</code></pre>
+<h2>Integrity and reproducibility</h2>
+<p>Ledger immutable hash: 4b60bbd4396e508ce58a2de945540035e46062396d94b000f89fdecd335c8e82</p>
+<p>Result calculation hash: 1ad764e887ffe30a158367ee8298b5f8bfc61523d6bbaa30992feb4cfdcab896</p>
+<div class="table-wrap"><table><thead><tr><th>Artifact</th><th>SHA-256</th></tr></thead><tbody><tr><td>geometryUpload</td><td>995b15e2323a53e6cd0817ef2404d5010162e72c672e7c6e914fe951da2b2aab</td></tr><tr><td>scenariosUpload</td><td>366e0304e25a9e254e9da5a407b1a96f515e6e3a6b9c77f81774d6648a46825e</td></tr><tr><td>integrated</td><td>a05bde53ec44dfcbd8a1d60247536361887f2244f0ba8460f992fec5137457dc</td></tr><tr><td>researchResult</td><td>8bef79ff9be32bfd16c2c219eba321c2d8c9a024729a886f30213b9b71995b05</td></tr><tr><td>researchInput</td><td>061fa3f2d28e60938138cb55a5a43667da11ccdda466fac9a18098468ba618ec</td></tr><tr><td>researchSource</td><td>aeef586f907f9b1ccaef7ba4af837d667a2d64a09bf34be768c1dbd9bda091fd</td></tr><tr><td>researchManifest</td><td>523abe1eebaf1460784ce979455481bf4e647f271235f63147bb2b411504eb3d</td></tr></tbody></table></div>
+<p>The integrated artifact omits session/actor identities and credentials. Its full saved numerical result is retained; canonical result hash is rechecked by comparison. The extraction verifies the original ledger envelope before omitting session metadata.</p>
+<p>Reproduce from repository root: <code>npx tsx deliverables/p1-research-regression/extract.ts</code> (read-only DB export), then <code>node deliverables/p1-research-regression/compare.mjs</code> (offline, streamed uploaded CSV parsing). The exports use JSON-escaped quoted cells, explicitly parsed as that dialect. No optimizer or scientific solver is imported by the comparison. Original research input/source/result companions are required and hashed above.</p>
+<p>This compares saved outputs; <strong>it is not independent validation of the original model, correlations, phase assumptions, or physical operating safety</strong>. No mismatch is repaired.</p></main><footer>Standalone report. No remote scripts, fonts or data connections. This report does not authorize physical operation.</footer></body></html>

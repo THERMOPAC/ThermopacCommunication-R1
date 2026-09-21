@@ -1,0 +1,3569 @@
+{
+  "title": "Saved integrated P1 vs uploaded research regression",
+  "hashes": {
+    "geometryUpload": "995b15e2323a53e6cd0817ef2404d5010162e72c672e7c6e914fe951da2b2aab",
+    "scenariosUpload": "366e0304e25a9e254e9da5a407b1a96f515e6e3a6b9c77f81774d6648a46825e",
+    "integrated": "a05bde53ec44dfcbd8a1d60247536361887f2244f0ba8460f992fec5137457dc",
+    "researchResult": "8bef79ff9be32bfd16c2c219eba321c2d8c9a024729a886f30213b9b71995b05",
+    "researchInput": "061fa3f2d28e60938138cb55a5a43667da11ccdda466fac9a18098468ba618ec",
+    "researchSource": "aeef586f907f9b1ccaef7ba4af837d667a2d64a09bf34be768c1dbd9bda091fd",
+    "researchManifest": "523abe1eebaf1460784ce979455481bf4e647f271235f63147bb2b411504eb3d"
+  },
+  "provenance": {
+    "project": 236,
+    "design": 269,
+    "candidateId": "b4b44349-5471-4b9c-acf8-d06e2cea8d42",
+    "ledgerId": "69",
+    "extractedAt": "2026-09-21T04:42:24.304Z",
+    "currentStage1Hash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "researchStage1Hash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+    "originalResearchPhase": "nmp-continuous-rrbo-dispersed",
+    "researchOverridePhase": "rrbo-continuous-nmp-dispersed",
+    "currentSavedPhase": "rrbo-continuous-nmp-dispersed",
+    "ledgerIntegrityVerified": true,
+    "resultIntegrityVerified": true,
+    "researchManifestIntegrityVerified": true,
+    "researchCalculationHash": "948b59ef34073eddd32c07d02b433ca2576ed243c5dec81be407ac3ccf650641",
+    "calculationHash": "1ad764e887ffe30a158367ee8298b5f8bfc61523d6bbaa30992feb4cfdcab896",
+    "ledgerImmutableHash": "4b60bbd4396e508ce58a2de945540035e46062396d94b000f89fdecd335c8e82",
+    "implementationHash": "a79c49a6d554381bde9dbdbd5076845f3d033e744e17d7612970021134671de0",
+    "latestCurrentHashLedger": [
+      {
+        "id": "69",
+        "candidateId": "b4b44349-5471-4b9c-acf8-d06e2cea8d42",
+        "status": "completed"
+      },
+      {
+        "id": "68",
+        "candidateId": "b4b44349-5471-4b9c-acf8-d06e2cea8d42",
+        "status": "running"
+      }
+    ]
+  },
+  "comparisonPolicy": {
+    "absoluteTolerance": 1e-12,
+    "relativeTolerance": 1e-12,
+    "rule": "abs(a-b) <= atol + rtol * max(abs(a),abs(b))",
+    "relativeError": "abs(a-b)/max(abs(a),abs(b)); both zero => 0; no denominator floor",
+    "nulls": "CSV blank => null; 0 != null; NaN/Infinity => explicit error; missing object keys are compared",
+    "keys": "D to 1 decimal; hc/D, Dr/D, free area and C32 to 2 decimals; RPM integer; require <=1e-12 deviation; all other values unrounded",
+    "scope": "Comparator tolerances only; never model acceptance gates. No model/optimizer/authority changes or new solves."
+  },
+  "counts": {
+    "integratedGeometries": 378,
+    "researchGeometries": 378,
+    "csvGeometries": 378,
+    "integratedTrials": 3402,
+    "researchTrials": 3402,
+    "integratedScenarios": 20412,
+    "researchScenarios": 20412,
+    "csvScenarios": 20412,
+    "duplicateMissingExtra": 0,
+    "acceptedTrials": 158,
+    "rejectedTrials": 3244,
+    "numericalOrCategoricalDifferences": 0,
+    "exactComparisons": 2569321,
+    "totalComparisons": 2569321,
+    "outsideTolerance": 0,
+    "normalizedKeyRepresentations": 972,
+    "governingChecked": 3402,
+    "exactCapacityTies": 0
+  },
+  "hasGoverningColumn": false,
+  "controllingLabels": {
+    "0.36 SCHILLER_NAUMANN_IMMOBILE": 3402
+  },
+  "trialStatus": {
+    "INFEASIBLE": 3244,
+    "FEASIBLE": 158
+  },
+  "validity": {
+    "PHYSICAL_INVALID": 3244,
+    "SCALE_UP_EXTRAPOLATION": 158
+  },
+  "branchStatus": {
+    "NO_DILUTE_CONNECTED_ROOT": 16565,
+    "LOWER_QUASI_STEADY_ADMISSIBLE": 3847
+  },
+  "nullOperatingHoldup": 16565,
+  "diameterSummary": [
+    {
+      "diameterM": 0.2,
+      "unionRpms": [],
+      "unionRpmCount": 0,
+      "acceptedTrials": 0,
+      "feasibleFixedGeometries": 0,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.3,
+      "unionRpms": [
+        30
+      ],
+      "unionRpmCount": 1,
+      "acceptedTrials": 1,
+      "feasibleFixedGeometries": 1,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.4,
+      "unionRpms": [
+        30
+      ],
+      "unionRpmCount": 1,
+      "acceptedTrials": 5,
+      "feasibleFixedGeometries": 5,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.5,
+      "unionRpms": [
+        30,
+        35
+      ],
+      "unionRpmCount": 2,
+      "acceptedTrials": 10,
+      "feasibleFixedGeometries": 8,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.6,
+      "unionRpms": [
+        30,
+        35
+      ],
+      "unionRpmCount": 2,
+      "acceptedTrials": 11,
+      "feasibleFixedGeometries": 8,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.7,
+      "unionRpms": [
+        30,
+        35
+      ],
+      "unionRpmCount": 2,
+      "acceptedTrials": 12,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.8,
+      "unionRpms": [
+        30,
+        35
+      ],
+      "unionRpmCount": 2,
+      "acceptedTrials": 14,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 0.9,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 1,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 1.1,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 1.2,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 1.3,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 1.4,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    },
+    {
+      "diameterM": 1.5,
+      "unionRpms": [
+        30,
+        35,
+        40
+      ],
+      "unionRpmCount": 3,
+      "acceptedTrials": 15,
+      "feasibleFixedGeometries": 9,
+      "totalGeometries": 27
+    }
+  ],
+  "structural": [],
+  "metrics": [
+    {
+      "metric": "scenario.D",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.hcToD",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.rotorToD",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.freeArea",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.rpm",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.trialStatus",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.rotorRe",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.coefficient",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.interfaceScenario",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.d32M",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.terminalRe",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.terminalSpeedMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.signedTerminalVelocityMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.characteristicFactor",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.characteristicSpeedMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.characteristicRe",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.forceBalanceResidualN",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.floodHoldup",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.capacityMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.loading",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingRoots.length",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingHoldup",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.continuation.length",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.continuation.[].flowFraction",
+      "count": 149075,
+      "exact": 149075,
+      "withinTolerance": 149075,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.continuation.[].holdup",
+      "count": 149075,
+      "exact": 149075,
+      "withinTolerance": 149075,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingSpeeds",
+      "count": 16565,
+      "exact": 16565,
+      "withinTolerance": 16565,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.signedOperatingVelocities",
+      "count": 16565,
+      "exact": 16565,
+      "withinTolerance": 16565,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingBalanceResidualMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.interfacialAreaM2M3",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.branchStatus",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.diagnostics.eotvos",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.diagnostics.ohnesorgeContinuous",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.diagnostics.ohnesorgeDispersed",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.diagnostics.swarmReAtFlood",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.diagnostics.weberTerminal",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.eotvos",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.weberTerminal",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.ohnesorgeContinuous",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.ohnesorgeDispersed",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.swarmReAtFlood",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.swarmReOperating",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.slipReOperating",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingRoots.[]",
+      "count": 7694,
+      "exact": 7694,
+      "withinTolerance": 7694,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingSpeeds.slipMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.operatingSpeeds.superficialSwarmMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.signedOperatingVelocities.continuousMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.signedOperatingVelocities.dispersedMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scenario.signedOperatingVelocities.dispersedRelativeToContinuousMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboFeedWt.diAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboFeedWt.monoAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboFeedWt.nmp",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboFeedWt.polarAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboFeedWt.polyAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboFeedWt.saturates",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.rrboGrade",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.wetSolventWt.nmp",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.composition.wetSolventWt.water",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.interfacialTensionNM",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.operatingPressure",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.operatingTemperatureC",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.phaseConfiguration",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.rrboFeed.conversion",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.rrboFeed.densityKgM3",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.rrboFeed.dynamicViscosityPaS",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.rrboFeed.flowM3S",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.rrboFeed.identity",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.rrboFeed.valueLph",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.schemaVersion",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.temperatureK",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.wetSolventPhase.conversion",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.wetSolventPhase.densityKgM3",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.wetSolventPhase.dynamicViscosityPaS",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.wetSolventPhase.flowM3S",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.wetSolventPhase.identity",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "scientificBasis.wetSolventPhase.solventOilMassRatio",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboFeedWt.diAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboFeedWt.monoAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboFeedWt.nmp",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboFeedWt.polarAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboFeedWt.polyAromatics",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboFeedWt.saturates",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.rrboGrade",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.wetSolventWt.nmp",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.composition.wetSolventWt.water",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.interfacialTensionNM",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.operatingPressure",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.operatingTemperatureC",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.phaseConfiguration",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.rrboFeed.conversion",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.rrboFeed.densityKgM3",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.rrboFeed.dynamicViscosityPaS",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.rrboFeed.flowM3S",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.rrboFeed.identity",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.rrboFeed.valueLph",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.schemaVersion",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.stage1SnapshotHash",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.temperatureK",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.wetSolventPhase.conversion",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.wetSolventPhase.densityKgM3",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.wetSolventPhase.dynamicViscosityPaS",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.wetSolventPhase.flowM3S",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.wetSolventPhase.identity",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "currentStage1Basis.wetSolventPhase.solventOilMassRatio",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.compareOrientations",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.diameterMaxM",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.diameterMinM",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.diameterStepM",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.freeArea.length",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.freeArea.[]",
+      "count": 3,
+      "exact": 3,
+      "withinTolerance": 3,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.hcToColumn.length",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.hcToColumn.[]",
+      "count": 3,
+      "exact": 3,
+      "withinTolerance": 3,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.minimumUsefulWindowRpm",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.rotorToColumn.length",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.rotorToColumn.[]",
+      "count": 3,
+      "exact": 3,
+      "withinTolerance": 3,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.rpmMax",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.rpmMin",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "controls.rpmStep",
+      "count": 1,
+      "exact": 1,
+      "withinTolerance": 1,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.actualLoading",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.buoyancyDirection",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.compartmentHeightM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.d32M",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.designFloodFraction",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.diameterM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.floodHoldup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.freeArea",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.hcToColumn",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.holdup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.hydraulicPass",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.interfacialAreaM2M3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.powerVolumeWM3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.powerW",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.psiWKg",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.reasons.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.reasons.[]",
+      "count": 6318,
+      "exact": 6318,
+      "withinTolerance": 6318,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.rotorDiameterM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.rotorReynolds",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.rotorToColumn",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.rpm",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.signedForceBalanceResidualN",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.sourceDiagnostics.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.sourceDiagnostics.[]",
+      "count": 13608,
+      "exact": 13608,
+      "withinTolerance": 13608,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.status",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.tipSpeedMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "trial.validity",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.acceptanceRecord",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.assumptions.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.assumptions.[]",
+      "count": 17010,
+      "exact": 17010,
+      "withinTolerance": 17010,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.capacityMeaning",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.compartmentHeightM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.diameterM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.epsilonWKg",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.branchStatus",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.capacityMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.characteristicFactor",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.characteristicRe",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.characteristicSpeedMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.coefficient",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.continuation.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.continuation.[].flowFraction",
+      "count": 18252,
+      "exact": 18252,
+      "withinTolerance": 18252,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.continuation.[].holdup",
+      "count": 18252,
+      "exact": 18252,
+      "withinTolerance": 18252,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.d32M",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.diagnostics.eotvos",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.diagnostics.ohnesorgeContinuous",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.diagnostics.ohnesorgeDispersed",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.diagnostics.swarmReAtFlood",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.diagnostics.weberTerminal",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.floodHoldup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.forceBalanceResidualN",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.interfaceScenario",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.interfacialAreaM2M3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.loading",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingBalanceResidualMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingHoldup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingRoots.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingSpeeds",
+      "count": 3074,
+      "exact": 3074,
+      "withinTolerance": 3074,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.signedOperatingVelocities",
+      "count": 3074,
+      "exact": 3074,
+      "withinTolerance": 3074,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.signedTerminalVelocityMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.terminalRe",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.terminalSpeedMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.jc",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.jd",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.maximumLoading",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.methodId",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.numericalPolicy.bisectionIterations",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.numericalPolicy.capacityRefinementIterations",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.numericalPolicy.continuationSteps",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.numericalPolicy.holdupMeshIntervals",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.numericalPolicy.status",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.phaseDirection",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.powerNumber",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.powerVolumeWM3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.powerW",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.continuous.conversion",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.continuous.densityKgM3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.continuous.dynamicViscosityPaS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.continuous.flowM3S",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.continuous.identity",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.continuous.valueLph",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.dispersed.conversion",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.dispersed.densityKgM3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.dispersed.dynamicViscosityPaS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.dispersed.flowM3S",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.dispersed.identity",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.dispersed.solventOilMassRatio",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.interfacialTensionNM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.properties.temperatureC",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.propertyQualification",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.disengagement",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.entrainment",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.interfaceMobility",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.inversion",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.schillerNaumannRange",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.sphericalDrop",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.qualification.turbulence",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.rotorDiameterM",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.rotorReynolds",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.rpm",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.screeningPass",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.signedDensityDifferenceKgM3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.sourceExtrapolation.compartmentToGartheMaximum",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.sourceExtrapolation.diameterToGartheMaximum",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.sourceExtrapolation.rotorToGartheMaximum",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.sourceExtrapolation.status",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.sourceExtrapolation.viscosityToKhMaximum",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.sourcePowerNumber",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.status",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.tipSpeedMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.branchStatus",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.capacityMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.characteristicFactor",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.characteristicRe",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.characteristicSpeedMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.coefficient",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.continuation.length",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.continuation.[].flowFraction",
+      "count": 149075,
+      "exact": 149075,
+      "withinTolerance": 149075,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.continuation.[].holdup",
+      "count": 149075,
+      "exact": 149075,
+      "withinTolerance": 149075,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.d32M",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.diagnostics.eotvos",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.diagnostics.ohnesorgeContinuous",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.diagnostics.ohnesorgeDispersed",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.diagnostics.swarmReAtFlood",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.diagnostics.weberTerminal",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.floodHoldup",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.forceBalanceResidualN",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.interfaceScenario",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.interfacialAreaM2M3",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.loading",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingBalanceResidualMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingHoldup",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingRoots.length",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingSpeeds",
+      "count": 16565,
+      "exact": 16565,
+      "withinTolerance": 16565,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.signedOperatingVelocities",
+      "count": 16565,
+      "exact": 16565,
+      "withinTolerance": 16565,
+      "outsideTolerance": 0,
+      "nullPairs": 16565,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.signedTerminalVelocityMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.terminalRe",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.terminalSpeedMS",
+      "count": 20412,
+      "exact": 20412,
+      "withinTolerance": 20412,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingRoots.[]",
+      "count": 7694,
+      "exact": 7694,
+      "withinTolerance": 7694,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingSpeeds.slipMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.operatingSpeeds.superficialSwarmMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.signedOperatingVelocities.continuousMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.signedOperatingVelocities.dispersedMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "savedScenario.signedOperatingVelocities.dispersedRelativeToContinuousMS",
+      "count": 3847,
+      "exact": 3847,
+      "withinTolerance": 3847,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.minimumCapacity",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.firstMinimumLabel",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.branchStatus",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.capacityMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.characteristicFactor",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.characteristicRe",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.characteristicSpeedMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.coefficient",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.continuation.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.continuation.[].flowFraction",
+      "count": 18252,
+      "exact": 18252,
+      "withinTolerance": 18252,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.continuation.[].holdup",
+      "count": 18252,
+      "exact": 18252,
+      "withinTolerance": 18252,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.d32M",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.diagnostics.eotvos",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.diagnostics.ohnesorgeContinuous",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.diagnostics.ohnesorgeDispersed",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.diagnostics.swarmReAtFlood",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.diagnostics.weberTerminal",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.floodHoldup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.forceBalanceResidualN",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.interfaceScenario",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.interfacialAreaM2M3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.loading",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingBalanceResidualMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingHoldup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingRoots.length",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingSpeeds",
+      "count": 3074,
+      "exact": 3074,
+      "withinTolerance": 3074,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.signedOperatingVelocities",
+      "count": 3074,
+      "exact": 3074,
+      "withinTolerance": 3074,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.signedTerminalVelocityMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.terminalRe",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.terminalSpeedMS",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.trial.d32M",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.trial.holdup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.trial.floodHoldup",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.trial.actualLoading",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.trial.interfacialAreaM2M3",
+      "count": 3402,
+      "exact": 3402,
+      "withinTolerance": 3402,
+      "outsideTolerance": 0,
+      "nullPairs": 3074,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingRoots.[]",
+      "count": 656,
+      "exact": 656,
+      "withinTolerance": 656,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingSpeeds.slipMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.operatingSpeeds.superficialSwarmMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.signedOperatingVelocities.continuousMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.signedOperatingVelocities.dispersedMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "method.governing.signedOperatingVelocities.dispersedRelativeToContinuousMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingRoots.[]",
+      "count": 656,
+      "exact": 656,
+      "withinTolerance": 656,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingSpeeds.slipMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.operatingSpeeds.superficialSwarmMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.signedOperatingVelocities.continuousMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.signedOperatingVelocities.dispersedMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "governing.fullScenario.signedOperatingVelocities.dispersedRelativeToContinuousMS",
+      "count": 328,
+      "exact": 328,
+      "withinTolerance": 328,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.columnDiameterM",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.compartmentHeightM",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.freeArea",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.hcToColumn",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.rotorDiameterM",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.rotorToColumn",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.feasibleRpms",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.longestGridRun",
+      "count": 275,
+      "exact": 275,
+      "withinTolerance": 275,
+      "outsideTolerance": 0,
+      "nullPairs": 275,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.discreteRuns",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.rejectionCounts.ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.rejectionCounts.NO_DILUTE_CONNECTED_ROOT",
+      "count": 378,
+      "exact": 378,
+      "withinTolerance": 378,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.longestGridRun.edgeMarginRpm",
+      "count": 103,
+      "exact": 103,
+      "withinTolerance": 103,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.longestGridRun.rpmMax",
+      "count": 103,
+      "exact": 103,
+      "withinTolerance": 103,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.longestGridRun.rpmMin",
+      "count": 103,
+      "exact": 103,
+      "withinTolerance": 103,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.longestGridRun.validTrialCount",
+      "count": 103,
+      "exact": 103,
+      "withinTolerance": 103,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "geometry.longestGridRun.widthRpm",
+      "count": 103,
+      "exact": 103,
+      "withinTolerance": 103,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    },
+    {
+      "metric": "diameter.unionFeasibleRpms",
+      "count": 14,
+      "exact": 14,
+      "withinTolerance": 14,
+      "outsideTolerance": 0,
+      "nullPairs": 0,
+      "maxAbs": 0,
+      "maxRelative": 0
+    }
+  ],
+  "scientificBasis": {
+    "rrboFeed": {
+      "flowM3S": 0.0011111111111111111,
+      "identity": "RRBO_FEED",
+      "valueLph": 4000,
+      "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+      "densityKgM3": 869,
+      "dynamicViscosityPaS": 0.0598
+    },
+    "composition": {
+      "rrboGrade": "SN300",
+      "rrboFeedWt": {
+        "nmp": 0,
+        "saturates": 85,
+        "diAromatics": 4,
+        "monoAromatics": 7,
+        "polyAromatics": 2,
+        "polarAromatics": 2
+      },
+      "wetSolventWt": {
+        "nmp": 99.5,
+        "water": 0.5
+      }
+    },
+    "temperatureK": 313.15,
+    "schemaVersion": "ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1",
+    "wetSolventPhase": {
+      "flowM3S": 0.0005707717569786535,
+      "identity": "WET_NMP_SOLVENT_PHASE",
+      "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+      "densityKgM3": 1015,
+      "dynamicViscosityPaS": 0.001416,
+      "solventOilMassRatio": 0.6
+    },
+    "operatingPressure": "2.0",
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "interfacialTensionNM": 0.011,
+    "operatingTemperatureC": 40
+  },
+  "controls": {
+    "rpmMax": 70,
+    "rpmMin": 30,
+    "rpmStep": 5,
+    "freeArea": [
+      0.2,
+      0.3,
+      0.4
+    ],
+    "hcToColumn": [
+      0.2,
+      0.25,
+      0.3
+    ],
+    "diameterMaxM": 1.5,
+    "diameterMinM": 0.2,
+    "diameterStepM": 0.1,
+    "rotorToColumn": [
+      0.33,
+      0.4,
+      0.5
+    ],
+    "compareOrientations": true,
+    "minimumUsefulWindowRpm": 20
+  },
+  "selection": {
+    "status": "NO_SECOND_ADEQUATE_DIAMETER",
+    "selectedGeometry": null,
+    "selectedRpm": null
+  }
+}

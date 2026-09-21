@@ -1409,3 +1409,45 @@ mtime_ms = 1789965359364
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/899640dc-aac7-4b01-85ce-be5fc6cbe338/0876e7eb-f239-4033-a783-07fde48d028a"
 storage_version_token = "1789965389598459"
 content_type = "text/html"
+
+[[outputs]]
+id = "Z5BDdTiRuEgLlQo6EDBqr"
+uri = "file://deliverables/p1-research-regression/report.html"
+type = "html"
+title = "P1 research versus integrated Stage 3 — regression comparison"
+description = "Exact match across 20,412 scenarios and 378 geometry-specific RPM sets. Includes metric differences, root status, controlling scenarios and provenance."
+logical_id = "49a0c6ce-8809-49c2-be2a-2ec102ad2fcd"
+content_hash = "sha256:a7a669cf6163aca6adcdc3d9f08a15e37e996e522ce6e1618e8a43d98a4a58e7"
+size = 12312
+mtime_ms = 1789965974144
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/49a0c6ce-8809-49c2-be2a-2ec102ad2fcd/298dc011-f9eb-45a6-891d-f3219274bdd7"
+storage_version_token = "1789966030750571"
+content_type = "text/html"
+
+[[outputs]]
+id = "7rZTDj3eFXDoH6HrAOELa"
+uri = "file://deliverables/p1-research-regression/feasible-rpm-comparison.csv"
+type = "table"
+title = "Feasible RPM comparison by geometry and diameter"
+description = "All 378 fixed-geometry comparisons and 14 separately labelled diameter unions."
+logical_id = "94a7b821-ef5e-4c2a-abab-d0a1398610e4"
+content_hash = "sha256:8324d48a1f1618e5ef32996b8895cb9da723ebfa0b64e1addd0bf1d7059beab3"
+size = 36609
+mtime_ms = 1789965974140
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/94a7b821-ef5e-4c2a-abab-d0a1398610e4/fbb158d4-11d1-499e-b0c6-a14cac8fc5fa"
+storage_version_token = "1789966032344236"
+content_type = "text/csv"
+
+[[outputs]]
+id = "jUYts1Z88SXoXgrY6MmBN"
+uri = "file://deliverables/p1-research-regression/metric-summary.csv"
+type = "table"
+title = "Numerical regression metric summary"
+description = "Comparison counts, null matches and maximum absolute/relative differences for the exported metrics."
+logical_id = "743941f5-e9e8-4776-86e5-ae9c3db9065c"
+content_hash = "sha256:6848b19ceecae6ec4794c0349381fb221996f450aade11c082bf2d2185a057bc"
+size = 23534
+mtime_ms = 1789965974136
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/743941f5-e9e8-4776-86e5-ae9c3db9065c/6ed0b13e-4efa-47ed-a555-a25c20eba150"
+storage_version_token = "1789966034079140"
+content_type = "text/csv"
