@@ -44,3 +44,9 @@ Quiet-zone coalescence needs physical local loading and an independently qualifi
 **Why:** Normalized trajectory weights supply no collision clock. Gravity has no tangential component on the horizontal stator; contact can retain an intervening RRBO film. Pair-film drainage uses continuous-oil viscosity, whereas established NMP-film flow uses dispersed-phase viscosity.
 
 **How to apply:** Preserve size- and source-resolved contact inventory until wetting, mobility, pressure/traction and lower-face passage are qualified. Never replace sparse polydisperse surface populations by mean-volume drops and call that merger; use explicit volume-additive events. Refine the genuinely interacting PBM case, not only a noninteracting inlet test.
+
+The end-design objective is a calculated top-settler diameter, effective calm-zone height, residence time and anti-swirl arrangement meeting <5 wt% NMP while preserving the established Ø700, 20-stage extraction section.
+
+**Why:** The user clarified that population/return studies must lead to an integrated sizing result, not remain isolated mechanism studies. The prior Ø700 ×1600 top reservation is not the final required top size.
+
+**How to apply:** Keep extraction internals unchanged; evaluate top geometry as a separate design variable. State the outlet mass-fraction basis explicitly and include dissolved NMP when assessing total NMP; settling cannot remove molecularly dissolved solvent. Do not claim compliance from droplet removal alone or an assumed residence time.
