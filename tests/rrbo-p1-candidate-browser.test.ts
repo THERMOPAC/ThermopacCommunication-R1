@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { execFileSync, execSync } from 'node:child_process';
-import { readFileSync, mkdtempSync } from 'node:fs';
+import { readFileSync, mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import puppeteer from 'puppeteer-core';
@@ -9,6 +9,44 @@ import { expect, it } from 'vitest';
 import { P1CandidatePanel, P1CandidateResults } from '../client/src/components/ecr-pre-pilot/p1-candidate-panel';
 import { build } from 'esbuild';
 import { resolve } from 'node:path';
+import { buildSelectionHtml, buildSelectionCsv } from '../client/src/components/ecr-pre-pilot/p1-selection-download';
+import { resolveAutomaticHydraulicSelection } from '../server/ecr-pre-pilot/automatic-hydraulic-selection';
+
+it('exports actual saved 700 mm selection, full references, provenance and limitations safely without scientific execution', () => {
+  const saved = JSON.parse(readFileSync('deliverables/p1-research-regression/integrated-saved-artifact.json', 'utf8'));
+  const run = { ...saved.metadata, basis: saved.stage1Basis, result: saved.result, immutableHash: saved.ledgerImmutableHash };
+  const automaticSelection = resolveAutomaticHydraulicSelection(run, saved.currentStage1Hash);
+  const summary = { ...run, result: { engine: run.result.engine }, automaticSelection, privateUserEmail: 'do-not-export@example.test' };
+  const html = buildSelectionHtml(summary);
+  expect(automaticSelection.selected.geometry.columnDiameterM).toBe(.7);
+  expect(html).toContain('<td>Column diameter (m)</td><td>0.7</td>');
+  expect(html).toContain(automaticSelection.immutableHash);
+  expect(html).toContain(automaticSelection.policy.version);
+  expect(html).toContain('No RPM-window criterion');
+  expect(html).toContain('not proof of convexity or a unique physical optimum');
+  expect(html).toContain('mass-transfer adequacy');
+  expect(html).toContain('UNKNOWN');
+  expect(html).not.toContain('do-not-export@example.test');
+  const csv = buildSelectionCsv(summary);
+  expect(csv.trim().split('\r\n')).toHaveLength(automaticSelection.references.length + 1);
+  for (const p of automaticSelection.references) {
+    expect(html).toContain(`<td>${p.areaM2}</td>`);
+    expect(csv).toContain(`"${p.geometry.columnDiameterM}","${p.feasibleConfigurationCount}","${p.trial.rpm}"`);
+  }
+  const unsafe = structuredClone(summary);
+  unsafe.automaticSelection.rationale = '<script>alert("x")</script>&';
+  unsafe.automaticSelection.references[0].geometry.freeArea = '=HYPERLINK("bad")';
+  unsafe.automaticSelection.references[0].normalizedScore = -0.123;
+  expect(buildSelectionHtml(unsafe)).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;&amp;');
+  expect(buildSelectionHtml(unsafe)).not.toContain('<script>');
+  expect(buildSelectionCsv(unsafe)).toContain(`"'=HYPERLINK(""bad"")"`);
+  expect(buildSelectionCsv(unsafe)).toContain('"-0.123"');
+  expect(buildSelectionCsv(unsafe)).not.toContain(`"'-0.123"`);
+  const blocked = { ...summary, automaticSelection: { ...automaticSelection, selected: null, references: [], status: 'NO_ELIGIBLE_HYDRAULIC_CONFIGURATION' } };
+  expect(buildSelectionHtml(blocked)).toContain('Stage 4 is blocked');
+  expect(() => buildSelectionHtml({ ...summary, stale: true })).toThrow('current verified');
+  expect(() => buildSelectionHtml({})).toThrow('current verified');
+});
 
 it('mounts the real panel: slow polling, both phases, blocked input, retry and design isolation (GET-only intercepted API)', async () => {
   const compiled = await build({
@@ -148,7 +186,8 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
         status: 'AUTOMATIC_DISCRETE_KNEE_SELECTED', policy: { version: 'controlled-auto-policy' },
         selected: { geometry: { columnDiameterM: .7, rotorDiameterM: .231, compartmentHeightM: .21, freeArea: .4 },
           trial: { rpm: 30 }, loading: .3877, minimumHoldupGap: .1, minimumInterfacialAreaM2M3: 30 },
-        references: [],
+        references: [{ geometry: { columnDiameterM: .7, rotorDiameterM: .231, compartmentHeightM: .21, freeArea: .4 },
+          trial: { rpm: 30 }, loading: .3877, areaM2: .3848451000647496, feasibleConfigurationCount: 1 }],
       } } : {}),
     });
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -158,6 +197,31 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     expect(await page.$eval('[data-testid=automatic-stage3-selection]', e => e.textContent)).toContain('Why this diameter');
     expect(fullDetailRequests).toEqual([]);
     expect(posts).toBe(0); // Viewing persisted evidence automatically selects; no user choice or approval.
+    // Actual mounted buttons produce browser download files from the summary, without any API request.
+    const downloads = mkdtempSync(join(tmpdir(), 'p1-downloads-'));
+    const session = await page.createCDPSession();
+    await session.send('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloads });
+    const exportRequests: string[] = [];
+    const recordExportRequest = (req: any) => { if (req.url().includes('/api/')) exportRequests.push(req.url()); };
+    page.on('request', recordExportRequest);
+    for (const [label, extension] of [['Download results (HTML)', 'html'], ['Download comparison (CSV)', 'csv']]) {
+      await page.evaluate(label => [...document.querySelectorAll('button')].find(b => b.textContent === label)!.click(), label);
+      const path = join(downloads, `stage3-hydraulic-selection-latest-match.${extension}`);
+      await expect.poll(() => existsSync(path), { timeout: 2000, interval: 20 }).toBe(true);
+      const downloaded = readFileSync(path, 'utf8');
+      if (extension === 'html') {
+        expect(downloaded).toContain('<td>Column diameter (m)</td><td>0.7</td>');
+        expect(downloaded).toContain('controlled-auto-policy');
+        expect(downloaded).toContain('No RPM-window criterion');
+      } else {
+        expect(downloaded).toContain('"0.7","1","30"');
+        expect(downloaded).toContain('"Automatically selected"');
+      }
+    }
+    page.off('request', recordExportRequest);
+    expect(exportRequests).toEqual([]);
+    expect(fullDetailRequests).toEqual([]);
+    expect(posts).toBe(0);
     // A failed same-id summary must actually reload when Retry is clicked.
     summaryFailure = true;
     await mount(244);
@@ -208,6 +272,7 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     candidateDetails.set(savedAgain.id, { ...savedAgain, result: { status: 'SAVED-AGAIN', blockers: [], orientationComparison: [], engine: { version: 'controlled-method' } } });
     await page.evaluate(() => window.dispatchEvent(new Event('ecr-stage1-saved')));
     await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: completed'));
+    await page.waitForFunction(() => !document.body.textContent?.includes('Verifying saved candidate and loading automatic selection'));
     await page.evaluate(() => [...document.querySelectorAll('summary')].find(e => e.textContent?.startsWith('Historical engine selection provenance'))!.click());
     await page.waitForFunction(() => document.body.textContent?.includes('Historical engine result: SAVED-AGAIN'));
     // Stale history remains archive-only and never fills the current area.

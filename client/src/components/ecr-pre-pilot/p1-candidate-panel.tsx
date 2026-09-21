@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { downloadSelection } from "./p1-selection-download";
 
 const number = (value: unknown) => typeof value === "number" ? Number(value.toPrecision(6)).toString() : "—";
 async function request(url: string, init?: RequestInit) {
@@ -59,6 +60,11 @@ export function P1CandidateResults({ run, fullUrl }: { run: any; fullUrl?: strin
       <p>{automatic.status === "SMALLEST_FEASIBLE_NO_RESOLVED_KNEE" ? "No resolved interior diminishing-returns evidence; automatically using smallest eligible diameter." : "Maximum positive discrete global chord departure over the full configured envelope."}</p>
       <h4 className="mt-2 font-semibold">Why this diameter</h4>
       <p>{automatic.rationale} {automatic.sensitivity}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" disabled={!!run.stale} onClick={() => downloadSelection(run, "html")}>Download results (HTML)</Button>
+        <Button size="sm" variant="outline" disabled={!!run.stale || !automatic.references?.length} onClick={() => downloadSelection(run, "csv")}>Download comparison (CSV)</Button>
+      </div>
+      <p className="mt-1">HTML report opens in your browser and can be printed to PDF. Downloads use only this loaded automatic result; no new calculation.</p>
       <details className="mt-2">
         <summary className="cursor-pointer font-semibold">System shortlist and diameter-to-diameter comparison</summary>
         <p>{automatic.rationale} {automatic.sensitivity}. Normalized score is not scientific confidence. Bounds and grid can change the result.</p>
