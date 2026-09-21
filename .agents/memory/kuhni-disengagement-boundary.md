@@ -56,3 +56,9 @@ The coupled sizing sequence is Stage-20 outlet DSD → terminal flow → anti-sw
 **Why:** The user permits Ø900, Ø1000 or another calculated top diameter; Ø700 ×1600 is only a reference case. Required outputs include return hydraulics as well as diameter, effective calm height, residence time, anti-swirl arrangement and predicted physical separation.
 
 **How to apply:** Use this coupled sequence to compare top candidates without changing the established Ø700, 20-stage extraction section. Keep assumed Stage-20 DSD/loading explicit rather than treating inherited compartment means or donor widths as measured outlet inputs.
+
+Use one frozen Stage-20 boundary contract across all candidate tops, retaining loading, DSD and spatial one-way flux uncertainties as a controlled envelope. Establish that contract and the terminal/return domain before enlarged-top sizing.
+
+**Why:** The user explicitly approved this methodology and requires steady operation with bounded NMP inventory; a low outlet obtained through indefinite accumulation is a failed design.
+
+**How to apply:** The terminal domain must include the final rotor compartment, actual plate openings/thickness and both faces. Export axial/radial/tangential velocity and pressure with source-labelled bidirectional droplet flux, recrossings and unresolved contact inventory. Preserve top-flow feedback when transferring boundaries; compare candidate outlet and physically closed return at the same duty, never replace lower-face return with upper-face crossing.
