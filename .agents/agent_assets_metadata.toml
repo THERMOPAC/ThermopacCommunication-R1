@@ -1633,3 +1633,17 @@ mtime_ms = 1790007574238
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/0261a736-9d3a-4d20-9fe5-0c04816ef6c9/810369a5-29fa-4643-aaae-8c7d5f0c0f33"
 storage_version_token = "1790007680531221"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "uhyM-zEUhIRAU4fjdKHay"
+uri = "file://deliverables/kuhni-upward-transport-dsd.md"
+type = "text"
+title = "Kühni Upward-Transported DSD Calculation"
+description = "Reproducible flux-weighted droplet distributions, holdup-normalized transport rates, mobility and diameter sensitivities, and numerical verification. Conditional calculation only; saved geometry and database records unchanged."
+logical_id = "affb77a2-f1b0-4d49-a5d0-12e0d643b484"
+content_hash = "sha256:d725a40352b13a4fa226622712e84f00780bafada5e6b636c2dd9a82f2689722"
+size = 11256
+mtime_ms = 1790008417152
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/affb77a2-f1b0-4d49-a5d0-12e0d643b484/1301c807-92b6-4a68-9714-b4bf59c51cba"
+storage_version_token = "1790008491462443"
+content_type = "text/markdown"

@@ -1,0 +1,1842 @@
+{
+  "status": "OFFLINE CONDITIONAL ONE-WAY PLANE TRANSPORT; EQUIPMENT PERFORMANCE HOLD",
+  "classification": {
+    "I": "Inherited fixed properties, calculated mean and 700 x 1600 mm top reservation",
+    "A": "Assumed local number-lognormal, widths, uniform dilute slip; unknown alpha",
+    "C": "Calculated conditional transport, not measured/predicted actual carryover",
+    "E": "Reporting cutoffs and larger comparison diameters, not capture duties or selected geometry"
+  },
+  "basis": {
+    "d32_mm": 6.068,
+    "Qc_m3_h": 3.82179423,
+    "rhoC_kg_m3": 869,
+    "rhoD_kg_m3": 1015,
+    "muC_Pa_s": 0.0598,
+    "muD_Pa_s": 0.001416,
+    "sigma_N_m": 0.011,
+    "g_m_s2": 9.80665
+  },
+  "unchanged_top_reservation_mm": [
+    700,
+    1600
+  ],
+  "lambda": 0.023678929765886286,
+  "model": {
+    "pV_local_per_mm": "phi((ln(d/mm)-muV)/s)/(s*d_mm)",
+    "muN": "ln(6.068)-2.5*s^2",
+    "muV": "ln(6.068)+0.5*s^2",
+    "Jup": "alpha*pVlocal(d)*max(U-vt(d),0)",
+    "K_up": "integral pVlocal(d)*max(U-vt(d),0) dd [m/s]",
+    "pVup": "pVlocal(d)*max(U-vt(d),0)/K_up; defined only for K_up>0",
+    "d32up": "1 / integral pVup(d)/d dd",
+    "U": "Qc/A nominal dilute velocity; no finite-holdup velocity correction",
+    "absoluteScaling": "Qup=A*alpha*K_up; ppmv relative to continuous Qc = alpha*(K_up/U)*1e6, NOT total-dispersion denominator",
+    "mobility": "Myint et al. 2006 DOI 10.1299/jfst.1.72 Eq.9 clean C/mu=0: CD=24/Re*(2+3lambda)/(3*(1+lambda))*(1+0.15Re^0.687). EXTRAPOLATION: lambda=0.02368 below tested 0.1; contributing Re and Eo also partly below tested ranges (0.17<Re<200, 0.017<Eo<12.1). Not validation or guaranteed bound. Correct creeping limit is HR, v/Stokes=3*(1+lambda)/(2+3lambda).",
+    "sn": "Inherited isolated spherical immobile-interface Schiller-Naumann model; base threshold unchanged; not physical validation",
+    "support": "Physical assumed lognormal support (0,infinity), not donor detection bounds. Numerical z>=-16; upward support ends at exact vt=U root. Coarse local tail above root has zero upward weight, not a need to extrapolate its drag.",
+    "undefinedCases": "If alpha=0 there is no physical upward flux; normalized kernel is only a conditional mathematical shape. If K_up=0 its normalized DSD, percentiles and d32 are undefined; all evaluated lognormal cases have K_up>0."
+  },
+  "interpretation": [
+    "s=.35/.44 are conditional donor-width transfers, not fitted RRBO widths or confidence limits; .70/1 are analyst broad stresses.",
+    "Same assumed local DSD and alpha at all diameters: conditional transport sensitivity, NOT a solved modified steady field or geometry selection.",
+    "Snapshot one-way crossing flux is not steady outlet escape. No turbulence, coalescence, breakup, spatial holdup, resupply or residence-time closure.",
+    "No fresh solvent flow used as entrainment source or holdup. No actual alpha, absolute ppm or carryover established.",
+    "No capture efficiency assigned. Retain 700 reservation; neither certify nor reject it from these conditional tails.",
+    "Need local/plane-resolved DSD and alpha, upward velocities, feed/drop supply, evolving quiet-zone population and agreed actual carryover limit."
+  ],
+  "sourceSha256": {
+    "kuhni-top-dsd-investigation.mjs": "056795ea962728dc5daeaa958a406832d96f4f83dadfe9c471216a32f6eadc7f",
+    "kuhni-top-dsd-investigation.results.json": "4373cdd03c1e3fc64a188ab21922df94c6f5037967614adfed1bc619cf0cdfc8",
+    "top-disengager-physics.mjs": "374fad6b1ec8b7d1378d92274f8f437761348d21e85f48eb49521e6834d43b32",
+    "top-disengager-physics.results.json": "3bc8994bf868fa4e1cb32ef4e11b7a702630b6c09d936d75e53ea76618b52666",
+    "kuhni-dsd-moment-analysis.md": "71926b735a6c30164bb3f2477fdef05868b038ea64d7b022df6e4cdc8384c07f",
+    "kuhni-outlet-dsd-literature.md": "3dfb037b785048007f3236d5785772408a2d381d9cea0861d033e1fed956898e",
+    "kuhni-terminal-coalescence-review.md": "ca9fbc741d1ae4f45e526d043a7d0c6186d3db8765c37d7d7fc73a6ff756ca6b",
+    "disengager-drag-evidence.md": "2dd4f6daeed609685b9727e24079b263e1854f1b2ef3eb649e1d730638746009"
+  },
+  "momentChecks": [
+    {
+      "s": 0.35,
+      "moments": [
+        {
+          "k": 0,
+          "analytic": 1,
+          "numerical": 1.0000000000000002
+        },
+        {
+          "k": 1,
+          "analytic": 4.749451138051657,
+          "numerical": 4.749451138051657
+        },
+        {
+          "k": 2,
+          "analytic": 25.496931790210187,
+          "numerical": 25.496931790210187
+        },
+        {
+          "k": 3,
+          "analytic": 154.71538210299528,
+          "numerical": 154.71538210299542
+        }
+      ],
+      "inverse_volume_per_mm": 0.16479894528675018,
+      "vt_zero_K_over_U": 1.0000000000000002,
+      "vt_zero_d32_mm": 6.0680000000000005
+    },
+    {
+      "s": 0.44,
+      "moments": [
+        {
+          "k": 0,
+          "analytic": 1,
+          "numerical": 1.0000000000000002
+        },
+        {
+          "k": 1,
+          "analytic": 4.119900701471031,
+          "numerical": 4.119900701471031
+        },
+        {
+          "k": 2,
+          "analytic": 20.599321183031478,
+          "numerical": 20.59932118303148
+        },
+        {
+          "k": 3,
+          "analytic": 124.99668093863501,
+          "numerical": 124.99668093863501
+        }
+      ],
+      "inverse_volume_per_mm": 0.16479894528675018,
+      "vt_zero_K_over_U": 1.0000000000000002,
+      "vt_zero_d32_mm": 6.0680000000000005
+    },
+    {
+      "s": 0.7,
+      "moments": [
+        {
+          "k": 0,
+          "analytic": 1,
+          "numerical": 1.0000000000000002
+        },
+        {
+          "k": 1,
+          "analytic": 2.277387747830293,
+          "numerical": 2.277387747830293
+        },
+        {
+          "k": 2,
+          "analytic": 8.46599983807793,
+          "numerical": 8.46599983807793
+        },
+        {
+          "k": 3,
+          "analytic": 51.371687017456885,
+          "numerical": 51.37168701745688
+        }
+      ],
+      "inverse_volume_per_mm": 0.16479894528675015,
+      "vt_zero_K_over_U": 1.0000000000000002,
+      "vt_zero_d32_mm": 6.068000000000001
+    },
+    {
+      "s": 1,
+      "moments": [
+        {
+          "k": 0,
+          "analytic": 1,
+          "numerical": 1.0000000000000002
+        },
+        {
+          "k": 1,
+          "analytic": 0.8212144986797658,
+          "numerical": 0.8212144986797659
+        },
+        {
+          "k": 2,
+          "analytic": 1.8331909244354119,
+          "numerical": 1.833190924435412
+        },
+        {
+          "k": 3,
+          "analytic": 11.12380252947408,
+          "numerical": 11.123802529474085
+        }
+      ],
+      "inverse_volume_per_mm": 0.16479894528675018,
+      "vt_zero_K_over_U": 1.0000000000000002,
+      "vt_zero_d32_mm": 6.0680000000000005
+    }
+  ],
+  "rows": [
+    {
+      "diameter_mm": 700,
+      "s": 0.35,
+      "model": "SN",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.4553431783600201,
+      "zero_net_Re": 0.05833951915481428,
+      "zero_net_Eo": 0.27568407225556907,
+      "mu_volume_log_mm": 1.8642790614862859,
+      "K_up_m_s": 3.725489837235409e-9,
+      "K_up_over_U": 0.0000013505309607220394,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.3665526822780118e-13,
+          "upward_volume_flux_CDF": 9.004706884270006e-8,
+          "upward_survival_fraction": 0.9999999104885627
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 5.005844352054162e-8,
+          "upward_volume_flux_CDF": 0.021302552641877727,
+          "upward_survival_fraction": 0.9786974478982438
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000010449359905081321,
+          "upward_volume_flux_CDF": 0.9999946170468081,
+          "upward_survival_fraction": 0.000005382955316469841
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0006132201535114705,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.000010480873061139498,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 1.1212592310284923
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.2949092275041603
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.4013622964307761
+        }
+      ],
+      "d32_up_mm": 1.2644030269743818,
+      "Qup_m3_h_per_unit_alpha": 0.000005161451433123847,
+      "ppmv_relative_Qc_per_unit_alpha": 1.3505309607220393,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 5.1614514331238474e-8,
+        "ppmv_relative_Qc": 0.013505309607220394
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 8.575068988214696e-9,
+        "main_refined_relative_error": 5.044554773903087e-10,
+        "z_lower": -16,
+        "z_upper": -4.254392363594112,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 0.44,
+      "model": "SN",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.4553431783600201,
+      "zero_net_Re": 0.05833951915481428,
+      "zero_net_Eo": 0.27568407225556907,
+      "mu_volume_log_mm": 1.8998290614862858,
+      "K_up_m_s": 1.3240647942577836e-7,
+      "K_up_over_U": 0.000047998802218560464,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.894765191272594e-9,
+          "upward_volume_flux_CDF": 0.00003531770081135397,
+          "upward_survival_fraction": 0.9999646826647031
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000007879844826238152,
+          "upward_volume_flux_CDF": 0.09806077082859407,
+          "upward_survival_fraction": 0.9019392295396975
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0002646161940281886,
+          "upward_volume_flux_CDF": 0.9999974621818148,
+          "upward_survival_fraction": 0.000002537819126435682
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.003998121058907004,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.00026514413400473253,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 1.0021793343871463
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.2294644514785982
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.3775982044103088
+        }
+      ],
+      "d32_up_mm": 1.185904490001292,
+      "Qup_m3_h_per_unit_alpha": 0.00018344154536580558,
+      "ppmv_relative_Qc_per_unit_alpha": 47.99880221856046,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.0000018344154536580559,
+        "ppmv_relative_Qc": 0.47998802218560466
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 5.83314863078499e-9,
+        "main_refined_relative_error": 3.431458450720015e-10,
+        "z_lower": -16,
+        "z_upper": -3.4649711983134983,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 0.7,
+      "model": "SN",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.4553431783600201,
+      "zero_net_Re": 0.05833951915481428,
+      "zero_net_Eo": 0.27568407225556907,
+      "mu_volume_log_mm": 2.048029061486286,
+      "K_up_m_s": 0.000007444186731301113,
+      "K_up_over_U": 0.0026985994049788828,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00004502145788589963,
+          "upward_volume_flux_CDF": 0.015168245964757725,
+          "upward_survival_fraction": 0.9848317542371309
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0017181027372236608,
+          "upward_volume_flux_CDF": 0.42081641807155223,
+          "upward_survival_fraction": 0.5791835821109099
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00842342750254197,
+          "upward_volume_flux_CDF": 0.999999338948066,
+          "upward_survival_fraction": 6.610521724030057e-7
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.030133902072542303,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.008431157715718495,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.7142100285947699
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.0502932389980384
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.3075260046658221
+        }
+      ],
+      "d32_up_mm": 0.966461838504235,
+      "Qup_m3_h_per_unit_alpha": 0.010313491635029728,
+      "ppmv_relative_Qc_per_unit_alpha": 2698.599404978883,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.00010313491635029728,
+        "ppmv_relative_Qc": 26.98599404978883
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 3.2030754715250964e-9,
+        "main_refined_relative_error": 1.884219447134683e-10,
+        "z_lower": -16,
+        "z_upper": -2.3896961817970563,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 1,
+      "model": "SN",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.4553431783600201,
+      "zero_net_Re": 0.05833951915481428,
+      "zero_net_Eo": 0.27568407225556907,
+      "mu_volume_log_mm": 2.303029061486286,
+      "K_up_m_s": 0.00003274901018265417,
+      "K_up_over_U": 0.011871875677292592,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.001366941876339739,
+          "upward_volume_flux_CDF": 0.10637331133120839,
+          "upward_survival_fraction": 0.8936266888502874
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.010638604013059895,
+          "upward_volume_flux_CDF": 0.6448036457891043,
+          "upward_survival_fraction": 0.35519635434893837
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.026926122702049055,
+          "upward_volume_flux_CDF": 0.9999997148276939,
+          "upward_survival_fraction": 2.85172448255666e-7
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.058186560760230446,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.4553431783600201,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.026940792321488074,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.49024310146402134
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.8846466232524146
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.2361762585267015
+        }
+      ],
+      "d32_up_mm": 0.7546667487431937,
+      "Qup_m3_h_per_unit_alpha": 0.04537186596275417,
+      "ppmv_relative_Qc_per_unit_alpha": 11871.875677292592,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.00045371865962754175,
+        "ppmv_relative_Qc": 118.71875677292593
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 2.8763881276816505e-9,
+        "main_refined_relative_error": 1.692040951795093e-10,
+        "z_lower": -16,
+        "z_upper": -1.9277873272579393,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 900,
+      "s": 0.35,
+      "model": "SN",
+      "A_m2": 0.6361725123519332,
+      "U_m_s": 0.0016687447000948805,
+      "zero_net_mm": 1.1271318582164689,
+      "zero_net_Re": 0.027332742951174455,
+      "zero_net_Eo": 0.1653599364278718,
+      "mu_volume_log_mm": 1.8642790614862859,
+      "K_up_m_s": 5.955063126760205e-11,
+      "K_up_over_U": 3.56858848835392e-8,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.3665526822780118e-13,
+          "upward_volume_flux_CDF": 0.0000031325202740121716,
+          "upward_survival_fraction": 0.9999968682208996
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 5.005844352054162e-8,
+          "upward_volume_flux_CDF": 0.4166056466636996,
+          "upward_survival_fraction": 0.583394354034095
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000010449359905081321,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0006132201535114705,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1271318582164689,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 3.1048351053443474e-7,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.8943379826580014
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.0170010828706124
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.0904150023972676
+        }
+      ],
+      "d32_up_mm": 0.9957480136143816,
+      "Qup_m3_h_per_unit_alpha": 1.3638410894035433e-7,
+      "ppmv_relative_Qc_per_unit_alpha": 0.0356858848835392,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 1.3638410894035434e-9,
+        "ppmv_relative_Qc": 0.00035685884883539205
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 1.1834626834072992e-8,
+        "main_refined_relative_error": 6.962237453222997e-10,
+        "z_lower": -16,
+        "z_upper": -4.984579525622193,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 900,
+      "s": 0.44,
+      "model": "SN",
+      "A_m2": 0.6361725123519332,
+      "U_m_s": 0.0016687447000948805,
+      "zero_net_mm": 1.1271318582164689,
+      "zero_net_Re": 0.027332742951174455,
+      "zero_net_Eo": 0.1653599364278718,
+      "mu_volume_log_mm": 1.8998290614862858,
+      "K_up_m_s": 7.125444636389246e-9,
+      "K_up_over_U": 0.000004269942931344808,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.894765191272594e-9,
+          "upward_volume_flux_CDF": 0.00036648823308893,
+          "upward_survival_fraction": 0.9996335122890524
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000007879844826238152,
+          "upward_volume_flux_CDF": 0.617012159436802,
+          "upward_survival_fraction": 0.38298784099233996
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0002646161940281886,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.003998121058907004,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1271318582164689,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.000026072158473284805,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.8059956955554418
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.9698356881160886
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.073598619617749
+        }
+      ],
+      "d32_up_mm": 0.9390205017944822,
+      "Qup_m3_h_per_unit_alpha": 0.000016318843257442875,
+      "ppmv_relative_Qc_per_unit_alpha": 4.269942931344808,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 1.6318843257442876e-7,
+        "ppmv_relative_Qc": 0.04269942931344808
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 8.324594347186576e-9,
+        "main_refined_relative_error": 4.897191541175516e-10,
+        "z_lower": -16,
+        "z_upper": -4.04580189538129,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 900,
+      "s": 0.7,
+      "model": "SN",
+      "A_m2": 0.6361725123519332,
+      "U_m_s": 0.0016687447000948805,
+      "zero_net_mm": 1.1271318582164689,
+      "zero_net_Re": 0.027332742951174455,
+      "zero_net_Eo": 0.1653599364278718,
+      "mu_volume_log_mm": 2.048029061486286,
+      "K_up_m_s": 0.0000014655551239924939,
+      "K_up_over_U": 0.0008782380695556164,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00004502145788589963,
+          "upward_volume_flux_CDF": 0.043567934835621776,
+          "upward_survival_fraction": 0.9564320654481372
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0017181027372236608,
+          "upward_volume_flux_CDF": 0.8599202932944336,
+          "upward_survival_fraction": 0.14007970685480484
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00842342750254197,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.030133902072542303,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1271318582164689,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.002936492993824807,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.5837447711215107
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.8358990936776589
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.0223231161997708
+        }
+      ],
+      "d32_up_mm": 0.7747627842548437,
+      "Qup_m3_h_per_unit_alpha": 0.0033564451867939935,
+      "ppmv_relative_Qc_per_unit_alpha": 878.2380695556164,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.000033564451867939936,
+        "ppmv_relative_Qc": 8.782380695556164
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 4.491567340281222e-9,
+        "main_refined_relative_error": 2.642217555859361e-10,
+        "z_lower": -16,
+        "z_upper": -2.7547897628110967,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 900,
+      "s": 1,
+      "model": "SN",
+      "A_m2": 0.6361725123519332,
+      "U_m_s": 0.0016687447000948805,
+      "zero_net_mm": 1.1271318582164689,
+      "zero_net_Re": 0.027332742951174455,
+      "zero_net_Eo": 0.1653599364278718,
+      "mu_volume_log_mm": 2.303029061486286,
+      "K_up_m_s": 0.00001019869807282674,
+      "K_up_over_U": 0.0061115987797575435,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.001366941876339739,
+          "upward_volume_flux_CDF": 0.19550904394869253,
+          "upward_survival_fraction": 0.8044909562870683
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.010638604013059895,
+          "upward_volume_flux_CDF": 0.9337280783522869,
+          "upward_survival_fraction": 0.06627192173768387
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.026926122702049055,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.058186560760230446,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1271318582164689,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.014504918259225478,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.4043640556758239
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.7074387743233661
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.9681761271844198
+        }
+      ],
+      "d32_up_mm": 0.6106844553918604,
+      "Qup_m3_h_per_unit_alpha": 0.02335727295255242,
+      "ppmv_relative_Qc_per_unit_alpha": 6111.5987797575435,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.00023357272952552422,
+        "ppmv_relative_Qc": 61.115987797575436
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 3.782406721164477e-9,
+        "main_refined_relative_error": 2.225036821457138e-10,
+        "z_lower": -16,
+        "z_upper": -2.1833528339677675,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1000,
+      "s": 0.35,
+      "model": "SN",
+      "A_m2": 0.7853981633974483,
+      "U_m_s": 0.0013516832070768533,
+      "zero_net_mm": 1.0131768893869793,
+      "zero_net_Re": 0.019901178071267612,
+      "zero_net_Eo": 0.13361382477523567,
+      "mu_volume_log_mm": 1.8642790614862859,
+      "K_up_m_s": 9.128923011593488e-12,
+      "K_up_over_U": 6.753744489683846e-9,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.3665526822780118e-13,
+          "upward_volume_flux_CDF": 0.000015688097748348332,
+          "upward_survival_fraction": 0.9999843127271177
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 5.005844352054162e-8,
+          "upward_volume_flux_CDF": 0.9790338256311771,
+          "upward_survival_fraction": 0.020966174570981367
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000010449359905081321,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0006132201535114705,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.0131768893869793,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 6.145673674814791e-8,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.8124311503763985
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.918700532946549
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.9817771397791768
+        }
+      ],
+      "d32_up_mm": 0.9003863640517794,
+      "Qup_m3_h_per_unit_alpha": 2.581142172156802e-8,
+      "ppmv_relative_Qc_per_unit_alpha": 0.006753744489683846,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 2.581142172156802e-10,
+        "ppmv_relative_Qc": 0.00006753744489683846
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 1.31613634435368e-8,
+        "main_refined_relative_error": 7.742818608491575e-10,
+        "z_lower": -16,
+        "z_upper": -5.2891092346523,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1000,
+      "s": 0.44,
+      "model": "SN",
+      "A_m2": 0.7853981633974483,
+      "U_m_s": 0.0013516832070768533,
+      "zero_net_mm": 1.0131768893869793,
+      "zero_net_Re": 0.019901178071267612,
+      "zero_net_Eo": 0.13361382477523567,
+      "mu_volume_log_mm": 1.8998290614862858,
+      "K_up_m_s": 1.917344477967454e-9,
+      "K_up_over_U": 0.0000014184865713571291,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.894765191272594e-9,
+          "upward_volume_flux_CDF": 0.001048655866561254,
+          "upward_survival_fraction": 0.9989513447251352
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000007879844826238152,
+          "upward_volume_flux_CDF": 0.9899580587669322,
+          "upward_survival_fraction": 0.01004194133177795
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0002646161940281886,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.003998121058907004,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.0131768893869793,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.000009012773619771221,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.7345414589865358
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.8775476732658913
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.967198132383787
+        }
+      ],
+      "d32_up_mm": 0.850846880254545,
+      "Qup_m3_h_per_unit_alpha": 0.000005421163793745159,
+      "ppmv_relative_Qc_per_unit_alpha": 1.418486571357129,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 5.4211637937451586e-8,
+        "ppmv_relative_Qc": 0.014184865713571292
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 9.429618641476623e-9,
+        "main_refined_relative_error": 5.547295955921072e-10,
+        "z_lower": -16,
+        "z_upper": -4.288041436655238,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1000,
+      "s": 0.7,
+      "model": "SN",
+      "A_m2": 0.7853981633974483,
+      "U_m_s": 0.0013516832070768533,
+      "zero_net_mm": 1.0131768893869793,
+      "zero_net_Re": 0.019901178071267612,
+      "zero_net_Eo": 0.13361382477523567,
+      "mu_volume_log_mm": 2.048029061486286,
+      "K_up_m_s": 7.173427432808149e-7,
+      "K_up_over_U": 0.0005307033034997442,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00004502145788589963,
+          "upward_volume_flux_CDF": 0.0691115090405979,
+          "upward_survival_fraction": 0.9308884912808959
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0017181027372236608,
+          "upward_volume_flux_CDF": 0.99745397825905,
+          "upward_survival_fraction": 0.0025460217663706526
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00842342750254197,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.030133902072542303,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.0131768893869793,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.0018242474437088411,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.5355326151345272
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.7590524696684624
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.9221871219232575
+        }
+      ],
+      "d32_up_mm": 0.7054638071922572,
+      "Qup_m3_h_per_unit_alpha": 0.002028238823157261,
+      "ppmv_relative_Qc_per_unit_alpha": 530.7033034997442,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.000020282388231572612,
+        "ppmv_relative_Qc": 5.307033034997442
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 5.087313015295081e-9,
+        "main_refined_relative_error": 2.9926894296039563e-10,
+        "z_lower": -16,
+        "z_upper": -2.9070546173261502,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1000,
+      "s": 1,
+      "model": "SN",
+      "A_m2": 0.7853981633974483,
+      "U_m_s": 0.0013516832070768533,
+      "zero_net_mm": 1.0131768893869793,
+      "zero_net_Re": 0.019901178071267612,
+      "zero_net_Eo": 0.13361382477523567,
+      "mu_volume_log_mm": 2.303029061486286,
+      "K_up_m_s": 0.000006156177977068856,
+      "K_up_over_U": 0.004554453251203875,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.001366941876339739,
+          "upward_volume_flux_CDF": 0.25349057213582465,
+          "upward_survival_fraction": 0.7465094281222505
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.010638604013059895,
+          "upward_volume_flux_CDF": 0.9989508269843328,
+          "upward_survival_fraction": 0.0010491730292067141
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.026926122702049055,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.058186560760230446,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.0131768893869793,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.011012448772025991,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.37245542244873286
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.643736077229444
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.8739808336919668
+        }
+      ],
+      "d32_up_mm": 0.5582341334288783,
+      "Qup_m3_h_per_unit_alpha": 0.017406183156255712,
+      "ppmv_relative_Qc_per_unit_alpha": 4554.453251203875,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.00017406183156255713,
+        "ppmv_relative_Qc": 45.54453251203876
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 4.191649138896025e-9,
+        "main_refined_relative_error": 2.4657875741240787e-10,
+        "z_lower": -16,
+        "z_upper": -2.289938232128305,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1200,
+      "s": 0.35,
+      "model": "SN",
+      "A_m2": 1.1309733552923256,
+      "U_m_s": 0.0009386688938033703,
+      "zero_net_mm": 0.8429782511113306,
+      "zero_net_Re": 0.01149866412854975,
+      "zero_net_Eo": 0.0924940052653885,
+      "mu_volume_log_mm": 1.8642790614862859,
+      "K_up_m_s": 2.9125956935680844e-13,
+      "K_up_over_U": 3.102899981873914e-10,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.3665526822780118e-13,
+          "upward_volume_flux_CDF": 0.0002979296273591012,
+          "upward_survival_fraction": 0.9997020713313457
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 5.005844352054162e-8,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000010449359905081321,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0006132201535114705,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 0.8429782511113306,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 3.039825189090834e-9,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.6870013019209552
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.7701449134251616
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.8188835124268401
+        }
+      ],
+      "d32_up_mm": 0.7559401714822187,
+      "Qup_m3_h_per_unit_alpha": 1.185864524699283e-9,
+      "ppmv_relative_Qc_per_unit_alpha": 0.0003102899981873914,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 1.185864524699283e-11,
+        "ppmv_relative_Qc": 0.0000031028999818739138
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 1.528338355871739e-8,
+        "main_refined_relative_error": 8.991307698380524e-10,
+        "z_lower": -16,
+        "z_upper": -5.814551949122335,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1200,
+      "s": 0.44,
+      "model": "SN",
+      "A_m2": 1.1309733552923256,
+      "U_m_s": 0.0009386688938033703,
+      "zero_net_mm": 0.8429782511113306,
+      "zero_net_Re": 0.01149866412854975,
+      "zero_net_Eo": 0.0924940052653885,
+      "mu_volume_log_mm": 1.8998290614862858,
+      "K_up_m_s": 1.746816739815648e-10,
+      "K_up_over_U": 1.8609509182069113e-7,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.894765191272594e-9,
+          "upward_volume_flux_CDF": 0.007030327588024247,
+          "upward_survival_fraction": 0.9929696731264913
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000007879844826238152,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0002646161940281886,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.003998121058907004,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 0.8429782511113306,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.0000012630777996007177,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.6243973296127643
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.7375967769859986
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.8074642187442806
+        }
+      ],
+      "d32_up_mm": 0.7167111279170706,
+      "Qup_m3_h_per_unit_alpha": 7.112171481516377e-7,
+      "ppmv_relative_Qc_per_unit_alpha": 0.18609509182069114,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 7.1121714815163766e-9,
+        "ppmv_relative_Qc": 0.0018609509182069114
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 1.1370772323715528e-8,
+        "main_refined_relative_error": 6.689342413324084e-10,
+        "z_lower": -16,
+        "z_upper": -4.706007232256402,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1200,
+      "s": 0.7,
+      "model": "SN",
+      "A_m2": 1.1309733552923256,
+      "U_m_s": 0.0009386688938033703,
+      "zero_net_mm": 0.8429782511113306,
+      "zero_net_Re": 0.01149866412854975,
+      "zero_net_Eo": 0.0924940052653885,
+      "mu_volume_log_mm": 2.048029061486286,
+      "K_up_m_s": 1.987819683635473e-7,
+      "K_up_over_U": 0.00021177006042898401,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00004502145788589963,
+          "upward_volume_flux_CDF": 0.15585987619727257,
+          "upward_survival_fraction": 0.844140124191417
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0017181027372236608,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00842342750254197,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.030133902072542303,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 0.8429782511113306,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.0007627825438082557,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.46035560265683884
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.6417768619122308
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.7715081657683671
+        }
+      ],
+      "d32_up_mm": 0.5990802183946509,
+      "Qup_m3_h_per_unit_alpha": 0.0008093415950342425,
+      "ppmv_relative_Qc_per_unit_alpha": 211.770060428984,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.000008093415950342424,
+        "ppmv_relative_Qc": 2.11770060428984
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 6.188659584793754e-9,
+        "main_refined_relative_error": 3.640612256106124e-10,
+        "z_lower": -16,
+        "z_upper": -3.1697759745611673,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 1200,
+      "s": 1,
+      "model": "SN",
+      "A_m2": 1.1309733552923256,
+      "U_m_s": 0.0009386688938033703,
+      "zero_net_mm": 0.8429782511113306,
+      "zero_net_Re": 0.01149866412854975,
+      "zero_net_Eo": 0.0924940052653885,
+      "mu_volume_log_mm": 2.303029061486286,
+      "K_up_m_s": 0.0000025131121086559914,
+      "K_up_over_U": 0.002677314786125672,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.001366941876339739,
+          "upward_volume_flux_CDF": 0.39630803330645803,
+          "upward_survival_fraction": 0.6036919669839789
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.010638604013059895,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.026926122702049055,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.058186560760230446,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 0.8429782511113306,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.006683417770504093,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.3224482108566293
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.546262442733181
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 0.7321085977188573
+        }
+      ],
+      "d32_up_mm": 0.47721847797113176,
+      "Qup_m3_h_per_unit_alpha": 0.010232146201508778,
+      "ppmv_relative_Qc_per_unit_alpha": 2677.314786125672,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.00010232146201508778,
+        "ppmv_relative_Qc": 26.77314786125672
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 4.9401386315039986e-9,
+        "main_refined_relative_error": 2.9061175688127605e-10,
+        "z_lower": -16,
+        "z_upper": -2.473843182192817,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 0.35,
+      "model": "Myint_clean_EXTRAPOLATION",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.1935464336309987,
+      "zero_net_Re": 0.047845021066055905,
+      "zero_net_Eo": 0.1854212416972098,
+      "mu_volume_log_mm": 1.8642790614862859,
+      "K_up_m_s": 2.313223386322425e-10,
+      "K_up_over_U": 8.385688698088126e-8,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.3665526822780118e-13,
+          "upward_volume_flux_CDF": 0.0000013637823024259618,
+          "upward_survival_fraction": 0.9999986369114228
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 5.005844352054162e-8,
+          "upward_volume_flux_CDF": 0.22152125052391333,
+          "upward_survival_fraction": 0.7784787501666078
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000010449359905081321,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0006132201535114705,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1935464336309987,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 7.142018893354534e-7,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.9412518271684219
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.073818924028014
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.1535548716479047
+        }
+      ],
+      "d32_up_mm": 1.0507821419325791,
+      "Qup_m3_h_per_unit_alpha": 3.204837668092941e-7,
+      "ppmv_relative_Qc_per_unit_alpha": 0.08385688698088126,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 3.2048376680929413e-9,
+        "ppmv_relative_Qc": 0.0008385688698088126
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 1.1082270767737157e-8,
+        "main_refined_relative_error": 6.519602635535193e-10,
+        "z_lower": -16,
+        "z_upper": -4.8209999714745395,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 0.44,
+      "model": "Myint_clean_EXTRAPOLATION",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.1935464336309987,
+      "zero_net_Re": 0.047845021066055905,
+      "zero_net_Eo": 0.1854212416972098,
+      "mu_volume_log_mm": 1.8998290614862858,
+      "K_up_m_s": 2.0748574850706482e-8,
+      "K_up_over_U": 0.000007521586140611212,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 1.894765191272594e-9,
+          "upward_volume_flux_CDF": 0.00021259403089872824,
+          "upward_survival_fraction": 0.9997874064531617
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.000007879844826238152,
+          "upward_volume_flux_CDF": 0.42370192656452726,
+          "upward_survival_fraction": 0.5762980738852576
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0002646161940281886,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.003998121058907004,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1935464336309987,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.00004507454231690853,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.8467140325325339
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 1.0230306160173872
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.1353762125585147
+        }
+      ],
+      "d32_up_mm": 0.9897358067249943,
+      "Qup_m3_h_per_unit_alpha": 0.000028745954512635896,
+      "ppmv_relative_Qc_per_unit_alpha": 7.521586140611212,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 2.8745954512635894e-7,
+        "ppmv_relative_Qc": 0.07521586140611211
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 7.719002104167316e-9,
+        "main_refined_relative_error": 4.5409187521272543e-10,
+        "z_lower": -16,
+        "z_upper": -3.9156817954911105,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 0.7,
+      "model": "Myint_clean_EXTRAPOLATION",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.1935464336309987,
+      "zero_net_Re": 0.047845021066055905,
+      "zero_net_Eo": 0.1854212416972098,
+      "mu_volume_log_mm": 2.048029061486286,
+      "K_up_m_s": 0.0000031405872485103847,
+      "K_up_over_U": 0.0011384973518300068,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00004502145788589963,
+          "upward_volume_flux_CDF": 0.03422272381956187,
+          "upward_survival_fraction": 0.9657772764430105
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.0017181027372236608,
+          "upward_volume_flux_CDF": 0.7521848556677637,
+          "upward_survival_fraction": 0.24781514450707431
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.00842342750254197,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.030133902072542303,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1935464336309987,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.00375881268337874,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.6109321742425612
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.8799148384300037
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.0803211997836955
+        }
+      ],
+      "d32_up_mm": 0.8142996965295679,
+      "Qup_m3_h_per_unit_alpha": 0.0043511026100942,
+      "ppmv_relative_Qc_per_unit_alpha": 1138.497351830007,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.000043511026100942,
+        "ppmv_relative_Qc": 11.384973518300068
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 4.157998390041939e-9,
+        "main_refined_relative_error": 2.445981195364766e-10,
+        "z_lower": -16,
+        "z_upper": -2.67299998573727,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    },
+    {
+      "diameter_mm": 700,
+      "s": 1,
+      "model": "Myint_clean_EXTRAPOLATION",
+      "A_m2": 0.3848451000647496,
+      "U_m_s": 0.002758537157299701,
+      "zero_net_mm": 1.1935464336309987,
+      "zero_net_Re": 0.047845021066055905,
+      "zero_net_Eo": 0.1854212416972098,
+      "mu_volume_log_mm": 2.303029061486286,
+      "K_up_m_s": 0.000019626570965289593,
+      "K_up_over_U": 0.007114847415904234,
+      "tails": [
+        {
+          "cutoff_mm": 0.5,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.001366941876339739,
+          "upward_volume_flux_CDF": 0.17044251100926572,
+          "upward_survival_fraction": 0.8295574892119195
+        },
+        {
+          "cutoff_mm": 1,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.010638604013059895,
+          "upward_volume_flux_CDF": 0.874748580492739,
+          "upward_survival_fraction": 0.12525141961826575
+        },
+        {
+          "cutoff_mm": 1.455,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.026926122702049055,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 2.081,
+          "role": "reporting cutoff only",
+          "local_volume_CDF": 0.058186560760230446,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        },
+        {
+          "cutoff_mm": 1.1935464336309987,
+          "role": "actual model zero-net root",
+          "local_volume_CDF": 0.01674746738541911,
+          "upward_volume_flux_CDF": 1,
+          "upward_survival_fraction": 0
+        }
+      ],
+      "volume_flux_percentiles": [
+        {
+          "probability": 0.1,
+          "diameter_mm": 0.4222454068498211
+        },
+        {
+          "probability": 0.5,
+          "diameter_mm": 0.7437647851769045
+        },
+        {
+          "probability": 0.9,
+          "diameter_mm": 1.022627241493132
+        }
+      ],
+      "d32_up_mm": 0.6404108198073348,
+      "Qup_m3_h_per_unit_alpha": 0.027191482801433218,
+      "ppmv_relative_Qc_per_unit_alpha": 7114.847415904234,
+      "illustrative_alpha_0_01": {
+        "status": "PER 1 VOL% LOCAL HOLDUP SCALING ONLY; NOT ACTUAL HOLDUP OR ACTUAL PPM",
+        "Qup_m3_h": 0.0002719148280143322,
+        "ppmv_relative_Qc": 71.14847415904234
+      },
+      "checks": {
+        "normalized": true,
+        "dense_1001_point_monotonic_finite": true,
+        "coarse_refined_relative_error": 3.5336952253217646e-9,
+        "main_refined_relative_error": 2.0787216392648133e-10,
+        "z_lower": -16,
+        "z_upper": -2.1260999900160886,
+        "omitted_local_volume_lower_tail_bound": 6.413519204949397e-58,
+        "omitted_K_over_U_bound": 6.413519204949397e-58,
+        "lower_support_extended_to_minus18_agrees": true
+      }
+    }
+  ],
+  "checks": {
+    "status": "PASS numerical mathematics only",
+    "protected_files_unchanged": 353,
+    "local_CDF_matches_prior": true,
+    "inherited_exact_SN_root_matches": true,
+    "no_slip_limit": true,
+    "larger_area_transport_monotonic": true,
+    "no_app_DB_network_access": true
+  }
+}
