@@ -1703,3 +1703,31 @@ mtime_ms = 1790012515028
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/dac1caf9-0fe0-4b8f-b3b1-cfaa95751006/b6301571-b85e-47c6-ba19-2619251ca85d"
 storage_version_token = "1790012714213998"
 content_type = "image/svg+xml"
+
+[[outputs]]
+id = "qU3g2adAvXg5OX9G5xo7K"
+uri = "file://deliverables/kuhni-coalescence-model.md"
+type = "text"
+title = "Quiet-zone coalescence and plate-contact population"
+description = "Conservative population balance, matched numerical sensitivity tests, and explicitly conditional surface growth/release scenarios. Actual drainage and re-entrainment remain unqualified."
+logical_id = "d2791566-61e5-48b2-8675-06dbf1dc0508"
+content_hash = "sha256:6563182c78d24eb70f30c43b16ea768855fb38978b7a1ad5f8c1edae98aebd25"
+size = 16303
+mtime_ms = 1790015819912
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/d2791566-61e5-48b2-8675-06dbf1dc0508/183a3fb6-145e-4afe-a8e3-fd535b56707e"
+storage_version_token = "1790015874028250"
+content_type = "text/markdown"
+
+[[outputs]]
+id = "7ldGy1FF0JLkFtkb9Rl9o"
+uri = "file://deliverables/kuhni-coalescence-evidence.md"
+type = "text"
+title = "Coalescence, wetting and drainage evidence"
+description = "Primary-source review distinguishing collision, oil-film rupture, plate wetting, connected-film drainage and re-entrainment, with applicability limits."
+logical_id = "c9420d1d-92da-4ab5-b233-bc9fbb3f4b9b"
+content_hash = "sha256:9a1c83e19d43580f589b2e0953e6ec3024ecc0c33950c073cc0b178d81e74f29"
+size = 26464
+mtime_ms = 1790013401690
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c9420d1d-92da-4ab5-b233-bc9fbb3f4b9b/308e90e4-dd28-4c55-907d-2b0c7c2d8087"
+storage_version_token = "1790015875753832"
+content_type = "text/markdown"

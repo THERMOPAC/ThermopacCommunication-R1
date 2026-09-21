@@ -38,3 +38,9 @@ Spatial droplet benchmarks require direct velocity-boundary checks on the interp
 **Why:** An unconstrained spline of a discretely clamped streamfunction can preserve divergence and section flux while introducing significant plate/wall slip. Return and contact probabilities are especially sensitive to this near-boundary error.
 
 **How to apply:** Verify no-slip and prescribed inlet derivatives after reconstruction; localize the earliest contact/exit event. Preserve unresolved plate-contact volume separately from return. Refinement differences are sensitivity observations, not certified probability error bounds.
+
+Quiet-zone coalescence needs physical local loading and an independently qualified merger efficiency. Surface interception cannot establish a draining NMP film.
+
+**Why:** Normalized trajectory weights supply no collision clock. Gravity has no tangential component on the horizontal stator; contact can retain an intervening RRBO film. Pair-film drainage uses continuous-oil viscosity, whereas established NMP-film flow uses dispersed-phase viscosity.
+
+**How to apply:** Preserve size- and source-resolved contact inventory until wetting, mobility, pressure/traction and lower-face passage are qualified. Never replace sparse polydisperse surface populations by mean-volume drops and call that merger; use explicit volume-additive events. Refine the genuinely interacting PBM case, not only a noninteracting inlet test.
