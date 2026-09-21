@@ -1647,3 +1647,17 @@ mtime_ms = 1790008417152
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/affb77a2-f1b0-4d49-a5d0-12e0d643b484/1301c807-92b6-4a68-9714-b4bf59c51cba"
 storage_version_token = "1790008491462443"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "bdx2369KN2EI-cQV63Tx5"
+uri = "file://deliverables/kuhni-outlet-transmission.md"
+type = "text"
+title = "Kühni Terminal-to-Outlet Transmission Calculation"
+description = "Conditional outlet-arrival fractions and travel times for the reserved top geometry, with explicit distinctions between transport delay, actual removal and terminal-stator crossings. No saved design or database changes."
+logical_id = "d245ab05-f766-4afb-9a99-3ef3c7c13428"
+content_hash = "sha256:57b5dbbfc597c4dd30a04f6d403f0829985e297cac224d79e65b1960ba442394"
+size = 10891
+mtime_ms = 1790008838400
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/d245ab05-f766-4afb-9a99-3ef3c7c13428/458c827d-2570-4bc9-836f-ded67b547ad2"
+storage_version_token = "1790008894244610"
+content_type = "text/markdown"

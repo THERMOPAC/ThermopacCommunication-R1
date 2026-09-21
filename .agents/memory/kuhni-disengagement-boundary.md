@@ -20,3 +20,9 @@ Do not select top capture duty or separation equipment from an arbitrary fine-dr
 **Why:** The user explicitly rejected promoting the 500-µm sensitivity into a design duty. Published local Kühni number distributions, even at the last active stage, are not outlet flux distributions; rescaling a donor width to the calculated mean does not validate the RRBO/NMP tail.
 
 **How to apply:** Report transferred distribution widths as conditional sensitivities, not expected fractions or confidence bands. Separate number, local-volume and one-way exit-flux weighting. Apply same-population moment bounds only to the population whose mean they describe; never use them as bounds on preferentially transported outlet fines. Retain the top as a layout reservation until this evidence supports a separation duty.
+
+A full-bore positive-mean-slip flux is a surrogate, not the actual terminal-stator crossing population. Its no-interaction outlet baseline transmits all selected positive-velocity material eventually; finite-time delay is not removal.
+
+**Why:** Stator jets and turbulent recrossings can export larger drops that subsequently return, while the full-bore kernel excludes them by construction. Assuming this kernel describes actual stator escape would omit a potentially important return mechanism.
+
+**How to apply:** State the crossing plane, conserved solvent-volume/mass denominator, outlet and return boundaries. Keep fresh-distributor input separate from the terminal-origin cohort; track coalescence as conserved material redistribution, not disappearance.
