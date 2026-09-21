@@ -1021,12 +1021,6 @@ export function KuhniHydrodynamicsCard({
         ) : (
           <KuhniResolverPanel run={legacyResolverLatest} runCount={legacyResolverRuns.length} />
         )}
-        {latest && (
-          <details className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <summary className="cursor-pointer text-[11px] font-semibold text-slate-700">Historical KUHNI_PHASE1_V1.0.3 runs ({runs.length})</summary>
-            <div className="mt-3"><KuhniResultPanel run={latest} runCount={runs.length} /></div>
-          </details>
-        )}
       </CardContent>
     </Card>
   );
