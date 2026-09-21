@@ -1,0 +1,349 @@
+{
+  "status": "ENGINEER-SELECTED PRELIMINARY LAYOUT — NOT FOR FABRICATION",
+  "provenance": {
+    "source": "Owner-scoped development DB BEGIN READ ONLY audit, 2026-09-21",
+    "designId": 269,
+    "projectNumber": 236,
+    "stage1Hash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "stage2JobId": "145e962e-892a-4424-aab9-91532af9f5ef",
+    "stage2SourceHash": "6ccf5381167d4deb01d313881b63f5bb537c8bc729e3902b2919fc1f4397fbe9",
+    "stage2PredictiveNt": 4,
+    "stage2ReleaseEligible": false,
+    "stage2Stage1InputDifferences": [],
+    "stage3Id": "69",
+    "stage3Hash": "4b60bbd4396e508ce58a2de945540035e46062396d94b000f89fdecd335c8e82",
+    "stage4Id": "17",
+    "stage4Stage2JobId": null,
+    "stage5Revision": 6,
+    "stage5Hash": "7642b42d3e02578e92a2bc3c55e9f38e3b0537aef9b0724fbfac2aa6b06f9bd6",
+    "dragSourceSha256": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed"
+  },
+  "sourceHashes": {
+    "deliverables/kuhni-end-section-preliminary-calculation.input.json": "3e65f398cfd714f599ab7fcb420e07c4a4d3c6637053a71498567099413536d2",
+    "deliverables/kuhni-end-section-preliminary-calculation.md": "c89b9d26820532acc1bf5a8b3f19c801c85bc8e5188476dd7e17960cb82191fd",
+    "deliverables/kuhni-end-section-preliminary-calculation.results.json": "8984c7352a2ac168ce2f0ac8895c8e095217eff615fe5a5c97c6850943d23789",
+    "deliverables/disengager-investigation-literature.md": "7ea9881f7fd6501ab4c2d18246c21a4ff73ba23ee15cb49b4a9d1cad619eb8f0",
+    "deliverables/disengager-drag-evidence.md": "2dd4f6daeed609685b9727e24079b263e1854f1b2ef3eb649e1d730638746009",
+    "deliverables/disengager-drag-calculations.md": "52a061ecebc348d59e133d4e126c3a474309b025b280c4253cf0512aabfe54c2",
+    "deliverables/disengager-drag-results.json": "1974671d608d21f5a37642d249d4a7a7db3e9f63fc1836d671f5e0cd9f454729",
+    "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed"
+  },
+  "inputs": {
+    "g": 9.80665,
+    "f": 0.5,
+    "captureBottomM": 0.0002,
+    "bottom": {
+      "name": "RRBO drops / NMP-rich continuous",
+      "rhoC": 1015,
+      "rhoD": 869,
+      "muC": 0.001416,
+      "muD": 0.0598,
+      "sigma": 0.011
+    },
+    "top": {
+      "name": "NMP drops / RRBO continuous",
+      "rhoC": 869,
+      "rhoD": 1015,
+      "muC": 0.0598,
+      "muD": 0.001416,
+      "sigma": 0.011
+    },
+    "scenarios": [
+      {
+        "N": 4,
+        "extractKgH": 2240.460813836314,
+        "qBottomM3h": 2.207350555503758,
+        "qTopM3h": 3.8217942303379577
+      },
+      {
+        "N": 7,
+        "extractKgH": 2282.926436894786,
+        "qBottomM3h": 2.2491886077781142,
+        "qTopM3h": 3.7729270001210784
+      }
+    ]
+  },
+  "rows": [
+    {
+      "diameterMm": 700,
+      "scenarios": [
+        {
+          "N": 4,
+          "Ubottom": 0.0015932460410206994,
+          "Utop": 0.0027585371575436363,
+          "bottomCutM": 0.000250031417449418,
+          "topCutM": 0.002080747849046955,
+          "bottomDiagnostics": {
+            "vt": 0.003186492082041399,
+            "Re": 0.5710974427567941,
+            "Eo": 0.008137106723468427
+          },
+          "topDiagnostics": {
+            "vt": 0.005517074315087269,
+            "Re": 0.16681952519726395,
+            "Eo": 0.563533521480984
+          }
+        },
+        {
+          "N": 7,
+          "Ubottom": 0.0016234443758451934,
+          "Utop": 0.002723265224463246,
+          "bottomCutM": 0.0002526257566154307,
+          "topCutM": 0.002066822197302638,
+          "bottomDiagnostics": {
+            "vt": 0.0032468887516903895,
+            "Re": 0.5879600589371785,
+            "Eo": 0.008306844880975484
+          },
+          "topDiagnostics": {
+            "vt": 0.005446530448926491,
+            "Re": 0.16358430963510823,
+            "Eo": 0.5560157329432878
+          }
+        }
+      ]
+    },
+    {
+      "diameterMm": 800,
+      "scenarios": [
+        {
+          "N": 4,
+          "Ubottom": 0.0012198290001564727,
+          "Utop": 0.002112005011244346,
+          "bottomCutM": 0.0002162645296672858,
+          "topCutM": 0.0018113320139501211,
+          "bottomDiagnostics": {
+            "vt": 0.0024396580003129458,
+            "Re": 0.37819608922069975,
+            "Eo": 0.00608767468363618
+          },
+          "topDiagnostics": {
+            "vt": 0.004224010022488692,
+            "Re": 0.1111838210848088,
+            "Eo": 0.42704827530232586
+          }
+        },
+        {
+          "N": 7,
+          "Ubottom": 0.001242949600256476,
+          "Utop": 0.002084999937479672,
+          "bottomCutM": 0.00021846059686175085,
+          "topCutM": 0.001799329691277878,
+          "bottomDiagnostics": {
+            "vt": 0.0024858992005129515,
+            "Re": 0.3892776048223459,
+            "Eo": 0.006211937505904457
+          },
+          "topDiagnostics": {
+            "vt": 0.004169999874959345,
+            "Re": 0.10903486265315432,
+            "Eo": 0.4214075760576307
+          }
+        }
+      ]
+    },
+    {
+      "diameterMm": 900,
+      "scenarios": [
+        {
+          "N": 4,
+          "Ubottom": 0.0009638155062964722,
+          "Utop": 0.001668744700242446,
+          "bottomCutM": 0.00019072046776151481,
+          "topCutM": 0.0016044440202940212,
+          "bottomDiagnostics": {
+            "vt": 0.0019276310125929457,
+            "Re": 0.2635263197169696,
+            "Eo": 0.0047345145181253365
+          },
+          "topDiagnostics": {
+            "vt": 0.0033374894004848926,
+            "Re": 0.07781495247506547,
+            "Eo": 0.33506570919014944
+          }
+        },
+        {
+          "N": 7,
+          "Ubottom": 0.000982083634770549,
+          "Utop": 0.00164740735800863,
+          "bottomCutM": 0.00019262802503702597,
+          "topCutM": 0.0015938854505598548,
+          "bottomDiagnostics": {
+            "vt": 0.001964167269541098,
+            "Re": 0.27120689753084787,
+            "Eo": 0.004829695941054004
+          },
+          "topDiagnostics": {
+            "vt": 0.0032948147160172586,
+            "Re": 0.07631443545071413,
+            "Eo": 0.33067020054419205
+          }
+        }
+      ]
+    },
+    {
+      "diameterMm": 1000,
+      "scenarios": [
+        {
+          "N": 4,
+          "Ubottom": 0.0007806905601001426,
+          "Utop": 0.0013516832071963814,
+          "bottomCutM": 0.00017068224913211177,
+          "topCutM": 0.0014404045303635887,
+          "bottomDiagnostics": {
+            "vt": 0.0015613811202002856,
+            "Re": 0.191029337548322,
+            "Eo": 0.0037919059783604173
+          },
+          "topDiagnostics": {
+            "vt": 0.0027033664143927627,
+            "Re": 0.0565858683833687,
+            "Eo": 0.27005349577943744
+          }
+        },
+        {
+          "N": 7,
+          "Ubottom": 0.0007954877441641447,
+          "Utop": 0.0013343999599869903,
+          "bottomCutM": 0.00017237070496004979,
+          "topCutM": 0.001430972127842638,
+          "bottomDiagnostics": {
+            "vt": 0.001590975488328289,
+            "Re": 0.19657565677596486,
+            "Eo": 0.003867299097837666
+          },
+          "topDiagnostics": {
+            "vt": 0.00266879991997398,
+            "Re": 0.055496524129362394,
+            "Eo": 0.26652821804897603
+          }
+        }
+      ]
+    },
+    {
+      "diameterMm": 1200,
+      "scenarios": [
+        {
+          "N": 4,
+          "Ubottom": 0.0005421462222917657,
+          "Utop": 0.000938668893886376,
+          "bottomCutM": 0.00014119770758101345,
+          "topCutM": 0.0011964717918817999,
+          "bottomDiagnostics": {
+            "vt": 0.001084292444583532,
+            "Re": 0.10974300962955291,
+            "Eo": 0.002594992683766578
+          },
+          "topDiagnostics": {
+            "vt": 0.0018773377877727526,
+            "Re": 0.03264100172741591,
+            "Eo": 0.18633128303045846
+          }
+        },
+        {
+          "N": 7,
+          "Ubottom": 0.0005524220445584338,
+          "Utop": 0.0009266666388798544,
+          "bottomCutM": 0.0001425743600377519,
+          "topCutM": 0.001188687001146356,
+          "bottomDiagnostics": {
+            "vt": 0.0011048440891168678,
+            "Re": 0.11291333017764146,
+            "Eo": 0.0026458407925782712
+          },
+          "topDiagnostics": {
+            "vt": 0.0018533332777597093,
+            "Re": 0.03201397709030817,
+            "Eo": 0.18391445868767548
+          }
+        }
+      ]
+    }
+  ],
+  "bottom200": {
+    "vt": 0.0021079996220982828,
+    "Re": 0.3022061605126776,
+    "Eo": 0.005206439636363637
+  },
+  "requiredBottomDiameterMm": 868.7533253981751,
+  "selectedBottomDiameterMm": 900,
+  "U900": 0.000982083634770549,
+  "marginRatio": 1.0732281587152144,
+  "netRise200MS": 0.0011259159873277338,
+  "coneMm": 173.20508075688775,
+  "elevationsMm": {
+    "activeBottom": 0,
+    "activeTop": 4200,
+    "topTangent": 5400,
+    "neckBottom": -300,
+    "bottomStraightTop": -473.20508075688775,
+    "bottomTangent": -1673.2050807568878,
+    "rrboFeed": -150,
+    "nmpFeed": 4350,
+    "raffinateOutlet": 5100,
+    "topLiquidNormal": 5250,
+    "topLiquidLow": 5200,
+    "topLiquidHigh": 5300,
+    "interfaceNormal": -673.2050807568878,
+    "interfaceLow": -773.2050807568878,
+    "interfaceHigh": -573.2050807568878,
+    "extractOutlet": -1473.2050807568878
+  },
+  "processEnvelopeMm": 7073.205080756888,
+  "nozzles": [
+    {
+      "service": "RRBO feed",
+      "flowM3S": 0.0011111111111111111,
+      "z": -150,
+      "boreMm": 70,
+      "velocityMS": 0.28871645005332486,
+      "minimumBoreAtSelectedPointFiveMS": 53.19230405352435
+    },
+    {
+      "service": "Wet NMP feed",
+      "flowM3S": 0.0005707717569786535,
+      "z": 4350,
+      "boreMm": 70,
+      "velocityMS": 0.1483120759190183,
+      "minimumBoreAtSelectedPointFiveMS": 38.124248766452816
+    },
+    {
+      "service": "Raffinate outlet (N4 envelope)",
+      "flowM3S": 0.0010616095084272105,
+      "z": 5100,
+      "boreMm": 70,
+      "velocityMS": 0.2758537157543635,
+      "minimumBoreAtSelectedPointFiveMS": 51.993907473787374
+    },
+    {
+      "service": "Extract outlet (N7 envelope)",
+      "flowM3S": 0.0006247746132716984,
+      "z": -1473.2050807568878,
+      "boreMm": 70,
+      "velocityMS": 0.1623444375845193,
+      "minimumBoreAtSelectedPointFiveMS": 39.88703408788737
+    }
+  ],
+  "checks": {
+    "inputHashUnchanged": true,
+    "dragSourceHashMatches": true,
+    "allFiveBottomRootsMatchPriorWithin1e12M": true,
+    "allInverseVelocityResidualsBelow1e12MS": true,
+    "selected900Passes200MicronScreen": true,
+    "selected800Fails200MicronScreen": true,
+    "normalInterfaceBelowCone": true,
+    "feedAboveHighestInterface": true,
+    "nozzleCentreSubmergenceAtLowInterfaceMm": 700,
+    "topOutletCentreSubmergenceAtLowLiquidMm": 100
+  },
+  "selectedHeightAllowancesMm": {
+    "bottomNeck": 300,
+    "bottomWithdrawal": 300,
+    "bottomQuiet": 600,
+    "bottomInterfaceControlReserve": 200,
+    "bottomUpperGuard": 100,
+    "topFeedBuffer": 300,
+    "topQuiet": 600,
+    "topWithdrawalLevelReserve": 300
+  }
+}

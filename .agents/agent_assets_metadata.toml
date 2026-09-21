@@ -1591,3 +1591,17 @@ mtime_ms = 1790001554246
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/58039b75-52c6-4b1b-8137-1c31ef664382/3781b62b-7d60-474a-b44b-437a7913ecdc"
 storage_version_token = "1790001596151938"
 content_type = "text/html"
+
+[[outputs]]
+id = "EQUOUzPwrfPsZYQg7TdP1"
+uri = "file://deliverables/disengager-preliminary-proposal.pdf"
+type = "pdf"
+title = "Kühni Top and Bottom Disengagers — Preliminary Engineering Proposal"
+description = "Literature review, drag-model comparison, five-diameter capture analysis, and dimensioned Ø700 top / Ø700 active / Ø900 bottom preliminary arrangement. Assumptions and material qualification holds are explicit; existing scientific and Stage-5 records are unchanged."
+logical_id = "c09f4c7e-1050-40ba-a1e2-817f215109b2"
+content_hash = "sha256:18a3c0cc715ac7e3cc379b2ae4c40e82153b70c6cdb5b68dd792a6d27ccdda62"
+size = 269628
+mtime_ms = 1790002830402
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c09f4c7e-1050-40ba-a1e2-817f215109b2/a8181921-c5a4-4cfc-b3d4-841f1ecd93d3"
+storage_version_token = "1790002882677395"
+content_type = "application/pdf"
