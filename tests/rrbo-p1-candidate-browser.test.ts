@@ -35,16 +35,26 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     let historyFailure = false;
     let delay = 5600; // Longer than polling interval: previously every response was discarded.
     let posts = 0;
+    let postedBody: any = null;
+    let basisHash = 'controlled-saved-snapshot';
+    let candidateHistory: any[] = [];
+    const candidateDetails = new Map<string, any>();
     const pending: Promise<void>[] = [];
     await page.setRequestInterception(true);
     page.on('request', req => {
       if (req.isNavigationRequest()) { void req.respond({ status: 200, contentType: 'text/html', body: '<div id="root"></div>' }); return; }
       if (!req.url().includes('/api/ecr-pre-pilot/designs/')) { void req.abort(); return; }
-      if (req.method() !== 'GET') { posts++; void req.abort(); return; }
+      if (req.method() === 'POST') {
+        posts++; postedBody = JSON.parse(req.postData() || '{}');
+        void req.respond({ status: 202, contentType: 'application/json', body: JSON.stringify({ id: 'submitted', status: 'running' }) });
+        return;
+      }
+      if (req.method() !== 'GET') { void req.abort(); return; }
       const isBasis = req.url().endsWith('/basis');
+      const detailId = req.url().match(/\/stage3-candidates\/([^/?]+)$/)?.[1];
       const body = isBasis
-        ? { sourceSnapshotHash: 'controlled-saved-snapshot', methodVersion: 'controlled-method', basis: { phaseConfiguration: phase, operatingTemperatureC: temperature } }
-        : [];
+        ? { sourceSnapshotHash: basisHash, methodVersion: 'controlled-method', basis: { phaseConfiguration: phase, operatingTemperatureC: temperature } }
+        : detailId ? candidateDetails.get(detailId) : candidateHistory;
       const fails = isBasis ? failure : historyFailure;
       pending.push((async () => {
         await new Promise(done => setTimeout(done, delay));
@@ -97,6 +107,46 @@ it('mounts the real panel: slow polling, both phases, blocked input, retry and d
     expect(await page.$eval('body', e => e.textContent)).toContain('55 °C');
     expect(await page.$eval('body', e => e.textContent)).not.toContain('corrected P1 RRBO-continuous method');
     expect(posts).toBe(0);
+    // The main result is always the newest candidate matching the current saved hash,
+    // phase and method, regardless of a newer stale row or archive selection.
+    phase = 'rrbo-continuous-nmp-dispersed'; temperature = 40; basisHash = 'latest-hash';
+    const row = (id: string, sourceSnapshotHash: string, requestedAt: string, status = 'completed') => ({
+      id, sourceSnapshotHash, requestedAt, createdAt: requestedAt, status,
+      phaseConfiguration: phase, version: 'controlled-method',
+    });
+    candidateHistory = [
+      row('older-match', 'latest-hash', '2025-01-01T00:00:00Z'),
+      row('stale-newest', 'old-hash', '2025-01-03T00:00:00Z'),
+      row('latest-match', 'latest-hash', '2025-01-02T00:00:00Z'),
+    ];
+    for (const item of candidateHistory) candidateDetails.set(item.id, {
+      ...item, result: { status: item.id.toUpperCase(), blockers: [], orientationComparison: [], engine: { version: 'controlled-method' } },
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: completed'));
+    await page.waitForFunction(() => document.body.textContent?.includes('Candidate calculation: LATEST-MATCH'));
+    await page.select('details select', 'older-match');
+    expect(await page.$eval('body', e => e.textContent)).toContain('Latest calculation for current saved Stage 1: completed');
+    // A newly inserted matching attempt automatically becomes current and is polled by its id.
+    candidateHistory = [row('pending-match', 'latest-hash', '2025-01-04T00:00:00Z', 'running'), ...candidateHistory];
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForFunction(() => document.body.textContent?.includes('Latest calculation for current saved Stage 1: running'));
+    expect(await page.$eval('body', e => e.textContent)).not.toContain('Candidate calculation: LATEST-MATCH');
+    // Saving Stage 1 cannot leave the archive selection pinned as the current result.
+    basisHash = 'saved-again';
+    const savedAgain = row('saved-again-result', basisHash, '2025-01-05T00:00:00Z');
+    candidateHistory = [savedAgain, ...candidateHistory.filter(item => item.id !== 'pending-match')];
+    candidateDetails.set(savedAgain.id, { ...savedAgain, result: { status: 'SAVED-AGAIN', blockers: [], orientationComparison: [], engine: { version: 'controlled-method' } } });
+    await page.evaluate(() => window.dispatchEvent(new Event('ecr-stage1-saved')));
+    await page.waitForFunction(() => document.body.textContent?.includes('Candidate calculation: SAVED-AGAIN'));
+    // Stale history remains archive-only and never fills the current area.
+    basisHash = 'no-candidate-for-this-save';
+    await page.evaluate(() => window.dispatchEvent(new Event('ecr-stage1-saved')));
+    await page.waitForFunction(() => document.body.textContent?.includes('No Stage 3 calculation for latest saved Stage 1. Run Stage 3.'));
+    const submission = page.waitForRequest(request => request.method() === 'POST');
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(b => b.textContent === 'Run Stage 3')!.click());
+    await submission;
+    expect(postedBody).toEqual({ sourceSnapshotHash: 'no-candidate-for-this-save' });
     await Promise.all(pending);
   } finally { await browser.close(); }
 }, 60_000);

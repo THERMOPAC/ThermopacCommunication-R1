@@ -72,8 +72,9 @@ export function P1CandidatePanel({ designId, refreshToken }: { designId: number 
 function CandidatePanel({ designId, refreshToken }: { designId: number | null; refreshToken: number }) {
   const [basis, setBasis] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
-  const [selectedId, setSelectedId] = useState("");
-  const [run, setRun] = useState<any>(null);
+  const [archiveId, setArchiveId] = useState("");
+  const [currentRun, setCurrentRun] = useState<any>(null);
+  const [archiveRun, setArchiveRun] = useState<any>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -118,19 +119,36 @@ function CandidatePanel({ designId, refreshToken }: { designId: number | null; r
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [base, designId, refreshToken, reload]);
+  const newestFirst = [...history].sort((a, b) =>
+    Date.parse(b.requestedAt ?? b.createdAt ?? "") - Date.parse(a.requestedAt ?? a.createdAt ?? ""));
+  const running = newestFirst.find(item => item.status === "running");
   const blockedReason = !designId ? "Save Stage 1 and select a design before running Stage 3."
     : basisError || historyError || (!basis ? "Loading saved Stage 1 basis…"
     : !["rrbo-continuous-nmp-dispersed", "nmp-continuous-rrbo-dispersed"].includes(basis.basis.phaseConfiguration) ? "Stage 3 requires an explicit, valid saved phase."
     : basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" && basis.basis.operatingTemperatureC !== 40 ? "P1 requires saved 40 °C properties."
     : !historyLoaded ? "Loading candidate history…"
-    : history.some(item => item.status === "running") ? "A Stage 3 candidate is already running." : "");
-  const selected = history.find(item => item.id === selectedId) ?? history[0];
+    : running ? running.sourceSnapshotHash === basis.sourceSnapshotHash
+      ? "A Stage 3 candidate for the latest saved Stage 1 is already running."
+      : "A Stage 3 calculation for an older saved Stage 1 basis is still running. Wait for it to finish before running the latest basis."
+    : "");
+  const current = basis ? newestFirst.find(item =>
+    item.sourceSnapshotHash === basis.sourceSnapshotHash
+    && item.phaseConfiguration === basis.basis.phaseConfiguration
+    && item.version === basis.methodVersion) : undefined;
+  const archive = newestFirst.filter(item => item.id !== current?.id);
+  const archived = archive.find(item => item.id === archiveId) ?? archive[0];
   useEffect(() => {
     let cancelled = false;
-    setRun(null);
-    if (selected?.status === "completed") void request(`${base}/${selected.id}`).then(value => { if (!cancelled) setRun(value); }).catch(e => { if (!cancelled) setError(e.message); });
+    setCurrentRun(null);
+    if (current?.status === "completed") void request(`${base}/${current.id}`).then(value => { if (!cancelled) setCurrentRun(value); }).catch(e => { if (!cancelled) setError(e.message); });
     return () => { cancelled = true; };
-  }, [base, selected?.id, selected?.status, selected?.stale]);
+  }, [base, current?.id, current?.status]);
+  useEffect(() => {
+    let cancelled = false;
+    setArchiveRun(null);
+    if (archived?.status === "completed") void request(`${base}/${archived.id}`).then(value => { if (!cancelled) setArchiveRun(value); }).catch(e => { if (!cancelled) setError(e.message); });
+    return () => { cancelled = true; };
+  }, [base, archived?.id, archived?.status]);
   return <section className="mb-4 rounded border border-amber-300 bg-amber-50 p-3">
      <h4 className="font-semibold">Stage 3 calculation — candidate / pending review</h4>
      <p className="mt-1 text-xs">Method selected automatically from saved Stage 1: {basis ? `${basis.methodVersion} — ${basis.basis.phaseConfiguration === "rrbo-continuous-nmp-dispersed" ? "corrected P1 RRBO-continuous method" : "existing NMP-continuous method"}` : "waiting for an explicit, valid saved phase"}. No manual method selection.</p>
@@ -150,10 +168,25 @@ function CandidatePanel({ designId, refreshToken }: { designId: number | null; r
     {(basisError || historyError) && <p role="alert" className="mt-2 text-xs text-red-800">{[basisError, historyError].filter(Boolean).join(" ")}</p>}
     {(basisError || historyError || error) && <Button size="sm" variant="outline" onClick={() => setReload(value => value + 1)}>Retry loading</Button>}
     {error && <p role="alert" className="mt-2 text-xs text-red-800">{error}</p>}
-    {!!history.length && <label className="mt-3 block text-xs">Candidate history <select className="ml-2 max-w-full border bg-white p-1" value={selected?.id ?? ""} onChange={e => setSelectedId(e.target.value)}>{history.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status}{item.stale ? " — historical Stage 1" : ""}</option>)}</select></label>}
-    {selected && <p className="mt-2 text-xs">{selected.status === "running" ? "Calculating in background; safe to leave and reload. No authority will be replaced. A lost server process is reported interrupted after 16 minutes." : selected.status}{selected.error ? `: ${selected.error}` : ""}</p>}
-    {selected?.originalPhaseConfiguration && selected.originalPhaseConfiguration !== selected.phaseConfiguration && <p className="mt-2 text-xs">Historical candidate used an explicit phase override: saved {selected.originalPhaseConfiguration} → candidate {selected.phaseConfiguration}. Original evidence is preserved; this is not the current saved Stage 1 phase.</p>}
-     {historyLoaded && !history.length && <p className="mt-2 text-xs">No saved Stage 3 candidates. Existing authority remains unchanged.</p>}
-    <P1CandidateResults key={run?.id ?? "none"} run={run} />
+     {current
+       ? <div className="mt-3 text-xs">
+         <p><strong>Latest calculation for current saved Stage 1:</strong> {current.status}{current.error ? `: ${current.error}` : ""}</p>
+         {current.status === "running" && <p>Calculating in background; safe to leave and reload. No authority will be replaced. A lost server process is reported interrupted after 16 minutes.</p>}
+       </div>
+       : historyLoaded && basis && <p className="mt-3 text-xs"><strong>No Stage 3 calculation for latest saved Stage 1. Run Stage 3.</strong></p>}
+     <P1CandidateResults key={currentRun?.id ?? "none"} run={currentRun} />
+     {!!archive.length && <details className="mt-4 border-t border-amber-300 pt-3">
+       <summary className="cursor-pointer text-xs font-semibold">Previous calculations (read-only)</summary>
+       <div className="mt-2 text-xs">
+         <label>Historical snapshot <select className="ml-2 max-w-full border bg-white p-1" value={archived?.id ?? ""} onChange={e => setArchiveId(e.target.value)}>{archive.map(item => <option value={item.id} key={item.id}>{item.requestedAt} — {item.status} — source {item.sourceSnapshotHash}</option>)}</select></label>
+         {archived && <>
+           <p className="mt-2"><strong>Read-only historical calculation.</strong> Source snapshot {archived.sourceSnapshotHash}; phase {archived.phaseConfiguration}; method {archived.version}; requested {archived.requestedAt}. This does not change the current result or Run Stage 3 input.</p>
+           <p className="mt-2">{archived.status === "running" ? "This historical basis is still calculating in the background." : archived.status}{archived.error ? `: ${archived.error}` : ""}</p>
+           {archived.originalPhaseConfiguration && archived.originalPhaseConfiguration !== archived.phaseConfiguration && <p className="mt-2">Historical candidate used an explicit phase override: saved {archived.originalPhaseConfiguration} → candidate {archived.phaseConfiguration}. Original evidence is preserved; this is not the current saved Stage 1 phase.</p>}
+         </>}
+         <P1CandidateResults key={archiveRun?.id ?? "archive-none"} run={archiveRun} />
+       </div>
+     </details>}
+      {historyLoaded && !history.length && <p className="mt-2 text-xs">No saved Stage 3 candidates. Existing authority remains unchanged.</p>}
   </section>;
 }
