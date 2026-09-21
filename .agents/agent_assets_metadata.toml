@@ -1395,3 +1395,17 @@ mtime_ms = 1789958700958
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/fd5da66f-f563-4061-83cc-ff8b88d16330/7088b5e3-44c8-49d1-9bc4-fe22e4f07693"
 storage_version_token = "1789958746346945"
 content_type = "text/csv"
+
+[[outputs]]
+id = "YAXfDTgp8zWKoX9Cgtlvx"
+uri = "file://deliverables/stage3-no-diameter-investigation/report.html"
+type = "html"
+title = "Stage 3 — why no column diameter was selected"
+description = "Read-only investigation of the latest saved calculation: RPM-dependent capacity, all-diameter rejection evidence, numerical checks and the selection-policy gate."
+logical_id = "899640dc-aac7-4b01-85ce-be5fc6cbe338"
+content_hash = "sha256:274a51b7bb92a5a329781258346fd87897bc20320a6f42db2f2b58afe4e8dd5d"
+size = 35618
+mtime_ms = 1789965359364
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/899640dc-aac7-4b01-85ce-be5fc6cbe338/0876e7eb-f239-4033-a783-07fde48d028a"
+storage_version_token = "1789965389598459"
+content_type = "text/html"
