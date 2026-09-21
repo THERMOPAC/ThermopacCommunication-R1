@@ -27,6 +27,46 @@ async function request(suffix: string, method = 'get', overrides: any = {}) {
   return response;
 }
 describe('Stage 5 HTTP boundary', () => {
+  it('projects opt-in basis transport without changing complete authority or legacy responses', async () => {
+    const full = { basis: { columnDiameterM: .7, sourceHash: 'current-hash' },
+      sourceHash: 'current-hash', sourceStage3: { rawGrid: 'x'.repeat(10000) }, sourceStage4: { id: 17 } };
+    const before = JSON.stringify(full);
+    calls.basis.mockResolvedValue(full);
+    expect((await request('/basis', 'get', { query: { payload: 'summary' } })).body)
+      .toEqual({ basis: full.basis, sourceHash: 'current-hash' });
+    expect((await request('/basis')).body).toBe(full);
+    expect(JSON.stringify(full)).toBe(before);
+  });
+  it('keeps scientific sources out of summary history/detail/save without accepting client proof', async () => {
+    const full = { id: '1', revision: 1, sourceHash: 'current-hash', geometryHash: 'geometry-hash',
+      geometry: { ruleset: 'R5', complete: true }, drawings: { ga: '<svg>frozen</svg>' },
+      sourceStage3: { rawGrid: 'x'.repeat(10000) }, sourceStage4: { id: 17 } };
+    const before = JSON.stringify(full);
+    calls.revisions.mockResolvedValue([full]);
+    calls.save.mockResolvedValue(full);
+    const history = (await request('/revisions', 'get', { query: { payload: 'summary' } })).body;
+    expect(history[0].sourceHash).toBe('current-hash');
+    expect(history[0]).not.toHaveProperty('sourceStage3');
+    expect(history[0]).not.toHaveProperty('drawings');
+    const detail = (await request('/:revisionId', 'get', { query: { payload: 'summary' } })).body;
+    expect(detail.sourceHash).toBe('current-hash');
+    expect(detail.geometryHash).toBe('geometry-hash');
+    expect(detail.geometry).toBe(full.geometry);
+    expect(detail.drawings).toBe(full.drawings);
+    expect(detail).not.toHaveProperty('sourceStage3');
+    expect((await request('/:revisionId')).body).toBe(full);
+    const saved = await request('/revisions', 'post', {
+      query: { payload: 'summary' }, body: { expectedSourceHash: 'current-hash' },
+    });
+    expect(saved.body.drawings).toBe(full.drawings);
+    expect(saved.body.geometry).toBe(full.geometry);
+    expect(saved.body).not.toHaveProperty('sourceStage4');
+    expect(calls.save).toHaveBeenCalledWith(12, 23, undefined, 'current-hash', undefined);
+    expect(JSON.stringify(full)).toBe(before);
+    expect((await request('/revisions', 'post', {
+      query: { payload: 'summary' }, body: { expectedSourceHash: 'current-hash', sourceStage3: {} },
+    })).statusCode).toBe(400);
+  });
   it('protects all eight endpoints and exposes no mutation of existing revisions', () => {
     expect(routes).toHaveLength(8);
     expect(routes.every(r => r.middleware[0] === calls.auth)).toBe(true);

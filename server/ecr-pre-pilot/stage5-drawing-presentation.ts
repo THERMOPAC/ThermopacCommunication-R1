@@ -2,6 +2,7 @@ import { renderStage5Svg } from '../../shared/ecr-stage5-drawings';
 import { R1_RULESET, R2_RULESET, R3_RULESET } from '../../shared/ecr-stage5-r1';
 import {
   APPROVED_COMPONENT_RULESET, HISTORICAL_APPROVED_COMPONENT_RULESET,
+  PRELIMINARY_COMPONENT_RULESET,
 } from '../../shared/ecr-stage5-approved-components';
 import { STAGE5_VIEWS, Stage5Error, stage5Hash } from './stage5-geometry-service';
 
@@ -15,6 +16,7 @@ export function stage5DrawingPresentation(record: any, designId: number, request
   if (![
     R1_RULESET, R2_RULESET, R3_RULESET,
     HISTORICAL_APPROVED_COMPONENT_RULESET, APPROVED_COMPONENT_RULESET,
+    PRELIMINARY_COMPONENT_RULESET,
   ].includes(record.geometry?.ruleset))
     throw new Stage5Error('STAGE5_DIMENSIONED_PRESENTATION_REQUIRES_SAVED_R1', 409);
   const geometryHash = stage5Hash(record.geometry);

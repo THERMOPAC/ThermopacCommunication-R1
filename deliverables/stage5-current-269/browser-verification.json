@@ -1,0 +1,54 @@
+{
+  "mode": "ISOLATED_PRODUCTION_COMPONENT_REAL_CURRENT_MODEL_NO_BUSINESS_WRITES",
+  "saveAndExportTransport": "SIMULATED ONLY; actual PDF generated separately by normal server exporter",
+  "sourceHash": "d69bc153d009196c806639257001dd8abf0914f572e4d1809cbf5f440e078138",
+  "previewBytes": 163504,
+  "basisBytes": 715,
+  "saveEnabled": true,
+  "requests": [
+    {
+      "path": "/api/ecr-pre-pilot/designs/latest-saved",
+      "method": "GET"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/basis?payload=summary",
+      "method": "GET"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/revisions?payload=summary",
+      "method": "GET"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/preview",
+      "method": "POST",
+      "body": "{}"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/preview",
+      "method": "POST",
+      "body": "{}"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/preview",
+      "method": "POST",
+      "body": "{}"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/revisions?payload=summary",
+      "method": "POST",
+      "body": "{\"expectedSourceHash\":\"d69bc153d009196c806639257001dd8abf0914f572e4d1809cbf5f440e078138\"}"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/revisions/900001?payload=summary",
+      "method": "GET"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/revisions/900001/export.pdf?presentation=original",
+      "method": "GET"
+    },
+    {
+      "path": "/api/ecr-pre-pilot/designs/269/stage5/revisions/900001/export.svg?presentation=original&view=ga",
+      "method": "GET"
+    }
+  ]
+}

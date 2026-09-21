@@ -19,6 +19,8 @@ The initial controlled rule set is named `ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R1
 
 Frozen revisions must remain readable/exportable when current upstream authority becomes unavailable. Preserve original geometry and drawings, and flag outdated lineage instead of silently regenerating old revisions.
 
+The exact approved D600 component package is a dimensional contract, not a permanent design-ID assignment. A changed upstream basis must never be labelled approved D600 or routed back to the historical single-opening rotor/stator construction. Current-basis preliminary adaptations retain the double-entry shrouded architecture, 130mm eye, 112mm centre opening and 9mm overlap. Any altered dimension must be traced to an inherited dimension/area or actual construction interference; component ancestry does not constitute approval of the adapted assembly. Retained thicknesses and materials remain mechanically unverified. A zero-width inherited RPM point is not an established operating window.
+
 **Why:** The user explicitly requires retained source results, assumptions, unresolved items and revision history.
 
 **How to apply:** Build views and exports from a single geometry dataset; use stored drawings for historical revisions. Keep geometry-definition completeness separate from mechanical calculations intentionally outside Stage 5, with the NOT FOR FABRICATION warning on all outputs.

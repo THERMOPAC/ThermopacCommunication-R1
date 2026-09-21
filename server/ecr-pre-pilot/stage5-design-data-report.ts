@@ -21,6 +21,7 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
     if (!g.r1Model || !g.ruleset) throw new Error('STAGE5_DESIGN_DATA_REQUIRES_SAVED_R1_GEOMETRY');
   const model = g.r1Model;
     const approved = model.approvedComponent;
+    const preliminary = g.ruleset?.includes('R5_CURRENT_BASIS') === true;
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false,
       info: { Title: `CAD Design Data — Design ${designId}, revision ${record.revision}`,
@@ -95,7 +96,7 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
     };
     try {
       section('Design Data for CAD model and drawing preparation',
-        `Human-readable handoff of the saved ${approved ? 'approved-component' : 'R1'} geometry. Use the dimensions and coordinate schedules, not scaled illustrations. This report does not regenerate, resize or qualify the equipment.`);
+        `Human-readable handoff of the saved ${preliminary ? 'preliminary current-basis adapted component' : approved ? 'approved-component' : 'R1'} geometry. Use the dimensions and coordinate schedules, not scaled illustrations. This report does not regenerate, resize or qualify the equipment.`);
       table(['Document authority', 'Saved record'], [
         ['Design / revision / record', `${designId} / ${record.revision} / ${record.id}`],
         ['Saved on', new Date(record.createdAt).toISOString()],
@@ -118,8 +119,8 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
         model.heads.map(h => [h.end, mm(h.tangentM), mm(h.poleM), mm(h.radialSemiaxisM), mm(h.axialSemiaxisM)]));
       paragraph('Each head is the saved half-ellipsoid of revolution: r²/a² + (z − tangent Z)²/b² = 1, with semiaxes a/b listed above. Select the half between tangent and pole. This describes the internal geometric envelope only.');
       paragraph('The vessel straight internal cylinder uses the frozen column ID and extends between the bottom and top head tangent elevations. No shell outside diameter or material wall thickness is inferred. Model reserved envelopes separately from material-bearing components.');
-      group(approved ? 'Rotor geometry — approved double-entry shrouded six-blade assembly' : 'Rotor geometry — six-blade stepped assembly', /^(blade|hub|shroud|rotorOffset|rotorAxial|rotorConstruction|rotorThickness)/,
-        approved ? `${g.rotorType}. The saved solids below are the exact approved preliminary component definition; this is not fabrication qualification.`
+      group(approved ? `Rotor geometry — ${preliminary ? 'preliminary adapted' : 'approved'} double-entry shrouded six-blade assembly` : 'Rotor geometry — six-blade stepped assembly', /^(blade|hub|shroud|rotorOffset|rotorAxial|rotorConstruction|rotorThickness)/,
+        approved ? `${g.rotorType}. The saved solids below are the ${preliminary ? 'current-basis adaptation, not the approved D600 package' : 'exact approved preliminary component definition'}; this is not fabrication qualification.`
           : `${g.rotorType}. Actual saved stepped profiles follow; they are R1 engineering approximations, not a claim of exact vendor construction.`);
       table(['Blade number', 'Saved azimuth °'], model.bladeAzimuthsDeg.map((a, i) => [i + 1, number(a)]));
       table(['Profile vertex', 'Radial X mm', 'Local Z mm'], model.rotor.profileM.map((v, i) => [i + 1, mm(v[0]), mm(v[1])]));
@@ -133,7 +134,7 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
         paragraph(`Approved eye diameter ${mm(approved.rotor.eyeDiameterM)} mm; inner web height ${mm(approved.rotor.webHeightM)} mm; outer paddle height ${mm(approved.rotor.paddleHeightM)} mm. The upper and lower shrouds are separate annular solids.`);
       }
       group('Stator geometry and area convention', /^(stator|empirical|gross|shaftBlocked|calculatedFree|freeArea)/,
-        approved ? 'Approved physical convention: gross opening fraction = (DSO² + N dh²)/D² = 0.40. The shaft-corrected value is diagnostic only and is not fed upstream.'
+        approved ? `Physical convention: gross opening fraction = (DSO² + N dh²)/D² = ${g.basis.statorFreeAreaRatio}. The shaft-corrected value is diagnostic only and is not fed upstream.`
           : 'Approved physical convention: do = D × sqrt(phi_s). Gross opening fraction = (do/D)² = phi_s. Shaft-blocked net fraction = (do² − ds²)/D². Preserve the original empirical Stage-3 phi_s; neither physical fraction is fed back upstream.');
       if (approved) {
         table(['Row', 'PCD mm', 'Count', 'First angle °', 'Step °'],
@@ -141,7 +142,7 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
         table(['Row / hole', 'Exact X mm', 'Exact Y mm', 'Angle °'],
           approved.stator.holes.map(h => [`${h.row} / ${h.index}`, mm(h.xM), mm(h.yM), number(h.angleDeg)]),
           [.2, .27, .27, .26]);
-        paragraph(`Hole diameter ${mm(approved.stator.holeDiameterM)} mm; centre opening ${mm(approved.stator.centreOpeningDiameterM)} mm; six retained ${mm(approved.stator.laneWidthM)} mm no-hole lanes. Coordinate source canonical SHA-256: ${approved.manifestCanonicalSha256}.`);
+        paragraph(`Hole diameter ${mm(approved.stator.holeDiameterM)} mm; centre opening ${mm(approved.stator.centreOpeningDiameterM)} mm; six retained ${mm(approved.stator.laneWidthM)} mm no-hole lanes. ${preliminary ? 'Component ancestry (not adapted-coordinate approval)' : 'Coordinate source'} canonical SHA-256: ${approved.manifestCanonicalSha256}.`);
       }
       group('Shaft and shaft-support geometry', /^(shaft|lowerShaft|upperShaft|supportArm|supportHousing|supportAzimuth)/);
       table(['Support', 'Centre Z mm', 'Housing OD mm', 'Housing height mm'],
@@ -192,7 +193,7 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
       section('Validation results — complete saved check register',
         `${g.checks.filter(c => c.status === 'pass').length} passed of ${g.checks.length}. Status is from this saved revision, not a rerun against current upstream results.`);
       table(['Check', 'Result', 'Validation requirement'], g.checks.map(c => [label(c.id), c.status.toUpperCase(), c.message]), [.28, .1, .62]);
-      section(`${approved ? 'Approved-component' : 'R1'} rules, source hashes and retained lineage`,
+      section(`${preliminary ? 'Preliminary adapted-component' : approved ? 'Approved-component' : 'R1'} rules, source hashes and retained lineage`,
         'These identifiers belong to the saved revision. Missing legacy metadata is explicitly reported, never substituted with current sources.');
       const flatten = (value: unknown, prefix = ''): unknown[][] => value && typeof value === 'object'
         ? Object.entries(value).flatMap(([k, v]) => flatten(v, prefix ? `${prefix} / ${label(k)}` : label(k)))

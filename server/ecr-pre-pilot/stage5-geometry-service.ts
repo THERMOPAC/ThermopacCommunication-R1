@@ -3,11 +3,13 @@ import { pool } from '../db';
 import { loadStage4PrePilotSizingAuthority } from './stage4-pre-pilot-sizing-service';
 import { STAGE5_INPUT_FIELDS, type Stage5Basis, type Stage5Inputs } from '../../shared/ecr-stage5-geometry';
 import {
-  buildStage5R1Geometry, R1_RULES_MANIFEST, R2_RULES_MANIFEST, R2_RULESET,
+  R1_RULES_MANIFEST, R2_RULES_MANIFEST, R2_RULESET,
   R3_RULES_MANIFEST, R3_RULESET,
 } from '../../shared/ecr-stage5-r1';
 import {
   APPROVED_COMPONENT_RULES_MANIFEST, APPROVED_COMPONENT_RULESET, buildStage5ApprovedComponentGeometry,
+  PRELIMINARY_COMPONENT_RULES_MANIFEST, PRELIMINARY_COMPONENT_RULESET,
+  buildStage5PreliminaryComponentGeometry, matchesApprovedComponentContract,
 } from '../../shared/ecr-stage5-approved-components';
 import { renderStage5Svg, type Stage5DrawingView } from '../../shared/ecr-stage5-drawings';
 
@@ -166,11 +168,12 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
   return { basis, sourceStage3, sourceStage4, sourceHash };
 }
 export const getStage5Basis = (u: number, d: number) => scoped(u, d, c => loadStage5Basis(c, u, d));
-/** Design 269 is the explicitly approved successor-component production
- * boundary. Other designs continue to generate their historical R1/R2 rule
- * version; they are never silently upgraded or resized. */
-export function buildCurrentStage5Geometry(designId: number, basis: Stage5Basis) {
-  return designId === 269 ? buildStage5ApprovedComponentGeometry(basis) : buildStage5R1Geometry(basis);
+/** New packages use the approved architecture, never reinterpret saved models.
+ * Exact D600 contract retains its own guard; all others are preliminary. */
+export function buildCurrentStage5Geometry(_designId: number, basis: Stage5Basis) {
+  return matchesApprovedComponentContract(basis)
+    ? buildStage5ApprovedComponentGeometry(basis)
+    : buildStage5PreliminaryComponentGeometry(basis);
 }
 export function rejectStage5ConstructionOverrides(input: unknown) {
   if (input !== undefined) throw new Stage5Error('STAGE5_R1_CONSTRUCTION_OVERRIDES_FORBIDDEN', 400);
@@ -210,6 +213,7 @@ export async function saveStage5Revision(u: number, d: number, input: unknown, e
     if (expectedSourceHash !== source.sourceHash) throw new Stage5Error('STAGE5_SOURCE_CHANGED');
     const geometry = buildCurrentStage5Geometry(d, source.basis);
     const rulesManifest = geometry.ruleset === APPROVED_COMPONENT_RULESET ? APPROVED_COMPONENT_RULES_MANIFEST
+      : geometry.ruleset === PRELIMINARY_COMPONENT_RULESET ? PRELIMINARY_COMPONENT_RULES_MANIFEST
       : geometry.ruleset === R3_RULESET ? R3_RULES_MANIFEST
         : geometry.ruleset === R2_RULESET ? R2_RULES_MANIFEST : R1_RULES_MANIFEST;
     const snapshot = JSON.parse(JSON.stringify({ inputs: geometry.inputs, geometry, ruleset: geometry.ruleset,

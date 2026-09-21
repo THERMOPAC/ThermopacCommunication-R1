@@ -1549,3 +1549,17 @@ mtime_ms = 1789983243369
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/280e7b29-def6-460c-a7dd-97a4a16e8f9a/b9faea59-77c9-42ab-8af7-433a48e678a8"
 storage_version_token = "1789983469301059"
 content_type = "text/csv"
+
+[[outputs]]
+id = "nAuWepWXL9yTfPJCSRj7E"
+uri = "file://deliverables/stage5-current-269/preliminary-current-basis.pdf"
+type = "pdf"
+title = "Ø700 Preliminary Drawing Package"
+description = "20-page current-design preview: general arrangement, longitudinal section, compartment, rotor and stator details. Ø700 column, Ø231 rotor, 210-mm pitch, 20 compartments, 4.2-m active height. Preliminary—not for fabrication; not yet saved as an issued revision."
+logical_id = "c5af7226-7606-4b99-b3ec-6aea0e2dacfd"
+content_hash = "sha256:b1ed356552a8b3e9dbef7a7c9230087fe642fdd73bc9af62992488f6119e7dd4"
+size = 174077
+mtime_ms = 1789996369678
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c5af7226-7606-4b99-b3ec-6aea0e2dacfd/c1f096f1-b854-498f-ab18-ef3ce3e3203a"
+storage_version_token = "1789996812732264"
+content_type = "application/pdf"

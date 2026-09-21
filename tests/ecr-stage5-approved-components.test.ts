@@ -3,6 +3,7 @@ import {
   APPROVED_COMPONENT_MANIFEST_CANONICAL_SHA256, APPROVED_COMPONENT_RULESET,
   HISTORICAL_APPROVED_COMPONENT_RULESET,
   buildStage5ApprovedComponentGeometry,
+  buildStage5PreliminaryComponentGeometry, PRELIMINARY_COMPONENT_RULESET,
 } from "../shared/ecr-stage5-approved-components";
 import { renderStage5Svg, type Stage5DrawingView } from "../shared/ecr-stage5-drawings";
 import type { Stage5Basis } from "../shared/ecr-stage5-geometry";
@@ -25,6 +26,44 @@ const basis: Stage5Basis = {
 };
 
 describe("approved Stage5 turbine and perforated stator production geometry", () => {
+  it("adapts current D700 without changing upstream or fixed component interfaces", () => {
+    const current = { ...basis, columnDiameterM: .7, rotorDiameterM: .231,
+      compartmentHeightM: .21, selectedRpm: 30, rpmMin: 30, rpmMax: 30,
+      requiredActiveHeightM: 4.2, installedActiveHeightM: 4.2,
+      impliedInstalledHetsMPerTheoreticalStage: .6 };
+    const before = JSON.stringify(current);
+    const g = buildStage5PreliminaryComponentGeometry(current);
+    expect(JSON.stringify(current)).toBe(before);
+    expect(g.ruleset).toBe(PRELIMINARY_COMPONENT_RULESET);
+    expect(g.complete).toBe(true);
+    expect(g.compartments).toHaveLength(20);
+    expect(g.dimensions.grossFreeAreaRatio).toBeCloseTo(.4, 14);
+    expect(g.dimensions.rotorAxialEnvelopeM).toBe(.032);
+    expect(g.dimensions.rotorLowerClearanceM).toBeCloseTo(.087);
+    expect(g.dimensions.shroudInnerDiameterM).toBe(.13);
+    expect(g.dimensions.statorOpeningDiameterM).toBe(.112);
+    const a = g.r1Model!.approvedComponent!;
+    expect(a.stator.holeDiameterM).toBeCloseTo(.046733285782191686, 14);
+    expect(a.stator.rows[0].radiusM).toBeGreaterThan(.1);
+    expect(a.stator.rows[1].radiusM).toBeGreaterThan(.155);
+    for (const row of a.stator.rows.slice(0, 2))
+      expect(row.radiusM * Math.sin(row.firstAngleDeg * Math.PI / 180) - a.stator.holeDiameterM / 2).toBeCloseTo(.004, 12);
+    expect(a.stator.rows[2].radiusM).toBe(.21);
+    expect(a.stator.rows[3].radiusM).toBe(.265);
+    expect(g.assumptions.join(" ")).toContain("zero-width");
+    const roundTrip = JSON.parse(JSON.stringify(g));
+    for (const view of ["ga", "section", "compartment", "rotor", "stator"] as Stage5DrawingView[]) {
+      expect(renderStage5Svg(roundTrip, view)).toBe(renderStage5Svg(g, view));
+      expect(renderStage5Svg(g, view)).toContain("NOT FOR FABRICATION");
+    }
+    expect(buildCurrentStage5Geometry(123, current).ruleset).toBe(PRELIMINARY_COMPONENT_RULESET);
+    expect(() => buildStage5ApprovedComponentGeometry(current)).toThrow("approved-template-");
+    expect(() => buildStage5PreliminaryComponentGeometry({
+      ...current, columnDiameterM: .5, rotorDiameterM: .165, compartmentHeightM: .15,
+      installedActiveHeightM: 3, requiredActiveHeightM: 3,
+      impliedInstalledHetsMPerTheoreticalStage: 3 / 7,
+    })).toThrow("preliminary-component-interference");
+  });
   it("freezes the exact approved dimensions, coordinates, free area and topology", () => {
     const g = buildStage5ApprovedComponentGeometry(basis);
     const a = g.r1Model!.approvedComponent!, d = g.dimensions;
@@ -90,10 +129,10 @@ describe("approved Stage5 turbine and perforated stator production geometry", ()
       expect(() => buildStage5ApprovedComponentGeometry({ ...basis, ...change })).toThrow();
   });
 
-  it("selects the successor only for design 269 and exports exact CAD design data", async () => {
+  it("selects the exact successor by contract rather than design ID and exports exact CAD design data", async () => {
     expect(buildCurrentStage5Geometry(269, basis).ruleset).toBe(APPROVED_COMPONENT_RULESET);
     const historical = buildCurrentStage5Geometry(268, basis);
-    expect(historical.ruleset).not.toBe(APPROVED_COMPONENT_RULESET);
+    expect(historical.ruleset).toBe(APPROVED_COMPONENT_RULESET);
     const geometry = buildStage5ApprovedComponentGeometry(basis);
     const pdf = await createStage5DesignDataPdf({
       id: "fixture", revision: 3, createdAt: "2026-09-20T00:00:00Z",

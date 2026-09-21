@@ -52,10 +52,11 @@ export default function EcrPrePilotDesignStage5Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [basisError, setBasisError] = useState<string | null>(null);
+  const [constructionError, setConstructionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"preview" | "save" | null>(null);
   const [downloading, setDownloading] = useState(false);
   const read = useCallback(async () => {
-    setLoading(true); setError(null); setBasisError(null);
+    setLoading(true); setError(null); setBasisError(null); setConstructionError(null); setPreview(null);
     try {
       const saved = await fetch("/api/ecr-pre-pilot/designs/latest-saved", { credentials: "include" });
       if (!saved.ok) throw new Error("A saved ECR pre-pilot design is required before Stage 5 can begin.");
@@ -63,27 +64,33 @@ export default function EcrPrePilotDesignStage5Page() {
       const id = nextDesign.id;
       if (id === undefined || id === null) throw new Error("The saved design did not include an identifier.");
       const [basisResult, revisionsResult] = await Promise.allSettled([
-        fetch(`${base(id)}/basis`, { credentials: "include" }),
-        fetch(`${base(id)}/revisions`, { credentials: "include" }),
+        fetch(`${base(id)}/basis?payload=summary`, { credentials: "include" }),
+        fetch(`${base(id)}/revisions?payload=summary`, { credentials: "include" }),
       ]);
       if (revisionsResult.status === "rejected" || !revisionsResult.value.ok) throw new Error("Stage 5 revision history is unavailable.");
       setRevisions((await revisionsResult.value.json()) as Revision[]);
       if (basisResult.status === "rejected" || !basisResult.value.ok) {
         setBasis(null);
-        setBasisError("Current Stage 3/4 governing basis is unavailable. Historical Stage 5 revisions remain readable and exportable, but no preview or new revision can be created.");
+        const details = basisResult.status === "rejected" ? messageOf(basisResult.reason)
+          : String(object(await basisResult.value.json()).error ?? `HTTP ${basisResult.value.status}`);
+        setBasisError(`${details}. Current Stage 3/4 governing basis is unavailable. Review upstream saved authority; historical revisions remain readable and exportable.`);
       } else {
         setBasis(object(await basisResult.value.json()));
-        const generated = await fetch(`${base(id)}/preview`, { method: "POST", credentials: "include",
-          headers: { "Content-Type": "application/json" }, body: "{}" });
-        const result = object(await generated.json());
-        if (!generated.ok) {
-          setPreview(null);
-          setBasisError(String(result.error ?? "Automatic R1 generation failed; frozen geometry is incompatible."));
-        } else {
-          const model = object(result.geometry ?? result), generatedBasis = object(model.basis);
-          setPreview(model);
-          setBasis(previous => ({ ...previous, basis: generatedBasis,
-            sourceHash: generatedBasis.sourceHash ?? previous?.sourceHash }));
+        try {
+          const generated = await fetch(`${base(id)}/preview`, { method: "POST", credentials: "include",
+            headers: { "Content-Type": "application/json" }, body: "{}" });
+          const result = object(await generated.json());
+          if (!generated.ok) {
+            setPreview(null);
+            setConstructionError(String(result.error ?? "Automatic construction failed; frozen geometry is incompatible."));
+          } else {
+            const model = object(result.geometry ?? result), generatedBasis = object(model.basis);
+            setPreview(model);
+            setBasis(previous => ({ ...previous, basis: generatedBasis,
+              sourceHash: generatedBasis.sourceHash ?? previous?.sourceHash }));
+          }
+        } catch (cause) {
+          setPreview(null); setConstructionError(messageOf(cause));
         }
       }
     } catch (cause) { setError(messageOf(cause)); } finally { setLoading(false); }
@@ -103,8 +110,10 @@ export default function EcrPrePilotDesignStage5Page() {
     "Rotor / column ratio": governing.rotorDiameterRatio,
     "Stator free-area ratio": governing.statorFreeAreaRatio,
     "Selected speed (RPM)": governing.selectedRpm,
-    "Minimum window speed (RPM)": governing.rpmMin,
-    "Maximum window speed (RPM)": governing.rpmMax,
+    "Inherited minimum speed (RPM)": governing.rpmMin,
+    "Inherited maximum speed (RPM)": governing.rpmMax,
+    "Speed authority": governing.rpmMin === governing.rpmMax
+      ? "Selected point only — no operating window established" : "Inherited upstream bounds",
     "Phase configuration": governing.phaseConfiguration,
   };
   const governingStage4 = {
@@ -148,7 +157,7 @@ export default function EcrPrePilotDesignStage5Page() {
     if (!design?.id) return;
     try {
       const presentation = [R1_RULESET, R2_RULESET].includes(String(object(summary.geometry).ruleset)) ? "?presentation=dimensioned-v2" : "";
-      const response = await fetch(`${base(design.id)}/revisions/${summary.id}${presentation}`, { credentials: "include" });
+      const response = await fetch(`${base(design.id)}/revisions/${summary.id}${presentation}${presentation ? "&" : "?"}payload=summary`, { credentials: "include" });
       if (!response.ok) throw new Error(`Revision ${summary.revision} could not be opened.`);
       setSelected(await response.json() as Revision);
       setPreview(null);
@@ -166,14 +175,14 @@ export default function EcrPrePilotDesignStage5Page() {
       const model = object(result.geometry ?? result), generatedBasis = object(model.basis);
       setBasis(previous => ({ ...previous, basis: generatedBasis,
         sourceHash: generatedBasis.sourceHash ?? previous?.sourceHash }));
-      setBasisError(null); setPreview(model);
-    } catch (cause) { toast({ title: "Preview unavailable", description: messageOf(cause), variant: "destructive" }); } finally { setBusy(null); }
+      setConstructionError(null); setPreview(model);
+    } catch (cause) { setPreview(null); setConstructionError(messageOf(cause)); toast({ title: "Preview unavailable", description: messageOf(cause), variant: "destructive" }); } finally { setBusy(null); }
   };
   const saveRevision = async () => {
     if (!design?.id || frozen || !sourceHash) return;
     setBusy("save");
     try {
-      const response = await fetch(`${base(design.id)}/revisions`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedSourceHash: sourceHash }) });
+      const response = await fetch(`${base(design.id)}/revisions?payload=summary`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ expectedSourceHash: sourceHash }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(String(payload.error ?? "Revision was not saved. Refresh the frozen upstream basis."));
       const record = payload as Revision;
@@ -194,7 +203,8 @@ export default function EcrPrePilotDesignStage5Page() {
     </header>
     {loading ? <div data-testid="stage5-loading" className="flex items-center justify-center py-20 text-sm text-slate-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reading saved governing basis…</div> : error ? <section data-testid="stage5-error" className="mt-6 rounded border border-red-300 bg-red-50 p-5 text-sm text-red-950"><h2 className="font-semibold">Stage 5 basis unavailable</h2><p className="mt-1">{error}</p><Button type="button" variant="outline" onClick={() => void read()} className="mt-4 gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Retry</Button></section> : <>
       <section className="mt-5 rounded border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950"><div className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>Mechanical exclusions:</strong> this package does not establish pressure-vessel wall/head thickness, shaft strength or deflection, critical speed, bearings or seals, motor/gearbox adequacy, or structural/support calculations.</div></div></section>
-      {basisError && <section data-testid="stage5-source-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Automatic R1 generation blocked.</strong> {basisError}</section>}
+      {basisError && <section data-testid="stage5-source-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Inherited basis unavailable.</strong> {basisError}</section>}
+      {constructionError && <section data-testid="stage5-construction-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Construction generation blocked.</strong> {constructionError}<p className="mt-1">The inherited basis remains read-only below. Engineering review of the stated construction rule is required; do not change upstream inputs just to fit a template.</p></section>}
       {selected && (selected.currentness !== "CURRENT" || !object(selected.geometry).ruleset) && <section data-testid="stage5-stale-banner" className="mt-4 flex gap-2 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><AlertTriangle className="h-4 w-4 shrink-0" /><div><strong>Historical / superseded revision.</strong> This frozen package is read-only and is never regenerated under new rules. A new R1 revision uses the current frozen upstream basis, not historical construction inputs.</div></section>}
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="space-y-5"><section><div className="mb-2 flex flex-wrap items-end justify-between gap-2"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Authoritative upstream handoff</p><h2 className="text-sm font-semibold text-slate-950">Read-only inherited facts</h2></div><span className="font-mono text-[10px] text-slate-500">Source hash: {String(displayedSourceHash ?? "unavailable")}</span></div><div className="grid gap-3 lg:grid-cols-2"><ValueGrid title="Stage 3 hydraulic & geometry basis" data={governingStage3} /><ValueGrid title="Stage 4 physical sizing basis" data={governingStage4} /></div></section>
@@ -210,7 +220,7 @@ export default function EcrPrePilotDesignStage5Page() {
             </div>
             <div className="p-3 text-xs leading-5">All construction dimensions, profiles and connections are generated from the frozen Stage-3/4 basis. No normal-user construction inputs are required or accepted.
               {object(currentGeometry).ruleset && object(currentGeometry).complete === true
-                ? <p className="mt-2 font-semibold text-emerald-800">{R1_COMPLETE}</p> : null}
+                ? <p className="mt-2 font-semibold text-emerald-800">{String(object(currentGeometry).completionStatement ?? R1_COMPLETE)}</p> : null}
               {frozen && !object(currentGeometry).ruleset ? <p className="mt-2">Historical pre-R1 snapshot: preserved exactly, not upgraded or regenerated.</p> : null}
             </div>
           </section>

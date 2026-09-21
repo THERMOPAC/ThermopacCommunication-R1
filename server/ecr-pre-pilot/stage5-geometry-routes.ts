@@ -6,6 +6,18 @@ import { R1GeometryError } from '../../shared/ecr-stage5-r1';
 import { stage5DrawingPresentation } from './stage5-drawing-presentation';
 import { createStage5DesignDataPdf } from './stage5-design-data-report';
 
+/** Transport projection only. Never used to validate/hash/save a revision.
+ * Full source snapshots remain server authority and legacy responses are intact. */
+export function stage5SummaryPayload(record: any, kind: 'basis' | 'revision' | 'history') {
+  if (kind === 'basis') return { basis: record.basis, sourceHash: record.sourceHash };
+  const { sourceStage3, sourceStage4, ...presentation } = record;
+  if (kind === 'history') {
+    const { geometry, drawings, inputs, rulesManifest, ...summary } = presentation;
+    return { ...summary, geometry: { ruleset: geometry?.ruleset } };
+  }
+  return presentation;
+}
+
 export function setupStage5GeometryRoutes(app: Express) {
   const base = '/api/ecr-pre-pilot/designs/:id/stage5';
   const handle = (action: (req: Request, res: Response, user: number, design: number) => Promise<unknown>) =>
@@ -24,10 +36,18 @@ export function setupStage5GeometryRoutes(app: Express) {
           .json({ error: known ? error.message : 'STAGE5_REQUEST_FAILED' });
       }
     };
-  app.get(`${base}/basis`, ensureAuthenticated, handle(async (_q, r, u, d) => r.json(await getStage5Basis(u, d))));
-  app.get(`${base}/revisions`, ensureAuthenticated, handle(async (_q, r, u, d) => r.json(await getStage5Revisions(u, d))));
-  app.get(`${base}/revisions/:revisionId`, ensureAuthenticated, handle(async (q, r, u, d) =>
-    r.json(stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation))));
+  app.get(`${base}/basis`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    const record = await getStage5Basis(u, d);
+    return r.json(q.query.payload === 'summary' ? stage5SummaryPayload(record, 'basis') : record);
+  }));
+  app.get(`${base}/revisions`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    const records = await getStage5Revisions(u, d);
+    return r.json(q.query.payload === 'summary' ? records.map(record => stage5SummaryPayload(record, 'history')) : records);
+  }));
+  app.get(`${base}/revisions/:revisionId`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    const record = stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation);
+    return r.json(q.query.payload === 'summary' ? stage5SummaryPayload(record, 'revision') : record);
+  }));
   const requireAutomaticBody = (body: any, allowed: string[]) => {
     if (body != null && (typeof body !== 'object' || Array.isArray(body) ||
       Object.keys(body).some(key => !allowed.includes(key))))
@@ -39,7 +59,8 @@ export function setupStage5GeometryRoutes(app: Express) {
   }));
   app.post(`${base}/revisions`, ensureAuthenticated, handle(async (q, r, u, d) => {
     requireAutomaticBody(q.body, ['expectedSourceHash', 'notes']);
-    return r.status(201).json(await saveStage5Revision(u, d, undefined, q.body?.expectedSourceHash, q.body?.notes));
+    const record = await saveStage5Revision(u, d, undefined, q.body?.expectedSourceHash, q.body?.notes);
+    return r.status(201).json(q.query.payload === 'summary' ? stage5SummaryPayload(record, 'revision') : record);
   }));
   app.get(`${base}/revisions/:revisionId/export.svg`, ensureAuthenticated, handle(async (q, r, u, d) => {
     const view = String(q.query.view ?? 'ga');

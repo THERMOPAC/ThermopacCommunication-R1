@@ -9,6 +9,7 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
   if (!m) throw new Error("R1_FROZEN_DRAWING_MODEL_MISSING");
   const model = m;
   const approved = model.approvedComponent;
+  const preliminary = g.ruleset?.includes("R5_CURRENT_BASIS") === true;
   const titles = { ga: "GENERAL ARRANGEMENT", section: "LONGITUDINAL SECTION A–A", compartment: "DETAIL B — TYPICAL COMPARTMENT", rotor: "ROTOR — PLAN & ELEVATION", stator: "STATOR — PLAN & SECTION" };
   const sheet = new TechnicalSheet(titles[view]);
   const diameter = (key: string) => `Ø${mm(d[key])}`;
@@ -188,7 +189,7 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
       sheet.leader(ex+d.hubDiameterM*es*.7,ey-d.bladeInnerSegmentHeightM*es/2,725,675,`INNER STEP H ${mm(d.bladeInnerSegmentHeightM)}`);
       if(approved) {
         sheet.text(55,785,`UPPER + LOWER SHROUDS • each t ${mm(d.shroudThicknessM)} • eye Ø${mm(d.shroudInnerDiameterM)}`,15);
-        sheet.text(55,820,"Approved double-entry turbine component geometry. Attachment and fabrication design excluded.",15);
+        sheet.text(55,820,`${preliminary ? "Preliminary adapted" : "Approved"} double-entry turbine. Attachment and fabrication design excluded.`,15);
       } else sheet.text(55,820,"Class-C reference-inspired stepped profile. Attachment and fabrication design excluded.",15);
     } else {
       sheet.circle(cx,cy,d.statorOpeningDiameterM*s/2);
@@ -204,20 +205,21 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
       sheet.text(680,615,`Empirical φs: ${d.statorFreeAreaRatio.toFixed(6)}`,17);
       sheet.text(680,645,`Gross opening fraction: ${d.grossFreeAreaRatio.toFixed(6)}`,17);
       sheet.text(680,675,`Shaft-blocked net fraction: ${d.shaftBlockedFreeAreaRatio.toFixed(6)}`,17);
-      sheet.text(680,720,approved?"gross = (112² + 84 dh²) / 600²":"do = D √φs  •  gross = (do/D)²",15);
-      sheet.text(680,746,approved?"PCD 200/310/420/530 • 12/18/24/30 holes":"net = (do² − ds²)/D²",15);
+      sheet.text(680,720,approved?`gross = (${mm(d.statorOpeningDiameterM)}² + 84 dh²) / ${mm(d.columnDiameterM)}²`:"do = D √φs  •  gross = (do/D)²",15);
+      sheet.text(680,746,approved?`PCD ${approved.stator.rows.map(r => mm(r.pcdM)).join("/")} • 12/18/24/30 holes`:"net = (do² − ds²)/D²",13);
       sheet.text(55,795,approved?`84 × Ø${mm(d.statorHoleDiameterM)} • centre Ø${mm(d.statorOpeningDiameterM)} • six ${mm(d.statorLaneWidthM)} no-hole lanes`:"Gross and shaft-blocked physical areas are reported separately; no feedback to Stage 3.",15);
-      sheet.text(55,820,approved?`Exact centres from approved manifest SHA-256 ${approved.manifestCanonicalSha256}`:"",12);
+      sheet.text(55,820,approved?`${preliminary ? "Adapted centres; ancestor" : "Exact centres from approved"} manifest SHA-256 ${approved.manifestCanonicalSha256}`:"",12);
       sheet.callout(cx-r-25,cy,"A"); sheet.callout(cx+r+25,cy,"A");
     }
   }
   if(approved && view!=="rotor" && view!=="stator") {
-    sheet.text(745,790,`APPROVED INTERNALS: DR Ø${mm(d.rotorDiameterM)} • eye Ø${mm(d.shroudInnerDiameterM)} • 6 blades t${mm(d.bladeThicknessM)}`,12);
-    sheet.text(745,810,`2 shrouds t${mm(d.shroudThicknessM)} • stator Ø112 + 84×Ø${mm(d.statorHoleDiameterM)}`,12);
-    sheet.text(745,830,"PCD/count: 200/12 • 310/18 • 420/24 • 530/30",12);
+    const noteX = view === "ga" ? 55 : 745, noteY = view === "ga" ? 827 : 790;
+    sheet.text(noteX,noteY,`${preliminary ? "PRELIMINARY" : "APPROVED"} INTERNALS: DR Ø${mm(d.rotorDiameterM)} • eye Ø${mm(d.shroudInnerDiameterM)} • 6 blades t${mm(d.bladeThicknessM)}`,12);
+    sheet.text(noteX,noteY+16,`2 shrouds t${mm(d.shroudThicknessM)} • stator Ø112 + 84×Ø${mm(d.statorHoleDiameterM)}`,12);
+    sheet.text(noteX,noteY+32,`PCD/count: ${approved.stator.rows.map(r => `${mm(r.pcdM)}/${r.count}`).join(" • ")}`,12);
   }
   if(approved && (view==="rotor" || view==="stator"))
-    sheet.text(55,850,`COMPANION STATOR: Ø112 centre + 84 × Ø${mm(d.statorHoleDiameterM)} exact manifest holes`,12);
+    sheet.text(55,850,`COMPANION STATOR: Ø112 centre + 84 × Ø${mm(d.statorHoleDiameterM)} ${preliminary ? "preliminary adapted" : "exact manifest"} holes`,12);
   return sheet.finish({ ruleset:g.ruleset??"R1",stage3:g.basis.stage3ResultId,stage4:g.basis.stage4ResultId,
     status:g.completionStatement??"",watermark:g.watermark,context,scale:view==="section"&&g.compartments.length>6?"BROKEN VIEW • repeated central section omitted":"FITTED SHEET • dimensions govern" }).replace("<svg ", `<svg data-view="${view}" `);
 }
