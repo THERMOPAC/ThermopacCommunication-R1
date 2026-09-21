@@ -1,0 +1,527 @@
+{
+  "controls": {
+    "diameterMinM": 0.2,
+    "diameterMaxM": 1.5,
+    "diameterStepM": 0.1,
+    "rpmMin": 30,
+    "rpmMax": 70,
+    "rpmStep": 5,
+    "hcToColumn": [
+      0.2,
+      0.25,
+      0.3
+    ],
+    "rotorToColumn": [
+      0.33,
+      0.4,
+      0.5
+    ],
+    "freeArea": [
+      0.2,
+      0.3,
+      0.4
+    ],
+    "compareOrientations": true,
+    "minimumUsefulWindowRpm": 20
+  },
+  "trialCountPerOrientation": 3402,
+  "singleTrialMs": 86.32291700000002,
+  "estimatedReverseSeconds": 293.6705636340001,
+  "comparisonNote": "Default routine retained unchanged; alternate orientation is comparison only and cannot replace requested orientation.",
+  "trial": {
+    "diameterM": 0.8,
+    "hcToColumn": 0.25,
+    "rotorToColumn": 0.4,
+    "freeArea": 0.3,
+    "rpm": 50,
+    "compartmentHeightM": 0.2,
+    "rotorDiameterM": 0.32000000000000006,
+    "tipSpeedMS": 0.8377580409572782,
+    "powerW": 2.024916764444446,
+    "powerVolumeWM3": 20.142219525686286,
+    "psiWKg": 0.02317861855660102,
+    "d32M": 0.0018693526010161363,
+    "holdup": null,
+    "interfacialAreaM2M3": null,
+    "floodHoldup": 0.15937742183476,
+    "hydraulicMethod": {
+      "methodId": "RRBO_WETNMP_KUHNI_HYDRAULIC_P1",
+      "status": "PREPILOT_EXTRAPOLATED_METHOD",
+      "acceptanceRecord": "USER_APPROVED_CONDITIONAL_PREPILOT_P1",
+      "propertyQualification": "PROVISIONAL_SAVED_40C",
+      "properties": {
+        "continuous": {
+          "identity": "RRBO_FEED",
+          "valueLph": 4000,
+          "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+          "flowM3S": 0.0011111111111111111,
+          "densityKgM3": 869,
+          "dynamicViscosityPaS": 0.0598
+        },
+        "dispersed": {
+          "identity": "WET_NMP_SOLVENT_PHASE",
+          "solventOilMassRatio": 0.6,
+          "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+          "flowM3S": 0.0005707717569786535,
+          "densityKgM3": 1015,
+          "dynamicViscosityPaS": 0.001416
+        },
+        "interfacialTensionNM": 0.011,
+        "temperatureC": 40
+      },
+      "signedDensityDifferenceKgM3": -146,
+      "jc": 0.0022104853207207684,
+      "jd": 0.0011355143312549837,
+      "diameterM": 0.8,
+      "rpm": 50,
+      "rotorDiameterM": 0.32000000000000006,
+      "compartmentHeightM": 0.2,
+      "phaseDirection": "UPWARD_RRBO_CONTINUOUS_DOWNWARD_WET_NMP_DISPERSED",
+      "powerNumber": 1.2,
+      "powerW": 2.024916764444446,
+      "powerVolumeWM3": 20.142219525686286,
+      "epsilonWKg": 0.02317861855660102,
+      "rotorReynolds": 1240.0445930880721,
+      "sourcePowerNumber": 1.3965634264183389,
+      "tipSpeedMS": 0.8377580409572782,
+      "maximumLoading": 0.7,
+      "qualification": {
+        "inversion": "UNKNOWN",
+        "entrainment": "UNKNOWN",
+        "disengagement": "UNKNOWN",
+        "turbulence": "UNKNOWN",
+        "sphericalDrop": "UNKNOWN",
+        "schillerNaumannRange": "UNKNOWN",
+        "interfaceMobility": "UNKNOWN"
+      },
+      "numericalPolicy": {
+        "holdupMeshIntervals": 512,
+        "continuationSteps": 16,
+        "bisectionIterations": 70,
+        "capacityRefinementIterations": 60,
+        "status": "IMPLEMENTATION_ASSUMPTIONS_NOT_SOURCE_THRESHOLDS"
+      },
+      "assumptions": [
+        "Np=1.2 fixed engineering assumption; distinct from Garthe source power number",
+        "C32=.36,.42,.43 conditional Sauter-mean proxy, not Hinze maximum stable diameter",
+        "Spherical drop and turbulent breakup assumptions remain unqualified; diagnostics are not acceptance thresholds",
+        "BP and SN interface scenarios are mandatory, neither is established as actual",
+        "Lower quasi-steady branch is not proof of dynamical stability; capacity is not observed flood"
+      ],
+      "sourceExtrapolation": {
+        "status": "EXTRAPOLATED",
+        "diameterToGartheMaximum": 5.2631578947368425,
+        "rotorToGartheMaximum": 3.7647058823529416,
+        "compartmentToGartheMaximum": 2.777777777777778,
+        "viscosityToKhMaximum": 37.14285714285714
+      },
+      "capacityMeaning": "MODELED_TURNING_CAPACITY_NOT_OBSERVED_FLOOD",
+      "scenarios": [
+        {
+          "coefficient": 0.36,
+          "interfaceScenario": "BARRY_PARLANGE_MOBILE",
+          "d32M": 0.0018693526010161363,
+          "terminalRe": 0.18343170141707266,
+          "terminalSpeedMS": 0.006752499727175097,
+          "signedTerminalVelocityMS": -0.006752499727175097,
+          "characteristicFactor": 1.0899333978988346,
+          "characteristicSpeedMS": 0.007359774971950907,
+          "characteristicRe": 0.19992833760787448,
+          "forceBalanceResidualN": -1.6940658945086007e-21,
+          "floodHoldup": 0.158832729975951,
+          "capacityMS": 0.0013554885068051796,
+          "loading": 2.4684824955558717,
+          "operatingRoots": [],
+          "operatingHoldup": null,
+          "continuation": [
+            {
+              "flowFraction": 0.0625,
+              "holdup": 0.010201843870300056
+            },
+            {
+              "flowFraction": 0.125,
+              "holdup": 0.0217600142026102
+            },
+            {
+              "flowFraction": 0.1875,
+              "holdup": 0.035202134693733435
+            },
+            {
+              "flowFraction": 0.25,
+              "holdup": 0.05149294348590705
+            },
+            {
+              "flowFraction": 0.3125,
+              "holdup": 0.07278930421971203
+            },
+            {
+              "flowFraction": 0.375,
+              "holdup": 0.10679208642500886
+            }
+          ],
+          "operatingSpeeds": null,
+          "signedOperatingVelocities": null,
+          "operatingBalanceResidualMS": null,
+          "interfacialAreaM2M3": null,
+          "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+          "diagnostics": {
+            "eotvos": 0.45484486847501604,
+            "weberTerminal": 0.006733602393062548,
+            "ohnesorgeContinuous": 0.44735195527429955,
+            "ohnesorgeDispersed": 0.009801403679157968,
+            "swarmReAtFlood": 0.09050398495717606
+          }
+        },
+        {
+          "coefficient": 0.36,
+          "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+          "d32M": 0.0018693526010161363,
+          "terminalRe": 0.12195719891065906,
+          "terminalSpeedMS": 0.004489496341195779,
+          "signedTerminalVelocityMS": -0.004489496341195779,
+          "characteristicFactor": 1.0899333978988346,
+          "characteristicSpeedMS": 0.004893252002013901,
+          "characteristicRe": 0.13292522420691866,
+          "forceBalanceResidualN": 0,
+          "floodHoldup": 0.15937742183476,
+          "capacityMS": 0.0009043989708514714,
+          "loading": 3.699694227676496,
+          "operatingRoots": [],
+          "operatingHoldup": null,
+          "continuation": [
+            {
+              "flowFraction": 0.0625,
+              "holdup": 0.01582661891850302
+            },
+            {
+              "flowFraction": 0.125,
+              "holdup": 0.03529122961234232
+            },
+            {
+              "flowFraction": 0.1875,
+              "holdup": 0.06142245370745282
+            },
+            {
+              "flowFraction": 0.25,
+              "holdup": 0.10692476981188298
+            }
+          ],
+          "operatingSpeeds": null,
+          "signedOperatingVelocities": null,
+          "operatingBalanceResidualMS": null,
+          "interfacialAreaM2M3": null,
+          "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+          "diagnostics": {
+            "eotvos": 0.45484486847501604,
+            "weberTerminal": 0.002976552601623182,
+            "ohnesorgeContinuous": 0.44735195527429955,
+            "ohnesorgeDispersed": 0.009801403679157968,
+            "swarmReAtFlood": 0.06020599716092789
+          }
+        },
+        {
+          "coefficient": 0.42,
+          "interfaceScenario": "BARRY_PARLANGE_MOBILE",
+          "d32M": 0.0021809113678521587,
+          "terminalRe": 0.28819548787476745,
+          "terminalSpeedMS": 0.009093489471855442,
+          "signedTerminalVelocityMS": -0.009093489471855442,
+          "characteristicFactor": 1.0895458519669017,
+          "characteristicSpeedMS": 0.009907773733964788,
+          "characteristicRe": 0.31400219836953036,
+          "forceBalanceResidualN": 0,
+          "floodHoldup": 0.15945336708803337,
+          "capacityMS": 0.0018353211135067283,
+          "loading": 1.8231140193132669,
+          "operatingRoots": [],
+          "operatingHoldup": null,
+          "continuation": [
+            {
+              "flowFraction": 0.0625,
+              "holdup": 0.007461631991480561
+            },
+            {
+              "flowFraction": 0.125,
+              "holdup": 0.01560792130506624
+            },
+            {
+              "flowFraction": 0.1875,
+              "holdup": 0.024609797435817565
+            },
+            {
+              "flowFraction": 0.25,
+              "holdup": 0.034719208303356994
+            },
+            {
+              "flowFraction": 0.3125,
+              "holdup": 0.046334394030189144
+            },
+            {
+              "flowFraction": 0.375,
+              "holdup": 0.06015279951945604
+            },
+            {
+              "flowFraction": 0.4375,
+              "holdup": 0.07761901077264664
+            },
+            {
+              "flowFraction": 0.5,
+              "holdup": 0.1029502405371126
+            }
+          ],
+          "operatingSpeeds": null,
+          "signedOperatingVelocities": null,
+          "operatingBalanceResidualMS": null,
+          "interfacialAreaM2M3": null,
+          "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+          "diagnostics": {
+            "eotvos": 0.6190944043132162,
+            "weberTerminal": 0.014247092505687394,
+            "ohnesorgeContinuous": 0.414167431865498,
+            "ohnesorgeDispersed": 0.009074336532149084,
+            "swarmReAtFlood": 0.1424815979627984
+          }
+        },
+        {
+          "coefficient": 0.42,
+          "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+          "d32M": 0.0021809113678521587,
+          "terminalRe": 0.19129681955561678,
+          "terminalSpeedMS": 0.006036026543844914,
+          "signedTerminalVelocityMS": -0.006036026543844914,
+          "characteristicFactor": 1.0895458519669017,
+          "characteristicSpeedMS": 0.00657652768320834,
+          "characteristicRe": 0.20842665624128315,
+          "forceBalanceResidualN": 0,
+          "floodHoldup": 0.15999169179035616,
+          "capacityMS": 0.0012218789076716206,
+          "loading": 2.738405279743963,
+          "operatingRoots": [],
+          "operatingHoldup": null,
+          "continuation": [
+            {
+              "flowFraction": 0.0625,
+              "holdup": 0.011491434906031817
+            },
+            {
+              "flowFraction": 0.125,
+              "holdup": 0.024725041519909004
+            },
+            {
+              "flowFraction": 0.1875,
+              "holdup": 0.04050350356022772
+            },
+            {
+              "flowFraction": 0.25,
+              "holdup": 0.06047234592092893
+            },
+            {
+              "flowFraction": 0.3125,
+              "holdup": 0.08929705021112899
+            }
+          ],
+          "operatingSpeeds": null,
+          "signedOperatingVelocities": null,
+          "operatingBalanceResidualMS": null,
+          "interfacialAreaM2M3": null,
+          "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+          "diagnostics": {
+            "eotvos": 0.6190944043132162,
+            "weberTerminal": 0.006277220572666424,
+            "ohnesorgeContinuous": 0.414167431865498,
+            "ohnesorgeDispersed": 0.009074336532149084,
+            "swarmReAtFlood": 0.09458089164532475
+          }
+        },
+        {
+          "coefficient": 0.43,
+          "interfaceScenario": "BARRY_PARLANGE_MOBILE",
+          "d32M": 0.002232837828991496,
+          "terminalRe": 0.30865175724046356,
+          "terminalSpeedMS": 0.009512462988279206,
+          "signedTerminalVelocityMS": -0.009512462988279206,
+          "characteristicFactor": 1.089479354307277,
+          "characteristicSpeedMS": 0.0103636320343423,
+          "characteristicRe": 0.33626971718414667,
+          "forceBalanceResidualN": 0,
+          "floodHoldup": 0.15957060424966213,
+          "capacityMS": 0.0019218239902617559,
+          "loading": 1.7410541594498574,
+          "operatingRoots": [],
+          "operatingHoldup": null,
+          "continuation": [
+            {
+              "flowFraction": 0.0625,
+              "holdup": 0.007119637920288371
+            },
+            {
+              "flowFraction": 0.125,
+              "holdup": 0.014857957864179358
+            },
+            {
+              "flowFraction": 0.1875,
+              "holdup": 0.02336007147635879
+            },
+            {
+              "flowFraction": 0.25,
+              "holdup": 0.0328349748686663
+            },
+            {
+              "flowFraction": 0.3125,
+              "holdup": 0.04360255685529295
+            },
+            {
+              "flowFraction": 0.375,
+              "holdup": 0.05619671301919345
+            },
+            {
+              "flowFraction": 0.4375,
+              "holdup": 0.07163671953601279
+            },
+            {
+              "flowFraction": 0.5,
+              "holdup": 0.0924076709093723
+            },
+            {
+              "flowFraction": 0.5625,
+              "holdup": 0.13090314236891146
+            }
+          ],
+          "operatingSpeeds": null,
+          "signedOperatingVelocities": null,
+          "operatingBalanceResidualMS": null,
+          "interfacialAreaM2M3": null,
+          "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+          "diagnostics": {
+            "eotvos": 0.6489260507795561,
+            "weberTerminal": 0.015961372485239222,
+            "ohnesorgeContinuous": 0.40932320168895586,
+            "ohnesorgeDispersed": 0.00896820028994593,
+            "swarmReAtFlood": 0.15265188583926892
+          }
+        },
+        {
+          "coefficient": 0.43,
+          "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+          "d32M": 0.002232837828991496,
+          "terminalRe": 0.20483614758397772,
+          "terminalSpeedMS": 0.006312927844555429,
+          "signedTerminalVelocityMS": -0.006312927844555429,
+          "characteristicFactor": 1.089479354307277,
+          "characteristicSpeedMS": 0.006877804551874679,
+          "characteristicRe": 0.22316475380858217,
+          "forceBalanceResidualN": 1.6940658945086007e-21,
+          "floodHoldup": 0.16010174016412965,
+          "capacityMS": 0.0012790423517260808,
+          "loading": 2.616019436307399,
+          "operatingRoots": [],
+          "operatingHoldup": null,
+          "continuation": [
+            {
+              "flowFraction": 0.0625,
+              "holdup": 0.01095494338962518
+            },
+            {
+              "flowFraction": 0.125,
+              "holdup": 0.023475039554970125
+            },
+            {
+              "flowFraction": 0.1875,
+              "holdup": 0.03822836460234639
+            },
+            {
+              "flowFraction": 0.25,
+              "holdup": 0.05651212905509467
+            },
+            {
+              "flowFraction": 0.3125,
+              "holdup": 0.08159066651081617
+            },
+            {
+              "flowFraction": 0.375,
+              "holdup": 0.13246415483053592
+            }
+          ],
+          "operatingSpeeds": null,
+          "signedOperatingVelocities": null,
+          "operatingBalanceResidualMS": null,
+          "interfacialAreaM2M3": null,
+          "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+          "diagnostics": {
+            "eotvos": 0.6489260507795561,
+            "weberTerminal": 0.007029847819575512,
+            "ohnesorgeContinuous": 0.40932320168895586,
+            "ohnesorgeDispersed": 0.00896820028994593,
+            "swarmReAtFlood": 0.10130246111584021
+          }
+        }
+      ],
+      "governing": {
+        "coefficient": 0.36,
+        "interfaceScenario": "SCHILLER_NAUMANN_IMMOBILE",
+        "d32M": 0.0018693526010161363,
+        "terminalRe": 0.12195719891065906,
+        "terminalSpeedMS": 0.004489496341195779,
+        "signedTerminalVelocityMS": -0.004489496341195779,
+        "characteristicFactor": 1.0899333978988346,
+        "characteristicSpeedMS": 0.004893252002013901,
+        "characteristicRe": 0.13292522420691866,
+        "forceBalanceResidualN": 0,
+        "floodHoldup": 0.15937742183476,
+        "capacityMS": 0.0009043989708514714,
+        "loading": 3.699694227676496,
+        "operatingRoots": [],
+        "operatingHoldup": null,
+        "continuation": [
+          {
+            "flowFraction": 0.0625,
+            "holdup": 0.01582661891850302
+          },
+          {
+            "flowFraction": 0.125,
+            "holdup": 0.03529122961234232
+          },
+          {
+            "flowFraction": 0.1875,
+            "holdup": 0.06142245370745282
+          },
+          {
+            "flowFraction": 0.25,
+            "holdup": 0.10692476981188298
+          }
+        ],
+        "operatingSpeeds": null,
+        "signedOperatingVelocities": null,
+        "operatingBalanceResidualMS": null,
+        "interfacialAreaM2M3": null,
+        "branchStatus": "NO_DILUTE_CONNECTED_ROOT",
+        "diagnostics": {
+          "eotvos": 0.45484486847501604,
+          "weberTerminal": 0.002976552601623182,
+          "ohnesorgeContinuous": 0.44735195527429955,
+          "ohnesorgeDispersed": 0.009801403679157968,
+          "swarmReAtFlood": 0.06020599716092789
+        }
+      },
+      "screeningPass": false
+    },
+    "actualLoading": 3.699694227676496,
+    "designFloodFraction": 0.7,
+    "signedForceBalanceResidualN": 0,
+    "buoyancyDirection": "DISPERSED_DOWNWARD",
+    "hydraulicPass": false,
+    "rotorReynolds": 1240.0445930880721,
+    "status": "INFEASIBLE",
+    "validity": "PHYSICAL_INVALID",
+    "reasons": [
+      "NO_DILUTE_CONNECTED_ROOT",
+      "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION"
+    ],
+    "sourceDiagnostics": [
+      "PREPILOT_EXTRAPOLATED_METHOD",
+      "INVERSION_ENTRAINMENT_UNKNOWN",
+      "TURBULENCE_SHAPE_DRAG_RANGE_UNQUALIFIED",
+      "MODELED_TURNING_CAPACITY_NOT_OBSERVED_FLOOD"
+    ]
+  }
+}

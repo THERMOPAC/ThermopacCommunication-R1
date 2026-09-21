@@ -1353,3 +1353,45 @@ mtime_ms = 1789957919830
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/e05bcb1b-4b79-4caa-a854-dbf4b3f810dc/c7e137dc-a134-479c-a0d0-80d31a30fd81"
 storage_version_token = "1789957950356200"
 content_type = "text/html"
+
+[[outputs]]
+id = "ez6P1Iy3xR5s3CK-sjIo6"
+uri = "file://deliverables/rrbo-stage3-candidate/report.html"
+type = "html"
+title = "RRBO-continuous Stage-3 candidate — engineering review"
+description = "Completed search: 158 screening-feasible trials, but no selection under the existing RPM-window ranking. Includes every diameter, geometry-specific RPM sets, six-scenario diagnostics and rejection reasons. Saved authority unchanged."
+logical_id = "f4f34c98-6661-4f0a-8f3b-4de700b90bf7"
+content_hash = "sha256:81665583f479f8aa94d753917d51d44c2e5c518cd7fd8f4bcb5252f8aa21f125"
+size = 55689
+mtime_ms = 1789958700986
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f4f34c98-6661-4f0a-8f3b-4de700b90bf7/6c2a7885-ee0c-45d8-b1fa-d561429c42c9"
+storage_version_token = "1789958738285701"
+content_type = "text/html"
+
+[[outputs]]
+id = "4qbHrl5wXTgRpi-Z8FhTU"
+uri = "file://deliverables/rrbo-stage3-candidate/geometry-rpm-grid.csv"
+type = "table"
+title = "Diameter, geometry and RPM feasibility grid"
+description = "Geometry-specific tested RPM sets; distinguishes hydraulic feasibility from ranking eligibility."
+logical_id = "f97f82d1-f9ef-4b1a-9bf4-277805e1114d"
+content_hash = "sha256:995b15e2323a53e6cd0817ef2404d5010162e72c672e7c6e914fe951da2b2aab"
+size = 64910
+mtime_ms = 1789958699910
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/f97f82d1-f9ef-4b1a-9bf4-277805e1114d/39394d8b-04f8-4139-9465-869bc82ebbd1"
+storage_version_token = "1789958740166210"
+content_type = "text/csv"
+
+[[outputs]]
+id = "-iCWAkBI6Gzu0gza1wr7M"
+uri = "file://deliverables/rrbo-stage3-candidate/scenarios.csv"
+type = "table"
+title = "Complete six-scenario hydraulic results"
+description = "Scenario-level droplet size, operating and flood holdup, capacity, loading, area, dimensionless diagnostics and residuals for the candidate search."
+logical_id = "fd5da66f-f563-4061-83cc-ff8b88d16330"
+content_hash = "sha256:366e0304e25a9e254e9da5a407b1a96f515e6e3a6b9c77f81774d6648a46825e"
+size = 24123631
+mtime_ms = 1789958700958
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/fd5da66f-f563-4061-83cc-ff8b88d16330/7088b5e3-44c8-49d1-9bc4-fe22e4f07693"
+storage_version_token = "1789958746346945"
+content_type = "text/csv"

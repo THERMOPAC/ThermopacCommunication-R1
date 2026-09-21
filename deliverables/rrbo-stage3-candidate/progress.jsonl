@@ -1,0 +1,18 @@
+{"at":"2026-09-21T02:38:09.824Z","event":"START: unchanged default P1 review routine, isolated orientation override"}
+{"at":"2026-09-21T02:39:58Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:40:03.220Z","event":"START: unchanged default P1 review routine, isolated orientation override"}
+{"at":"2026-09-21T02:40:13Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:40:28Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:40:43Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:40:58Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:41:13Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:41:28Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:41:43Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:41:58Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:42:13Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:42:28Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:42:43Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:42:58Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:43:13Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:43:28Z","event":"PROCESS_ALIVE","pid":4382}
+{"at":"2026-09-21T02:43:37.918Z","event":{"status":"COMPLETE","elapsedSeconds":214.49661783,"resultSha256":"8bef79ff9be32bfd16c2c219eba321c2d8c9a024729a886f30213b9b71995b05","selection":null,"rpm":null}}

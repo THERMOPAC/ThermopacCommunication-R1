@@ -1,0 +1,420 @@
+{
+  "status": "NO_SECOND_ADEQUATE_DIAMETER",
+  "geometry": null,
+  "rpm": null,
+  "verification": {
+    "feasibleTrialCount": 158,
+    "everyFeasibleHasSixScenarios": true,
+    "allFeasibleScenarioLoadingAtMost070": true,
+    "allFeasibleScenarioRootsLowerThanFlood": true,
+    "allFeasibleTipSpeedWithin45": true,
+    "everyGoverningIsMinCapacity": true,
+    "independentlyCheckedAllScenarioClosureAndLoading": true,
+    "maxAbsOperatingClosureMS": 5.551115123125783e-17,
+    "maxAbsTerminalForceResidualN": 8.673617379884035e-19,
+    "selectedHasSixPassingScenarios": null
+  },
+  "diameters": [
+    {
+      "diameterM": 0.2,
+      "feasibleTrialCount": 0,
+      "feasibleGeometryCount": 0,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [],
+      "rejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 243,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 243
+      },
+      "geometry": null,
+      "discreteRuns": [],
+      "disposition": "HYDRAULICALLY REJECTED"
+    },
+    {
+      "diameterM": 0.3,
+      "feasibleTrialCount": 1,
+      "feasibleGeometryCount": 1,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30
+      ],
+      "rejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 233,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 242
+      },
+      "geometry": {
+        "columnDiameterM": 0.3,
+        "compartmentHeightM": 0.09,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.099,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 0.4,
+      "feasibleTrialCount": 5,
+      "feasibleGeometryCount": 5,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 238,
+        "NO_DILUTE_CONNECTED_ROOT": 226
+      },
+      "geometry": {
+        "columnDiameterM": 0.4,
+        "compartmentHeightM": 0.12,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.132,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.3
+      },
+      "discreteRuns": [
+        [
+          30
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 0.5,
+      "feasibleTrialCount": 10,
+      "feasibleGeometryCount": 8,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 233,
+        "NO_DILUTE_CONNECTED_ROOT": 222
+      },
+      "geometry": {
+        "columnDiameterM": 0.5,
+        "compartmentHeightM": 0.15,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.165,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 0.6,
+      "feasibleTrialCount": 11,
+      "feasibleGeometryCount": 8,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 232,
+        "NO_DILUTE_CONNECTED_ROOT": 220
+      },
+      "geometry": {
+        "columnDiameterM": 0.6,
+        "compartmentHeightM": 0.18,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.198,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.3
+      },
+      "discreteRuns": [
+        [
+          30,
+          35
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 0.7,
+      "feasibleTrialCount": 12,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 231,
+        "NO_DILUTE_CONNECTED_ROOT": 216
+      },
+      "geometry": {
+        "columnDiameterM": 0.7,
+        "compartmentHeightM": 0.21,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.23099999999999998,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.3
+      },
+      "discreteRuns": [
+        [
+          30,
+          35
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 0.8,
+      "feasibleTrialCount": 14,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 229,
+        "NO_DILUTE_CONNECTED_ROOT": 216
+      },
+      "geometry": {
+        "columnDiameterM": 0.8,
+        "compartmentHeightM": 0.24,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.264,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.3
+      },
+      "discreteRuns": [
+        [
+          30,
+          35
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 0.9,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 215
+      },
+      "geometry": {
+        "columnDiameterM": 0.9,
+        "compartmentHeightM": 0.27,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.29700000000000004,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 1,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 215
+      },
+      "geometry": {
+        "columnDiameterM": 1,
+        "compartmentHeightM": 0.3,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.33,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 1.1,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 215
+      },
+      "geometry": {
+        "columnDiameterM": 1.1,
+        "compartmentHeightM": 0.33,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.36300000000000004,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 1.2,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 214
+      },
+      "geometry": {
+        "columnDiameterM": 1.2,
+        "compartmentHeightM": 0.36,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.396,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 1.3,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 213
+      },
+      "geometry": {
+        "columnDiameterM": 1.3,
+        "compartmentHeightM": 0.39,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.42900000000000005,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 1.4,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 213
+      },
+      "geometry": {
+        "columnDiameterM": 1.4,
+        "compartmentHeightM": 0.42,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.46199999999999997,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    },
+    {
+      "diameterM": 1.5,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "feasibleRpmUnion": [
+        30,
+        35,
+        40
+      ],
+      "rejections": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 228,
+        "NO_DILUTE_CONNECTED_ROOT": 213
+      },
+      "geometry": {
+        "columnDiameterM": 1.5,
+        "compartmentHeightM": 0.44999999999999996,
+        "hcToColumn": 0.3,
+        "rotorDiameterM": 0.495,
+        "rotorToColumn": 0.33,
+        "freeArea": 0.4
+      },
+      "discreteRuns": [
+        [
+          30,
+          35,
+          40
+        ]
+      ],
+      "disposition": "FEASIBLE but 20-rpm ranking preference unmet"
+    }
+  ]
+}
