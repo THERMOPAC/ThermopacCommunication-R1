@@ -1,0 +1,21 @@
+{
+  "inputSha256": "1d87dfd0e15e0592b46b67fd9675020e3f745d60061a20f8c0a350769d7f0a96",
+  "productionImplementationHash": "faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550",
+  "underlyingP1ImplementationHash": "a79c49a6d554381bde9dbdbd5076845f3d033e744e17d7612970021134671de0",
+  "originalOptimizerFileSha256": "7163652f6dec662d15922ac5c2d97906563d394947a1232cdec948760efcf1a5",
+  "note": "Only a separate named research export was added. Legacy identities and default controls unchanged. Experimental envelope is NOT the canonical production envelope.",
+  "codeHashes": {
+    "server/ecr-pre-pilot/stage3-stage4-optimizer.ts": "1c5c058fea60b72248bf8a8c95f27ca2b4ed7731c480d1cf3ce253d42f6b3cec",
+    "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed",
+    "server/ecr-pre-pilot/kuhni-hydrodynamics.ts": "4f02b8127aab07feb80d97dd06da0bd227603391834ab43a432fa6bf18170db8",
+    "deliverables/p1-full-30-200-rpm-sweep/common.ts": "20f83973b0bb3f8fe3b26ad6cd07a9f46349f08f77c88076535049d8dbcb2b88",
+    "deliverables/p1-full-30-200-rpm-sweep/extract.ts": "d3a870ebb81938625cd523d1832ca2033a49e0db564ccccd707d61cc80e084e9",
+    "deliverables/p1-full-30-200-rpm-sweep/run.ts": "a53b00991ddabc414d62759428e80923072c0799c66eaccfacb6da8f27deacdf",
+    "deliverables/p1-full-30-200-rpm-sweep/report.ts": "b30a6a332ee245738e49de676d0b0e032045b11429626c1c4d963956b1c87c80"
+  },
+  "comparatorHashes": {
+    "deliverables/p1-full-30-200-rpm-sweep/saved-comparator.json": "1fd7089039001cc9092456b07c8e8ce13e55be55003f780ebe4a50337af2eadc",
+    "deliverables/rrbo-stage3-candidate/result.json": "8bef79ff9be32bfd16c2c219eba321c2d8c9a024729a886f30213b9b71995b05",
+    "deliverables/p1-research-regression/integrated-saved-artifact.json": "a05bde53ec44dfcbd8a1d60247536361887f2244f0ba8460f992fec5137457dc"
+  }
+}

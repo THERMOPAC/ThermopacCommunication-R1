@@ -1,0 +1,69 @@
+# P1 complete 30–200 rpm diagnostic research sweep
+
+**COMPLETE — isolated candidate only, NOT engineering-qualified or adopted.**
+
+Project 236 / design 269. Saved candidate b4b44349-5471-4b9c-acf8-d06e2cea8d42, ledger 69.
+Current Stage-1 hash: 06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f. Input was freshly verified by READ ONLY SELECT transaction, rolled back.
+No database writes, Stage-4 calculation, adoption, or application default change.
+
+## Envelope and provenance
+
+Experimental envelope P1_ISOLATED_30_TO_200_STEP_5_V1: exactly 378 unchanged geometries × 35 RPM points (30 through 200 inclusive, step 5), RRBO-continuous saved orientation only. Alternate orientation was explicitly excluded; no 26,460-point combined-orientation claim.
+All six mandatory scenarios run at every point, including tip-speed failures. No early stop or numerical short-cut.
+The named isolated export calls the existing optimizeOrientation implementation with corrected P1 and second-smallest ranking.
+Canonical production controls still reject RPM above 70. Production and prior P1 descriptor hashes were not changed; actual source bytes and the separate experimental identity are recorded before computation in input-manifest.json.
+Completion elapsed: 532.9354618250001 s. Coverage: {"geometries":378,"trials":13230,"scenarios":79380,"pointsPerGeometry":35,"duplicateTrials":0,"missingPoints":0,"missingDiagnostics":0}.
+
+## Actual results by diameter
+
+| Diameter m | Feasible trials / 945 | Feasible geometries / 27 | Adequate geometries | Longest fixed-geometry span rpm | Feasible above 70 | Above-70 count |
+|---|---|---|---|---|---|---|
+| 0.2 | 0 | 0 | 0 | 0 | NO | 0 |
+| 0.3 | 1 | 1 | 0 | 0 | NO | 0 |
+| 0.4 | 5 | 5 | 0 | 0 | NO | 0 |
+| 0.5 | 10 | 8 | 0 | 5 | NO | 0 |
+| 0.6 | 11 | 8 | 0 | 5 | NO | 0 |
+| 0.7 | 12 | 9 | 0 | 5 | NO | 0 |
+| 0.8 | 14 | 9 | 0 | 5 | NO | 0 |
+| 0.9 | 15 | 9 | 0 | 10 | NO | 0 |
+| 1 | 15 | 9 | 0 | 10 | NO | 0 |
+| 1.1 | 15 | 9 | 0 | 10 | NO | 0 |
+| 1.2 | 15 | 9 | 0 | 10 | NO | 0 |
+| 1.3 | 15 | 9 | 0 | 10 | NO | 0 |
+| 1.4 | 15 | 9 | 0 | 10 | NO | 0 |
+| 1.5 | 15 | 9 | 0 | 10 | NO | 0 |
+
+Windows are discrete tested runs at one fixed geometry, NOT proof of continuous feasibility. Diameter unions are not one operating window.
+geometry-windows.csv and summary.json contain every fixed-geometry run; geometry-rpm-grid.csv has one row per geometry/RPM, including rejections.
+
+Hypothetical selection: **none** (geometry, RPM and operating window remain null). No fixed geometry meets the required 20-rpm useful span; consequently there is no second adequate diameter to select. The longest tested fixed-geometry feasible span is 10 rpm. Full unchanged ranking/frontier evidence remains in summary.json and hypothetical-selected-result.json.
+Unchanged rule: second-smallest distinct accepted diameter with a fixed-geometry useful span of at least 20 rpm. No fallback or adoption. Adequacy is a ranking requirement, not a hydraulic limit.
+
+## Observed high-RPM rejection mechanisms
+
+{"tipOnly":0,"modelOnly":8739,"tipAndModel":1089,"feasible":0}.
+These counts directly classify engine rejection codes: tip limit (4.5 m/s), model loading above 0.70, and/or absence of a dilute-connected operating root. They are not causal hypotheses or experimental qualifications. Multiple reason counts may overlap.
+Per-diameter high-RPM reason histograms and mechanisms are in diameters.csv and summary.json.
+
+## Numerical overlap and integrity
+
+30–70 rpm overlap: 3,402 trials; 158 accepted (expected 158).
+Full nested trial/scenario fields compared against both saved row 69 and the original research output:
+[{"comparator":"saved-row-69","trialsCompared":3402,"numericValues":951998,"maxAbsDifference":0,"failures":0},{"comparator":"original-research","trialsCompared":3402,"numericValues":951998,"maxAbsDifference":0,"failures":0}].
+Differences: 0; numeric tolerance absolute 1e-12 plus relative 1e-12. Every nonzero difference is retained in numerical-differences.csv. No diagnostics silently omitted.
+Validation errors: [].
+Maximum operating balance residual: 1.1102230246251565e-16 m/s. Maximum force residual: 3.469446951953614e-18 N.
+
+## Equations, units and qualifications
+
+Unchanged C32 = 0.36, 0.42, 0.43 paired with Barry–Parlange mobile and Schiller–Naumann immobile; Np=1.2.
+d32=C32(sigma/rho_c)^0.6 epsilon^-0.4 (m); capacity and superficial/relative velocities m/s; operating and flood holdup fractions; area=6 phi_op/d32 (m²/m³); loading dimensionless.
+Operating balance jd/phi+jc/(1-phi)=vslip=vs/(1-phi). Governing capacity is minimum of six. Acceptance requires all six operating roots and loading≤0.70 plus tip speed≤4.5 m/s.
+Absent operating roots/area remain explicit null in JSON and empty CSV cells, with NO_DILUTE_CONNECTED_ROOT branch status; they are physical rejections, not missing evaluations.
+Full roots, 16-step continuation, d32, capacity, loading, area, holdup, flood turning point, signed velocities, terminal/characteristic/rotor/swarm/slip Reynolds, Eo, We and Oh are retained in scenarios.csv/result.json. No diagnostic threshold or equation changed.
+
+This is extrapolated conditional screening. Turbulence, spherical-drop assumptions, drag range, actual interface mobility, inversion, entrainment and disengagement remain unqualified/unknown. Modeled capacity is not observed flood; lower quasi-steady continuation is not dynamic stability. The d32 scenario interval is epistemic sensitivity, not a confidence interval. No downstream engineering authority is created.
+
+## Artifacts
+
+input.json, input-manifest.json, saved-comparator.json, result.json, geometry-rpm-grid.csv, geometry-windows.csv, scenarios.csv, diameters.csv, comparison-summary.json, numerical-differences.csv, hypothetical-selected-result.json, summary.json, terminal.json, manifest.json and this report.

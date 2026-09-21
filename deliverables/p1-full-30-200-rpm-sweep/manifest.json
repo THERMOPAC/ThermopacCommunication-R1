@@ -1,0 +1,18 @@
+{
+  "input.json": "1d87dfd0e15e0592b46b67fd9675020e3f745d60061a20f8c0a350769d7f0a96",
+  "input-manifest.json": "ecc14ef90bcf4b75666ec3d156eafebd28b3e871536f5fb4b030d6b7b7023a93",
+  "saved-comparator.json": "1fd7089039001cc9092456b07c8e8ce13e55be55003f780ebe4a50337af2eadc",
+  "result.json": "fe523527db2be6d17d1f922f9ad209d207a8c10f81d2e96e28a83536fd56f2fa",
+  "summary.json": "cda5587a65d3d3f054869159a51c9675b4a03fabba6be3076bb3a8d6a3875157",
+  "terminal.json": "a7ee9b1c453687c1bb3c8cd0c345398a0299f2d54c505e8bee42d7f7ab798482",
+  "report.md": "e75e469ea0fecda12999d2f9416def294903aa2b89d9468ca964c4c54b5dd3de",
+  "report.html": "e3a7ca083aed87d50dfdc093d30e53b78bc5f549a7d0f1c411a81db1c4645a45",
+  "geometry-rpm-grid.csv": "f55c6435e9986494e9b672ee25cf4575a851f4d8c8ca24c4fef1134916f014a5",
+  "geometry-windows.csv": "4625818cc1c19d915ad9129a71baca7e44ea39587bf03e1aee377b4bb2029e23",
+  "scenarios.csv": "f984735ed643c573bcd252de2522174c32b3ec873b4f7aa5d39b9902401f7887",
+  "diameters.csv": "bec7d8d56b56d7e57360551f5a06db2714c2030ea5a299031bc416006a88b517",
+  "comparison-summary.json": "830172663671edfd93f70793d685b675e83ae654ab14349c4a3e6f12a97a7735",
+  "numerical-differences.csv": "86bd67b026582d6c5d84dc36a836f1f6002272882e65a223590037f012df8dd6",
+  "hypothetical-selected-result.json": "0cb086e3cba29d70645b7ad8a6a25475012df52fbee65741d28d152197212c64",
+  "finalize-report.ts": "6d9d3938bb692061c4ee290c9c7bb1c31c3a04f0d0ea898a4eac95ce26c36629"
+}

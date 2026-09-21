@@ -1,0 +1,261 @@
+{
+  "candidateOnly": true,
+  "adopted": false,
+  "engineeringQualified": false,
+  "geometry": null,
+  "rpm": null,
+  "window": null,
+  "trial": null,
+  "rankingEvidence": {
+    "diameterSelection": {
+      "rule": "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+      "acceptedAdequateDiametersM": [],
+      "SMALLEST_ACCEPTED_ADEQUATE_DIAMETER": null,
+      "SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER": null,
+      "status": "INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS"
+    },
+    "usefulWindowPreference": {
+      "minimumWindowWidthRpm": 20,
+      "meaning": "RANKING_PREFERENCE_NOT_HYDRAULIC_LIMIT",
+      "adequateGeometryCount": 0,
+      "selectedMeetsPreference": false
+    },
+    "paretoFrontier": [
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.3,
+          "compartmentHeightM": 0.09,
+          "hcToColumn": 0.3,
+          "rotorDiameterM": 0.099,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 30,
+          "widthRpm": 0,
+          "validTrialCount": 1,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 30,
+          "tipSpeedMS": 0.15550883635269477,
+          "actualLoading": 0.674354050911411,
+          "designFloodFraction": 0.7,
+          "d32M": 0.011952240223390644,
+          "holdup": 0.07282611628924014,
+          "powerVolumeWM3": 0.1948552485334183
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      },
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.5,
+          "compartmentHeightM": 0.15,
+          "hcToColumn": 0.3,
+          "rotorDiameterM": 0.165,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 35,
+          "widthRpm": 5,
+          "validTrialCount": 2,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 35,
+          "tipSpeedMS": 0.30237829290801765,
+          "actualLoading": 0.6257476944221662,
+          "designFloodFraction": 0.7,
+          "d32M": 0.006601371380649101,
+          "holdup": 0.059414154018024024,
+          "powerVolumeWM3": 0.8595081050278096
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      },
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.5,
+          "compartmentHeightM": 0.125,
+          "hcToColumn": 0.25,
+          "rotorDiameterM": 0.165,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 35,
+          "widthRpm": 5,
+          "validTrialCount": 2,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 35,
+          "tipSpeedMS": 0.30237829290801765,
+          "actualLoading": 0.6927641780425516,
+          "designFloodFraction": 0.7,
+          "d32M": 0.006137078347101356,
+          "holdup": 0.06833624793625703,
+          "powerVolumeWM3": 1.0314097260333714
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      },
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.9,
+          "compartmentHeightM": 0.27,
+          "hcToColumn": 0.3,
+          "rotorDiameterM": 0.29700000000000004,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 40,
+          "widthRpm": 10,
+          "validTrialCount": 3,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 35,
+          "tipSpeedMS": 0.5442809272344318,
+          "actualLoading": 0.5086297485929375,
+          "designFloodFraction": 0.7,
+          "d32M": 0.004124926000995855,
+          "holdup": 0.04198454929711428,
+          "powerVolumeWM3": 2.7848062602901043
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      }
+    ],
+    "sizeWindowComparisons": [],
+    "alternatives": [
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.3,
+          "compartmentHeightM": 0.09,
+          "hcToColumn": 0.3,
+          "rotorDiameterM": 0.099,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 30,
+          "widthRpm": 0,
+          "validTrialCount": 1,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 30,
+          "tipSpeedMS": 0.15550883635269477,
+          "actualLoading": 0.674354050911411,
+          "designFloodFraction": 0.7,
+          "d32M": 0.011952240223390644,
+          "holdup": 0.07282611628924014,
+          "powerVolumeWM3": 0.1948552485334183
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      },
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.5,
+          "compartmentHeightM": 0.15,
+          "hcToColumn": 0.3,
+          "rotorDiameterM": 0.165,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 35,
+          "widthRpm": 5,
+          "validTrialCount": 2,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 35,
+          "tipSpeedMS": 0.30237829290801765,
+          "actualLoading": 0.6257476944221662,
+          "designFloodFraction": 0.7,
+          "d32M": 0.006601371380649101,
+          "holdup": 0.059414154018024024,
+          "powerVolumeWM3": 0.8595081050278096
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      },
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.5,
+          "compartmentHeightM": 0.125,
+          "hcToColumn": 0.25,
+          "rotorDiameterM": 0.165,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 35,
+          "widthRpm": 5,
+          "validTrialCount": 2,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 35,
+          "tipSpeedMS": 0.30237829290801765,
+          "actualLoading": 0.6927641780425516,
+          "designFloodFraction": 0.7,
+          "d32M": 0.006137078347101356,
+          "holdup": 0.06833624793625703,
+          "powerVolumeWM3": 1.0314097260333714
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      },
+      {
+        "role": "FRONTIER_ALTERNATIVE",
+        "geometry": {
+          "columnDiameterM": 0.9,
+          "compartmentHeightM": 0.27,
+          "hcToColumn": 0.3,
+          "rotorDiameterM": 0.29700000000000004,
+          "rotorToColumn": 0.33,
+          "freeArea": 0.4
+        },
+        "operatingWindow": {
+          "rpmMin": 30,
+          "rpmMax": 40,
+          "widthRpm": 10,
+          "validTrialCount": 3,
+          "edgeMarginRpm": 0
+        },
+        "meetsUsefulWindowPreference": false,
+        "representativeTrial": {
+          "rpm": 35,
+          "tipSpeedMS": 0.5442809272344318,
+          "actualLoading": 0.5086297485929375,
+          "designFloodFraction": 0.7,
+          "d32M": 0.004124926000995855,
+          "holdup": 0.04198454929711428,
+          "powerVolumeWM3": 2.7848062602901043
+        },
+        "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+      }
+    ]
+  }
+}

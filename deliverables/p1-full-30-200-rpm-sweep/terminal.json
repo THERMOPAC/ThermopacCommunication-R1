@@ -1,0 +1,14 @@
+{
+  "status": "COMPLETE",
+  "completedAt": "2026-09-21T05:13:12.495Z",
+  "elapsedSeconds": 532.9354618250001,
+  "geometries": 378,
+  "trials": 13230,
+  "scenarios": 79380,
+  "pointsPerGeometry": 35,
+  "duplicateTrials": 0,
+  "missingPoints": 0,
+  "missingDiagnostics": 0,
+  "resultSha256": "fe523527db2be6d17d1f922f9ad209d207a8c10f81d2e96e28a83536fd56f2fa",
+  "validationErrors": 0
+}

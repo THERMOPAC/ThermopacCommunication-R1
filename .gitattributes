@@ -1,1 +1,4 @@
 server/research/ecr-pre-pilot-six-component-thermodynamics/vendor/xtb-6.7.1/bin/xtb filter=lfs diff=lfs merge=lfs -text
+deliverables/p1-full-30-200-rpm-sweep/result.json filter=lfs diff=lfs merge=lfs -text
+deliverables/p1-full-30-200-rpm-sweep/saved-comparator.json filter=lfs diff=lfs merge=lfs -text
+deliverables/p1-full-30-200-rpm-sweep/scenarios.csv filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,23 @@
+{
+  "tolerance": {
+    "absolute": 1e-12,
+    "relative": 1e-12
+  },
+  "comparatorSummary": [
+    {
+      "comparator": "saved-row-69",
+      "trialsCompared": 3402,
+      "numericValues": 951998,
+      "maxAbsDifference": 0,
+      "failures": 0
+    },
+    {
+      "comparator": "original-research",
+      "trialsCompared": 3402,
+      "numericValues": 951998,
+      "maxAbsDifference": 0,
+      "failures": 0
+    }
+  ],
+  "differenceCount": 0
+}

@@ -1451,3 +1451,45 @@ mtime_ms = 1789965974136
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/743941f5-e9e8-4776-86e5-ae9c3db9065c/6ed0b13e-4efa-47ed-a555-a25c20eba150"
 storage_version_token = "1789966034079140"
 content_type = "text/csv"
+
+[[outputs]]
+id = "H3ItCW0gYTjC3uluYaZEI"
+uri = "file://deliverables/p1-full-30-200-rpm-sweep/report.html"
+type = "html"
+title = "Complete P1 sweep: 30–200 rpm"
+description = "Full sweep with no early stopping. Includes coverage, hydraulic outcomes and exact regression verification."
+logical_id = "71417c3a-14e0-493c-92f8-1d2817a36bb8"
+content_hash = "sha256:e3a7ca083aed87d50dfdc093d30e53b78bc5f549a7d0f1c411a81db1c4645a45"
+size = 6257
+mtime_ms = 1789967699275
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/71417c3a-14e0-493c-92f8-1d2817a36bb8/9f99b5fd-c051-4f74-a6d0-b8d130a0a777"
+storage_version_token = "1789967720142556"
+content_type = "text/html"
+
+[[outputs]]
+id = "IDdizbEDdUZ7PQAnDcjxg"
+uri = "file://deliverables/p1-full-30-200-rpm-sweep/geometry-rpm-grid.csv"
+type = "table"
+title = "Full geometry–RPM results"
+description = "All 13,230 evaluated points, including accepted and rejected trials."
+logical_id = "35cd09f7-fcdc-4ac1-8571-e8ec1f4746a7"
+content_hash = "sha256:f55c6435e9986494e9b672ee25cf4575a851f4d8c8ca24c4fef1134916f014a5"
+size = 14517297
+mtime_ms = 1789967589291
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/35cd09f7-fcdc-4ac1-8571-e8ec1f4746a7/4ab905fd-f552-4151-82d8-c8873e3e7583"
+storage_version_token = "1789967725728607"
+content_type = "text/csv"
+
+[[outputs]]
+id = "yaOjey8oyF_zyF0bba_jp"
+uri = "file://deliverables/p1-full-30-200-rpm-sweep/full-sweep-csvs.zip"
+type = "unspecified"
+title = "Full 30–200 rpm sweep — CSV package"
+description = "Compressed full geometry grid, all 79,380 scenarios, geometry windows, diameter summary and regression differences."
+logical_id = "8eeff017-97e8-42db-a87a-db3d94c39808"
+content_hash = "sha256:9e88880150ffe92cebe5cbdbb7a8b8be938527ba9ca263e1500def0788f5e536"
+size = 17426390
+mtime_ms = 1789967740063
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/8eeff017-97e8-42db-a87a-db3d94c39808/d2412585-23b7-4e73-9ede-1a84cba951b8"
+storage_version_token = "1789967750683301"
+content_type = "application/octet-stream"

@@ -1607,6 +1607,27 @@ export function evaluateP1ReviewTrial(
   return evaluateTrial(basis, diameterM, hcToColumn, rotorToColumn, freeArea, rpm, true);
 }
 
+/** Isolated, explicitly authorized research envelope; never a production control.
+ * Reuses the entire P1 orientation evaluator and second-adequate selection unchanged.
+ * No alternate orientation, persistence, authority promotion, or Stage-4 input.
+ */
+export function evaluateP1ResearchEnvelope30To200(
+  basis: HydrodynamicProcessBasis, stage1SnapshotHash: string,
+) {
+  validateOptimizerAuthority(basis, stage1SnapshotHash);
+  if (basis.phaseConfiguration !== 'rrbo-continuous-nmp-dispersed') {
+    throw new Error('P1_RESEARCH_ENVELOPE_REQUIRES_SAVED_RRBO_CONTINUOUS_BASIS');
+  }
+  const defaults = canonicalizeStage3Stage4OptimizerControls();
+  const controls = { ...defaults, rpmMin: 30, rpmMax: 200, rpmStep: 5, compareOrientations: false };
+  return {
+    researchEnvelope: 'P1_ISOLATED_30_TO_200_STEP_5_V1',
+    candidateOnly: true,
+    controls,
+    orientation: optimizeOrientation(basis, controls, 'CORRECTED', true, true),
+  };
+}
+
 /** Historical V1.1 replay only; new calculations always enforce the fixed preference. */
 export function replayConfigurableStage3Stage4(
   basis: HydrodynamicProcessBasis,

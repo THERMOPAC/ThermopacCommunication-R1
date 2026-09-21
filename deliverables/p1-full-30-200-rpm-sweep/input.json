@@ -1,0 +1,164 @@
+{
+  "extractedAt": "2026-09-21T05:03:34.387Z",
+  "queryMode": "REPEATABLE READ READ ONLY; SELECT; ROLLBACK",
+  "projectNumber": 236,
+  "designId": 269,
+  "stage1UpdatedAt": "2026-09-21T03:29:28.206Z",
+  "basis": {
+    "schemaVersion": "ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1",
+    "stage1SnapshotHash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "operatingTemperatureC": 40,
+    "temperatureK": 313.15,
+    "operatingPressure": "2.0",
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "composition": {
+      "rrboGrade": "SN300",
+      "rrboFeedWt": {
+        "saturates": 85,
+        "monoAromatics": 7,
+        "diAromatics": 4,
+        "polyAromatics": 2,
+        "polarAromatics": 2,
+        "nmp": 0
+      },
+      "wetSolventWt": {
+        "nmp": 99.5,
+        "water": 0.5
+      }
+    },
+    "rrboFeed": {
+      "identity": "RRBO_FEED",
+      "valueLph": 4000,
+      "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+      "flowM3S": 0.0011111111111111111,
+      "densityKgM3": 869,
+      "dynamicViscosityPaS": 0.0598
+    },
+    "wetSolventPhase": {
+      "identity": "WET_NMP_SOLVENT_PHASE",
+      "solventOilMassRatio": 0.6,
+      "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+      "flowM3S": 0.0005707717569786535,
+      "densityKgM3": 1015,
+      "dynamicViscosityPaS": 0.001416
+    },
+    "interfacialTensionNM": 0.011
+  },
+  "currentStage1Hash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+  "basisHash": "543ef1bcf59a26c9e3c091b9d021426d282f90c94a9b8849e95b5cafbe2a1399",
+  "metadata": {
+    "id": "b4b44349-5471-4b9c-acf8-d06e2cea8d42",
+    "status": "completed",
+    "version": "ECR_STAGE3_STAGE4_OPTIMIZER_V1.4.0",
+    "controls": {
+      "rpmMax": 70,
+      "rpmMin": 30,
+      "rpmStep": 5,
+      "freeArea": [
+        0.2,
+        0.3,
+        0.4
+      ],
+      "hcToColumn": [
+        0.2,
+        0.25,
+        0.3
+      ],
+      "diameterMaxM": 1.5,
+      "diameterMinM": 0.2,
+      "diameterStepM": 0.1,
+      "rotorToColumn": [
+        0.33,
+        0.4,
+        0.5
+      ],
+      "compareOrientations": true,
+      "minimumUsefulWindowRpm": 20
+    },
+    "inputHash": "cd91732bd2949a682ec8ddcde635e1319c83c2eb66b42bfc05f04b7552961e1f",
+    "phaseSource": "SAVED_STAGE1",
+    "requestedAt": "2026-09-21T04:15:36.681Z",
+    "candidateOnly": true,
+    "implementationHash": "a79c49a6d554381bde9dbdbd5076845f3d033e744e17d7612970021134671de0",
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "sourceSnapshotHash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "propertyTemperatureC": 40,
+    "originalPhaseConfiguration": "rrbo-continuous-nmp-dispersed"
+  },
+  "controls": {
+    "diameterMinM": 0.2,
+    "diameterMaxM": 1.5,
+    "diameterStepM": 0.1,
+    "rpmMin": 30,
+    "rpmMax": 200,
+    "rpmStep": 5,
+    "hcToColumn": [
+      0.2,
+      0.25,
+      0.3
+    ],
+    "rotorToColumn": [
+      0.33,
+      0.4,
+      0.5
+    ],
+    "freeArea": [
+      0.2,
+      0.3,
+      0.4
+    ],
+    "compareOrientations": false,
+    "minimumUsefulWindowRpm": 20
+  },
+  "experimentalEnvelope": "P1_ISOLATED_30_TO_200_STEP_5_V1",
+  "candidateOnly": true,
+  "noAdoption": true,
+  "noStage4": true,
+  "earlyStop": false,
+  "expectedGeometries": 378,
+  "expectedTrials": 13230,
+  "expectedScenarios": 79380,
+  "originalAcceptedTrials": 158,
+  "provenance": {
+    "productionImplementationHash": "faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550",
+    "underlyingP1ImplementationHash": "a79c49a6d554381bde9dbdbd5076845f3d033e744e17d7612970021134671de0",
+    "originalOptimizerFileSha256": "7163652f6dec662d15922ac5c2d97906563d394947a1232cdec948760efcf1a5",
+    "note": "Only a separate named research export was added. Legacy identities and default controls unchanged. Experimental envelope is NOT the canonical production envelope.",
+    "codeHashes": {
+      "server/ecr-pre-pilot/stage3-stage4-optimizer.ts": "1c5c058fea60b72248bf8a8c95f27ca2b4ed7731c480d1cf3ce253d42f6b3cec",
+      "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed",
+      "server/ecr-pre-pilot/kuhni-hydrodynamics.ts": "4f02b8127aab07feb80d97dd06da0bd227603391834ab43a432fa6bf18170db8",
+      "deliverables/p1-full-30-200-rpm-sweep/common.ts": "20f83973b0bb3f8fe3b26ad6cd07a9f46349f08f77c88076535049d8dbcb2b88",
+      "deliverables/p1-full-30-200-rpm-sweep/extract.ts": "d3a870ebb81938625cd523d1832ca2033a49e0db564ccccd707d61cc80e084e9",
+      "deliverables/p1-full-30-200-rpm-sweep/run.ts": "a53b00991ddabc414d62759428e80923072c0799c66eaccfacb6da8f27deacdf",
+      "deliverables/p1-full-30-200-rpm-sweep/report.ts": "b30a6a332ee245738e49de676d0b0e032045b11429626c1c4d963956b1c87c80"
+    },
+    "comparatorHashes": {
+      "deliverables/p1-full-30-200-rpm-sweep/saved-comparator.json": "1fd7089039001cc9092456b07c8e8ce13e55be55003f780ebe4a50337af2eadc",
+      "deliverables/rrbo-stage3-candidate/result.json": "8bef79ff9be32bfd16c2c219eba321c2d8c9a024729a886f30213b9b71995b05",
+      "deliverables/p1-research-regression/integrated-saved-artifact.json": "a05bde53ec44dfcbd8a1d60247536361887f2244f0ba8460f992fec5137457dc"
+    }
+  },
+  "preflight": {
+    "productionRejects200": true,
+    "probeChecks": [
+      {
+        "key": "0.2|0.2|0.33|0.2|30",
+        "exact": true,
+        "scenarios": 6
+      },
+      {
+        "key": "0.3|0.3|0.33|0.4|30",
+        "exact": true,
+        "scenarios": 6
+      },
+      {
+        "key": "1.5|0.3|0.5|0.4|70",
+        "exact": true,
+        "scenarios": 6
+      }
+    ],
+    "allSixEvenIfTipFails": true,
+    "alternateOrientation": "NOT_REQUESTED_NOT_RUN"
+  }
+}

@@ -1,0 +1,3059 @@
+{
+  "status": "COMPLETE",
+  "computationStatus": "NO_SECOND_ADEQUATE_DIAMETER",
+  "elapsedSeconds": 532.9354618250001,
+  "candidateOnly": true,
+  "noAdoption": true,
+  "noStage4": true,
+  "coverage": {
+    "geometries": 378,
+    "trials": 13230,
+    "scenarios": 79380,
+    "pointsPerGeometry": 35,
+    "duplicateTrials": 0,
+    "missingPoints": 0,
+    "missingDiagnostics": 0
+  },
+  "acceptedTrials": 158,
+  "overlapAcceptedTrials": 158,
+  "highRpmMechanisms": {
+    "tipOnly": 0,
+    "modelOnly": 8739,
+    "tipAndModel": 1089,
+    "feasible": 0
+  },
+  "maxOperatingClosureMS": 1.1102230246251565e-16,
+  "maxForceResidualN": 3.469446951953614e-18,
+  "comparatorSummary": [
+    {
+      "comparator": "saved-row-69",
+      "trialsCompared": 3402,
+      "numericValues": 951998,
+      "maxAbsDifference": 0,
+      "failures": 0
+    },
+    {
+      "comparator": "original-research",
+      "trialsCompared": 3402,
+      "numericValues": 951998,
+      "maxAbsDifference": 0,
+      "failures": 0
+    }
+  ],
+  "validationErrors": [],
+  "diameters": [
+    {
+      "diameterM": 0.2,
+      "trialCount": 945,
+      "feasibleTrialCount": 0,
+      "feasibleGeometryCount": 0,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 0,
+      "feasibleRpmUnionNotOneWindow": [],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "NO_DILUTE_CONNECTED_ROOT": 945,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 945
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": []
+    },
+    {
+      "diameterM": 0.3,
+      "trialCount": 945,
+      "feasibleTrialCount": 1,
+      "feasibleGeometryCount": 1,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 0,
+      "feasibleRpmUnionNotOneWindow": [
+        30
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "NO_DILUTE_CONNECTED_ROOT": 935,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 944
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.3,
+            "compartmentHeightM": 0.09,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.099,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 0.4,
+      "trialCount": 945,
+      "feasibleTrialCount": 5,
+      "feasibleGeometryCount": 5,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 0,
+      "feasibleRpmUnionNotOneWindow": [
+        30
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 940,
+        "NO_DILUTE_CONNECTED_ROOT": 928
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.4,
+            "compartmentHeightM": 0.08000000000000002,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.132,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.4,
+            "compartmentHeightM": 0.1,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.132,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.4,
+            "compartmentHeightM": 0.1,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.132,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.4,
+            "compartmentHeightM": 0.12,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.132,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.4,
+            "compartmentHeightM": 0.12,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.132,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 0.5,
+      "trialCount": 945,
+      "feasibleTrialCount": 10,
+      "feasibleGeometryCount": 8,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 5,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 935,
+        "NO_DILUTE_CONNECTED_ROOT": 924
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.1,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.1,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.125,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.125,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.125,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 0.6,
+      "trialCount": 945,
+      "feasibleTrialCount": 11,
+      "feasibleGeometryCount": 8,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 5,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 934,
+        "NO_DILUTE_CONNECTED_ROOT": 922
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.12,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.6,
+            "compartmentHeightM": 0.18,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.198,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 0.7,
+      "trialCount": 945,
+      "feasibleTrialCount": 12,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 5,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 933,
+        "NO_DILUTE_CONNECTED_ROOT": 918
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.13999999999999999,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.13999999999999999,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.13999999999999999,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.175,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.175,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.175,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.21,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.21,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.7,
+            "compartmentHeightM": 0.21,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.23099999999999998,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 0.8,
+      "trialCount": 945,
+      "feasibleTrialCount": 14,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 5,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 931,
+        "NO_DILUTE_CONNECTED_ROOT": 918
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 702,
+        "tipAndModel": 0,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.16000000000000003,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.16000000000000003,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.16000000000000003,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.2,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.2,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.2,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.24,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.24,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.8,
+            "compartmentHeightM": 0.24,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.264,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 0.9,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 917,
+        "TIP_SPEED_LIMIT_EXCEEDED": 18
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 18
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 684,
+        "tipAndModel": 18,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.18000000000000002,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.18000000000000002,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.18000000000000002,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.225,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.225,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.225,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.27,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.27,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.27,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 1,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 917,
+        "TIP_SPEED_LIMIT_EXCEEDED": 54
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 54
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 648,
+        "tipAndModel": 54,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.2,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.2,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.2,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.25,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.25,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.25,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.3,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.3,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1,
+            "compartmentHeightM": 0.3,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.33,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 1.1,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 917,
+        "TIP_SPEED_LIMIT_EXCEEDED": 90
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 90
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 612,
+        "tipAndModel": 90,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.22000000000000003,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.22000000000000003,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.22000000000000003,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.275,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.275,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.275,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.33,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.33,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.1,
+            "compartmentHeightM": 0.33,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.36300000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 1.2,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 916,
+        "TIP_SPEED_LIMIT_EXCEEDED": 153
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 153
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 549,
+        "tipAndModel": 153,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.24,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.24,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.24,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.3,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.3,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.3,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.36,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.36,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.2,
+            "compartmentHeightM": 0.36,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.396,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 1.3,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 915,
+        "TIP_SPEED_LIMIT_EXCEEDED": 189
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 189
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 513,
+        "tipAndModel": 189,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.26,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.26,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.26,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.325,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.325,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.325,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.39,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.39,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.3,
+            "compartmentHeightM": 0.39,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.42900000000000005,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 1.4,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 915,
+        "TIP_SPEED_LIMIT_EXCEEDED": 261
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 261
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 441,
+        "tipAndModel": 261,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.27999999999999997,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.27999999999999997,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.27999999999999997,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.35,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.35,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.35,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.42,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.42,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.4,
+            "compartmentHeightM": 0.42,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.46199999999999997,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    },
+    {
+      "diameterM": 1.5,
+      "trialCount": 945,
+      "feasibleTrialCount": 15,
+      "feasibleGeometryCount": 9,
+      "adequateGeometryCount": 0,
+      "maxFixedGeometryWindowRpm": 10,
+      "feasibleRpmUnionNotOneWindow": [
+        30,
+        35,
+        40
+      ],
+      "feasibleAbove70": false,
+      "feasibleAbove70Count": 0,
+      "rejectionReasons": {
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 930,
+        "NO_DILUTE_CONNECTED_ROOT": 915,
+        "TIP_SPEED_LIMIT_EXCEEDED": 324
+      },
+      "highRpmRejections": {
+        "NO_DILUTE_CONNECTED_ROOT": 702,
+        "ACTUAL_LOADING_EXCEEDS_DESIGN_FLOOD_FRACTION": 702,
+        "TIP_SPEED_LIMIT_EXCEEDED": 324
+      },
+      "highRpmMechanisms": {
+        "tipOnly": 0,
+        "modelOnly": 378,
+        "tipAndModel": 324,
+        "feasible": 0
+      },
+      "fixedGeometryWindows": [
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.30000000000000004,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.30000000000000004,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.30000000000000004,
+            "hcToColumn": 0.2,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.375,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.375,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.375,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.44999999999999996,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.2
+          },
+          "runs": [
+            [
+              30
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.44999999999999996,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.3
+          },
+          "runs": [
+            [
+              30,
+              35
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          }
+        },
+        {
+          "geometry": {
+            "columnDiameterM": 1.5,
+            "compartmentHeightM": 0.44999999999999996,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.495,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "runs": [
+            [
+              30,
+              35,
+              40
+            ]
+          ],
+          "longest": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          }
+        }
+      ]
+    }
+  ],
+  "hypotheticalSelection": {
+    "geometry": null,
+    "rpm": null,
+    "window": null,
+    "rankingEvidence": {
+      "diameterSelection": {
+        "rule": "NEXT_SMALLEST_ACCEPTED_ADEQUATE_DIAMETER",
+        "acceptedAdequateDiametersM": [],
+        "SMALLEST_ACCEPTED_ADEQUATE_DIAMETER": null,
+        "SELECTED_NEXT_SMALLEST_ACCEPTED_DIAMETER": null,
+        "status": "INSUFFICIENT_ACCEPTED_ADEQUATE_DIAMETERS"
+      },
+      "usefulWindowPreference": {
+        "minimumWindowWidthRpm": 20,
+        "meaning": "RANKING_PREFERENCE_NOT_HYDRAULIC_LIMIT",
+        "adequateGeometryCount": 0,
+        "selectedMeetsPreference": false
+      },
+      "paretoFrontier": [
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.3,
+            "compartmentHeightM": 0.09,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.099,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 30,
+            "tipSpeedMS": 0.15550883635269477,
+            "actualLoading": 0.674354050911411,
+            "designFloodFraction": 0.7,
+            "d32M": 0.011952240223390644,
+            "holdup": 0.07282611628924014,
+            "powerVolumeWM3": 0.1948552485334183
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        },
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 35,
+            "tipSpeedMS": 0.30237829290801765,
+            "actualLoading": 0.6257476944221662,
+            "designFloodFraction": 0.7,
+            "d32M": 0.006601371380649101,
+            "holdup": 0.059414154018024024,
+            "powerVolumeWM3": 0.8595081050278096
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        },
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.125,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 35,
+            "tipSpeedMS": 0.30237829290801765,
+            "actualLoading": 0.6927641780425516,
+            "designFloodFraction": 0.7,
+            "d32M": 0.006137078347101356,
+            "holdup": 0.06833624793625703,
+            "powerVolumeWM3": 1.0314097260333714
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        },
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.27,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 35,
+            "tipSpeedMS": 0.5442809272344318,
+            "actualLoading": 0.5086297485929375,
+            "designFloodFraction": 0.7,
+            "d32M": 0.004124926000995855,
+            "holdup": 0.04198454929711428,
+            "powerVolumeWM3": 2.7848062602901043
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        }
+      ],
+      "sizeWindowComparisons": [],
+      "alternatives": [
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.3,
+            "compartmentHeightM": 0.09,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.099,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 30,
+            "widthRpm": 0,
+            "validTrialCount": 1,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 30,
+            "tipSpeedMS": 0.15550883635269477,
+            "actualLoading": 0.674354050911411,
+            "designFloodFraction": 0.7,
+            "d32M": 0.011952240223390644,
+            "holdup": 0.07282611628924014,
+            "powerVolumeWM3": 0.1948552485334183
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        },
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.15,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 35,
+            "tipSpeedMS": 0.30237829290801765,
+            "actualLoading": 0.6257476944221662,
+            "designFloodFraction": 0.7,
+            "d32M": 0.006601371380649101,
+            "holdup": 0.059414154018024024,
+            "powerVolumeWM3": 0.8595081050278096
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        },
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.5,
+            "compartmentHeightM": 0.125,
+            "hcToColumn": 0.25,
+            "rotorDiameterM": 0.165,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 35,
+            "widthRpm": 5,
+            "validTrialCount": 2,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 35,
+            "tipSpeedMS": 0.30237829290801765,
+            "actualLoading": 0.6927641780425516,
+            "designFloodFraction": 0.7,
+            "d32M": 0.006137078347101356,
+            "holdup": 0.06833624793625703,
+            "powerVolumeWM3": 1.0314097260333714
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        },
+        {
+          "role": "FRONTIER_ALTERNATIVE",
+          "geometry": {
+            "columnDiameterM": 0.9,
+            "compartmentHeightM": 0.27,
+            "hcToColumn": 0.3,
+            "rotorDiameterM": 0.29700000000000004,
+            "rotorToColumn": 0.33,
+            "freeArea": 0.4
+          },
+          "operatingWindow": {
+            "rpmMin": 30,
+            "rpmMax": 40,
+            "widthRpm": 10,
+            "validTrialCount": 3,
+            "edgeMarginRpm": 0
+          },
+          "meetsUsefulWindowPreference": false,
+          "representativeTrial": {
+            "rpm": 35,
+            "tipSpeedMS": 0.5442809272344318,
+            "actualLoading": 0.5086297485929375,
+            "designFloodFraction": 0.7,
+            "d32M": 0.004124926000995855,
+            "holdup": 0.04198454929711428,
+            "powerVolumeWM3": 2.7848062602901043
+          },
+          "rationale": "It is retained as a below-preference hydraulic fallback/frontier point."
+        }
+      ]
+    }
+  }
+}
