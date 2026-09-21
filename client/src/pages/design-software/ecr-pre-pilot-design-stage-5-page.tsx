@@ -12,6 +12,12 @@ type Revision = RecordValue & { id: string | number; revision: string | number; 
 const base = (id: string | number) => `/api/ecr-pre-pilot/designs/${id}/stage5`;
 const messageOf = (value: unknown) => value instanceof Error ? value.message : "The requested Stage 5 record could not be read.";
 const object = (value: unknown): RecordValue => value && typeof value === "object" && !Array.isArray(value) ? value as RecordValue : {};
+async function responseError(response: Response) {
+  const body = object(await response.json().catch(() => ({})));
+  // Only expose API error codes, never proxy HTML or database/runtime text.
+  const code = typeof body.error === "string" && /^[A-Z][A-Z0-9_]+$/.test(body.error) ? body.error : "STAGE5_REQUEST_FAILED";
+  return `${code} (HTTP ${response.status})`;
+}
 
 function ValueGrid({ title, data }: { title: string; data: unknown }) {
   const rows = Object.entries(object(data));
@@ -52,9 +58,23 @@ export default function EcrPrePilotDesignStage5Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [basisError, setBasisError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [constructionError, setConstructionError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"preview" | "save" | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const readHistory = useCallback(async (id: string | number) => {
+    setHistoryLoading(true); setHistoryError(null);
+    try {
+      const response = await fetch(`${base(id)}/revisions?payload=summary`, { credentials: "include" });
+      if (!response.ok) throw new Error(await responseError(response));
+      const rows = await response.json();
+      if (!Array.isArray(rows)) throw new Error("STAGE5_INVALID_HISTORY_RESPONSE");
+      setRevisions(rows as Revision[]);
+    } catch (cause) {
+      setRevisions([]); setHistoryError(messageOf(cause));
+    } finally { setHistoryLoading(false); }
+  }, []);
   const read = useCallback(async () => {
     setLoading(true); setError(null); setBasisError(null); setConstructionError(null); setPreview(null);
     try {
@@ -63,16 +83,14 @@ export default function EcrPrePilotDesignStage5Page() {
       const nextDesign = object(await saved.json()); setDesign(nextDesign);
       const id = nextDesign.id;
       if (id === undefined || id === null) throw new Error("The saved design did not include an identifier.");
-      const [basisResult, revisionsResult] = await Promise.allSettled([
+      void readHistory(id);
+      const [basisResult] = await Promise.allSettled([
         fetch(`${base(id)}/basis?payload=summary`, { credentials: "include" }),
-        fetch(`${base(id)}/revisions?payload=summary`, { credentials: "include" }),
       ]);
-      if (revisionsResult.status === "rejected" || !revisionsResult.value.ok) throw new Error("Stage 5 revision history is unavailable.");
-      setRevisions((await revisionsResult.value.json()) as Revision[]);
       if (basisResult.status === "rejected" || !basisResult.value.ok) {
         setBasis(null);
         const details = basisResult.status === "rejected" ? messageOf(basisResult.reason)
-          : String(object(await basisResult.value.json()).error ?? `HTTP ${basisResult.value.status}`);
+          : await responseError(basisResult.value);
         setBasisError(`${details}. Current Stage 3/4 governing basis is unavailable. Review upstream saved authority; historical revisions remain readable and exportable.`);
       } else {
         setBasis(object(await basisResult.value.json()));
@@ -94,12 +112,18 @@ export default function EcrPrePilotDesignStage5Page() {
         }
       }
     } catch (cause) { setError(messageOf(cause)); } finally { setLoading(false); }
-  }, []);
+  }, [readHistory]);
   useEffect(() => { void read(); }, [read]);
   const frozen = Boolean(selected);
   const currentGeometry = frozen ? selected?.geometry : preview;
   const currentRuleset = String(object(currentGeometry).ruleset ?? R2_RULESET);
   const sourceHash = basis?.sourceHash;
+  const historyLabel = (revision: Revision) => {
+    if (!sourceHash) return "Source currentness unavailable";
+    if (revision.sourceHash !== sourceHash) return "OUTDATED";
+    const latest = Math.max(...revisions.filter(row => row.sourceHash === sourceHash).map(row => Number(row.revision)));
+    return Number(revision.revision) < latest ? "SUPERSEDED (metadata)" : "CURRENT SOURCE (metadata)";
+  };
   const displayedSourceHash = frozen ? selected?.sourceHash : sourceHash;
   const governing = object(selected ? object(selected.geometry).basis : basis?.basis);
   const governingStage3 = {
@@ -204,6 +228,7 @@ export default function EcrPrePilotDesignStage5Page() {
     {loading ? <div data-testid="stage5-loading" className="flex items-center justify-center py-20 text-sm text-slate-600"><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Reading saved governing basis…</div> : error ? <section data-testid="stage5-error" className="mt-6 rounded border border-red-300 bg-red-50 p-5 text-sm text-red-950"><h2 className="font-semibold">Stage 5 basis unavailable</h2><p className="mt-1">{error}</p><Button type="button" variant="outline" onClick={() => void read()} className="mt-4 gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Retry</Button></section> : <>
       <section className="mt-5 rounded border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950"><div className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>Mechanical exclusions:</strong> this package does not establish pressure-vessel wall/head thickness, shaft strength or deflection, critical speed, bearings or seals, motor/gearbox adequacy, or structural/support calculations.</div></div></section>
       {basisError && <section data-testid="stage5-source-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Inherited basis unavailable.</strong> {basisError}</section>}
+      {historyError && <section data-testid="stage5-history-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Stage 5 revision history unavailable.</strong> {historyError} Current basis and preview are independent of revision history. <Button type="button" variant="outline" disabled={historyLoading} onClick={() => design?.id != null && void readHistory(design.id)} className="ml-2 h-8 text-xs">Retry history</Button></section>}
       {constructionError && <section data-testid="stage5-construction-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Construction generation blocked.</strong> {constructionError}<p className="mt-1">The inherited basis remains read-only below. Engineering review of the stated construction rule is required; do not change upstream inputs just to fit a template.</p></section>}
       {selected && (selected.currentness !== "CURRENT" || !object(selected.geometry).ruleset) && <section data-testid="stage5-stale-banner" className="mt-4 flex gap-2 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><AlertTriangle className="h-4 w-4 shrink-0" /><div><strong>Historical / superseded revision.</strong> This frozen package is read-only and is never regenerated under new rules. A new R1 revision uses the current frozen upstream basis, not historical construction inputs.</div></section>}
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -226,7 +251,7 @@ export default function EcrPrePilotDesignStage5Page() {
           </section>
           <section className="rounded border border-slate-200 bg-white"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 p-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Derived single geometry model</p><h2 className="text-sm font-semibold text-slate-950">Preliminary drawing package</h2></div>{selected && <div className="flex gap-2"><Button type="button" variant="outline" onClick={() => exportRevision("svg")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> SVG view</Button><Button type="button" variant="outline" onClick={() => exportRevision("pdf")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> PDF package</Button></div>}</div>{selected && <p data-testid="stage5-source-status" className="border-b border-slate-200 bg-cyan-50 px-3 py-2 font-mono text-[10px] text-cyan-950">FROZEN SOURCE · {selected.sourceHash} · {selected.currentness ?? selected.status ?? "saved"}</p>}{currentGeometry ? <div className="p-3"><div className="mb-3 flex flex-wrap gap-1">{(Object.keys(stage5ViewNames) as Stage5View[]).map(name => <Button key={name} type="button" size="sm" variant={view === name ? "default" : "outline"} onClick={() => setView(name)} className="h-7 text-[10px]">{stage5ViewNames[name]}</Button>)}</div>{selected && !frozenSvg ? <p role="alert" className="text-sm text-red-800">Frozen drawing missing. This revision cannot be regenerated or exported.</p> : <Stage5DrawingViewer geometry={currentGeometry} view={view} active onSelect={setView} frozenSvg={frozenSvg} />}<GeometrySchedules geometry={currentGeometry} registerFileName={registerFileName} /></div> : <div data-testid="stage5-empty-drawing" className="p-8 text-center text-sm text-slate-600"><p className="font-semibold text-slate-800">No compatible generated geometry is available.</p><p className="mt-1 text-xs">R1 generates from the frozen upstream basis automatically. Resolve the explicit source or compatibility error; construction-dimension entry is not required or accepted. Export requires a saved immutable revision.</p></div>}</section>
         </div>
-        <aside data-stage5-history className="space-y-4"><section className="rounded border border-slate-200 bg-white"><div className="border-b border-slate-200 bg-slate-50 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Revision control</p><h2 className="text-sm font-semibold text-slate-950">Saved drawing records</h2></div>{revisions.length ? <div className="divide-y divide-slate-100">{revisions.map(revision => <button type="button" key={revision.id} onClick={() => void selectRevision(revision)} className={`w-full p-3 text-left text-xs hover:bg-slate-50 ${selected?.id === revision.id ? "bg-cyan-50" : ""}`}><div className="flex justify-between gap-2"><strong>REV {revision.revision}</strong><span className="font-mono text-[9px] text-slate-500">{revision.currentness ?? revision.status ?? "saved"}</span></div><p className="mt-1 text-[10px] text-slate-600">{new Date(revision.createdAt).toLocaleString()}</p><p className="mt-1 break-all font-mono text-[9px] text-slate-500">{revision.sourceHash}</p></button>)}</div> : <div data-testid="stage5-empty-revisions" className="p-4 text-xs text-slate-600">No Stage 5 revision exists. A preview is not an issued drawing; save the current geometry to establish traceability.</div>}</section>
+        <aside data-stage5-history className="space-y-4"><section className="rounded border border-slate-200 bg-white"><div className="border-b border-slate-200 bg-slate-50 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Revision control</p><h2 className="text-sm font-semibold text-slate-950">Saved drawing records</h2><p className="mt-1 text-[10px] text-slate-600">Navigation metadata only. Snapshot integrity is verified when opening or exporting a revision.</p></div>{historyLoading ? <p className="p-4 text-xs text-slate-600">Reading revision metadata…</p> : historyError ? <p className="p-4 text-xs text-amber-900">History could not be read. Retry history above.</p> : revisions.length ? <div className="divide-y divide-slate-100">{revisions.map(revision => <button type="button" key={revision.id} onClick={() => void selectRevision(revision)} className={`w-full p-3 text-left text-xs hover:bg-slate-50 ${selected?.id === revision.id ? "bg-cyan-50" : ""}`}><div className="flex justify-between gap-2"><strong>REV {revision.revision}</strong><span className="font-mono text-[9px] text-slate-500">{historyLabel(revision)}</span></div><p className="mt-1 text-[10px] text-slate-600">{new Date(revision.createdAt).toLocaleString()}</p><p className="mt-1 break-all font-mono text-[9px] text-slate-500">{revision.sourceHash}</p></button>)}</div> : <div data-testid="stage5-empty-revisions" className="p-4 text-xs text-slate-600">No Stage 5 revision exists. A preview is not an issued drawing; save the current geometry to establish traceability.</div>}</section>
           <section className="rounded border border-slate-200 bg-slate-50 p-3 text-[10px] leading-5 text-slate-700"><strong className="text-slate-900">R1 evidence legend</strong><p className="mt-1">A: frozen Stage-3/4 authority. B: documented source construction family. C: approved R1 engineering rules and geometric envelopes—not mechanical or hydraulic qualification. Historical classifications remain unchanged.</p></section>
         </aside>
       </div>

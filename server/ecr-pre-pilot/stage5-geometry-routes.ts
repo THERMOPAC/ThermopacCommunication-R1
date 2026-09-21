@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express';
 import { ensureAuthenticated } from '../auth-middleware';
-import { getStage5Basis, getStage5Revisions, previewStage5, saveStage5Revision, Stage5Error, STAGE5_VIEWS } from './stage5-geometry-service';
+import { getStage5Basis, getStage5Revisions, getStage5RevisionSummaries, previewStage5, saveStage5Revision, Stage5Error, STAGE5_VIEWS } from './stage5-geometry-service';
 import { createStage5Pdf } from './stage5-geometry-report';
 import { R1GeometryError } from '../../shared/ecr-stage5-r1';
 import { stage5DrawingPresentation } from './stage5-drawing-presentation';
@@ -41,8 +41,8 @@ export function setupStage5GeometryRoutes(app: Express) {
     return r.json(q.query.payload === 'summary' ? stage5SummaryPayload(record, 'basis') : record);
   }));
   app.get(`${base}/revisions`, ensureAuthenticated, handle(async (q, r, u, d) => {
-    const records = await getStage5Revisions(u, d);
-    return r.json(q.query.payload === 'summary' ? records.map(record => stage5SummaryPayload(record, 'history')) : records);
+    return r.json(q.query.payload === 'summary'
+      ? await getStage5RevisionSummaries(u, d) : await getStage5Revisions(u, d));
   }));
   app.get(`${base}/revisions/:revisionId`, ensureAuthenticated, handle(async (q, r, u, d) => {
     const record = stage5DrawingPresentation((await getStage5Revisions(u, d, String(q.params.revisionId)))[0], d, q.query.presentation);

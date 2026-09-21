@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn() }));
+const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), summaries: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn() }));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: calls.auth }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
-  getStage5Basis: calls.basis, getStage5Revisions: calls.revisions, previewStage5: calls.preview,
+  getStage5Basis: calls.basis, getStage5Revisions: calls.revisions, getStage5RevisionSummaries: calls.summaries, previewStage5: calls.preview,
   saveStage5Revision: calls.save, STAGE5_VIEWS: ['ga', 'section', 'compartment', 'rotor', 'stator'],
   Stage5Error: class extends Error { constructor(message: string, public status = 409) { super(message); } },
 }));
@@ -43,8 +43,11 @@ describe('Stage 5 HTTP boundary', () => {
       sourceStage3: { rawGrid: 'x'.repeat(10000) }, sourceStage4: { id: 17 } };
     const before = JSON.stringify(full);
     calls.revisions.mockResolvedValue([full]);
+    calls.summaries.mockResolvedValue([{ id: '1', revision: 1, sourceHash: 'current-hash', geometry: { ruleset: 'R5' }, integrity: 'NOT_VERIFIED_METADATA_ONLY' }]);
     calls.save.mockResolvedValue(full);
     const history = (await request('/revisions', 'get', { query: { payload: 'summary' } })).body;
+    expect(calls.summaries).toHaveBeenCalledWith(12, 23);
+    expect(calls.revisions).not.toHaveBeenCalled();
     expect(history[0].sourceHash).toBe('current-hash');
     expect(history[0]).not.toHaveProperty('sourceStage3');
     expect(history[0]).not.toHaveProperty('drawings');

@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildStage5Geometry, emptyStage5Inputs } from '../shared/ecr-stage5-geometry';
 import { renderStage5Svg } from '../shared/ecr-stage5-drawings';
 
-const mocks = vi.hoisted(() => ({ connect: vi.fn(), authority: vi.fn() }));
-vi.mock('../server/db', () => ({ pool: { connect: mocks.connect } }));
+const mocks = vi.hoisted(() => ({ connect: vi.fn(), query: vi.fn(), authority: vi.fn() }));
+vi.mock('../server/db', () => ({ pool: { connect: mocks.connect, query: mocks.query } }));
 vi.mock('../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service', () => ({ loadStage4PrePilotSizingAuthority: mocks.authority }));
-import { getStage5Basis, getStage5Revisions, saveStage5Revision, stage5Hash, validateStage5Basis, validateStage5Inputs, verifyStage5Snapshot } from '../server/ecr-pre-pilot/stage5-geometry-service';
+import { getStage5Basis, getStage5Revisions, getStage5RevisionSummaries, saveStage5Revision, stage5Hash, validateStage5Basis, validateStage5Inputs, verifyStage5Snapshot } from '../server/ecr-pre-pilot/stage5-geometry-service';
 import { createStage5Pdf } from '../server/ecr-pre-pilot/stage5-geometry-report';
 import { PDFDocument } from 'pdf-lib';
 
@@ -53,6 +53,25 @@ beforeEach(() => {
   });
 });
 describe('Stage 5 authoritative immutable persistence', () => {
+  it('lists only SQL metadata without source hydration, integrity blessing or authority load', async () => {
+    mocks.query.mockReset();
+    mocks.query.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({
+      rows: [{ id: '9', revision: 3, sourceHash: 'old', geometryRuleset: 'R1' }],
+    });
+    const result = await getStage5RevisionSummaries(1, 1);
+    expect(result).toEqual([{ id: '9', revision: 3, sourceHash: 'old',
+      geometry: { ruleset: 'R1' }, integrity: 'NOT_VERIFIED_METADATA_ONLY' }]);
+    const sql = mocks.query.mock.calls[1][0];
+    expect(sql).not.toMatch(/SELECT \*|sourceStage3|sourceStage4|drawings|FOR UPDATE|LOCK TABLE/);
+    expect(sql).toContain('created_by=$2');
+    expect(mocks.authority).not.toHaveBeenCalled();
+    expect(result[0]).not.toHaveProperty('currentness');
+  });
+  it('rejects non-owner summary reads before reading history', async () => {
+    mocks.query.mockReset().mockResolvedValueOnce({ rows: [] });
+    await expect(getStage5RevisionSummaries(2, 1)).rejects.toThrow('DESIGN_NOT_FOUND');
+    expect(mocks.query).toHaveBeenCalledTimes(1);
+  });
   it('rejects non-owner reads before loading source or revision', async () => {
     owner = false;
     await expect(getStage5Basis(2, 1)).rejects.toThrow('DESIGN_NOT_FOUND');

@@ -34,8 +34,9 @@ const historical = {
   status: "INCOMPLETE",
 };
 let vite: ViteDevServer, browser: Browser, origin: string, previousReplId: string | undefined;
-let mode: "normal" | "issues" | "incompatible" | "missing" = "normal";
+let mode: "normal" | "issues" | "incompatible" | "missing" | "history-failed" = "normal";
 let requests: { path: string; body: any }[] = [];
+let getRequests: string[] = [];
 const artifactDir = resolve("deliverables/r1-drawings");
 let fixturePdf: Buffer;
 let designDataPdf: Buffer;
@@ -56,6 +57,7 @@ async function open(width = 1440): Promise<Page> {
     const path = new URL(q.url()).pathname, method = q.method();
     const body = q.postData() ? JSON.parse(q.postData()!) : {};
     if (path.startsWith(api) && method === "POST") requests.push({ path, body });
+    if (path.startsWith(api) && method === "GET") getRequests.push(path);
     if (path === "/api/user") return respond(q, 200, { id: 9001, username: "r1-review", name: "R1 Reviewer", role: "Superuser", passwordNeedsUpdate: false, requiresPasswordUpdate: false });
     if (path === "/api/2fa/status") return respond(q, 200, { enabled: true });
     if (path === "/api/attendance/status") return respond(q, 200, { hasRecord: true, record: { checkInTime: "2026-09-09T08:00:00.000Z" }, canCheckIn: false, canCheckOut: true });
@@ -75,7 +77,7 @@ async function open(width = 1440): Promise<Page> {
       });
       return respond(q, 200, geometry);
     }
-    if (path === `${api}/revisions`) return method === "GET" ? respond(q, 200, [revision, historical]) : respond(q, 201, { ...revision, id: "502", revision: 3 });
+    if (path === `${api}/revisions`) return method === "GET" ? mode === "history-failed" ? respond(q, 500, { error: "STAGE5_REQUEST_FAILED" }) : respond(q, 200, [revision, historical]) : respond(q, 201, { ...revision, id: "502", revision: 3 });
     if (path === `${api}/revisions/500`) return respond(q, 200, historical);
     if (path === `${api}/revisions/501`) return respond(q, 200, revision);
     if (path === `${api}/revisions/502`) return respond(q, 200, { ...revision, id: "502", revision: 3 });
@@ -236,12 +238,32 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(await page.$$eval("button", buttons => (buttons.find(b => b.textContent?.includes("Save immutable revision")) as HTMLButtonElement).disabled)).toBe(true);
     } finally { await page.close(); }
   });
+  it("keeps current basis and preview visible when history fails, with independent retry", async () => {
+    mode = "history-failed"; requests = []; getRequests = [];
+    const page = await open();
+    await page.waitForSelector('[data-testid="stage5-history-error"]');
+    expect(await page.$('[data-testid="stage5-error"]')).toBeNull();
+    expect(await page.$('[data-testid="stage5-geometry-report"]')).not.toBeNull();
+    expect(await page.$eval('[data-testid="stage5-history-error"]', node => node.textContent)).toContain("STAGE5_REQUEST_FAILED (HTTP 500)");
+    await page.screenshot({ path: "/tmp/stage5-history-failure-preview.png", fullPage: true });
+    const basisCalls = getRequests.filter(path => path === `${api}/basis`).length;
+    expect(basisCalls).toBe(1);
+    mode = "normal";
+    await click(page, "Retry history");
+    await page.waitForFunction(() => !document.querySelector('[data-testid="stage5-history-error"]'));
+    expect(getRequests.filter(path => path === `${api}/basis`)).toHaveLength(basisCalls);
+    expect(getRequests.filter(path => path === `${api}/revisions`)).toHaveLength(2);
+    expect(await page.$('[data-testid="stage5-geometry-report"]')).not.toBeNull();
+    await page.screenshot({ path: "/tmp/stage5-history-retry-preview.png", fullPage: true });
+    await page.close();
+  });
   it.each(["incompatible", "missing"] as const)("fails explicitly for %s upstream geometry, keeps history readable", async problem => {
     mode = problem; requests = [];
     const page = await open();
     try {
-      await page.waitForSelector('[data-testid="stage5-source-error"]');
-      if (problem === "incompatible") expect(await page.$eval('[data-testid="stage5-source-error"]', e => e.textContent)).toContain("R1_GEOMETRY_INCOMPATIBLE: stack");
+      const errorSelector = problem === "incompatible" ? '[data-testid="stage5-construction-error"]' : '[data-testid="stage5-source-error"]';
+      await page.waitForSelector(errorSelector);
+      if (problem === "incompatible") expect(await page.$eval(errorSelector, e => e.textContent)).toContain("R1_GEOMETRY_INCOMPATIBLE: stack");
       expect(await page.$$eval("button", buttons => (buttons.find(b => b.textContent?.includes("Save immutable revision")) as HTMLButtonElement).disabled)).toBe(true);
       expect(requests.some(r => r.path.endsWith("/revisions"))).toBe(false);
       await page.$$eval("button", buttons => buttons.find(b => b.textContent?.includes("REV 1"))?.click());

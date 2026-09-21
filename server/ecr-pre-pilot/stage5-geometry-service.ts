@@ -246,3 +246,22 @@ export async function getStage5Revisions(u: number, d: number, id?: string) {
     return rows.rows.filter((r: any) => !id || String(r.id) === id).map((r: any) => record(r, currentHash, latest));
   });
 }
+
+/** Non-authoritative navigation metadata only. Never hydrate/hash frozen source
+ * payloads or load current upstream authority to list history. Detail/export
+ * continues to verify the complete immutable snapshot. */
+export async function getStage5RevisionSummaries(u: number, d: number) {
+  const owner = await pool.query(
+    'SELECT id FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2', [d, u]);
+  if (!owner.rows.length) throw new Stage5Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND', 404);
+  const result = await pool.query(`SELECT id::text, revision, created_at AS "createdAt",
+    source_hash AS "sourceHash", immutable_hash AS "immutableHash",
+    snapshot->>'status' AS status, snapshot->>'ruleset' AS ruleset,
+    snapshot->>'geometryHash' AS "geometryHash",
+    snapshot->'geometry'->>'ruleset' AS "geometryRuleset"
+    FROM ecr_pre_pilot_stage5_geometry_revisions
+    WHERE design_id=$1 AND created_by=$2 ORDER BY revision DESC`, [d, u]);
+  return result.rows.map(({ geometryRuleset, ...row }: any) => ({
+    ...row, geometry: { ruleset: geometryRuleset }, integrity: 'NOT_VERIFIED_METADATA_ONLY',
+  }));
+}
