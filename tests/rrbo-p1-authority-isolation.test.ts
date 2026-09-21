@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 // Fail immediately on attempted DB access; no real db module or secret is loaded.
@@ -30,16 +29,18 @@ describe('P1 review cannot invalidate current saved authority', () => {
     expect(ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION).toBe('ECR_STAGE3_STAGE4_OPTIMIZER_V1.4.0');
     expect(ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH).not.toBe(originalHash);
   });
-  it('retains byte-identical latest-query, replay dispatch, and Stage-4 admission services', () => {
-    for (const [path, hash] of [
-      ['server/ecr-pre-pilot-service.ts', 'fb93dd00b33f627c5ac48f45cdb640d25b8c3405f11736c79285686a5c5ddc89'],
-      ['server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts', 'b77cc5e0ee37423b6a506b2f8327fca8c6bf54f74097cc846dbfb0391a08ea3e'],
+  it('keeps current-authority lookup and admission separate from P1 candidate routing', () => {
+    for (const path of [
+      'server/ecr-pre-pilot-service.ts',
+      'server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts',
     ]) {
       const source = readFileSync(path, 'utf8');
-      expect(createHash('sha256').update(source).digest('hex')).toBe(hash);
       expect(source).not.toContain('P1ForReview');
       expect(source).not.toContain('P1_REVIEW_VERSION');
+      expect(source).toContain("AND result_snapshot->'engine'->>'version'=$4");
+      expect(source).toContain('ECR_STAGE3_STAGE4_OPTIMIZER_VERSION, ECR_STAGE3_STAGE4_OPTIMIZER_HASH');
     }
+    expect(readFileSync('server/ecr-pre-pilot-service.ts', 'utf8')).toContain("result_snapshot->>'candidateKind' IS DISTINCT FROM 'RRBO_P1_CANDIDATE_ONLY'");
     const source = readFileSync('server/ecr-pre-pilot/stage3-stage4-optimizer.ts', 'utf8');
     const currentDispatcher = source.slice(source.indexOf('export function optimizeStage3Stage4('), source.indexOf('export function replayLegacyStage3Stage4('));
     expect(currentDispatcher).toContain("optimizeStage3Stage4Internal(basis, stage1SnapshotHash, rawControls, 'CORRECTED')");

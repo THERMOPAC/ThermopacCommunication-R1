@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from 'express';
+import { setupP1CandidateRoutes } from './p1-candidate-routes';
 import { setupStage5GeometryRoutes } from './stage5-geometry-routes';
 import { ensureAuthenticated } from '../auth-middleware';
 import {
@@ -55,6 +56,7 @@ export function retiredEcrPrePilotResponse(res: Response, capability: string) {
 }
 
 export function setupEcrPrePilotRoutes(app: Express): void {
+  setupP1CandidateRoutes(app);
   setupStage5GeometryRoutes(app);
   startPredictiveNtWorker();
   // Job C is retired. Startup performs an idempotent terminalization pass

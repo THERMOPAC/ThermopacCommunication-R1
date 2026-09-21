@@ -667,6 +667,7 @@ export async function getKuhniGeometryResolverRuns(
             immutable_hash AS "immutableHash"
        FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
       WHERE design_id=$1 AND created_by=$2
+        AND result_snapshot->>'candidateKind' IS DISTINCT FROM 'RRBO_P1_CANDIDATE_ONLY'
       ${historicalOnly
         ? `AND result_snapshot->'engine'->>'version' <> $3`
         : ''}

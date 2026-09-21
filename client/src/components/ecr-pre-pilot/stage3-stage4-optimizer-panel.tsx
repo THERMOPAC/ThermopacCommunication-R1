@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, Play, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Stage3GeometryBasisReport } from "./stage3-geometry-basis-report";
+import { P1CandidatePanel } from "./p1-candidate-panel";
 
 type OptimizerRun = {
   id?: string | number;
@@ -229,6 +230,8 @@ export function Stage3Stage4OptimizerPanel({
   const window = run?.selectedOperatingWindow;
   return (
     <section className="rounded-md border border-indigo-200 bg-indigo-50/40 p-3">
+      <P1CandidatePanel designId={designId} refreshToken={refreshToken} />
+      <p className="mb-2 text-xs font-semibold">Existing authority method (legacy hydraulic model) — separate from corrected P1 candidates</p>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-indigo-950">
