@@ -1745,3 +1745,17 @@ mtime_ms = 1790048632792
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/3b682897-42cb-4598-b3f7-779e65f22127/ba795585-aa34-470e-8f28-927dee2047e3"
 storage_version_token = "1790048658924920"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "P3dumBuM9gxlL97dCa8_c"
+uri = "file://deliverables/end-rule-report.md"
+type = "text"
+title = "Revised end-section calculation — S/O 1.5 and 10-minute residence"
+description = "Independent feed balance, revised nozzle screening, conditional residence-height tables and knuckled-transition requirements. Saved Stage 1/2 and Stage 5 remain unchanged; actual product split is explicitly unresolved."
+logical_id = "2b949334-2c02-4445-97a4-5b034bb91a38"
+content_hash = "sha256:bd5c872457a449b1ae33c92448ff79ea358c2c425831643c70bcfcb538a4c652"
+size = 9295
+mtime_ms = 1790052922074
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/2b949334-2c02-4445-97a4-5b034bb91a38/323aebb1-7137-40f3-9a43-2232768ac5c1"
+storage_version_token = "1790052953927304"
+content_type = "text/markdown"

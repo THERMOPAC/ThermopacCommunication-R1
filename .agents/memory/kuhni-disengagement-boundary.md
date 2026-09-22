@@ -68,3 +68,9 @@ The user clarified that “both sections” means top raffinate and bottom extra
 **Why:** The wording “extraction section” was ambiguous; the user explicitly selected the two disengagement ends with Ø700/20 stages preserved.
 
 **How to apply:** Include independent bottom phase-inverted separation and process-nozzle calculations. Do not invent a bottom carryunder specification or promote illustrative end diameters/heights to selected dimensions before coupled separation and return qualification.
+
+The user replaces arbitrary end-zone heights with 10 minutes at normal product flow and 0.90 usable straight-shell volume. Independent end-design S/O is always 1.5 by mass; saved Stage 1/2 remain unchanged.
+
+**Why:** The approved framed rule requires separate end assemblies and an independent end-section material balance, not reuse of product flows from the previous S/O=0.6 case. The 120% flow remains a hydraulic/nozzle check only.
+
+**How to apply:** Add dedicated Ø700 feed/distribution lengths outside frozen Stage 5. Credit only straight liquid volume between interface and product outlet; exclude cone, 150-mm interface allowance, post-nozzle extension and torispherical dishes. Transition minimum and post-nozzle extension each are max(200 mm,0.40D). Cone has a 30° conical portion with knuckled/formed junctions; ASME mechanical design must determine radii, thickness, forming and reinforcement. A mass balance alone does not establish the new equilibrium product split.

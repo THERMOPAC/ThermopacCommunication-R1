@@ -1,0 +1,657 @@
+{
+  "status": "CALCULATED_FEEDS_AND_RULE_GEOMETRY; ACTUAL_PRODUCT_SPLIT_INDETERMINATE",
+  "sourceHashes": {
+    "deliverables/kuhni-end-section-preliminary-calculation.input.json": "3e65f398cfd714f599ab7fcb420e07c4a4d3c6637053a71498567099413536d2",
+    ".agents/memory/kuhni-disengagement-boundary.md": "83bd7a7d616d7ffcfb3690f4a4c40d5f123ab5a4abb9fa9715126ed21f01dd15",
+    "attached_assets/Pasted-Framed-Design-Rule-Top-Bottom-Disengagement-Sections-Ru_1790052567230.txt": "684fe39d4a8b7a8ba1073a6121e750e636d1f6323c268f7bb930c925c69d8c0b",
+    "deliverables/end-sections-sizing.mjs": "bf282d1922a2dc0f84d1a36c7b26ed80f3cda1517cc67fb9443741e5e5f93d71",
+    "deliverables/end-sections-sizing.md": "1a88752525761e2d45dbf72e664452cdbe9a3af16d3b4a10d0a11d9357f2a99c",
+    "deliverables/stage2-report-corrected/frozen-job.json": "5bc0e999a2f9a177c6f25b85c325c6dbfd2ff8fc55f9f64b4b0c8eb92e39ef9e"
+  },
+  "provenance": {
+    "source": "Owner-scoped development DB BEGIN READ ONLY audit, 2026-09-21",
+    "designId": 269,
+    "projectNumber": 236,
+    "stage1Hash": "06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2e98c5f",
+    "stage2JobId": "145e962e-892a-4424-aab9-91532af9f5ef",
+    "stage2SourceHash": "6ccf5381167d4deb01d313881b63f5bb537c8bc729e3902b2919fc1f4397fbe9",
+    "stage2PredictiveNt": 4,
+    "stage2ReleaseEligible": false,
+    "stage2Stage1InputDifferences": [],
+    "stage3Id": "69",
+    "stage3Hash": "4b60bbd4396e508ce58a2de945540035e46062396d94b000f89fdecd335c8e82",
+    "stage4Id": "17",
+    "stage4Stage2JobId": null,
+    "stage5Revision": 6,
+    "stage5Hash": "7642b42d3e02578e92a2bc3c55e9f38e3b0537aef9b0724fbfac2aa6b06f9bd6",
+    "dragSourceSha256": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed"
+  },
+  "feasibility": {
+    "numericalResearchRerunMayBePossible": true,
+    "qualifiedSeparate15ResultEstablished": false,
+    "solverExecuted": false,
+    "reason": "Frozen S/O=0.6 outputs are unbound to Stage5 and releaseEligible=false; changed solvent ratio requires new qualified thermodynamics and chosen stage boundary. Current worker variants are research code, not authority to invent an actual split. No stage-number choice or long solver attempted."
+  },
+  "frozenActive": {
+    "diameterM": 0.7,
+    "compartments": 20,
+    "pitchM": 0.21,
+    "activeHeightM": 4.2,
+    "rotorDiameterM": 0.23099999999999998,
+    "rpm": 30,
+    "statorOpenFraction": 0.4
+  },
+  "feeds": {
+    "oilKgH": 3476,
+    "oilM3H": 4,
+    "wetSolventKgH": 5214,
+    "wetSolventM3H": 5.136945812807882,
+    "totalKgH": 8690,
+    "massRatio": 1.5,
+    "savedStage1MassRatioUnchanged": 0.6,
+    "componentFeedKgH": [
+      2954.6,
+      243.32000000000002,
+      139.04,
+      69.52,
+      69.52,
+      5187.93,
+      26.07
+    ],
+    "componentOrder": [
+      "saturates",
+      "mono",
+      "di",
+      "poly",
+      "polar",
+      "NMP",
+      "water"
+    ],
+    "solventCompositionSource": "inherited source wet-solvent 99.5 mass% NMP / 0.5 mass% water"
+  },
+  "parameterizedActualBalance": {
+    "fractionsToRaffinate": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "equation": "R_i = feed_i*f_i; E_i=feed_i*(1-f_i); 0<=f_i<=1. R+E=8690 kg/h. No external phase loss.",
+    "raffinateKgH": null,
+    "extractKgH": null,
+    "raffinateM3H": null,
+    "extractM3H": null,
+    "densityRaffinateKgM3": null,
+    "densityExtractKgM3": null,
+    "reason": "Seven source-labelled component partition fractions and qualified product densities are unavailable at S/O=1.5."
+  },
+  "geometryComparison": [
+    {
+      "diameterM": 0.7,
+      "areaM2": 0.3848451000647496,
+      "h10MetresPerM3H": 0.48119408342220815,
+      "transitionMinimumM": 0.27999999999999997,
+      "sharpConeReferenceLengthM": 0,
+      "sharpConeShortfallToMinimumM": 0.27999999999999997,
+      "physicalTransitionLengthM": null,
+      "interfaceAllowanceM": 0.15,
+      "postNozzleMinimumM": 0.27999999999999997,
+      "knownStraightHeightExcludingResidenceAndNozzleEnvelopeM": 0.42999999999999994,
+      "actualH10TopM": null,
+      "actualH10BottomM": null,
+      "finalSelected": false,
+      "transitionStatus": "NO_EXPANSION: 30-degree cone impossible at equal IDs; straight calming reservation requires rule exception"
+    },
+    {
+      "diameterM": 0.9,
+      "areaM2": 0.6361725123519332,
+      "h10MetresPerM3H": 0.29109271713195306,
+      "transitionMinimumM": 0.36000000000000004,
+      "sharpConeReferenceLengthM": 0.17320508075688779,
+      "sharpConeShortfallToMinimumM": 0.18679491924311226,
+      "physicalTransitionLengthM": null,
+      "interfaceAllowanceM": 0.15,
+      "postNozzleMinimumM": 0.36000000000000004,
+      "knownStraightHeightExcludingResidenceAndNozzleEnvelopeM": 0.51,
+      "actualH10TopM": null,
+      "actualH10BottomM": null,
+      "finalSelected": false,
+      "transitionStatus": "30-degree half-angle conical portion plus mechanically designed formed junctions; exact axial envelope unresolved"
+    },
+    {
+      "diameterM": 1,
+      "areaM2": 0.7853981633974483,
+      "h10MetresPerM3H": 0.23578510087688198,
+      "transitionMinimumM": 0.4,
+      "sharpConeReferenceLengthM": 0.2598076211353316,
+      "sharpConeShortfallToMinimumM": 0.1401923788646684,
+      "physicalTransitionLengthM": null,
+      "interfaceAllowanceM": 0.15,
+      "postNozzleMinimumM": 0.4,
+      "knownStraightHeightExcludingResidenceAndNozzleEnvelopeM": 0.55,
+      "actualH10TopM": null,
+      "actualH10BottomM": null,
+      "finalSelected": false,
+      "transitionStatus": "30-degree half-angle conical portion plus mechanically designed formed junctions; exact axial envelope unresolved"
+    },
+    {
+      "diameterM": 1.2,
+      "areaM2": 1.1309733552923256,
+      "h10MetresPerM3H": 0.16373965338672358,
+      "transitionMinimumM": 0.48,
+      "sharpConeReferenceLengthM": 0.43301270189221935,
+      "sharpConeShortfallToMinimumM": 0.04698729810778063,
+      "physicalTransitionLengthM": null,
+      "interfaceAllowanceM": 0.15,
+      "postNozzleMinimumM": 0.48,
+      "knownStraightHeightExcludingResidenceAndNozzleEnvelopeM": 0.63,
+      "actualH10TopM": null,
+      "actualH10BottomM": null,
+      "finalSelected": false,
+      "transitionStatus": "30-degree half-angle conical portion plus mechanically designed formed junctions; exact axial envelope unresolved"
+    }
+  ],
+  "feedNozzles": {
+    "P01": {
+      "normalM3H": 4,
+      "hydraulic120M3H": 4.8,
+      "requiredIdAt120And05MSMm": 58.26924963157755,
+      "provisionalMinimumDn": 65,
+      "candidates": [
+        {
+          "dn": 40,
+          "odMm": 48.3,
+          "wallMm": 3.68,
+          "idMm": 40.94,
+          "normalVelocityMS": 0.8440573043380962,
+          "hydraulic120VelocityMS": 1.0128687652057156,
+          "passesAssumed05MS": false
+        },
+        {
+          "dn": 50,
+          "odMm": 60.3,
+          "wallMm": 3.91,
+          "idMm": 52.48,
+          "normalVelocityMS": 0.5136649782311423,
+          "hydraulic120VelocityMS": 0.6163979738773707,
+          "passesAssumed05MS": false
+        },
+        {
+          "dn": 65,
+          "odMm": 73,
+          "wallMm": 5.16,
+          "idMm": 62.68,
+          "normalVelocityMS": 0.36008881664235004,
+          "hydraulic120VelocityMS": 0.43210657997082,
+          "passesAssumed05MS": true
+        },
+        {
+          "dn": 80,
+          "odMm": 88.9,
+          "wallMm": 5.49,
+          "idMm": 77.92,
+          "normalVelocityMS": 0.2330074040790289,
+          "hydraulic120VelocityMS": 0.27960888489483465,
+          "passesAssumed05MS": true
+        },
+        {
+          "dn": 100,
+          "odMm": 114.3,
+          "wallMm": 6.02,
+          "idMm": 102.25999999999999,
+          "normalVelocityMS": 0.13528698942155784,
+          "hydraulic120VelocityMS": 0.16234438730586942,
+          "passesAssumed05MS": true
+        }
+      ]
+    },
+    "P03": {
+      "normalM3H": 5.136945812807882,
+      "hydraulic120M3H": 6.164334975369458,
+      "requiredIdAt120And05MSMm": 66.03313586389139,
+      "provisionalMinimumDn": 80,
+      "candidates": [
+        {
+          "dn": 40,
+          "odMm": 48.3,
+          "wallMm": 3.68,
+          "idMm": 40.94,
+          "normalVelocityMS": 1.083969158822373,
+          "hydraulic120VelocityMS": 1.3007629905868474,
+          "passesAssumed05MS": false
+        },
+        {
+          "dn": 50,
+          "odMm": 60.3,
+          "wallMm": 3.91,
+          "idMm": 52.48,
+          "normalVelocityMS": 0.6596672897776296,
+          "hydraulic120VelocityMS": 0.7916007477331555,
+          "passesAssumed05MS": false
+        },
+        {
+          "dn": 65,
+          "odMm": 73,
+          "wallMm": 5.16,
+          "idMm": 62.68,
+          "normalVelocityMS": 0.46243918472246637,
+          "hydraulic120VelocityMS": 0.5549270216669595,
+          "passesAssumed05MS": false
+        },
+        {
+          "dn": 80,
+          "odMm": 88.9,
+          "wallMm": 5.49,
+          "idMm": 77.92,
+          "normalVelocityMS": 0.29923660218425047,
+          "hydraulic120VelocityMS": 0.3590839226211005,
+          "passesAssumed05MS": true
+        },
+        {
+          "dn": 100,
+          "odMm": 114.3,
+          "wallMm": 6.02,
+          "idMm": 102.25999999999999,
+          "normalVelocityMS": 0.17374048345911397,
+          "hydraulic120VelocityMS": 0.20848858015093674,
+          "passesAssumed05MS": true
+        }
+      ]
+    }
+  },
+  "actualProductNozzles": {
+    "P02": null,
+    "P04": null
+  },
+  "unqualifiedSensitivities": [
+    {
+      "label": "UNQUALIFIED constant component partition fractions from S/O=0.6 N=4",
+      "actualPrediction": false,
+      "fractionsToRaffinate": [
+        0.9498601493903869,
+        0.4451021393199172,
+        0.4868857581673111,
+        0.4318116330672732,
+        0.16706990787755044,
+        0.13897701168364554,
+        0.8293145765137366
+      ],
+      "raffinateComponentKgH": [
+        2806.456797388837,
+        108.30225253932227,
+        67.69659581558294,
+        30.01954473083683,
+        11.614699995647307,
+        721.0030082239352,
+        21.620231009713116
+      ],
+      "extractComponentKgH": [
+        148.1432026111629,
+        135.01774746067775,
+        71.34340418441705,
+        39.50045526916317,
+        57.90530000435269,
+        4466.926991776065,
+        4.449768990286884
+      ],
+      "raffinateKgH": 3766.713129703875,
+      "extractKgH": 4923.286870296126,
+      "totalResidualKgH": -9.094947017729282e-13,
+      "componentResidualKgH": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "topVolumeProxyM3H": 4.334537548566024,
+      "bottomVolumeProxyM3H": 4.850528936252341,
+      "residenceComparison": [
+        {
+          "diameterM": 0.7,
+          "topH10M": 2.0857538227413728,
+          "bottomH10M": 2.3340458255928436,
+          "topRequiredNetResidenceM3": 0.722422924761004,
+          "bottomRequiredNetResidenceM3": 0.8084214893753902
+        },
+        {
+          "diameterM": 0.9,
+          "topH10M": 1.2617523125225587,
+          "bottomH10M": 1.4119536475808558,
+          "topRequiredNetResidenceM3": 0.722422924761004,
+          "bottomRequiredNetResidenceM3": 0.8084214893753902
+        },
+        {
+          "diameterM": 1,
+          "topH10M": 1.0220193731432727,
+          "bottomH10M": 1.1436824545404933,
+          "topRequiredNetResidenceM3": 0.722422924761004,
+          "bottomRequiredNetResidenceM3": 0.8084214893753902
+        },
+        {
+          "diameterM": 1.2,
+          "topH10M": 0.7097356757939394,
+          "bottomH10M": 0.7942239267642315,
+          "topRequiredNetResidenceM3": 0.722422924761004,
+          "bottomRequiredNetResidenceM3": 0.8084214893753902
+        }
+      ],
+      "nozzles": {
+        "P04": {
+          "normalM3H": 4.334537548566024,
+          "hydraulic120M3H": 5.201445058279228,
+          "requiredIdAt120And05MSMm": 60.656984291306316,
+          "provisionalMinimumDn": 65,
+          "candidates": [
+            {
+              "dn": 40,
+              "odMm": 48.3,
+              "wallMm": 3.68,
+              "idMm": 40.94,
+              "normalVelocityMS": 0.9146495196987245,
+              "hydraulic120VelocityMS": 1.0975794236384693,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 50,
+              "odMm": 60.3,
+              "wallMm": 3.91,
+              "idMm": 52.48,
+              "normalVelocityMS": 0.5566250338815588,
+              "hydraulic120VelocityMS": 0.6679500406578706,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 65,
+              "odMm": 73,
+              "wallMm": 5.16,
+              "idMm": 62.68,
+              "normalVelocityMS": 0.39020462413874313,
+              "hydraulic120VelocityMS": 0.4682455489664917,
+              "passesAssumed05MS": true
+            },
+            {
+              "dn": 80,
+              "odMm": 88.9,
+              "wallMm": 5.49,
+              "idMm": 77.92,
+              "normalVelocityMS": 0.25249483551861174,
+              "hydraulic120VelocityMS": 0.30299380262233405,
+              "passesAssumed05MS": true
+            },
+            {
+              "dn": 100,
+              "odMm": 114.3,
+              "wallMm": 6.02,
+              "idMm": 102.25999999999999,
+              "normalVelocityMS": 0.14660163387004924,
+              "hydraulic120VelocityMS": 0.17592196064405907,
+              "passesAssumed05MS": true
+            }
+          ]
+        },
+        "P02": {
+          "normalM3H": 4.850528936252341,
+          "hydraulic120M3H": 5.820634723502809,
+          "requiredIdAt120And05MSMm": 64.16585413088316,
+          "provisionalMinimumDn": 80,
+          "candidates": [
+            {
+              "dn": 40,
+              "odMm": 48.3,
+              "wallMm": 3.68,
+              "idMm": 40.94,
+              "normalVelocityMS": 1.023531094636771,
+              "hydraulic120VelocityMS": 1.2282373135641251,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 50,
+              "odMm": 60.3,
+              "wallMm": 3.91,
+              "idMm": 52.48,
+              "normalVelocityMS": 0.622886710112396,
+              "hydraulic120VelocityMS": 0.7474640521348752,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 65,
+              "odMm": 73,
+              "wallMm": 5.16,
+              "idMm": 62.68,
+              "normalVelocityMS": 0.4366553061861456,
+              "hydraulic120VelocityMS": 0.5239863674233747,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 80,
+              "odMm": 88.9,
+              "wallMm": 5.49,
+              "idMm": 77.92,
+              "normalVelocityMS": 0.28255228896159285,
+              "hydraulic120VelocityMS": 0.3390627467539114,
+              "passesAssumed05MS": true
+            },
+            {
+              "dn": 100,
+              "odMm": 114.3,
+              "wallMm": 6.02,
+              "idMm": 102.25999999999999,
+              "normalVelocityMS": 0.16405336422193267,
+              "hydraulic120VelocityMS": 0.1968640370663192,
+              "passesAssumed05MS": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "label": "UNQUALIFIED constant component partition fractions from S/O=0.6 N=7",
+      "actualPrediction": false,
+      "fractionsToRaffinate": [
+        0.947957017429575,
+        0.4125545049480476,
+        0.4658569013298093,
+        0.3996678467099931,
+        0.08634851959162756,
+        0.1299366843206025,
+        0.8875553167143782
+      ],
+      "raffinateComponentKgH": [
+        2800.8338036974224,
+        100.38276214395894,
+        64.77274356089669,
+        27.78490870327872,
+        6.002949082009948,
+        674.1024226873834,
+        23.13856710674384
+      ],
+      "extractComponentKgH": [
+        153.76619630257755,
+        142.93723785604107,
+        74.2672564391033,
+        41.73509129672128,
+        63.51705091799005,
+        4513.827577312617,
+        2.9314328932561615
+      ],
+      "raffinateKgH": 3697.0181569816937,
+      "extractKgH": 4992.981843018306,
+      "totalResidualKgH": 0,
+      "componentResidualKgH": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "topVolumeProxyM3H": 4.2543361990583355,
+      "bottomVolumeProxyM3H": 4.919193934008183,
+      "residenceComparison": [
+        {
+          "diameterM": 0.7,
+          "topH10M": 2.0471614078757967,
+          "bottomH10M": 2.367087016251154,
+          "topRequiredNetResidenceM3": 0.7090560331763892,
+          "bottomRequiredNetResidenceM3": 0.8198656556680305
+        },
+        {
+          "diameterM": 0.9,
+          "topH10M": 1.2384062837767162,
+          "bottomH10M": 1.4319415283494632,
+          "topRequiredNetResidenceM3": 0.7090560331763892,
+          "bottomRequiredNetResidenceM3": 0.8198656556680305
+        },
+        {
+          "diameterM": 1,
+          "topH10M": 1.0031090898591404,
+          "bottomH10M": 1.1598726379630653,
+          "topRequiredNetResidenceM3": 0.7090560331763892,
+          "bottomRequiredNetResidenceM3": 0.8198656556680305
+        },
+        {
+          "diameterM": 1.2,
+          "topH10M": 0.6966035346244029,
+          "bottomH10M": 0.8054671096965731,
+          "topRequiredNetResidenceM3": 0.7090560331763892,
+          "bottomRequiredNetResidenceM3": 0.8198656556680305
+        }
+      ],
+      "nozzles": {
+        "P04": {
+          "normalM3H": 4.2543361990583355,
+          "hydraulic120M3H": 5.105203438870002,
+          "requiredIdAt120And05MSMm": 60.0932003099594,
+          "provisionalMinimumDn": 65,
+          "candidates": [
+            {
+              "dn": 40,
+              "odMm": 48.3,
+              "wallMm": 3.68,
+              "idMm": 40.94,
+              "normalVelocityMS": 0.8977258859812903,
+              "hydraulic120VelocityMS": 1.0772710631775482,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 50,
+              "odMm": 60.3,
+              "wallMm": 3.91,
+              "idMm": 52.48,
+              "normalVelocityMS": 0.5463258777693151,
+              "hydraulic120VelocityMS": 0.655591053323178,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 65,
+              "odMm": 73,
+              "wallMm": 5.16,
+              "idMm": 62.68,
+              "normalVelocityMS": 0.38298472187940735,
+              "hydraulic120VelocityMS": 0.4595816662552888,
+              "passesAssumed05MS": true
+            },
+            {
+              "dn": 80,
+              "odMm": 88.9,
+              "wallMm": 5.49,
+              "idMm": 77.92,
+              "normalVelocityMS": 0.24782295845550636,
+              "hydraulic120VelocityMS": 0.2973875501466076,
+              "passesAssumed05MS": true
+            },
+            {
+              "dn": 100,
+              "odMm": 114.3,
+              "wallMm": 6.02,
+              "idMm": 102.25999999999999,
+              "normalVelocityMS": 0.14388908408943893,
+              "hydraulic120VelocityMS": 0.17266690090732667,
+              "passesAssumed05MS": true
+            }
+          ]
+        },
+        "P02": {
+          "normalM3H": 4.919193934008183,
+          "hydraulic120M3H": 5.9030327208098194,
+          "requiredIdAt120And05MSMm": 64.61843000775424,
+          "provisionalMinimumDn": 80,
+          "candidates": [
+            {
+              "dn": 40,
+              "odMm": 48.3,
+              "wallMm": 3.68,
+              "idMm": 40.94,
+              "normalVelocityMS": 1.0380203928638154,
+              "hydraulic120VelocityMS": 1.2456244714365787,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 50,
+              "odMm": 60.3,
+              "wallMm": 3.91,
+              "idMm": 52.48,
+              "normalVelocityMS": 0.63170441125677,
+              "hydraulic120VelocityMS": 0.7580452935081242,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 65,
+              "odMm": 73,
+              "wallMm": 5.16,
+              "idMm": 62.68,
+              "normalVelocityMS": 0.4428366806328083,
+              "hydraulic120VelocityMS": 0.53140401675937,
+              "passesAssumed05MS": false
+            },
+            {
+              "dn": 80,
+              "odMm": 88.9,
+              "wallMm": 5.49,
+              "idMm": 77.92,
+              "normalVelocityMS": 0.2865521521811381,
+              "hydraulic120VelocityMS": 0.34386258261736574,
+              "passesAssumed05MS": true
+            },
+            {
+              "dn": 100,
+              "odMm": 114.3,
+              "wallMm": 6.02,
+              "idMm": 102.25999999999999,
+              "normalVelocityMS": 0.16637573442818915,
+              "hydraulic120VelocityMS": 0.199650881313827,
+              "passesAssumed05MS": true
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "mechanicalHolds": {
+    "additionalTopNeckM": null,
+    "additionalBottomNeckM": null,
+    "retainedBottomNeckReservationM": 0.3,
+    "knuckleRadiiM": null,
+    "thicknessM": null,
+    "reinforcement": null,
+    "torisphericalHeadDepthM": null,
+    "totalVesselHeightM": null
+  },
+  "noResidenceCredit": [
+    "entry/distributor neck",
+    "transition",
+    "150-mm interface allowance",
+    "nozzle envelope",
+    "post-nozzle extension",
+    "torispherical head"
+  ],
+  "selectedEndDiameters": null,
+  "physicalCarryoverPerformance": null
+}
