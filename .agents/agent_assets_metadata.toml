@@ -1759,3 +1759,31 @@ mtime_ms = 1790052922074
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/2b949334-2c02-4445-97a4-5b034bb91a38/323aebb1-7137-40f3-9a43-2232768ac5c1"
 storage_version_token = "1790052953927304"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "TRLhVD3Wv9wtt0_S_GvYe"
+uri = "file://deliverables/stage5-engineering-report/design269-revision8-engineering-report.pdf"
+type = "pdf"
+title = "Stage 5 Engineering Report — 21 pages"
+description = "Concise report with all five drawings, current nozzle calculations, frozen active geometry and explicit pending end dimensions."
+logical_id = "aacef108-1509-4c23-b9c0-ad2c8dee08df"
+content_hash = "sha256:4e4aa29d6a08e2d3f32be23f6f1d6d0219014ecae33b1469772d37ed16477235"
+size = 285925
+mtime_ms = 1790066607510
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aacef108-1509-4c23-b9c0-ad2c8dee08df/51b14493-8acb-44ce-a75f-2630c5475766"
+storage_version_token = "1790066826727093"
+content_type = "application/pdf"
+
+[[outputs]]
+id = "i5QAXvWGNQnDHa8qKJk0E"
+uri = "file://deliverables/stage5-engineering-report/design269-revision8-audit-archive.pdf"
+type = "pdf"
+title = "Engineering Calculation & Audit Archive — 300 pages"
+description = "Complete historical calculation, coordinate, validation and provenance records retained separately from current engineering results."
+logical_id = "7fe394bb-34a9-490e-a663-2650f654306b"
+content_hash = "sha256:7955b745550d4b186c2533b6ae36f297196303ad3f401ce6096c430127c21cc7"
+size = 606151
+mtime_ms = 1790066607598
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7fe394bb-34a9-490e-a663-2650f654306b/6da0e37d-c1e6-482a-95bf-23c80d2f9cbf"
+storage_version_token = "1790066830421242"
+content_type = "application/pdf"

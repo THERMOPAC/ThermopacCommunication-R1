@@ -43,7 +43,7 @@ function GeometrySchedules({ geometry, registerFileName }: { geometry: unknown; 
   return <div data-testid="stage5-geometry-report" className="mt-3 space-y-3">
     <div data-testid="stage5-compact-report" className="space-y-3">
       <section data-testid="stage5-validation-summary" className={`rounded border ${reviewRequired ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50"}`}><h3 className="border-b border-current/10 px-3 py-2 text-xs font-semibold text-slate-900">Validation checks <span className="font-mono text-[10px] font-normal">{reviewRequired ? "INCOMPLETE / REVIEW REQUIRED" : "COMPLETE"}</span></h3><div className="divide-y divide-slate-100">{issues.length ? issues.map((check, index) => <div key={`${String(check.id)}-${index}`} className="flex gap-2 px-3 py-2 text-[11px]"><span className={`h-fit rounded px-1.5 py-0.5 font-mono text-[9px] font-bold ${check.status === "fail" ? "bg-red-100 text-red-900" : "bg-amber-100 text-amber-900"}`}>{String(check.status ?? "unresolved").toUpperCase()}</span><div><span className="font-mono text-[10px] text-slate-600">{String(check.id ?? "check")}</span><p className="text-slate-800">{display(check.message)}</p></div></div>) : reviewRequired ? <p className="px-3 py-2 text-xs font-medium text-red-900">No failed check rows. Unresolved geometry items are listed below.</p> : checks.length ? <p className="px-3 py-2 text-xs font-medium text-emerald-900">All {checks.length} validation checks passed. No failed or unresolved checks.</p> : <p className="p-3 text-xs text-amber-900">No validation results returned.</p>}</div></section>
-      <section data-testid="stage5-parameter-register" className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 p-3"><div><h3 className="text-xs font-semibold text-slate-900">CAD Design Data</h3><p className="mt-1 text-[11px] text-slate-600">Human-readable modelling inputs: dimensions in mm, component profiles, complete elevation and connection schedules, provenance and validation.</p>{!registerFileName.available && <p className="mt-2 text-xs font-medium text-amber-900">{registerFileName.saved ? "This historical revision has no structured R1 model. Its original drawing exports remain available." : "Save an immutable revision first to download its Design Data PDF."}</p>}</div><Button type="button" variant="outline" disabled={!registerFileName.available || registerFileName.busy} onClick={registerFileName.download} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> Download Design Data PDF</Button></section>
+      <section data-testid="stage5-parameter-register" className="flex flex-wrap items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 p-3"><div><h3 className="text-xs font-semibold text-slate-900">Engineering Calculation &amp; Audit Archive</h3><p className="mt-1 text-[11px] text-slate-600">Complete saved calculation records, coordinates, validation and provenance. Historical end/nozzle reservations are not current design authority. Use the Engineering Report PDF above for current engineering review.</p>{!registerFileName.available && <p className="mt-2 text-xs font-medium text-amber-900">{registerFileName.saved ? "This historical revision has no structured R1 model. Its original drawing exports remain available." : "Save an immutable revision first to download its Audit Archive."}</p>}</div><Button type="button" variant="outline" disabled={!registerFileName.available || registerFileName.busy} onClick={registerFileName.download} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> Download Audit Archive</Button></section>
     </div>
     <div className="grid gap-3 lg:grid-cols-2"><section className="rounded border border-slate-200"><h3 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900">Internals schedule</h3><div className="overflow-x-auto"><table className="w-full min-w-[470px] text-left text-[10px]"><thead><tr className="text-slate-500"><th className="px-3 py-2">ID</th><th>Definition</th><th>Qty</th><th>OD / thk [m]</th></tr></thead><tbody className="divide-y divide-slate-100">{internals.map((item, index) => <tr key={`${String(item.id)}-${index}`}><td className="px-3 py-2 font-mono">{display(item.id)}</td><td className="py-2">{display(item.type)}</td><td className="py-2 font-mono">{display(item.count)}</td><td className="py-2 font-mono">{display(item.diameterM)} / {display(item.thicknessM)}</td></tr>)}</tbody></table></div></section><section className="rounded border border-slate-200"><h3 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900">Preliminary nozzle / connection schedule</h3><div className="overflow-x-auto"><table className="w-full min-w-[470px] text-left text-[10px]"><thead><tr className="text-slate-500"><th className="px-3 py-2">Tag</th><th>Service / region</th><th>EL [m]</th><th>Bore [m]</th><th>Provenance</th></tr></thead><tbody className="divide-y divide-slate-100">{nozzles.length ? nozzles.map((item, index) => <tr key={`${String(item.id)}-${index}`}><td className="px-3 py-2 font-mono">{display(item.id)}</td><td className="py-2">{display(item.service)} / {display(item.region)}</td><td className="py-2 font-mono">{display(item.elevationM)}</td><td className="py-2 font-mono">{display(item.boreM)}</td><td className="py-2">{display(item.classification)}</td></tr>) : <tr><td colSpan={5} className="px-3 py-3 text-slate-500">TBD — no connection schedule entered.</td></tr>}</tbody></table></div></section></div>
     <div className="grid gap-3 md:grid-cols-2"><section className="rounded border border-amber-200 bg-amber-50/50 p-3 text-[11px] text-amber-950"><h3 className="font-semibold">Assumptions</h3>{assumptions.length ? <ul className="mt-2 list-disc space-y-1 pl-4">{assumptions.map((item, index) => <li key={index}>{String(item)}</li>)}</ul> : <p className="mt-1">None recorded.</p>}</section>{tbd.length ? <section data-testid="stage5-unresolved-items" className="rounded border border-red-300 bg-red-50 p-3 text-[11px] text-red-950"><h3 className="font-semibold">Unresolved items</h3><ul className="mt-2 list-disc space-y-1 pl-4">{tbd.map((item, index) => <li key={index}>{String(item)}</li>)}</ul></section> : <section className="rounded border border-emerald-200 bg-emerald-50 p-3 text-[11px] text-emerald-950"><h3 className="font-semibold">Geometry closure</h3><p className="mt-1">No unresolved geometry items.</p></section>}</div>
@@ -173,7 +173,7 @@ export default function EcrPrePilotDesignStage5Page() {
     setDownloading(true);
     try {
       const presentation = [R1_RULESET, R2_RULESET].includes(String(object(selected.geometry).ruleset)) ? "dimensioned-v2" : "original";
-      const suffix = format === "design-data" ? "design-data.pdf" : `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
+      const suffix = format === "design-data" ? "audit-archive.pdf" : `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
       const response = await fetch(`${base(design.id)}/revisions/${selected.id}/${suffix}`, { credentials: "include" });
       if (!response.ok) {
         throw new Error(await responseError(response));
@@ -184,10 +184,10 @@ export default function EcrPrePilotDesignStage5Page() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = format === "design-data" ? `stage5-r${selected.revision}-design-data.pdf` : `stage5-r${selected.revision}-${presentation}${format === "svg" ? `-${view}` : ""}.${format}`;
+      anchor.download = format === "design-data" ? `stage5-r${selected.revision}-audit-archive.pdf` : `stage5-r${selected.revision}-${presentation}${format === "svg" ? `-${view}` : ""}.${format}`;
       document.body.appendChild(anchor); anchor.click(); anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60000);
-      toast({ title: "Download ready", description: format === "design-data" ? "The saved revision’s CAD Design Data PDF has been downloaded." : format === "pdf" ? "The five-view PDF package has been downloaded." : `${stage5ViewNames[view]} SVG has been downloaded.` });
+      toast({ title: "Download ready", description: format === "design-data" ? "The complete saved Engineering Calculation & Audit Archive has been downloaded." : format === "pdf" ? "The historical five-view PDF package has been downloaded." : `${stage5ViewNames[view]} SVG has been downloaded.` });
     } catch (cause) {
       toast({ title: "Download failed", description: messageOf(cause), variant: "destructive" });
     } finally { setDownloading(false); }
@@ -259,6 +259,27 @@ export default function EcrPrePilotDesignStage5Page() {
       toast({ title: "Current GA export unavailable", description: messageOf(error), variant: "destructive" });
     } finally { setDownloading(false); }
   };
+  const exportEngineeringReport = async () => {
+    const projection = currentEnd;
+    if (!projection || !design?.id) return;
+    setDownloading(true);
+    try {
+      const query = new URLSearchParams({ expectedSourceHash: projection.sourceHash });
+      const response = await fetch(`${base(design.id)}/revisions/${projection.active.revisionId}/engineering-report.pdf?${query}`,
+        { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error(await responseError(response));
+      const blob = await response.blob();
+      if (!blob.size || !blob.type.includes("application/pdf")) throw new Error("The server did not return a valid Engineering Report PDF.");
+      if (currentEndRef.current !== projection) throw new Error("Current authority changed during report export; refresh and retry.");
+      const href = URL.createObjectURL(blob), anchor = document.createElement("a");
+      anchor.href = href; anchor.download = `stage5-r${selected?.revision}-engineering-report.pdf`;
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(href), 60000);
+    } catch (cause) {
+      setEndProjection(null); setEndRefreshToken(n => n + 1);
+      toast({ title: "Engineering Report unavailable", description: messageOf(cause), variant: "destructive" });
+    } finally { setDownloading(false); }
+  };
   const newRevision = () => { setSelected(null); setPreview(null); void read(); };
   const frozenSvg = selected?.drawings?.[view];
   const registerFileName = { download: () => void exportRevision("design-data"), available: Boolean(selected && object(selected.geometry).r1Model), busy: downloading, saved: Boolean(selected) };
@@ -298,6 +319,8 @@ export default function EcrPrePilotDesignStage5Page() {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 p-3">
               <div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Current end assemblies + unchanged frozen active</p><h2 className="text-sm font-semibold text-slate-950">Preliminary drawing package</h2></div>
               <div className="flex flex-wrap gap-2">
+                <Button data-testid="export-engineering-report" type="button" disabled={!currentEnd || downloading} onClick={() => void exportEngineeringReport()} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Engineering Report PDF</Button>
+                <Button data-testid="export-audit-archive" type="button" variant="outline" disabled={!registerFileName.available || downloading} onClick={() => void exportRevision("design-data")} className="h-8 gap-1 text-xs">Calculation &amp; Audit Archive</Button>
                 <Button data-testid="export-current-ga" type="button" disabled={!currentEnd || downloading} onClick={() => void exportCurrentGa()} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Current conditional GA SVG</Button>
                 {selected && <><Button type="button" variant="outline" onClick={() => exportRevision("svg")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Historical SVG view</Button>
                   <Button type="button" variant="outline" onClick={() => exportRevision("pdf")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Historical PDF package</Button></>}

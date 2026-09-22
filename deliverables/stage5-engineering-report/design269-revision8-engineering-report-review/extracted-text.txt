@@ -1,0 +1,858 @@
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+1
+Engineering review and document authority
+This report combines verified frozen active-section geometry with the current system-owned end-
+design basis. End geometry is not selected. It is a review document, not a fabrication release or a 
+completed pressure-vessel design.
+Scope
+Disposition
+Frozen active section
+Ø700 mm; 20 compartments; active height 4200 mm. Unchanged.
+Current ends
+SYSTEM PENDING. Diameters, residence heights, opening envelopes and 
+overall elevations are undetermined.
+Five engineering drawings
+Current GA, active-only longitudinal section, typical compartment, rotor 
+and stator.
+Historical end/nozzle reservations
+Not current authority. Excluded from the current schedules and 
+longitudinal section.
+Calculation & Audit Archive
+Separate complete saved report: detailed source records, coordinates, 
+validation, provenance and historical reservations.
+Tables use engineering display rounding (normally 0.01 mm); no manufacturing tolerance is implied. 
+Drawings retain their existing saved-component precision. Page count follows meaningful content, 
+not a target length.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+2
+Frozen active design basis
+Quantity
+Frozen value
+Column internal diameter
+700 mm
+Compartment pitch
+210 mm
+Physical compartment count
+20
+Installed active height
+4200 mm
+Required active height
+4200 mm
+Rotor diameter
+231 mm
+Rotor / column ratio
+0.33
+Stator free-area input
+0.4
+Selected speed
+30 rpm
+Inherited speed bounds
+30 to 30 rpm
+Phase configuration
+rrbo-continuous-nmp-dispersed
+Sizing method
+ADOPTED_COMPARTMENT_EFFICIENCY
+Design theoretical stages
+7
+Compartment efficiency (if adopted)
+0.35
+An equal lower/upper speed is a selected point, not an established operating window. No upstream 
+hydraulic or stage-efficiency policy is changed by this report.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+3
+Process-flow directions and authority separation
+Basis
+Meaning
+Saved flow arrangement
+nmp-down-rrbo-up
+Flow classification
+System-generated
+Normal solvent/oil mass ratio
+0.6
+Nozzle-only solvent/oil mass ratio
+1.5 MASS; never a product redistribution or residence basis
+Normal product duty
+NORMAL_PRODUCT_AUTHORITY_PENDING
+Saved arrangement: RRBO/oil enters at the lower end and travels upward toward raffinate 
+withdrawal; wet solvent enters at the upper end and travels downward toward extract withdrawal.
+Direction does not qualify interface levels, connection elevations or outlet allocation. Historical 
+connection coordinates are not substituted for current pending locations.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+4
+Active internals — dimensional schedule
+Explicit active-component values only. The shaft diameter is retained; full shaft length, supports, seal 
+and drive elevations depend on unresolved current end arrangements and are not republished as 
+current.
+Frozen parameter
+Value
+Unit
+column Diameter
+700
+mm
+installed Active Height
+4200
+mm
+compartment Height
+210
+mm
+rotor Diameter
+231
+mm
+shaft Diameter
+44
+mm
+stator Thickness
+4
+mm
+stator Opening Diameter
+112
+mm
+stator Radial Width
+294
+mm
+blade Count
+6
+count
+blade Height
+28
+mm
+blade Thickness
+3
+mm
+blade Radial Length
+80.5
+mm
+blade Inner Segment Length
+30
+mm
+blade Outer Segment Length
+50.5
+mm
+blade Inner Segment Height
+16
+mm
+blade Outer Segment Height
+28
+mm
+hub Diameter
+70
+mm
+hub Height
+24
+mm
+rotor Offset
+105
+mm
+shroud Inner Diameter
+130
+mm
+shroud Outer Diameter
+231
+mm
+shroud Thickness
+2
+mm
+stator Hole Diameter
+46.73
+mm
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+5
+Active internals — dimensional schedule (continued)
+Frozen parameter
+Value
+Unit
+stator Lane Width
+8
+mm
+column Area area
+0.3848
+m²
+shaft Area area
+0.0021
+m²
+stator Gross Open Area area
+0.1539
+m²
+stator Net Open Area area
+0.1524
+m²
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+6
+Rotor and stator construction
+Component
+Frozen construction
+Rotor
+Preliminary double-entry shrouded six-blade turbine; retained 
+130mm eye
+Stator
+Preliminary perforated stator; retained 112mm centre and 84-hole 
+architecture
+Free-area convention
+Gross physical area: (0.112² + 84 × 0.046733285782191686²) / 
+0.7² = 0.4. Shaft-corrected diagnostic separate; no hydraulic 
+equivalence asserted.
+Rotor hub diameter / height
+70 / 24 mm
+Rotor swept diameter
+231 mm
+Blade azimuths
+0, 60, 120, 180, 240, 300 degrees
+Shaft diameter
+44 mm
+Frozen active component
+Quantity
+Saved diameter [mm]
+Rotor assemblies
+20
+231
+Stator plates (including active boundaries)
+21
+700
+Stator perforation ring
+PCD [mm]
+Hole count
+1
+211.47
+12
+2
+315.2
+18
+3
+420
+24
+4
+530
+30
+Saved perforated stator: 84 holes, diameter 46.73 mm. Exact saved hole centres remain in the detail 
+drawing and archive; no coordinate dump is repeated here.
+Component profiles and perforations are rendered through the existing frozen-detail renderer, not 
+recreated from schematic approximations. Saved adapted/preliminary component qualifications are 
+unchanged.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+7
+Key geometric clearances and calculation summary
+Geometric diagnostic
+Calculation
+Result [mm]
+Rotor tip to column wall (radial)
+(D − rotor swept diameter) / 2
+234.5
+Shaft to stator central opening (radial)
+(opening diameter − shaft diameter) / 2
+34
+Pitch less stator thickness
+pitch − stator plate thickness
+206
+Nominal axial half-clearance
+(pitch − stator thickness − rotor axial 
+envelope) / 2
+87
+These are presentation diagnostics, not allowable tolerances or dynamic shaft-clearance checks. The 
+axial diagnostic uses the complete saved rotor axial envelope (32 mm), including hub and shrouds 
+when present, centred in the compartment. Deflection and assembly tolerances still require 
+mechanical assessment. Detailed component profiles govern.
+Stack check: 20 × 210 mm = 4200 mm; inherited installed active height 4200 mm.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+8
+Compartment elevations — relative active datum
+All elevations are relative to the frozen active bottom = 0 mm. A datum translation only: original 
+internals and pitch are unchanged. No vessel-bottom, head or overall equipment datum is implied.
+Compartment
+Bottom [mm]
+Rotor [mm]
+Stator [mm]
+Top [mm]
+1
+0
+105
+210
+210
+2
+210
+315
+420
+420
+3
+420
+525
+630
+630
+4
+630
+735
+840
+840
+5
+840
+945
+1050
+1050
+6
+1050
+1155
+1260
+1260
+7
+1260
+1365
+1470
+1470
+8
+1470
+1575
+1680
+1680
+9
+1680
+1785
+1890
+1890
+10
+1890
+1995
+2100
+2100
+11
+2100
+2205
+2310
+2310
+12
+2310
+2415
+2520
+2520
+13
+2520
+2625
+2730
+2730
+14
+2730
+2835
+2940
+2940
+15
+2940
+3045
+3150
+3150
+16
+3150
+3255
+3360
+3360
+17
+3360
+3465
+3570
+3570
+18
+3570
+3675
+3780
+3780
+19
+3780
+3885
+3990
+3990
+20
+3990
+4095
+4200
+4200
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+9
+Normal process material basis
+Quantity
+Normal basis
+Oil volumetric feed
+4 m³/h
+Oil density
+869 kg/m³
+Oil mass rate
+3476 kg/h
+Saved normal S/O mass ratio
+0.6
+Normal wet-solvent mass rate
+2085.6 kg/h
+Wet-solvent feed density
+1015 kg/m³
+Normal wet-solvent volume rate
+2.0548 m³/h
+Combined normal feed
+5561.6 kg/h
+Component
+Normal feed [kg/h]
+saturates
+2954.6
+monoAromatics
+243.32
+diAromatics
+139.04
+polyAromatics
+69.52
+polarAromatics
+69.52
+nmp
+2075.17
+water
+10.43
+Normal solvent mass = saved S/O × oil mass. Feed phase densities are not qualified product 
+densities; no product allocation is inferred from these totals.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+10
+Current end-section design basis
+Frozen Stage 4 has no bound Stage 2 product reference. Normal product flows remain unknown; 
+nozzle-only S/O does not resolve or cause this hold.
+Requirement
+Current engineering disposition
+Source-qualified normal product duty
+NORMAL_PRODUCT_AUTHORITY_PENDING
+Independent diameter-selection rule
+NO_ADMITTED_SYSTEM_DIAMETER_RULE
+Top / bottom shell diameter
+TBD / TBD — no automatic numerical selection admitted
+Residence height / straight shell / total 
+assembly
+TBD — no numerical geometry fabricated
+Additional feed-distribution necks
+Ø700 mm outside frozen active height; lengths pending
+Transitions
+Conical portion 30°; physical knuckles and lengths pending; 
+minimum max(0.200 m, 0.4D)
+Interfaces
+±0.150 m from transitions, not an overall vessel elevation
+Opening envelope
+Unknown; nozzle centre and near/far opening edges unqualified
+Extension after opening
+From far opening edge: minimum max(0.200 m, 0.4D); D pending
+Heads
+Current symbolic torispherical intent only; mechanical profiles 
+pending; zero residence credit
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+11
+Residence calculation and closure holds
+Ten-minute hold-up: V10 = Qnormal / 6, with Qnormal in m³/h. Usable straight volume = 0.90 × 
+(πD²/4) × H10. Therefore H10 = Qnormal / [6 × 0.90 × (πD²/4)].
+This is one relationship between diameter and height. It does not uniquely choose both, even when 
+normal flow and product density are qualified. No economic optimum, aspect ratio, maximum height 
+or arbitrary candidate diameter is introduced.
+Duty
+Qualified volume [m³/h]
+H10 [m]
+Top normal product
+TBD
+TBD — D unselected
+Bottom normal product
+TBD
+TBD — D unselected
+• Source-qualified NORMAL raffinate/extract flows and operating-temperature densities.
+• An approved independent system diameter-selection rule. Ten-minute residence relates diameter 
+and height; it does not uniquely select either.
+• Qualified opening envelopes and mechanical neck, transition and head geometry.
+Residence extends from the interface to the near product-opening edge. The post-opening extension 
+starts at the far edge. Heads receive no residence-volume credit. Nozzle-only S/O must not enter this 
+calculation.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+12
+Current preliminary nozzle schedule
+Service
+Basis m³/h
+120% m³/h
+Screen DN
+Bore mm
+v120 m/s
+Oil feed
+4
+4.8
+DN65
+62.68
+0.432
+Wet-solvent 
+feed
+5.1369
+6.1643
+DN80
+77.92
+0.359
+Raffinate outlet
+TBD
+TBD
+TBD
+TBD
+TBD
+Extract outlet
+TBD
+TBD
+TBD
+TBD
+TBD
+Hydraulic screen assumption: maximum velocity 0.5 m/s at 120% basis flow. Exact bore = outside 
+diameter − 2 × wall. Provisional DN is the first passing candidate in the service-returned pipe table, 
+not a nominal-bore substitution.
+NOZZLES ONLY: solvent mass = 1.5 × 3476 = 5214 kg/h. Solvent volume = that mass / saved wet-
+solvent density = 5.1369 m³/h.
+No blanket example DN is imposed. Outlet envelopes, branch loads, pressure rating, materials, 
+reinforcement, projection and all current nozzle positions remain pending; historical nozzle bores and 
+positions are excluded.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+13
+Oil feed: hydraulic pipe screen
+Qbasis = 4 m³/h. Qcheck = 1.20 Qbasis = 4.8 m³/h. Required bore = √[4 Qcheck / (3600 π × 0.5)] = 
+58.27 mm.
+DN
+OD mm
+Wall mm
+Bore mm
+v120 m/s
+≤0.5
+40
+48.3
+3.68
+40.94
+1.013
+FAIL
+50
+60.3
+3.91
+52.48
+0.616
+FAIL
+65
+73
+5.16
+62.68
+0.432
+PASS
+80
+88.9
+5.49
+77.92
+0.28
+PASS
+100
+114.3
+6.02
+102.26
+0.162
+PASS
+Service-returned preliminary selection: DN65.
+Velocity = (1.20 × Qbasis / 3600) / [π × (bore/1000)² / 4]. Pipe OD and wall values are screen 
+candidates, not approved material/rating selections. This screen does not qualify any product duty or 
+vessel opening envelope.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+14
+Wet-solvent feed — nozzle-only S/O: hydraulic pipe 
+screen
+Qbasis = 5.1369 m³/h. Qcheck = 1.20 Qbasis = 6.1643 m³/h. Required bore = √[4 Qcheck / (3600 π × 
+0.5)] = 66.03 mm.
+DN
+OD mm
+Wall mm
+Bore mm
+v120 m/s
+≤0.5
+40
+48.3
+3.68
+40.94
+1.301
+FAIL
+50
+60.3
+3.91
+52.48
+0.792
+FAIL
+65
+73
+5.16
+62.68
+0.555
+FAIL
+80
+88.9
+5.49
+77.92
+0.359
+PASS
+100
+114.3
+6.02
+102.26
+0.208
+PASS
+Service-returned preliminary selection: DN80.
+Velocity = (1.20 × Qbasis / 3600) / [π × (bore/1000)² / 4]. Pipe OD and wall values are screen 
+candidates, not approved material/rating selections. This screen does not qualify any product duty or 
+vessel opening envelope.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+15
+Design validation summary and outstanding work
+Saved validation register
+Count
+PASS
+305
+FAIL
+0
+TBD
+0
+Counts describe the complete historical frozen construction register, including historical end 
+reservations; they do not validate the current pending ends. Individual machine check rows and 
+source calculations are retained in the Audit Archive.
+Engineering area
+Release condition
+Normal end-product duty
+Designated simultaneous source-qualified raffinate/extract flow and 
+operating-temperature density
+End geometry
+Independent diameter rule, opening envelope and mechanical 
+transition/head closure
+Rotating assembly
+Strength, deflection, critical speed, tolerances, bearings, seals and 
+drive assessment
+Pressure equipment
+Design pressure/temperature, materials, wall/head thickness and 
+reinforcement
+Interfaces and installation
+Loads, supports, nozzle positions, maintainability and overall 
+elevations
+Frozen geometric completeness is not fabrication readiness, mechanical adequacy, product duty 
+qualification or completed end sizing. No approval is inferred from a historical PASS.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+16
+General arrangement — current symbolic ends
+CURRENT SYSTEM ARRANGEMENT — END DIMENSIONS PENDING
+NOT TO SCALE. End widths/heights are symbolic, not chosen diameters or physical dimensions.
+NORMAL process S/O=0.6 mass. S/O=1.5 MASS FOR NOZZLES ONLY.
+TOP / RAFFINATE — SYSTEM DESIGN PENDING
+Head profile symbolic; depth/radii TBD; zero residence credit
+Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending
+Product opening: near/far edges and nozzle envelope pending
+Shell diameter and H10 unresolved — no selected dimensions
+10 min NORMAL flow / 0.90 usable straight volume only
+Interface rule: 0.150 m above transition
+30° conical portion; formed junctions and physical length TBD
+Transition ≥ max(0.200 m, 0.4D); no numeric D admitted
+Additional Ø700 neck outside active: wet solvent P03
+FROZEN ACTIVE SECTION — UNCHANGED
+Ø700 mm × 20 compartments; active height 4.200 m
+Revision 8; inherited internals remain in frozen detail tabs.
+No user diameter comparison or historical preference governs this GA.
+No overall height or absolute outlet elevations established.
+BOTTOM / EXTRACT — SYSTEM DESIGN PENDING
+Head profile symbolic; depth/radii TBD; zero residence credit
+Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending
+Product opening: near/far edges and nozzle envelope pending
+Shell diameter and H10 unresolved — no selected dimensions
+10 min NORMAL flow / 0.90 usable straight volume only
+Interface rule: 0.150 m below transition
+30° conical portion; formed junctions and physical length TBD
+Transition ≥ max(0.200 m, 0.4D); no numeric D admitted
+Additional Ø700 neck outside active: oil feed P01
+Required: source-qualified normal product duty and an independent system diameter-selection rule.
+Ten-minute residence alone cannot uniquely determine both diameter and height.
+Opening envelopes, necks, formed junctions and heads need mechanical authority. NOT FOR FABRICATION.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+17
+Longitudinal section — frozen active only
+FROZEN COLUMN ID Ø700
+ACTIVE HEIGHT 4200
+ACTIVE-ONLY SECTION
+Datum: active bottom = 0 mm
+20 frozen compartments
+Pitch 210 mm
+Exact saved rotor / stator profiles.
+See typical compartment for clearances.
+Both current end assemblies omitted:
+SYSTEM PENDING — see current GA.
+No vessel datum or overall height.
+No historical heads or nozzle positions.
+Relative elevations only — internals unchanged; not for fabrication
+PRELIMINARY INTERNALS: DR Ø231 • eye Ø130 • 6 blades t3
+2 shrouds t2 • stator Ø112 + 84×Ø46.733
+PCD/count: 211.473/12 • 315.196/18 • 420/24 • 530/30
+LONGITUDINAL SECTION A–A
+ALL DIMENSIONS mm • DO NOT SCALE
+ECR pre-pilot design 269
+REV 8 | DATE 2026-09-22
+Stage 3: 69 / Stage 4: 17 • FITTED SHEET • dimensions govern
+ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R5_CURRENT_BASIS_SHROUDED_PERFORATED
+FROZEN ACTIVE ONLY — CURRENT ENDS PENDING
+PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+18
+Typical compartment — frozen detail
+D Ø700
+do Ø112
+DR Ø231
+ds Ø44
+hc 210
+ROTOR H 32
+CLEAR 87
+CLEAR 87
+RING WIDTH 294
+STATOR t 4
+WALL CLEARANCE 234.5
+B • ONE TYPICAL COMPARTMENT — all dimensions from saved R1 geometry
+PRELIMINARY INTERNALS: DR Ø231 • eye Ø130 • 6 blades t3
+2 shrouds t2 • stator Ø112 + 84×Ø46.733
+PCD/count: 211.473/12 • 315.196/18 • 420/24 • 530/30
+DETAIL B — TYPICAL COMPARTMENT
+ALL DIMENSIONS mm • DO NOT SCALE
+ECR pre-pilot design 269
+REV 8 | DATE 2026-09-22
+Stage 3: 69 / Stage 4: 17 • FITTED SHEET • dimensions govern
+ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R5_CURRENT_BASIS_SHROUDED_PERFORATED
+SYSTEM-GENERATED PRELIMINARY CURRENT-BASIS COMPONENT GEOMETRY — NOT APPROVED D600
+PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+19
+Rotor — frozen detail
+PLAN
+SWEPT DR Ø231
+HUB Ø70
+SHAFT Ø44
+6 BLADES • 0°, 60°, 120°, 180°, 240°, 300°
+ELEVATION / SHROUDED PROFILE
+HUB H 24
+H 28
+BLADE RADIAL 80.5
+BLADE t 3
+INNER STEP H 16
+UPPER + LOWER SHROUDS • each t 2 • eye Ø130
+Preliminary adapted double-entry turbine. Attachment and fabrication design excluded.
+COMPANION STATOR: Ø112 centre + 84 × Ø46.733 preliminary adapted holes
+ROTOR — PLAN & ELEVATION
+ALL DIMENSIONS mm • DO NOT SCALE
+ECR pre-pilot design 269
+REV 8 | DATE 2026-09-22
+Stage 3: 69 / Stage 4: 17 • FITTED SHEET • dimensions govern
+ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R5_CURRENT_BASIS_SHROUDED_PERFORATED
+SYSTEM-GENERATED PRELIMINARY CURRENT-BASIS COMPONENT GEOMETRY — NOT APPROVED D600
+PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+20
+Stator — frozen detail
+PLAN
+COLUMN ID Ø700
+OPENING do Ø112
+SHAFT Ø44
+SECTION A–A
+RING WIDTH 294
+PLATE t 4
+Empirical φs: 0.400000
+Gross opening fraction: 0.400000
+Shaft-blocked net fraction: 0.396049
+gross = (112² + 84 dh²) / 700²
+PCD 211.473/315.196/420/530 • 12/18/24/30 holes
+84 × Ø46.733 • centre Ø112 • six 8 no-hole lanes
+Adapted centres; ancestor manifest SHA-256 954fd39266e55dbaa2c0c10dcc6578b5a94d9247b1ff95194f0a762b58a32042
+A
+A
+COMPANION STATOR: Ø112 centre + 84 × Ø46.733 preliminary adapted holes
+STATOR — PLAN & SECTION
+ALL DIMENSIONS mm • DO NOT SCALE
+ECR pre-pilot design 269
+REV 8 | DATE 2026-09-22
+Stage 3: 69 / Stage 4: 17 • FITTED SHEET • dimensions govern
+ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R5_CURRENT_BASIS_SHROUDED_PERFORATED
+SYSTEM-GENERATED PRELIMINARY CURRENT-BASIS COMPONENT GEOMETRY — NOT APPROVED D600
+PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+21
+Compact traceability and audit handoff
+Identity
+Verified reference
+Design / revision
+269 / 8 (record 8)
+Saved revision date
+2026-09-22T05:52:17.942Z
+Frozen active source SHA-256
+d69bc153d009196c806639257001dd8abf0914f572e4d1809cbf5f440e
+078138
+Current end source SHA-256
+b7359f962cab45f79f5abdde27436e689a7c5434db99ebe3d7af31dd98
+5a22fd
+Stage 1 immutable hash
+06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2
+e98c5f
+Geometry hash
+ee377680bca1d61c1afb4fc0707fbf720de70f9f2ad04b7d8fc2485e5bcb
+3337
+Frozen geometry ruleset
+ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R5_CURRENT_BASIS_SHR
+OUDED_PERFORATED
+Current end ruleset
+ECR_END_SECTIONS_SYSTEM_AUTHORITY_PENDING_V3
+Source status at read
+CURRENT
+The current report source is read in one consistent read-only transaction, with a single frozen revision 
+hydration. A changed, stale, missing or invalid source fails closed; no historical end fallback is used.
+Engineering Calculation & Audit Archive: complete saved Design Data report, including raw 
+coordinates, full validation register, expanded Stage 3/4 reference evidence, provenance and 
+historical end/nozzle reservations. It is independently readable from the verified frozen snapshot; it is 
+not labelled current engineering authority.

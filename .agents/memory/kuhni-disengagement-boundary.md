@@ -75,6 +75,12 @@ End diameters are system design outputs, not user-selected comparison inputs.
 
 **How to apply:** Show system-calculated dimensions only with an independent supported diameter-selection basis and normal product duty. Otherwise show explicit pending dimensions and symbolic profiles, never promote historical comparisons or saved preferences to current geometry.
 
+Separate the current engineering report from the full historical calculation/audit archive; preserve both.
+
+**Why:** The user explicitly rejected a roughly 300-page data dump as an engineering handoff. Most pages repeated upstream hydraulic records, while historical end dimensions and nozzle allowances could be mistaken for current design.
+
+**How to apply:** Main reports need all five drawing views, concise schedules/calculations and specific pending statuses. Longitudinal views must not inherit obsolete absolute elevations from historical ends; use a frozen-active relative datum. Keep raw coordinates, full validation registers and scientific provenance in the audit archive, not mixed into current design sections.
+
 The user replaces arbitrary end-zone heights with 10 minutes at normal product flow and 0.90 usable straight-shell volume. S/O = 1.5 by mass is ONLY a nozzle-sizing override; saved Stage 1/2 remain unchanged.
 
 **Why:** The user explicitly corrected the earlier interpretation: S/O 1.5 must never recalculate material balance, normal raffinate/extract product flows, residence time or shell diameter/height. The 120% flow remains a hydraulic/nozzle check only.

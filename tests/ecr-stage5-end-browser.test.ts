@@ -92,6 +92,8 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
       expect(JSON.stringify(revision)).toBe(historicalBefore);
       expect(await page.$$eval("button", bs => bs.some(b => b.textContent?.trim() === "Historical PDF package"))).toBe(true);
       expect(await page.$$eval("button", bs => bs.some(b => b.textContent?.trim() === "Historical SVG view"))).toBe(true);
+      expect(await page.$eval('[data-testid="export-engineering-report"]', el => (el as HTMLButtonElement).disabled)).toBe(false);
+      expect(await page.$eval('[data-testid="export-audit-archive"]', el => (el as HTMLButtonElement).disabled)).toBe(false);
       expect(await page.$$eval("button", bs => bs.some(b => b.textContent?.trim() === "Save end selections"))).toBe(false);
       expect(writes).toEqual([]);
       await page.reload({ waitUntil: "domcontentloaded" }); await openSaved();
@@ -127,6 +129,8 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
       expect(await page.$('[data-testid="stage5-current-ga"]')).toBeNull();
       expect(await page.$('[data-testid="stage5-current-ga-unavailable"]')).not.toBeNull();
       expect(await page.$eval('[data-testid="export-current-ga"]', el => (el as HTMLButtonElement).disabled)).toBe(true);
+      expect(await page.$eval('[data-testid="export-engineering-report"]', el => (el as HTMLButtonElement).disabled)).toBe(true);
+      expect(await page.$eval('[data-testid="export-audit-archive"]', el => (el as HTMLButtonElement).disabled)).toBe(false);
       expect(writes).toEqual([]);
       expect(errors).toEqual([]);
     } finally { await browser.close(); }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 // Explicit opt-in. Existing DEVELOPMENT records only; no accounts, sessions,
 // optimizer jobs, schema writes, saved selections or snapshots are created.
@@ -6,9 +7,10 @@ describe.skipIf(process.env.STAGE5_LIVE_READ !== "1")("development stored Stage 
   it("concurrently reads actual revision/end authority and produces matching GA and Design Data PDF without changing stored business data", async () => {
     if (process.env.NODE_ENV === "production") throw new Error("Development-only integration");
     const { pool } = await import("../server/db");
-    const { getStage5Revisions, getStage5FrozenRevision } = await import("../server/ecr-pre-pilot/stage5-geometry-service");
-    const { getAutomaticStage5EndSections } = await import("../server/ecr-pre-pilot/stage5-end-sections-service");
+    const { getStage5FrozenRevision } = await import("../server/ecr-pre-pilot/stage5-geometry-service");
+    const { getStage5EngineeringReportSource } = await import("../server/ecr-pre-pilot/stage5-end-sections-service");
     const { createStage5DesignDataPdf } = await import("../server/ecr-pre-pilot/stage5-design-data-report");
+    const { createStage5EngineeringReportPdf } = await import("../server/ecr-pre-pilot/stage5-engineering-report");
     const { renderEndSchematic } = await import("../shared/ecr-stage5-end-schematic");
     const design = 269, revisionId = "8";
     const fingerprint = async () => ({
@@ -21,13 +23,12 @@ describe.skipIf(process.env.STAGE5_LIVE_READ !== "1")("development stored Stage 
       const owner = (await pool.query("SELECT created_by FROM ecr_pre_pilot_designs WHERE id=$1", [design])).rows[0];
       expect(owner).toBeTruthy();
       const start = Date.now();
-      const [ends, records, pdfRecord] = await Promise.all([
-        getAutomaticStage5EndSections(owner.created_by, design, revisionId),
-        getStage5Revisions(owner.created_by, design, revisionId),
+      const [{ ends, revision }, pdfRecord] = await Promise.all([
+        getStage5EngineeringReportSource(owner.created_by, design, revisionId),
         getStage5FrozenRevision(owner.created_by, design, revisionId),
       ]);
-      expect(records[0].currentness).toBe("CURRENT");
-      expect(ends.active.sourceHash).toBe(records[0].sourceHash);
+      expect(revision.currentness).toBe("CURRENT");
+      expect(ends.active.sourceHash).toBe(revision.sourceHash);
       expect(ends.active).toMatchObject({ revisionId, diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 });
       const svg = renderEndSchematic(ends, "ga");
       expect(svg).toContain('data-projection="current-conditional-ga"');
@@ -36,12 +37,19 @@ describe.skipIf(process.env.STAGE5_LIVE_READ !== "1")("development stored Stage 
       expect(ends.assemblies.top.diameterM).toBeNull();
       expect(ends.assemblies.bottom.diameterM).toBeNull();
       const pdf = await createStage5DesignDataPdf(pdfRecord, design);
+      const engineeringPdf = await createStage5EngineeringReportPdf(revision, ends, design);
+      const folder = "deliverables/stage5-engineering-report";
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(`${folder}/design269-revision8-engineering-report.pdf`, engineeringPdf);
+      writeFileSync(`${folder}/design269-revision8-audit-archive.pdf`, pdf);
+      expect(engineeringPdf.subarray(0, 5).toString()).toBe("%PDF-");
       expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
       expect(pdf.length).toBeGreaterThan(1000);
       expect(await fingerprint()).toEqual(before);
       process.stdout.write(JSON.stringify({ evidence: "DEVELOPMENT REAL-DATA READ SUCCESS", design, revisionId, milliseconds: Date.now() - start,
-        currentness: records[0].currentness, gaBytes: svg.length, pdfBytes: pdf.length,
-        normalAuthority: ends.normalProductAuthority.status, storedBusinessDataUnchanged: true }) + "\n");
+        currentness: revision.currentness, gaBytes: svg.length, archiveBytes: pdf.length, engineeringBytes: engineeringPdf.length,
+        normalAuthority: ends.normalProductAuthority?.status, oilDn: ends.nozzles.oilFeed.provisionalDn,
+        solventDn: ends.nozzles.wetSolventFeed.provisionalDn, storedBusinessDataUnchanged: true }) + "\n");
     } finally { await pool.end(); }
   }, 180000);
 });

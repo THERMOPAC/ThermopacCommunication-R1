@@ -24,7 +24,7 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
     const preliminary = g.ruleset?.includes('R5_CURRENT_BASIS') === true;
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: 'A4', margin: 40, bufferPages: true, autoFirstPage: false,
-      info: { Title: `CAD Design Data — Design ${designId}, revision ${record.revision}`,
+      info: { Title: `Engineering Calculation & Audit Archive — Design ${designId}, revision ${record.revision}`,
         Subject: `Saved R1 geometry ${record.geometryHash ?? record.sourceHash}` } });
     const chunks: Buffer[] = [];
     doc.on('data', chunk => chunks.push(chunk));
@@ -36,8 +36,8 @@ export async function createStage5DesignDataPdf(record: SavedRecord, designId: n
     let y = 65;
     const page = () => {
       doc.addPage(); y = 65;
-      doc.fontSize(8).fillColor('#334155').text(`CAD DESIGN DATA | Design ${designId} | Revision ${record.revision}`, left, 25, { width });
-      doc.fontSize(7).text('PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION', left, 40, { width });
+      doc.fontSize(8).fillColor('#334155').text(`CALCULATION & AUDIT ARCHIVE | Design ${designId} | Revision ${record.revision}`, left, 25, { width });
+      doc.fontSize(7).text('HISTORICAL SAVED DATA — NOT CURRENT END DESIGN AUTHORITY — NOT FOR FABRICATION', left, 40, { width });
     };
     const paragraph = (text: string, size = 9): void => {
       doc.fontSize(size);

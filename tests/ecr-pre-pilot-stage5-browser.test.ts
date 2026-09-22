@@ -87,7 +87,7 @@ async function open(width = 1440): Promise<Page> {
       return void q.respond({ status: 200, contentType: "image/svg+xml", body: drawings[view] });
     }
     if (path.endsWith("/export.pdf")) return void q.respond({ status: 200, contentType: "application/pdf", body: fixturePdf });
-    if (path.endsWith("/design-data.pdf")) return void q.respond({ status: 200, contentType: "application/pdf", body: designDataPdf });
+    if (path.endsWith("/design-data.pdf") || path.endsWith("/audit-archive.pdf")) return void q.respond({ status: 200, contentType: "application/pdf", body: designDataPdf });
     if (path.startsWith("/api/")) return respond(q, 200, []);
     void q.continue();
   });
@@ -139,7 +139,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(validation).not.toContain("PASS");
       expect(await page.$$eval('[data-testid="stage5-unresolved-items"]', nodes => nodes.length)).toBe(0);
       const register = await page.$eval('[data-testid="stage5-parameter-register"]', el => el.textContent ?? "");
-      expect(register).toContain("CAD Design Data");
+      expect(register).toContain("Engineering Calculation & Audit Archive");
       expect(register).toContain("Save an immutable revision first");
       expect(register).not.toContain("Gross free-area fraction");
       expect(requests).toEqual([{ path: `${api}/preview`, body: {} }, { path: `${api}/preview`, body: {} }]);
@@ -181,7 +181,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
         await page.screenshot({ path: compactPath, fullPage: false });
         await page.$eval("#stage5-compact-screenshot", element => element.remove());
       }
-      expect(await page.$$eval("button", buttons => buttons.find(b => b.textContent?.trim() === "Download Design Data PDF")?.disabled)).toBe(true);
+      expect(await page.$$eval("button", buttons => buttons.find(b => b.textContent?.trim() === "Download Audit Archive")?.disabled)).toBe(true);
     } finally { await page.close(); }
   }, 60000);
   it("saves only the expected source hash and opens immutable drawings", async () => {
@@ -205,9 +205,9 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       await click(page, "Historical PDF package");
       await expect.poll(() => existsSync(pdf), { timeout: 10000 }).toBe(true);
       expect(readFileSync(pdf).subarray(0, 5).toString()).toBe("%PDF-");
-      const dataPdf = `${artifactDir}/stage5-r3-design-data.pdf`;
+      const dataPdf = `${artifactDir}/stage5-r3-audit-archive.pdf`;
       if (existsSync(dataPdf)) rmSync(dataPdf);
-      await click(page, "Download Design Data PDF");
+      await click(page, "Download Audit Archive");
       await expect.poll(() => existsSync(dataPdf), { timeout: 10000 }).toBe(true);
       expect(readFileSync(dataPdf)).toEqual(designDataPdf);
       mkdirSync(resolve("deliverables/r1-design-data"), { recursive: true });

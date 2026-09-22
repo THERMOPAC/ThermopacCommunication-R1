@@ -6,7 +6,8 @@ import { createStage5Pdf } from './stage5-geometry-report';
 import { R1GeometryError } from '../../shared/ecr-stage5-r1';
 import { stage5DrawingPresentation } from './stage5-drawing-presentation';
 import { createStage5DesignDataPdf } from './stage5-design-data-report';
-import { getAutomaticStage5EndSections, readEndSelections } from './stage5-end-sections-service';
+import { getAutomaticStage5EndSections, getStage5EngineeringReportSource, readEndSelections } from './stage5-end-sections-service';
+import { createStage5EngineeringReportPdf } from './stage5-engineering-report';
 import { renderEndSchematic } from '../../shared/ecr-stage5-end-schematic';
 
 /** Transport projection only. Never used to validate/hash/save a revision.
@@ -112,11 +113,26 @@ export function setupStage5GeometryRoutes(app: Express) {
     r.setHeader('X-Stage5-Currentness', revision.currentness);
     return r.type('application/pdf').send(pdf);
   }));
-  app.get(`${base}/revisions/:revisionId/design-data.pdf`, ensureAuthenticated, handle(async (q, r, u, d) => {
+  app.get(`${base}/revisions/:revisionId/engineering-report.pdf`, ensureAuthenticated, handle(async (q, r, u, d) => {
+    if (Object.keys(q.query).some(k => k !== 'expectedSourceHash'))
+      throw new Stage5Error('STAGE5_END_MANUAL_SELECTIONS_RETIRED', 400);
+    if (typeof q.query.expectedSourceHash !== 'string' || !q.query.expectedSourceHash)
+      throw new Stage5Error('STAGE5_END_EXPECTED_SOURCE_HASH_REQUIRED', 400);
+    const { revision, ends } = await getStage5EngineeringReportSource(u, d, String(q.params.revisionId));
+    if (ends.sourceHash !== q.query.expectedSourceHash) throw new Stage5Error('STAGE5_END_SOURCE_CHANGED', 409);
+    const pdf = await createStage5EngineeringReportPdf(revision, ends, d);
+    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-engineering-report.pdf"`);
+    r.setHeader('X-Stage5-Currentness', 'CURRENT');
+    r.setHeader('X-Stage5-End-Source', ends.sourceHash);
+    r.setHeader('Cache-Control', 'no-store');
+    return r.type('application/pdf').send(pdf);
+  }));
+  // Legacy URL remains an alias of the complete immutable archive.
+  for (const file of ['design-data.pdf', 'audit-archive.pdf']) app.get(`${base}/revisions/:revisionId/${file}`, ensureAuthenticated, handle(async (q, r, u, d) => {
     const revision = await getStage5FrozenRevision(u, d, String(q.params.revisionId));
     if (!revision.geometry?.r1Model) throw new Stage5Error('STAGE5_DESIGN_DATA_REQUIRES_SAVED_R1_GEOMETRY', 409);
     const pdf = await createStage5DesignDataPdf(revision, d);
-    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-design-data.pdf"`);
+    r.setHeader('Content-Disposition', `attachment; filename="stage5-r${revision.revision}-${file}"`);
     r.setHeader('X-Stage5-Currentness', revision.currentness);
     return r.type('application/pdf').send(pdf);
   }));

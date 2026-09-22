@@ -12,7 +12,7 @@ vi.mock("../server/ecr-pre-pilot/stage5-geometry-service", () => ({
   stage5Hash: (v: any) => JSON.stringify(v),
   Stage5Error: class extends Error { constructor(message: string, public status = 409) { super(message); } },
 }));
-import { getStage5EndSections, getAutomaticStage5EndSections, saveEndSelections, readEndSelections } from "../server/ecr-pre-pilot/stage5-end-sections-service";
+import { getStage5EndSections, getAutomaticStage5EndSections, getStage5EngineeringReportSource, saveEndSelections, readEndSelections } from "../server/ecr-pre-pilot/stage5-end-sections-service";
 const selections = { topDiameterM: .9, bottomDiameterM: 1 };
 beforeEach(() => {
   vi.clearAllMocks(); state.source = "stage1-a"; state.normalSo = .6; state.stage2 = null;
@@ -31,6 +31,14 @@ beforeEach(() => {
   });
 });
 describe("end service source and persistence gate", () => {
+  it("hydrates the current report revision only once and shares the read transaction", async () => {
+    const { revision, ends } = await getStage5EngineeringReportSource(12, 23, "1");
+    expect(revision).toBe(state.active);
+    expect(state.revisions).toHaveBeenCalledTimes(1);
+    expect(state.revisions.mock.calls[0][3].query).toBe(state.query);
+    expect(ends.active.sourceHash).toBe(revision.sourceHash);
+    expect(state.query.mock.calls.some(([sql]) => /INSERT|UPDATE/.test(sql))).toBe(false);
+  });
   it("produces system-pending authority without reading or rewriting historical preferences", async () => {
     const before = JSON.stringify(state.active);
     const r = await getAutomaticStage5EndSections(12, 23, "1");

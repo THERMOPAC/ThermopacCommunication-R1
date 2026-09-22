@@ -1,7 +1,7 @@
 import { pool } from "../db";
 import { validateStage1Snapshot } from "./stage1";
 import { getStage5Revisions, stage5Hash, Stage5Error, scoped } from "./stage5-geometry-service";
-import { calculateEndSections, calculateAutomaticEndSections, AUTOMATIC_END_RULESET, END_SECTION_RULESET, type EndSelections } from "../../shared/ecr-stage5-end-sections";
+import { calculateEndSections, calculateAutomaticEndSections, AUTOMATIC_END_RULESET, END_SECTION_RULESET, type EndSelections, type Stage5EndProjection } from "../../shared/ecr-stage5-end-sections";
 import { validatePersistedStage2HetsAuthority } from "./stage4-pre-pilot-sizing-service";
 
 /** Read ONLY the Stage-2 identity carried by this frozen Stage-4 snapshot.
@@ -42,10 +42,18 @@ export async function getStage5EndSections(user: number, design: number, revisio
 export async function getAutomaticStage5EndSections(user: number, design: number, revisionId: string) {
   return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, null), 'read');
 }
+/** One verified revision hydration and one consistent current-source transaction. */
+export async function getStage5EngineeringReportSource(user: number, design: number, revisionId: string) {
+  return scoped(user, design, async client => {
+    const revision = (await getStage5Revisions(user, design, revisionId, client))[0];
+    const ends = await calculateCurrent(client, user, design, revisionId, null, revision);
+    return { revision, ends: ends as Stage5EndProjection };
+  }, 'read');
+}
 
-async function calculateCurrent(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, revisionId: string, selections: EndSelections | null) {
+async function calculateCurrent(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, revisionId: string, selections: EndSelections | null, verifiedRevision?: Awaited<ReturnType<typeof getStage5Revisions>>[number]) {
   // Ownership and immutable snapshot integrity use the existing Stage 5 service.
-  const active = (await getStage5Revisions(user, design, revisionId, client))[0];
+  const active = verifiedRevision ?? (await getStage5Revisions(user, design, revisionId, client))[0];
   if (!active || active.currentness !== "CURRENT") throw new Stage5Error("STAGE5_END_CURRENT_FROZEN_REVISION_REQUIRED");
   const b = active.geometry?.basis;
   if (!b || !Number.isFinite(b.columnDiameterM) || Math.abs(b.columnDiameterM - .7) > 1e-9 || b.compartmentCount !== 20

@@ -4,7 +4,7 @@ import { TechnicalSheet, drawingMm as mm, escapeDrawingText as esc, type Stage5D
 export type { Stage5DrawingContext } from "./ecr-stage5-technical-drawing";
 
 /** Engineering presentation only: SI values and component profiles are read, never rewritten. */
-export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, context?: Stage5DrawingContext): string {
+export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, context?: Stage5DrawingContext, activeOnly = false): string {
   const d = g.dimensions as Record<string, number>, m = g.r1Model;
   if (!m) throw new Error("R1_FROZEN_DRAWING_MODEL_MISSING");
   const model = m;
@@ -30,7 +30,36 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
     sheet.rect(cx+d.statorOpeningDiameterM*s/2, cy-d.statorThicknessM*s/2, d.statorRadialWidthM*s, d.statorThicknessM*s, "stator-section-right", "url(#section-hatch)");
   };
 
-  if (view === "ga" || view === "section") {
+  if (view === "section" && activeOnly) {
+    // Presentation of the exact saved rotor/ring profiles, with a new relative
+    // datum only. Never carry historical heads, nozzles or end offsets here.
+    const s = 610 / d.installedActiveHeightM, cx = 470;
+    const y = (z: number) => 770 - (z - d.activeStartM) * s;
+    const left = cx - d.columnDiameterM * s / 2, right = cx + d.columnDiameterM * s / 2;
+    sheet.parts.push('<g data-active-only="true">');
+    sheet.line(left, 160, left, 770); sheet.line(right, 160, right, 770);
+    sheet.centerline(cx, 130, cx, 795);
+    sheet.rect(cx - d.shaftDiameterM * s / 2, 160, d.shaftDiameterM * s, 610, "active-shaft", "url(#section-hatch)");
+    for (const c of g.compartments) {
+      if (typeof c.rotorM === "number") stepped(cx, y(c.rotorM), s);
+    }
+    for (const z of g.internals.find(i => i.id === "S")?.elevationsM ?? [])
+      if (typeof z === "number") ring(cx, y(z), s);
+    sheet.dimensionH(left, right, 160, 110, `FROZEN COLUMN ID ${diameter("columnDiameterM")}`);
+    sheet.dimensionV(770, 160, left, 250, `ACTIVE HEIGHT ${mm(d.installedActiveHeightM)}`);
+    sheet.text(700, 200, "ACTIVE-ONLY SECTION", 20);
+    sheet.text(700, 235, "Datum: active bottom = 0 mm", 16);
+    sheet.text(700, 270, `${g.compartments.length} frozen compartments`, 16);
+    sheet.text(700, 305, `Pitch ${mm(d.compartmentHeightM)} mm`, 16);
+    sheet.text(700, 355, "Exact saved rotor / stator profiles.", 15);
+    sheet.text(700, 385, "See typical compartment for clearances.", 15);
+    sheet.text(700, 435, "Both current end assemblies omitted:", 16);
+    sheet.text(700, 465, "SYSTEM PENDING — see current GA.", 16);
+    sheet.text(700, 505, "No vessel datum or overall height.", 15);
+    sheet.text(700, 535, "No historical heads or nozzle positions.", 15);
+    sheet.text(cx, 825, "Relative elevations only — internals unchanged; not for fabrication", 15, "middle");
+    sheet.parts.push("</g>");
+  } else if (view === "ga" || view === "section") {
     const section = view === "section", count = g.compartments.length;
     // Compress only the omitted repeated section; end-zone geometry remains uniformly scaled.
     const cut = section && count > 6;
@@ -221,5 +250,5 @@ export function renderStage5R1Svg(g: Stage5Geometry, view: Stage5DrawingView, co
   if(approved && (view==="rotor" || view==="stator"))
     sheet.text(55,850,`COMPANION STATOR: Ø112 centre + 84 × Ø${mm(d.statorHoleDiameterM)} ${preliminary ? "preliminary adapted" : "exact manifest"} holes`,12);
   return sheet.finish({ ruleset:g.ruleset??"R1",stage3:g.basis.stage3ResultId,stage4:g.basis.stage4ResultId,
-    status:g.completionStatement??"",watermark:g.watermark,context,scale:view==="section"&&g.compartments.length>6?"BROKEN VIEW • repeated central section omitted":"FITTED SHEET • dimensions govern" }).replace("<svg ", `<svg data-view="${view}" `);
+    status:activeOnly?"FROZEN ACTIVE ONLY — CURRENT ENDS PENDING":g.completionStatement??"",watermark:g.watermark,context,scale:!activeOnly&&view==="section"&&g.compartments.length>6?"BROKEN VIEW • repeated central section omitted":"FITTED SHEET • dimensions govern" }).replace("<svg ", `<svg data-view="${view}" `);
 }

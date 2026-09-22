@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), summaries: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn() }));
-const ends = vi.hoisted(() => ({ calculate: vi.fn(), read: vi.fn(), save: vi.fn() }));
+const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), summaries: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn(), engineeringPdf: vi.fn() }));
+const ends = vi.hoisted(() => ({ calculate: vi.fn(), read: vi.fn(), save: vi.fn(), reportSource: vi.fn() }));
 vi.mock('../server/ecr-pre-pilot/stage5-end-sections-service', () => ({
   getAutomaticStage5EndSections: ends.calculate, readEndSelections: ends.read,
+  getStage5EngineeringReportSource: ends.reportSource,
 }));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: calls.auth }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
@@ -13,6 +14,7 @@ vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
 }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-report', () => ({ createStage5Pdf: calls.pdf }));
 vi.mock('../server/ecr-pre-pilot/stage5-design-data-report', () => ({ createStage5DesignDataPdf: calls.dataPdf }));
+vi.mock('../server/ecr-pre-pilot/stage5-engineering-report', () => ({ createStage5EngineeringReportPdf: calls.engineeringPdf }));
 import { setupStage5GeometryRoutes } from '../server/ecr-pre-pilot/stage5-geometry-routes';
 import { Stage5Error } from '../server/ecr-pre-pilot/stage5-geometry-service';
 import { calculateAutomaticEndSections } from '../shared/ecr-stage5-end-sections';
@@ -33,6 +35,27 @@ async function request(suffix: string, method = 'get', overrides: any = {}) {
   return response;
 }
 describe('Stage 5 HTTP boundary', () => {
+  it('exports a current Engineering Report only with matching end authority and leaves archive source-independent', async () => {
+    const revision = { revision: 8, geometry: { r1Model: {} }, currentness: 'CURRENT' };
+    ends.reportSource.mockResolvedValue({ revision, ends: { sourceHash: 'end-source' } });
+    calls.engineeringPdf.mockResolvedValue(Buffer.from('%PDF-current'));
+    expect((await request('/engineering-report.pdf')).statusCode).toBe(400);
+    expect((await request('/engineering-report.pdf', 'get', { query: { expectedSourceHash: 'stale' } })).statusCode).toBe(409);
+    expect(calls.engineeringPdf).not.toHaveBeenCalled();
+    const result = await request('/engineering-report.pdf', 'get', { query: { expectedSourceHash: 'end-source' } });
+    expect(result.statusCode).toBe(200);
+    expect(result.headers['X-Stage5-End-Source']).toBe('end-source');
+    expect(result.headers['Cache-Control']).toBe('no-store');
+    expect(calls.engineeringPdf).toHaveBeenCalledWith(revision, { sourceHash: 'end-source' }, 23);
+    ends.reportSource.mockRejectedValueOnce(new Stage5Error('STAGE5_END_CURRENT_FROZEN_REVISION_REQUIRED'));
+    expect((await request('/engineering-report.pdf', 'get', { query: { expectedSourceHash: 'end-source' } })).statusCode).toBe(409);
+    ends.reportSource.mockClear();
+    calls.revisions.mockResolvedValue([revision]); calls.dataPdf.mockResolvedValue(Buffer.from('%PDF-archive'));
+    expect((await request('/audit-archive.pdf')).statusCode).toBe(200);
+    expect((await request('/design-data.pdf')).statusCode).toBe(200);
+    expect(ends.reportSource).not.toHaveBeenCalled();
+    expect(ends.calculate).not.toHaveBeenCalled();
+  });
   it('reports lock contention as retryable with safe correlated diagnostics, not a geometry error', async () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
@@ -91,7 +114,7 @@ describe('Stage 5 HTTP boundary', () => {
     })).statusCode).toBe(400);
   });
   it('protects all endpoints and exposes no mutation of existing revisions', () => {
-    expect(routes).toHaveLength(13);
+    expect(routes).toHaveLength(15);
     expect(routes.every(r => r.middleware[0] === calls.auth)).toBe(true);
     expect(routes.filter(r => r.method === 'post').map(r => r.path.split('/').at(-1))).toEqual(['end-sections', 'preview', 'revisions']);
   });
