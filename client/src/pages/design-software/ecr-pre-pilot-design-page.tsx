@@ -168,7 +168,7 @@ type PredictiveTrial = {
   overallComponentBalanceResidualMass: number[];
   maximumOverallComponentBalanceResidualMol: number;
   productMetrics: Record<string, number | Record<string, number>>;
-  targetCompliance: Record<string, { status?: string; calculated?: number | null; target?: number }>;
+  targetCompliance: Record<string, { status?: string; calculated?: number | null; target?: number; direction?: string }>;
   numericalAcceptancePassed: boolean;
   allCalculableTargetsPass: boolean;
   sulfurPrediction?: {
@@ -2635,6 +2635,7 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                             </div>
                             <section className="rounded border p-3" aria-label="Target checks">
                               <h4 className="mb-2 text-sm font-bold">Target checks</h4>
+                              <p className="mb-3 text-xs text-slate-600">Targets and achieved values recorded for this trial—not subsequently edited Stage 1 targets. Achieved values are model predictions.</p>
                               <ul className="grid gap-2 md:grid-cols-2">
                                 {Object.entries(trial.targetCompliance ?? {}).map(([key, value]) => {
                                   const labels: Record<string, string> = {
@@ -2648,6 +2649,15 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                   const status = value.status ?? "UNKNOWN";
                                   const passed = status === "PASS";
                                   const failed = status === "FAIL";
+                                  const direction = value.direction === "MINIMUM" ? "≥"
+                                    : value.direction === "MAXIMUM" ? "≤"
+                                      : key.startsWith("minimum") ? "≥"
+                                        : key.startsWith("maximum") || key === "targetRaffinateSulfurPpm" ? "≤" : "";
+                                  const unit = key === "targetRaffinateSulfurPpm" ? "ppm"
+                                    : key === "minimumRecoveryPct" ? "%" : labels[key] ? "wt%" : "";
+                                  const recorded = (n: number | null | undefined) =>
+                                    typeof n === "number" && Number.isFinite(n)
+                                      ? `${Number(n.toPrecision(8))} ${unit}`.trim() : "Not recorded";
                                   return (
                                     <li key={key} className={`flex items-start gap-2 rounded border p-2 text-sm font-bold ${
                                       passed ? "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -2657,7 +2667,19 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                       <span aria-hidden="true" className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border-2 border-current">
                                         {passed ? "✓" : failed ? "×" : "−"}
                                       </span>
-                                      <span>{labels[key] ?? key} — {status.replaceAll("_", " ")}</span>
+                                      <div className="min-w-0">
+                                        <p>{labels[key] ?? key} — {status.replaceAll("_", " ")}</p>
+                                        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                                          <dt>Target</dt>
+                                          <dd className="tabular-nums">{direction} {recorded(value.target)}</dd>
+                                          <dt>Actual achieved</dt>
+                                          <dd className="tabular-nums">{status === "NOT_CALCULABLE" ? "Not calculable" : recorded(value.calculated)}</dd>
+                                        </dl>
+                                        {["minimumRaffinateSaturatesWt", "maximumRaffinatePolarAromaticsWt", "maximumRaffinateTotalAromaticsWt"].includes(key) && (
+                                          <p className="mt-1 text-xs font-normal">NMP-free raffinate basis</p>
+                                        )}
+                                        {key === "maximumNmpRaffinateWt" && <p className="mt-1 text-xs font-normal">Total raffinate basis</p>}
+                                      </div>
                                     </li>
                                   );
                                 })}
