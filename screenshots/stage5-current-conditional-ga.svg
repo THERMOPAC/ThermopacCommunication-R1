@@ -1,135 +1,67 @@
-<svg xmlns="http://www.w3.org/2000/svg" data-projection="current-conditional-ga" viewBox="0 0 1050 1680" role="img" aria-label="Current conditional general arrangement: frozen active section with integrated top and bottom assemblies, not to scale; widths reflect selected diameters, unknown axial lengths symbolic">
-  <title>CURRENT CONDITIONAL GENERAL ARRANGEMENT — frozen active with current end assemblies — NOT TO SCALE</title>
-  <desc>Top assembly rises from a dashed frozen active reference; bottom assembly is mirrored downwards. Each includes an additional 700 mm feed neck and feed nozzle, symbolic knuckled expansion, straight shell, 150 mm interface offset, interrupted H10 residence region governed exclusively by source-qualified normal product flow, product nozzle with near and far opening edges, post-opening extension, and symbolic torispherical head. Horizontal shell widths reflect selected diameters. Vertical lengths, nozzle sizes, 30 degree conical angle and head or knuckle profiles are not drawn to engineering scale. Residence ends at the near edge; post-extension starts at the far edge. Mechanical radii and total assembly heights remain unqualified. Fixed S/O 1.5 mass is for nozzle sizing only and must not alter normal flows or geometry.</desc>
-  <metadata>{"ruleset":"ECR_END_SECTIONS_NORMAL_PROCESS_NOZZLE_ONLY_SO15_V2","sourceHash":"fixture-end-current","status":"PROVISIONAL_NORMAL_PRODUCT_AUTHORITY_PENDING","topDiameterM":1,"bottomDiameterM":1.2,"active":{"revisionId":"501","diameterM":0.7,"compartmentCount":20,"installedActiveHeightM":4.2}}</metadata>
-  <rect width="100%" height="100%" fill="white"/><g font-family="Arial,sans-serif" fill="#0f172a">
-  <text x="20" y="28" font-size="20" font-weight="bold">PROVISIONAL — NOT TO SCALE — NO FABRICATION / SEPARATION CLAIM</text>
-  <text x="20" y="49" font-size="13">NORMAL process S/O=0.6 mass | 10 min normal product flow | 0.90 usable volume | S/O=1.5 MASS FOR NOZZLES ONLY</text>
-  <text x="20" y="70" font-size="13">Diameter-relative widths only. All axial spacing, nozzle envelopes, head curves and knuckles are symbolic — no dimensions may be measured.</text>
-  <g data-end-profile="top" data-shell-width="210" data-neck-width="147" transform="translate(0,0)">
-      <text x="380" y="145" font-size="19" font-weight="bold">TOP — Ø1000 mm comparison</text>
-      <g fill="none" stroke="#334155" stroke-width="2">
-        
-        <line x1="106.5" y1="710" x2="273.5" y2="710" stroke-dasharray="5 4"/>
-        <g data-part="additional-feed-neck"><line x1="116.5" y1="710" x2="116.5" y2="686" /><line x1="116.5" y1="670" x2="116.5" y2="645" /><line x1="263.5" y1="710" x2="263.5" y2="645" /></g>
-        <g data-part="symbolic-knuckled-transition"><path d="M 116.5 645 C 116.5 632,116.5 632,110.83 625
-        L 90.67 595
-        C 85 588,85 585,85 575"/><path d="M 263.5 645 C 263.5 632,263.5 632,269.17 625
-        L 289.33 595
-        C 295 588,295 585,295 575"/></g>
-        <rect data-part="normal-residence-region" x="85" y="355" width="210" height="185" fill="#fef3c7" stroke="none"/>
-        <g data-part="straight-shell">
-          <line x1="85" y1="575" x2="85" y2="255" /><line x1="295" y1="575" x2="295" y2="355" /><line x1="295" y1="335" x2="295" y2="255" />
-        </g>
-        <path data-part="symbolic-torispherical-head" d="M 85 255
-      C 85 225,106 208,190 202
-      C 274 208,295 225,295 255" fill="#eff6ff"/>
-        <line x1="85" y1="255" x2="295" y2="255" stroke-dasharray="4 4" stroke-width="1"/>
-        <g data-part="interface" stroke="#0891b2" stroke-dasharray="8 4"><line x1="85" y1="540" x2="295" y2="540" /></g>
-        <g data-part="unknown-height-break" stroke="#b45309" stroke-width="2">
-          <path d="M 79 445 l 12 7 l -12 7 l 12 7"/>
-          <path d="M 289 445 l 12 7 l -12 7 l 12 7"/>
-        </g>
-        <g data-part="feed-nozzle" stroke="#0369a1">
-          <line x1="116.5" y1="686" x2="34" y2="686" /><line x1="116.5" y1="670" x2="34" y2="670" /><line x1="34" y1="691" x2="34" y2="665" />
-          <line x1="40" y1="678" x2="106.5" y2="678" />
-          <path d="M 96.5 683 L 106.5 678 L 96.5 673"/>
-        </g>
-        <g data-part="product-nozzle" stroke="#0369a1">
-          <line x1="295" y1="355" x2="337" y2="355" data-edge="near"/><line x1="295" y1="335" x2="337" y2="335" data-edge="far"/>
-          <line x1="337" y1="360" x2="337" y2="330" />
-          <line x1="303" y1="345" x2="330" y2="345" />
-          <path d="M 322 350 L 330 345 L 322 340"/>
-        </g>
-        <g data-part="residence-dimension" stroke="#b45309"><line x1="178" y1="540" x2="178" y2="355" /><line x1="173" y1="540" x2="183" y2="540" /><line x1="173" y1="355" x2="183" y2="355" /></g>
-        <g data-part="interface-offset-dimension" stroke="#0891b2"><line x1="308" y1="575" x2="308" y2="540" /><line x1="303" y1="575" x2="313" y2="575" /><line x1="303" y1="540" x2="313" y2="540" /></g>
-        <g data-part="post-opening-dimension"><line x1="308" y1="335" x2="308" y2="255" /><line x1="303" y1="335" x2="313" y2="335" /><line x1="303" y1="255" x2="313" y2="255" /></g>
-        <g data-part="diameter-dimension" stroke="#64748b">
-          <line x1="85" y1="505" x2="295" y2="505" /><line x1="85" y1="510" x2="85" y2="500" /><line x1="295" y1="510" x2="295" y2="500" />
-        </g>
+<svg xmlns="http://www.w3.org/2000/svg" data-projection="current-conditional-ga" data-system-design="pending" viewBox="0 0 960 1060" role="img" aria-label="System-generated pending end arrangement, symbolic only">
+    <title>System end design pending — NOT TO SCALE</title>
+    <metadata>{"ruleset":"ECR_END_SECTIONS_SYSTEM_AUTHORITY_PENDING_V3","sourceHash":"fixture-end-current","active":{"revisionId":"501","diameterM":0.7,"compartmentCount":20,"installedActiveHeightM":4.2},"selectionAuthority":"NO_ADMITTED_SYSTEM_DIAMETER_RULE","assemblies":{"top":{"diameterM":null,"residenceHeightM":null,"straightShellHeightM":null,"totalAssemblyHeightM":null,"productOpeningNearEdgeM":null,"productOpeningEnvelopeM":null},"bottom":{"diameterM":null,"residenceHeightM":null,"straightShellHeightM":null,"totalAssemblyHeightM":null,"productOpeningNearEdgeM":null,"productOpeningEnvelopeM":null}}}</metadata>
+    <rect width="100%" height="100%" fill="white"/>
+    <g font-family="Arial,sans-serif" fill="#0f172a">
+      <text x="20" y="28" font-size="19" font-weight="bold">CURRENT SYSTEM ARRANGEMENT — END DIMENSIONS PENDING</text>
+      <text x="20" y="50" font-size="13">NOT TO SCALE. End widths/heights are symbolic, not chosen diameters or physical dimensions.</text>
+      <text x="20" y="72" font-size="13">NORMAL process S/O=0.6 mass. S/O=1.5 MASS FOR NOZZLES ONLY.</text>
+      <g data-end-profile="top" data-sizing="pending" data-diameter="unknown">
+      <g fill="none" stroke="#475569" stroke-width="2">
+        <path data-part="additional-feed-neck" d="M130 405 V359 M210 405 V359"/>
+        <path data-part="symbolic-knuckled-transition" d="M130 359 Q130 347 115 339 L87 318 Q75 309 75 295
+          M210 359 Q210 347 225 339 L253 318 Q265 309 265 295"/>
+        <path data-part="straight-shell" d="M75 295 V147 M265 295 V147" stroke-dasharray="6 4"/>
+        <path data-part="symbolic-torispherical-head" d="M75 147 C75 110 115 97 170 95 C225 97 265 110 265 147"/>
+        <path data-part="interface" d="M75 275 H265" stroke="#0891b2" stroke-dasharray="6 4"/>
+        <path data-part="feed-nozzle" d="M130 388 H40 M130 375 H40"/>
+        <path data-part="product-nozzle" d="M265 201 H305 M265 185 H305" stroke-dasharray="4 4"/>
+        <path data-part="unknown-height-break" d="M68 236 l14 -6 l-14 -6 M258 236 l14 -6 l-14 -6"/>
       </g>
-      <text x="190" y="499" font-size="12" text-anchor="middle">ID 1000 mm</text>
-      <text x="195" y="425" font-size="13" fill="#92400e">H10 TBD</text>
-      <text x="93" y="361" font-size="11" fill="#0369a1">near edge</text>
-      <text x="93" y="321" font-size="11" fill="#0369a1">far edge</text>
-      <g fill="#0f172a">
-        
-        <line x1="263.5" y1="678" x2="370" y2="678" stroke="#94a3b8" stroke-width="1"/><text x="380" y="673" font-size="13">Additional Ø700 feed/distribution neck<tspan x="380" dy="17">Wet solvent P03 inlet; extra neck length TBD</tspan></text>
-        <line x1="295" y1="610" x2="370" y2="610" stroke="#94a3b8" stroke-width="1"/><text x="380" y="605" font-size="13">30° knuckled transition ≥400 mm<tspan x="380" dy="17">Conical portion; physical length / radii TBD</tspan></text>
-        <line x1="308" y1="557" x2="370" y2="557" stroke="#94a3b8" stroke-width="1"/><text x="380" y="557" font-size="13">Interface 150 mm above transition</text>
-        <line x1="295" y1="425" x2="370" y2="425" stroke="#94a3b8" stroke-width="1"/><text x="380" y="420" font-size="13">H10 — PENDING NORMAL PRODUCT AUTHORITY<tspan x="380" dy="17">10 min / 0.90 usable straight volume only</tspan></text>
-        <line x1="337" y1="345" x2="370" y2="345" stroke="#94a3b8" stroke-width="1"/><text x="380" y="340" font-size="13">Raffinate P04 product opening<tspan x="380" dy="17">Near edge → envelope TBD → far edge</tspan></text>
-        <line x1="308" y1="294" x2="370" y2="294" stroke="#94a3b8" stroke-width="1"/><text x="380" y="289" font-size="13">Post-opening straight ≥400 mm<tspan x="380" dy="17">Begins at far outer edge; no residence credit</tspan></text>
-        <line x1="279.25" y1="225" x2="370" y2="225" stroke="#94a3b8" stroke-width="1"/><text x="380" y="220" font-size="13">Torispherical head — symbolic profile<tspan x="380" dy="17">Depth / crown / knuckle radii TBD; zero credit</tspan></text>
-      </g>
-    </g><g data-part="integrated-frozen-active" data-active-diameter-m="0.7" data-active-compartments="20" data-active-height-m="4.2">
-    <rect x="116.5" y="710" width="147" height="320" fill="#f1f5f9" stroke="#334155" stroke-width="2" stroke-dasharray="7 5"/>
-    <line x1="116.5" y1="726" x2="263.5" y2="726" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="742" x2="263.5" y2="742" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="758" x2="263.5" y2="758" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="774" x2="263.5" y2="774" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="790" x2="263.5" y2="790" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="806" x2="263.5" y2="806" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="822" x2="263.5" y2="822" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="838" x2="263.5" y2="838" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="854" x2="263.5" y2="854" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="870" x2="263.5" y2="870" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="886" x2="263.5" y2="886" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="902" x2="263.5" y2="902" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="918" x2="263.5" y2="918" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="934" x2="263.5" y2="934" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="950" x2="263.5" y2="950" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="966" x2="263.5" y2="966" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="982" x2="263.5" y2="982" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="998" x2="263.5" y2="998" stroke="#94a3b8" stroke-dasharray="4 3"/><line x1="116.5" y1="1014" x2="263.5" y2="1014" stroke="#94a3b8" stroke-dasharray="4 3"/>
-    <text x="380" y="780" font-size="19" font-weight="bold">FROZEN ACTIVE SECTION — UNCHANGED</text>
-    <text x="380" y="809" font-size="15">Ø700 mm × 20 compartments; installed active height 4.200 m</text>
-    <text x="380" y="836" font-size="14">Revision 501. Compartments shown as a schematic reference only.</text>
-    <text x="380" y="863" font-size="14">No active internals, pitch, height, rotor or stator geometry is modified.</text>
-    <text x="380" y="890" font-size="14">See frozen active detail tabs for the saved construction geometry.</text>
-    <text x="380" y="917" font-size="14">Both Ø700 feed/distribution necks are ADDITIONAL, outside this active height.</text>
-    <text x="380" y="944" font-size="14">Overall vessel height and absolute outlet elevations remain TBD.</text>
-  </g><g data-end-profile="bottom" data-shell-width="252" data-neck-width="147" transform="translate(0,0)">
-      <text x="380" y="1010" font-size="19" font-weight="bold">BOTTOM — Ø1200 mm comparison</text>
-      <g fill="none" stroke="#334155" stroke-width="2">
-        
-        <line x1="106.5" y1="1030" x2="273.5" y2="1030" stroke-dasharray="5 4"/>
-        <g data-part="additional-feed-neck"><line x1="116.5" y1="1030" x2="116.5" y2="1054" /><line x1="116.5" y1="1070" x2="116.5" y2="1095" /><line x1="263.5" y1="1030" x2="263.5" y2="1095" /></g>
-        <g data-part="symbolic-knuckled-transition"><path d="M 116.5 1095 C 116.5 1108,116.5 1108,107.05 1115
-        L 73.45 1145
-        C 64 1152,64 1155,64 1165"/><path d="M 263.5 1095 C 263.5 1108,263.5 1108,272.95 1115
-        L 306.55 1145
-        C 316 1152,316 1155,316 1165"/></g>
-        <rect data-part="normal-residence-region" x="64" y="1200" width="252" height="185" fill="#fef3c7" stroke="none"/>
-        <g data-part="straight-shell">
-          <line x1="64" y1="1165" x2="64" y2="1485" /><line x1="316" y1="1165" x2="316" y2="1385" /><line x1="316" y1="1405" x2="316" y2="1485" />
-        </g>
-        <path data-part="symbolic-torispherical-head" d="M 64 1485
-      C 64 1515,89.19999999999999 1532,190 1538
-      C 290.8 1532,316 1515,316 1485" fill="#eff6ff"/>
-        <line x1="64" y1="1485" x2="316" y2="1485" stroke-dasharray="4 4" stroke-width="1"/>
-        <g data-part="interface" stroke="#0891b2" stroke-dasharray="8 4"><line x1="64" y1="1200" x2="316" y2="1200" /></g>
-        <g data-part="unknown-height-break" stroke="#b45309" stroke-width="2">
-          <path d="M 58 1295 l 12 -7 l -12 -7 l 12 -7"/>
-          <path d="M 310 1295 l 12 -7 l -12 -7 l 12 -7"/>
-        </g>
-        <g data-part="feed-nozzle" stroke="#0369a1">
-          <line x1="116.5" y1="1054" x2="34" y2="1054" /><line x1="116.5" y1="1070" x2="34" y2="1070" /><line x1="34" y1="1049" x2="34" y2="1075" />
-          <line x1="40" y1="1062" x2="106.5" y2="1062" />
-          <path d="M 96.5 1057 L 106.5 1062 L 96.5 1067"/>
-        </g>
-        <g data-part="product-nozzle" stroke="#0369a1">
-          <line x1="316" y1="1385" x2="358" y2="1385" data-edge="near"/><line x1="316" y1="1405" x2="358" y2="1405" data-edge="far"/>
-          <line x1="358" y1="1380" x2="358" y2="1410" />
-          <line x1="324" y1="1395" x2="351" y2="1395" />
-          <path d="M 343 1390 L 351 1395 L 343 1400"/>
-        </g>
-        <g data-part="residence-dimension" stroke="#b45309"><line x1="178" y1="1200" x2="178" y2="1385" /><line x1="173" y1="1200" x2="183" y2="1200" /><line x1="173" y1="1385" x2="183" y2="1385" /></g>
-        <g data-part="interface-offset-dimension" stroke="#0891b2"><line x1="329" y1="1165" x2="329" y2="1200" /><line x1="324" y1="1165" x2="334" y2="1165" /><line x1="324" y1="1200" x2="334" y2="1200" /></g>
-        <g data-part="post-opening-dimension"><line x1="329" y1="1405" x2="329" y2="1485" /><line x1="324" y1="1405" x2="334" y2="1405" /><line x1="324" y1="1485" x2="334" y2="1485" /></g>
-        <g data-part="diameter-dimension" stroke="#64748b">
-          <line x1="64" y1="1235" x2="316" y2="1235" /><line x1="64" y1="1230" x2="64" y2="1240" /><line x1="316" y1="1230" x2="316" y2="1240" />
-        </g>
-      </g>
-      <text x="190" y="1229" font-size="12" text-anchor="middle">ID 1200 mm</text>
-      <text x="195" y="1315" font-size="13" fill="#92400e">H10 TBD</text>
-      <text x="72" y="1379" font-size="11" fill="#0369a1">near edge</text>
-      <text x="72" y="1419" font-size="11" fill="#0369a1">far edge</text>
-      <g fill="#0f172a">
-        
-        <line x1="263.5" y1="1062" x2="370" y2="1062" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1057" font-size="13">Additional Ø700 feed/distribution neck<tspan x="380" dy="17">Oil feed P01 inlet; extra neck length TBD</tspan></text>
-        <line x1="316" y1="1130" x2="370" y2="1130" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1125" font-size="13">30° knuckled transition ≥480 mm<tspan x="380" dy="17">Conical portion; physical length / radii TBD</tspan></text>
-        <line x1="329" y1="1183" x2="370" y2="1183" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1183" font-size="13">Interface 150 mm below transition</text>
-        <line x1="316" y1="1315" x2="370" y2="1315" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1310" font-size="13">H10 — PENDING NORMAL PRODUCT AUTHORITY<tspan x="380" dy="17">10 min / 0.90 usable straight volume only</tspan></text>
-        <line x1="358" y1="1395" x2="370" y2="1395" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1390" font-size="13">Extract P02 product opening<tspan x="380" dy="17">Near edge → envelope TBD → far edge</tspan></text>
-        <line x1="329" y1="1446" x2="370" y2="1446" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1441" font-size="13">Post-opening straight ≥480 mm<tspan x="380" dy="17">Begins at far outer edge; no residence credit</tspan></text>
-        <line x1="297.1" y1="1515" x2="370" y2="1515" stroke="#94a3b8" stroke-width="1"/><text x="380" y="1510" font-size="13">Torispherical head — symbolic profile<tspan x="380" dy="17">Depth / crown / knuckle radii TBD; zero credit</tspan></text>
-      </g>
+      <text x="340" y="111" font-size="13">TOP / RAFFINATE — SYSTEM DESIGN PENDING</text>
+      <text x="340" y="135" font-size="13">Head profile symbolic; depth/radii TBD; zero residence credit</text>
+      <text x="340" y="163" font-size="13">Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending</text>
+      <text x="340" y="192" font-size="13">Product opening: near/far edges and nozzle envelope pending</text>
+      <text x="340" y="224" font-size="13">Shell diameter and H10 unresolved — no selected dimensions</text>
+      <text x="340" y="250" font-size="13">10 min NORMAL flow / 0.90 usable straight volume only</text>
+      <text x="340" y="277" font-size="13">Interface rule: 0.150 m above transition</text>
+      <text x="340" y="313" font-size="13">30° conical portion; formed junctions and physical length TBD</text>
+      <text x="340" y="337" font-size="13">Transition ≥ max(0.200 m, 0.4D); no numeric D admitted</text>
+      <text x="340" y="380" font-size="13">Additional Ø700 neck outside active: wet solvent P03</text>
     </g>
-  <text x="20" y="1590" font-size="14">Read top upwards and bottom downwards from the dashed active boundary. Amber zone is the sole residence-credit region.</text>
-  <text x="20" y="1616" font-size="14">Residence stops at opening near edge; post-extension begins at far outer edge. Cone/head/nozzle band get zero credit.</text>
-  <text x="20" y="1642" font-size="14">Ø700 comparison has no expansion: rule exception required. Knuckles, heads, ASME and total heights remain TBD.</text>
-  </g></svg>
+      <g data-part="integrated-frozen-active" data-active-diameter-m="0.7" data-active-compartments="20" data-active-height-m="4.2">
+        <rect x="130" y="405" width="80" height="230" fill="#f1f5f9" stroke="#475569"/>
+        <path d="M130 416.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 428 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 439.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 451 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 462.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 474 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 485.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 497 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 508.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 520 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 531.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 543 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 554.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 566 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 577.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 589 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 600.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 612 H210" stroke="#94a3b8" stroke-dasharray="4 3"/><path d="M130 623.5 H210" stroke="#94a3b8" stroke-dasharray="4 3"/>
+        <text x="340" y="470" font-size="17" font-weight="bold">FROZEN ACTIVE SECTION — UNCHANGED</text>
+        <text x="340" y="497" font-size="14">Ø700 mm × 20 compartments; active height 4.200 m</text>
+        <text x="340" y="524" font-size="13">Revision 501; inherited internals remain in frozen detail tabs.</text>
+        <text x="340" y="551" font-size="13">No user diameter comparison or historical preference governs this GA.</text>
+        <text x="340" y="578" font-size="13">No overall height or absolute outlet elevations established.</text>
+      </g>
+      <g data-end-profile="bottom" data-sizing="pending" data-diameter="unknown">
+      <g fill="none" stroke="#475569" stroke-width="2">
+        <path data-part="additional-feed-neck" d="M130 635 V681 M210 635 V681"/>
+        <path data-part="symbolic-knuckled-transition" d="M130 681 Q130 693 115 701 L87 722 Q75 731 75 745
+          M210 681 Q210 693 225 701 L253 722 Q265 731 265 745"/>
+        <path data-part="straight-shell" d="M75 745 V893 M265 745 V893" stroke-dasharray="6 4"/>
+        <path data-part="symbolic-torispherical-head" d="M75 893 C75 930 115 943 170 945 C225 943 265 930 265 893"/>
+        <path data-part="interface" d="M75 765 H265" stroke="#0891b2" stroke-dasharray="6 4"/>
+        <path data-part="feed-nozzle" d="M130 652 H40 M130 665 H40"/>
+        <path data-part="product-nozzle" d="M265 839 H305 M265 855 H305" stroke-dasharray="4 4"/>
+        <path data-part="unknown-height-break" d="M68 804 l14 -6 l-14 -6 M258 804 l14 -6 l-14 -6"/>
+      </g>
+      <text x="340" y="929" font-size="13">BOTTOM / EXTRACT — SYSTEM DESIGN PENDING</text>
+      <text x="340" y="905" font-size="13">Head profile symbolic; depth/radii TBD; zero residence credit</text>
+      <text x="340" y="877" font-size="13">Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending</text>
+      <text x="340" y="848" font-size="13">Product opening: near/far edges and nozzle envelope pending</text>
+      <text x="340" y="816" font-size="13">Shell diameter and H10 unresolved — no selected dimensions</text>
+      <text x="340" y="790" font-size="13">10 min NORMAL flow / 0.90 usable straight volume only</text>
+      <text x="340" y="763" font-size="13">Interface rule: 0.150 m below transition</text>
+      <text x="340" y="727" font-size="13">30° conical portion; formed junctions and physical length TBD</text>
+      <text x="340" y="703" font-size="13">Transition ≥ max(0.200 m, 0.4D); no numeric D admitted</text>
+      <text x="340" y="660" font-size="13">Additional Ø700 neck outside active: oil feed P01</text>
+    </g>
+      <text x="20" y="990" font-size="13">Required: source-qualified normal product duty and an independent system diameter-selection rule.</text>
+      <text x="20" y="1015" font-size="13">Ten-minute residence alone cannot uniquely determine both diameter and height.</text>
+      <text x="20" y="1040" font-size="13">Opening envelopes, necks, formed junctions and heads need mechanical authority. NOT FOR FABRICATION.</text>
+    </g></svg>

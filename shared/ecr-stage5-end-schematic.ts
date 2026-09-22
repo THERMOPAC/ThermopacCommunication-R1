@@ -1,14 +1,71 @@
-import type { EndSectionResult, Stage5EndProjection } from "./ecr-stage5-end-sections";
+import type { AutomaticEndSectionResult, EndSectionResult, Stage5EndProjection } from "./ecr-stage5-end-sections";
+
+function renderPendingSystemSchematic(result: AutomaticEndSectionResult & { sourceHash?: string; active?: Stage5EndProjection["active"] }, integrated: boolean): string {
+  const esc = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const a = result.active;
+  const profile = (top: boolean) => {
+    const y = (n: number) => top ? 405 - n : 635 + n;
+    const text = (n: number, s: string) => `<text x="340" y="${y(n)}" font-size="13">${esc(s)}</text>`;
+    return `<g data-end-profile="${top ? "top" : "bottom"}" data-sizing="pending" data-diameter="unknown">
+      <g fill="none" stroke="#475569" stroke-width="2">
+        <path data-part="additional-feed-neck" d="M130 ${y(0)} V${y(46)} M210 ${y(0)} V${y(46)}"/>
+        <path data-part="symbolic-knuckled-transition" d="M130 ${y(46)} Q130 ${y(58)} 115 ${y(66)} L87 ${y(87)} Q75 ${y(96)} 75 ${y(110)}
+          M210 ${y(46)} Q210 ${y(58)} 225 ${y(66)} L253 ${y(87)} Q265 ${y(96)} 265 ${y(110)}"/>
+        <path data-part="straight-shell" d="M75 ${y(110)} V${y(258)} M265 ${y(110)} V${y(258)}" stroke-dasharray="6 4"/>
+        <path data-part="symbolic-torispherical-head" d="M75 ${y(258)} C75 ${y(295)} 115 ${y(308)} 170 ${y(310)} C225 ${y(308)} 265 ${y(295)} 265 ${y(258)}"/>
+        <path data-part="interface" d="M75 ${y(130)} H265" stroke="#0891b2" stroke-dasharray="6 4"/>
+        <path data-part="feed-nozzle" d="M130 ${y(17)} H40 M130 ${y(30)} H40"/>
+        <path data-part="product-nozzle" d="M265 ${y(204)} H305 M265 ${y(220)} H305" stroke-dasharray="4 4"/>
+        <path data-part="unknown-height-break" d="M68 ${y(169)} l14 -6 l-14 -6 M258 ${y(169)} l14 -6 l-14 -6"/>
+      </g>
+      ${text(294, `${top ? "TOP / RAFFINATE" : "BOTTOM / EXTRACT"} — SYSTEM DESIGN PENDING`)}
+      ${text(270, "Head profile symbolic; depth/radii TBD; zero residence credit")}
+      ${text(242, "Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending")}
+      ${text(213, "Product opening: near/far edges and nozzle envelope pending")}
+      ${text(181, "Shell diameter and H10 unresolved — no selected dimensions")}
+      ${text(155, "10 min NORMAL flow / 0.90 usable straight volume only")}
+      ${text(128, `Interface rule: 0.150 m ${top ? "above" : "below"} transition`)}
+      ${text(92, "30° conical portion; formed junctions and physical length TBD")}
+      ${text(68, "Transition ≥ max(0.200 m, 0.4D); no numeric D admitted")}
+      ${text(25, `Additional Ø700 neck outside active: ${top ? "wet solvent P03" : "oil feed P01"}`)}
+    </g>`;
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" data-projection="${integrated ? "current-conditional-ga" : "conditional-end-assemblies"}" data-system-design="pending" viewBox="0 0 960 1060" role="img" aria-label="System-generated pending end arrangement, symbolic only">
+    <title>System end design pending — NOT TO SCALE</title>
+    <metadata>${esc(JSON.stringify({ ruleset: result.ruleset, sourceHash: result.sourceHash, active: a,
+      selectionAuthority: result.selectionAuthority, assemblies: result.assemblies }))}</metadata>
+    <rect width="100%" height="100%" fill="white"/>
+    <g font-family="Arial,sans-serif" fill="#0f172a">
+      <text x="20" y="28" font-size="19" font-weight="bold">CURRENT SYSTEM ARRANGEMENT — END DIMENSIONS PENDING</text>
+      <text x="20" y="50" font-size="13">NOT TO SCALE. End widths/heights are symbolic, not chosen diameters or physical dimensions.</text>
+      <text x="20" y="72" font-size="13">NORMAL process S/O=${result.feed.solventOilMassRatio} mass. S/O=1.5 MASS FOR NOZZLES ONLY.</text>
+      ${profile(true)}
+      ${a ? `<g data-part="integrated-frozen-active" data-active-diameter-m="${a.diameterM}" data-active-compartments="${a.compartmentCount}" data-active-height-m="${a.installedActiveHeightM}">
+        <rect x="130" y="405" width="80" height="230" fill="#f1f5f9" stroke="#475569"/>
+        ${Array.from({ length: a.compartmentCount - 1 }, (_, i) => `<path d="M130 ${405 + (i + 1) * 230 / a.compartmentCount} H210" stroke="#94a3b8" stroke-dasharray="4 3"/>`).join("")}
+        <text x="340" y="470" font-size="17" font-weight="bold">FROZEN ACTIVE SECTION — UNCHANGED</text>
+        <text x="340" y="497" font-size="14">Ø${a.diameterM * 1000} mm × ${a.compartmentCount} compartments; active height ${a.installedActiveHeightM.toFixed(3)} m</text>
+        <text x="340" y="524" font-size="13">Revision ${esc(String(a.revisionId))}; inherited internals remain in frozen detail tabs.</text>
+        <text x="340" y="551" font-size="13">No user diameter comparison or historical preference governs this GA.</text>
+        <text x="340" y="578" font-size="13">No overall height or absolute outlet elevations established.</text>
+      </g>` : ""}
+      ${profile(false)}
+      <text x="20" y="990" font-size="13">Required: source-qualified normal product duty and an independent system diameter-selection rule.</text>
+      <text x="20" y="1015" font-size="13">Ten-minute residence alone cannot uniquely determine both diameter and height.</text>
+      <text x="20" y="1040" font-size="13">Opening envelopes, necks, formed junctions and heads need mechanical authority. NOT FOR FABRICATION.</text>
+    </g></svg>`;
+}
 
 /** Diameter-relative widths only. Axial positions and formed profiles are symbolic,
  * never a claim about unknown residence/neck/head lengths or mechanical radii. */
-export function renderEndSchematic(result: EndSectionResult & { sourceHash?: string; active?: Stage5EndProjection["active"] }, mode: "assemblies" | "ga" = "assemblies"): string {
+export function renderEndSchematic(result: (EndSectionResult | AutomaticEndSectionResult) & { sourceHash?: string; active?: Stage5EndProjection["active"] }, mode: "assemblies" | "ga" = "assemblies"): string {
   const escape = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const integrated = mode === "ga";
   const active = result.active;
   if (integrated && (!active || !Number.isFinite(active.diameterM) || Math.abs(active.diameterM - .7) > 1e-9 || active.compartmentCount !== 20
     || !Number.isFinite(active.installedActiveHeightM) || active.installedActiveHeightM <= 0))
     throw new Error("STAGE5_END_FROZEN_ACTIVE_GA_REQUIRED");
+  if ("selectionAuthority" in result) return renderPendingSystemSchematic(result, integrated);
   const profile = (end: "top" | "bottom") => {
     const g = result.assemblies[end];
     const cx = 190, neckHalf = .7 * 210 / 2, shellHalf = g.diameterM * 210 / 2;

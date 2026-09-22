@@ -12,7 +12,7 @@ vi.mock("../server/ecr-pre-pilot/stage5-geometry-service", () => ({
   stage5Hash: (v: any) => JSON.stringify(v),
   Stage5Error: class extends Error { constructor(message: string, public status = 409) { super(message); } },
 }));
-import { getStage5EndSections, saveEndSelections, readEndSelections } from "../server/ecr-pre-pilot/stage5-end-sections-service";
+import { getStage5EndSections, getAutomaticStage5EndSections, saveEndSelections, readEndSelections } from "../server/ecr-pre-pilot/stage5-end-sections-service";
 const selections = { topDiameterM: .9, bottomDiameterM: 1 };
 beforeEach(() => {
   vi.clearAllMocks(); state.source = "stage1-a"; state.normalSo = .6; state.stage2 = null;
@@ -31,6 +31,17 @@ beforeEach(() => {
   });
 });
 describe("end service source and persistence gate", () => {
+  it("produces system-pending authority without reading or rewriting historical preferences", async () => {
+    const before = JSON.stringify(state.active);
+    const r = await getAutomaticStage5EndSections(12, 23, "1");
+    expect(r.assemblies.top.diameterM).toBeNull();
+    expect(r.assemblies.bottom.residenceHeightM).toBeNull();
+    expect(r.ruleset).toContain("SYSTEM_AUTHORITY_PENDING");
+    expect(r.feed.wetSolventKgH).toBe(1320);
+    expect(r.nozzleSizingBasis.wetSolventKgH).toBe(3300);
+    expect(state.query.mock.calls.some(([sql]) => /INSERT|UPDATE|stage5_end_sections/.test(sql))).toBe(false);
+    expect(JSON.stringify(state.active)).toBe(before);
+  });
   it("uses current authoritative feeds and passes the same scoped transaction for frozen verification", async () => {
     const r = await getStage5EndSections(12, 23, "1", selections);
     expect(r.feed.oilKgH).toBe(2200);

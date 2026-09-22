@@ -91,21 +91,24 @@ export function validateStage5Inputs(input: any): Stage5Inputs {
 }
 
 type QueryClient = { query: (...args: any[]) => Promise<any> };
-async function owned(client: QueryClient, userId: number, designId: number) {
-  const result = await client.query('SELECT id FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2 FOR UPDATE', [designId, userId]);
+async function owned(client: QueryClient, userId: number, designId: number, write = true) {
+  const result = await client.query(`SELECT id FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2${write ? ' FOR UPDATE' : ''}`, [designId, userId]);
   if (!result.rows.length) throw new Stage5Error('ECR_PRE_PILOT_DESIGN_NOT_FOUND', 404);
 }
-/** Existing upstream writers do not acquire a Stage-5 advisory lock. SHARE locks
- * therefore also prevent source inserts/updates during the authoritative handoff.
- * The owner row serializes revision allocation and protects Stage-1 edits.
- * No scientific calculation, optimizer creation or lifecycle GET is invoked. */
-export async function scoped<T>(userId: number, designId: number, fn: (client: QueryClient) => Promise<T>): Promise<T> {
+/** Writes use SHARE table locks because upstream writers do not acquire a
+ * Stage-5 advisory lock. The exclusive owner row serializes revision allocation
+ * and protects Stage-1 edits. Reads instead use one read-only repeatable-read
+ * snapshot, with every upstream authority query on that same connection.
+ * No optimizer creation or lifecycle GET is invoked. */
+export async function scoped<T>(userId: number, designId: number, fn: (client: QueryClient) => Promise<T>, mode: 'read' | 'write' = 'write'): Promise<T> {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    // Read authority from one MVCC snapshot, without serializing HTTP readers
+    // behind an exclusive owner lock. Writers retain the original locks.
+    await client.query(mode === 'read' ? 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY' : 'BEGIN');
     await client.query("SET LOCAL lock_timeout = '10s'");
-    await owned(client, userId, designId);
-    await client.query(`LOCK TABLE ecr_pre_pilot_predictive_nt_jobs,
+    await owned(client, userId, designId, mode === 'write');
+    if (mode === 'write') await client.query(`LOCK TABLE ecr_pre_pilot_predictive_nt_jobs,
       ecr_pre_pilot_kuhni_geometry_resolver_runs,
       ecr_pre_pilot_stage4_physical_sizing_calculations IN SHARE MODE`);
     const result = await fn(client);
@@ -117,7 +120,7 @@ export async function scoped<T>(userId: number, designId: number, fn: (client: Q
   } finally { client.release(); }
 }
 export async function loadStage5Basis(client: QueryClient, userId: number, designId: number) {
-  const authority = await loadStage4PrePilotSizingAuthority(userId, designId, { ensureCurrentOptimizer: false });
+  const authority = await loadStage4PrePilotSizingAuthority(userId, designId, { client: client as Pick<typeof pool, 'query'> });
   const rows = await client.query(`SELECT id::text,result_snapshot,stage3_run_id,stage3_immutable_hash,status
     FROM ecr_pre_pilot_stage4_physical_sizing_calculations
     WHERE design_id=$1 AND created_by=$2 AND lineage_hash=$3`, [designId, userId, authority.lineageHash]);
@@ -167,7 +170,7 @@ export async function loadStage5Basis(client: QueryClient, userId: number, desig
   validateStage5Basis(basis);
   return { basis, sourceStage3, sourceStage4, sourceHash };
 }
-export const getStage5Basis = (u: number, d: number) => scoped(u, d, c => loadStage5Basis(c, u, d));
+export const getStage5Basis = (u: number, d: number) => scoped(u, d, c => loadStage5Basis(c, u, d), 'read');
 /** New packages use the approved architecture, never reinterpret saved models.
  * Exact D600 contract retains its own guard; all others are preliminary. */
 export function buildCurrentStage5Geometry(_designId: number, basis: Stage5Basis) {
@@ -180,7 +183,7 @@ export function rejectStage5ConstructionOverrides(input: unknown) {
 }
 export const previewStage5 = (u: number, d: number, input?: unknown) => {
   rejectStage5ConstructionOverrides(input);
-  return scoped(u, d, async c => buildCurrentStage5Geometry(d, (await loadStage5Basis(c, u, d)).basis));
+  return scoped(u, d, async c => buildCurrentStage5Geometry(d, (await loadStage5Basis(c, u, d)).basis), 'read');
 };
 
 export function verifyStage5Snapshot(row: any) {
@@ -233,7 +236,7 @@ export async function saveStage5Revision(u: number, d: number, input: unknown, e
 export async function getStage5Revisions(u: number, d: number, id?: string, transaction?: QueryClient) {
   const read = async (c: QueryClient) => {
     const rows = await c.query(`SELECT * FROM ecr_pre_pilot_stage5_geometry_revisions
-      WHERE design_id=$1 AND created_by=$2 ORDER BY revision DESC`, [d, u]);
+      WHERE design_id=$1 AND created_by=$2${id ? ' AND id=$3' : ''} ORDER BY revision DESC`, id ? [d, u, id] : [d, u]);
     if (id && !rows.rows.some((r: any) => String(r.id) === id)) throw new Stage5Error('STAGE5_REVISION_NOT_FOUND', 404);
     let currentHash: string | null = null;
     try { currentHash = (await loadStage5Basis(c, u, d)).sourceHash; }
@@ -242,10 +245,26 @@ export async function getStage5Revisions(u: number, d: number, id?: string, tran
       // Database/runtime failures must not be disguised as an outdated source.
       if (!(error instanceof Error) || !/^(STAGE4_|STAGE5_SOURCE_|STAGE5_SAVED_|STAGE5_GOVERNING_|STAGE1_|INVALID_STAGE1_|ECR_PRE_PILOT_STAGE1)/.test(error.message)) throw error;
     }
-    const latest = rows.rows.find((r: any) => r.source_hash === currentHash)?.revision ?? 0;
+    // A single real snapshot can exceed 50 MB. Fetch only the requested one;
+    // currentness needs revision metadata, not every historical JSON snapshot.
+    const newest = id && currentHash ? await c.query(`SELECT revision FROM ecr_pre_pilot_stage5_geometry_revisions
+      WHERE design_id=$1 AND created_by=$2 AND source_hash=$3 ORDER BY revision DESC LIMIT 1`, [d, u, currentHash]) : null;
+    const latest = newest?.rows[0]?.revision ?? rows.rows.find((r: any) => r.source_hash === currentHash)?.revision ?? 0;
     return rows.rows.filter((r: any) => !id || String(r.id) === id).map((r: any) => record(r, currentHash, latest));
   };
-  return transaction ? read(transaction) : scoped(u, d, read);
+  return transaction ? read(transaction) : scoped(u, d, read, 'read');
+}
+
+/** Historical Design Data needs verified saved geometry, not a current upstream
+ * authority calculation. Never label this independent download CURRENT. */
+export async function getStage5FrozenRevision(u: number, d: number, id: string) {
+  return scoped(u, d, async client => {
+    const rows = await client.query(`SELECT * FROM ecr_pre_pilot_stage5_geometry_revisions
+      WHERE design_id=$1 AND created_by=$2 AND id=$3`, [d, u, id]);
+    const row = rows.rows.find((r: any) => String(r.id) === id);
+    if (!row) throw new Stage5Error('STAGE5_REVISION_NOT_FOUND', 404);
+    return { ...record(row, null, 0), currentness: 'HISTORICAL_SNAPSHOT_CURRENTNESS_NOT_RECHECKED' };
+  }, 'read');
 }
 
 /** Non-authoritative navigation metadata only. Never hydrate/hash frozen source

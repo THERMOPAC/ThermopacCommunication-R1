@@ -57,7 +57,7 @@ export function endGeometry(diameterM: number, end: "top" | "bottom", normalProd
     straightShellLengthM: null, totalAssemblyLengthM: null,
     head: "TORISPHERICAL", headResidenceCreditM3: 0, productNozzle: null };
 }
-export function calculateEndSections(feed: EndFeedBasis, selections: EndSelections, normalProducts: NormalProductDuty | null = null) {
+function calculateEndProcessBasis(feed: EndFeedBasis, normalProducts: NormalProductDuty | null = null) {
   if (![feed.designFeedRateLph, feed.rrboDensityKgM3, feed.nmpDensityKgM3, feed.solventOilRatio].every(positive))
     throw new Error("STAGE5_END_FEED_AUTHORITY_INCOMPLETE");
   const percentages = [...feed.oilComponentWt, feed.nmpPurityWt, feed.nmpWaterWt];
@@ -111,13 +111,37 @@ export function calculateEndSections(feed: EndFeedBasis, selections: EndSelectio
       oilKgH, oilM3H, wetSolventKgH: nozzleWetSolventKgH, wetSolventM3H: nozzleWetSolventKgH / feed.nmpDensityKgM3,
       hydraulicFactor: 1.2, productEnvelopeStatus: "DEFENSIBLE_PRODUCT_NOZZLE_ENVELOPE_UNAVAILABLE" },
     nozzles: { oilFeed: endNozzle(oilM3H), wetSolventFeed: endNozzle(nozzleWetSolventKgH / feed.nmpDensityKgM3), raffinate: null, extract: null },
-    assemblies: { top: endGeometry(selections.topDiameterM, "top", topNormalM3H), bottom: endGeometry(selections.bottomDiameterM, "bottom", bottomNormalM3H) },
-    comparisons: END_DIAMETERS_M.map(d => ({ ...endGeometry(d, "top", topNormalM3H),
-      bottomResidenceHeightM: bottomNormalM3H === null ? null : residenceHeight(bottomNormalM3H, d) })),
+    normalProductFlows: { topM3H: topNormalM3H, bottomM3H: bottomNormalM3H },
+  };
+}
+/** Historical comparison calculator, not current system-owned design authority. */
+export function calculateEndSections(feed: EndFeedBasis, selections: EndSelections, normalProducts: NormalProductDuty | null = null) {
+  const basis = calculateEndProcessBasis(feed, normalProducts);
+  const { topM3H, bottomM3H } = basis.normalProductFlows;
+  return { ...basis,
+    assemblies: { top: endGeometry(selections.topDiameterM, "top", topM3H), bottom: endGeometry(selections.bottomDiameterM, "bottom", bottomM3H) },
+    comparisons: END_DIAMETERS_M.map(d => ({ ...endGeometry(d, "top", topM3H),
+      bottomResidenceHeightM: bottomM3H === null ? null : residenceHeight(bottomM3H, d) })),
+  };
+}
+export const AUTOMATIC_END_RULESET = "ECR_END_SECTIONS_SYSTEM_AUTHORITY_PENDING_V3";
+export function calculateAutomaticEndSections(feed: EndFeedBasis, normalProducts: NormalProductDuty | null = null) {
+  const basis = calculateEndProcessBasis(feed, normalProducts);
+  const pending = () => ({ diameterM: null, residenceHeightM: null, straightShellHeightM: null,
+    totalAssemblyHeightM: null, productOpeningNearEdgeM: null, productOpeningEnvelopeM: null });
+  return { ...basis, ruleset: AUTOMATIC_END_RULESET, status: "SYSTEM_END_DESIGN_PENDING",
+    selectionAuthority: "NO_ADMITTED_SYSTEM_DIAMETER_RULE" as const,
+    pendingRequirements: [
+      ...(!normalProducts ? ["Source-qualified NORMAL raffinate/extract flows and operating-temperature densities."] : []),
+      "An approved independent system diameter-selection rule. Ten-minute residence relates diameter and height; it does not uniquely select either.",
+      "Qualified opening envelopes and mechanical neck, transition and head geometry.",
+    ],
+    assemblies: { top: pending(), bottom: pending() },
   };
 }
 export type EndSectionResult = ReturnType<typeof calculateEndSections>;
-export type Stage5EndProjection = EndSectionResult & {
+export type AutomaticEndSectionResult = ReturnType<typeof calculateAutomaticEndSections>;
+export type Stage5EndProjection = AutomaticEndSectionResult & {
   sourceHash: string; stage1Hash: string;
   normalProductAuthority?: { status: string; detail: string; holds: string[] };
   active: { revisionId: string; sourceHash?: string; diameterM: number; compartmentCount: number; installedActiveHeightM: number };

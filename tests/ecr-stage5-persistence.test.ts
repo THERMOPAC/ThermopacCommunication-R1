@@ -5,7 +5,7 @@ import { renderStage5Svg } from '../shared/ecr-stage5-drawings';
 const mocks = vi.hoisted(() => ({ connect: vi.fn(), query: vi.fn(), authority: vi.fn() }));
 vi.mock('../server/db', () => ({ pool: { connect: mocks.connect, query: mocks.query } }));
 vi.mock('../server/ecr-pre-pilot/stage4-pre-pilot-sizing-service', () => ({ loadStage4PrePilotSizingAuthority: mocks.authority }));
-import { getStage5Basis, getStage5Revisions, getStage5RevisionSummaries, saveStage5Revision, stage5Hash, validateStage5Basis, validateStage5Inputs, verifyStage5Snapshot } from '../server/ecr-pre-pilot/stage5-geometry-service';
+import { getStage5Basis, getStage5Revisions, getStage5FrozenRevision, getStage5RevisionSummaries, saveStage5Revision, stage5Hash, validateStage5Basis, validateStage5Inputs, verifyStage5Snapshot } from '../server/ecr-pre-pilot/stage5-geometry-service';
 import { createStage5Pdf } from '../server/ecr-pre-pilot/stage5-geometry-report';
 import { PDFDocument } from 'pdf-lib';
 
@@ -36,6 +36,7 @@ beforeEach(() => {
         await previous;
         return { rows: owner ? [{ id: 1 }] : [] };
       }
+      if (sql.startsWith('SELECT id FROM ecr_pre_pilot_designs')) return { rows: owner ? [{ id: 1 }] : [] };
       if (sql === 'COMMIT' || sql === 'ROLLBACK') { unlock?.(); return { rows: [] }; }
       if (sql.includes('FROM ecr_pre_pilot_stage4_physical_sizing_calculations'))
         return { rows: saved && !changed ? [{ id: '4', stage3_run_id: '3', stage3_immutable_hash: 'stage3-hash',
@@ -53,6 +54,24 @@ beforeEach(() => {
   });
 });
 describe('Stage 5 authoritative immutable persistence', () => {
+  it('reads a verified historical PDF dataset without current authority or exclusive locks', async () => {
+    const basis = await getStage5Basis(1, 1);
+    const original = await saveStage5Revision(1, 1, undefined, basis.sourceHash);
+    const before = JSON.stringify(rows);
+    mocks.authority.mockClear();
+    mocks.authority.mockRejectedValue(new Error('Upstream database unavailable'));
+    queries.length = 0;
+    const frozen = await getStage5FrozenRevision(1, 1, original.id);
+    expect(frozen.geometry).toEqual(original.geometry);
+    expect(frozen.currentness).toBe('HISTORICAL_SNAPSHOT_CURRENTNESS_NOT_RECHECKED');
+    expect(mocks.authority).not.toHaveBeenCalled();
+    expect(queries).toContain('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    expect(queries.some(q => q.includes('FOR UPDATE') || q.includes('LOCK TABLE'))).toBe(false);
+    expect(queries.some(q => q.includes('AND id=$3'))).toBe(true);
+    expect(JSON.stringify(rows)).toBe(before);
+    rows[0].snapshot.geometry.complete = false;
+    await expect(getStage5FrozenRevision(1, 1, original.id)).rejects.toThrow('INTEGRITY_FAILURE');
+  });
   it('lists only SQL metadata without source hydration, integrity blessing or authority load', async () => {
     mocks.query.mockReset();
     mocks.query.mockResolvedValueOnce({ rows: [{ id: 1 }] }).mockResolvedValueOnce({
@@ -82,7 +101,9 @@ describe('Stage 5 authoritative immutable persistence', () => {
   it('requires saved Stage 4 and never creates an optimizer', async () => {
     saved = false;
     await expect(getStage5Basis(1, 1)).rejects.toThrow('SAVED_CURRENT_STAGE4_REQUIRED');
-    expect(mocks.authority).toHaveBeenCalledWith(1, 1, { ensureCurrentOptimizer: false });
+    expect(mocks.authority).toHaveBeenCalledWith(1, 1, { client: expect.objectContaining({ query: expect.any(Function) }) });
+    expect(queries).toContain('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    expect(queries.some(q => q.includes('FOR UPDATE') || q.includes('LOCK TABLE'))).toBe(false);
     expect(queries.some(q => q.includes('INSERT'))).toBe(false);
   });
   it('maps the adopted efficiency handoff without treating implied HETS as a sizing input', async () => {

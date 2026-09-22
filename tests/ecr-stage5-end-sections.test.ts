@@ -1,11 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { calculateEndSections, endGeometry, endNozzle, residenceHeight, type EndFeedBasis } from "../shared/ecr-stage5-end-sections";
+import { calculateEndSections, calculateAutomaticEndSections, endGeometry, endNozzle, residenceHeight, type EndFeedBasis } from "../shared/ecr-stage5-end-sections";
 import { renderEndSchematic } from "../shared/ecr-stage5-end-schematic";
 
 const feed: EndFeedBasis = { designFeedRateLph: 4000, rrboDensityKgM3: 869, nmpDensityKgM3: 1015, solventOilRatio: .6,
   oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2 };
 const selection = { topDiameterM: .9, bottomDiameterM: 1.2 };
 describe("independent end framework", () => {
+  it("does not invent automatic diameters or heights from residence alone", () => {
+    const r = calculateAutomaticEndSections(feed);
+    expect(r.selectionAuthority).toBe("NO_ADMITTED_SYSTEM_DIAMETER_RULE");
+    expect(r.assemblies.top.diameterM).toBeNull();
+    expect(r.assemblies.bottom.residenceHeightM).toBeNull();
+    expect(r.assemblies.top.productOpeningEnvelopeM).toBeNull();
+    expect(r.pendingRequirements.join(" ")).toContain("does not uniquely select");
+    const active = { revisionId: "8", diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 };
+    const before = JSON.stringify(active);
+    const svg = renderEndSchematic({ ...r, active }, "ga");
+    expect(svg).toContain('data-system-design="pending"');
+    expect(svg).toContain('data-active-height-m="4.2"');
+    expect(svg).toContain('data-active-compartments="20"');
+    expect(svg).not.toContain("900 mm");
+    expect(svg).not.toContain("1000 mm");
+    expect(svg).not.toContain("data-shell-width");
+    expect(svg).toContain("NOZZLES ONLY");
+    expect(JSON.stringify(active)).toBe(before);
+    const qualified = calculateAutomaticEndSections(feed, {
+      sourceIdentity: "qualified-normal-duty",
+      raffinateComponentKgH: r.materialContract.componentFeedKgH.map(m => m * .5),
+      extractComponentKgH: r.materialContract.componentFeedKgH.map(m => m * .5),
+      raffinateDensityKgM3: 900, extractDensityKgM3: 1000,
+    });
+    expect(qualified.materialContract.status).toBe("SOURCE_QUALIFIED_NORMAL_DUTY");
+    expect(qualified.normalProductFlows.topM3H).toBeGreaterThan(0);
+    expect(qualified.assemblies.top.diameterM).toBeNull();
+    expect(qualified.assemblies.top.residenceHeightM).toBeNull();
+    expect(qualified.pendingRequirements.join(" ")).toContain("diameter-selection rule");
+  });
   it("preserves NORMAL Stage 1 mass S/O and confines the 1.5 override to nozzle sizing", () => {
     const before = JSON.stringify(feed);
     const r = calculateEndSections(feed, selection);

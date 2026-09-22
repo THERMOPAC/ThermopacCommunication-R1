@@ -69,6 +69,12 @@ The user clarified that “both sections” means top raffinate and bottom extra
 
 **How to apply:** Include independent bottom phase-inverted separation and process-nozzle calculations. Do not invent a bottom carryunder specification or promote illustrative end diameters/heights to selected dimensions before coupled separation and return qualification.
 
+End diameters are system design outputs, not user-selected comparison inputs.
+
+**Why:** The user rejected the top/bottom comparison selectors. A 10-minute residence equation alone does not uniquely determine both diameter and height; removing selectors must not hide arbitrary default dimensions.
+
+**How to apply:** Show system-calculated dimensions only with an independent supported diameter-selection basis and normal product duty. Otherwise show explicit pending dimensions and symbolic profiles, never promote historical comparisons or saved preferences to current geometry.
+
 The user replaces arbitrary end-zone heights with 10 minutes at normal product flow and 0.90 usable straight-shell volume. S/O = 1.5 by mass is ONLY a nozzle-sizing override; saved Stage 1/2 remain unchanged.
 
 **Why:** The user explicitly corrected the earlier interpretation: S/O 1.5 must never recalculate material balance, normal raffinate/extract product flows, residence time or shell diameter/height. The 120% flow remains a hydraulic/nozzle check only.

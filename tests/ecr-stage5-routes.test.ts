@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), summaries: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn() }));
 const ends = vi.hoisted(() => ({ calculate: vi.fn(), read: vi.fn(), save: vi.fn() }));
 vi.mock('../server/ecr-pre-pilot/stage5-end-sections-service', () => ({
-  getStage5EndSections: ends.calculate, readEndSelections: ends.read, saveEndSelections: ends.save,
+  getAutomaticStage5EndSections: ends.calculate, readEndSelections: ends.read,
 }));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: calls.auth }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
   getStage5Basis: calls.basis, getStage5Revisions: calls.revisions, getStage5RevisionSummaries: calls.summaries, previewStage5: calls.preview,
+  getStage5FrozenRevision: async (...args: any[]) => (await calls.revisions(...args))[0],
   saveStage5Revision: calls.save, STAGE5_VIEWS: ['ga', 'section', 'compartment', 'rotor', 'stator'],
   Stage5Error: class extends Error { constructor(message: string, public status = 409) { super(message); } },
 }));
@@ -14,7 +15,7 @@ vi.mock('../server/ecr-pre-pilot/stage5-geometry-report', () => ({ createStage5P
 vi.mock('../server/ecr-pre-pilot/stage5-design-data-report', () => ({ createStage5DesignDataPdf: calls.dataPdf }));
 import { setupStage5GeometryRoutes } from '../server/ecr-pre-pilot/stage5-geometry-routes';
 import { Stage5Error } from '../server/ecr-pre-pilot/stage5-geometry-service';
-import { calculateEndSections } from '../shared/ecr-stage5-end-sections';
+import { calculateAutomaticEndSections } from '../shared/ecr-stage5-end-sections';
 let routes: { method: string; path: string; middleware: any[] }[];
 beforeEach(() => {
   vi.clearAllMocks(); routes = [];
@@ -32,6 +33,20 @@ async function request(suffix: string, method = 'get', overrides: any = {}) {
   return response;
 }
 describe('Stage 5 HTTP boundary', () => {
+  it('reports lock contention as retryable with safe correlated diagnostics, not a geometry error', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      ends.calculate.mockRejectedValueOnce(Object.assign(new Error('private SQL and values must not escape'), { code: '55P03' }));
+      const response = await request('/end-sections');
+      expect(response.statusCode).toBe(503);
+      expect(response.body.error).toBe('STAGE5_AUTHORITY_BUSY');
+      expect(response.body.reference).toMatch(/^[a-f0-9-]{36}$/);
+      expect(response.headers['Retry-After']).toBe('3');
+      expect(JSON.stringify(response.body)).not.toContain('private SQL');
+      expect(JSON.stringify(logged.mock.calls)).not.toContain('private SQL');
+      expect(logged).toHaveBeenCalled();
+    } finally { logged.mockRestore(); }
+  });
   it('projects opt-in basis transport without changing complete authority or legacy responses', async () => {
     const full = { basis: { columnDiameterM: .7, sourceHash: 'current-hash' },
       sourceHash: 'current-hash', sourceStage3: { rawGrid: 'x'.repeat(10000) }, sourceStage4: { id: 17 } };
@@ -139,19 +154,19 @@ describe('Stage 5 HTTP boundary', () => {
   });
 });
 
-describe('independent end-section routes', () => {
-  it('scopes reads and saves to owner and rejects fake qualification inputs', async () => {
+describe('system end-section routes', () => {
+  it('scopes automatic reads to owner and rejects manual overrides and retired saves', async () => {
     ends.calculate.mockResolvedValue({ sourceHash: 'fresh' });
-    const r = await request('/end-sections', 'get', { query: { topDiameterM: '.9', bottomDiameterM: '1.2' } });
+    const r = await request('/end-sections', 'get');
     expect(r.body.sourceHash).toBe('fresh');
-    expect(ends.calculate).toHaveBeenCalledWith(12, 23, '1', { topDiameterM: .9, bottomDiameterM: 1.2 });
+    expect(ends.calculate).toHaveBeenCalledWith(12, 23, '1');
+    expect((await request('/end-sections', 'get', { query: { topDiameterM: '.9' } })).statusCode).toBe(400);
     expect((await request('/end-sections', 'get', { query: { qualified: 'true' } })).statusCode).toBe(400);
-    expect((await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, qualified: true } })).statusCode).toBe(400);
+    expect((await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, qualified: true } })).statusCode).toBe(410);
     expect((await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1,
-      expectedSourceHash: 'fresh', normalProducts: { sourceIdentity: 'user-claimed-source' } } })).statusCode).toBe(400);
-    ends.save.mockResolvedValue({ status: 'SAVED_PROVISIONAL_SELECTIONS_ONLY' });
+      expectedSourceHash: 'fresh', normalProducts: { sourceIdentity: 'user-claimed-source' } } })).statusCode).toBe(410);
     await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, expectedSourceHash: 'fresh' } });
-    expect(ends.save).toHaveBeenCalledWith(12, 23, '1', { topDiameterM: .9, bottomDiameterM: 1 }, 'fresh');
+    expect(ends.save).not.toHaveBeenCalled();
     expect(calls.save).not.toHaveBeenCalled();
   });
   it('returns explicit pending-source errors, rejects stale export and unauthorized requests', async () => {
@@ -168,12 +183,12 @@ describe('independent end-section routes', () => {
     expect(ends.read).toHaveBeenCalledWith(12, 23);
   });
   it('exports an authenticated current-source conditional schematic without rewriting active drawings', async () => {
-    ends.calculate.mockResolvedValue({ ...calculateEndSections({
+    ends.calculate.mockResolvedValue({ ...calculateAutomaticEndSections({
       designFeedRateLph: 1000, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
       oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
-    }, { topDiameterM: .9, bottomDiameterM: 1.2 }), sourceHash: 'fresh' });
+    }), sourceHash: 'fresh' });
     const r = await request('/end-sections/export.svg', 'get', {
-      query: { expectedSourceHash: 'fresh', topDiameterM: '.9', bottomDiameterM: '1.2' },
+      query: { expectedSourceHash: 'fresh' },
     });
     expect(r.statusCode).toBe(200);
     expect(r.contentType).toBe('image/svg+xml');
@@ -186,13 +201,13 @@ describe('independent end-section routes', () => {
     expect(calls.preview).not.toHaveBeenCalled();
   });
   it('exports current integrated GA from identical end authority and rejects stale export', async () => {
-    ends.calculate.mockResolvedValue({ ...calculateEndSections({
+    ends.calculate.mockResolvedValue({ ...calculateAutomaticEndSections({
       designFeedRateLph: 1000, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
       oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
-    }, { topDiameterM: 1, bottomDiameterM: 1.2 }), sourceHash: 'fresh',
+    }), sourceHash: 'fresh',
     active: { revisionId: '1', diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 } });
     const r = await request('/end-sections/ga.svg', 'get', {
-      query: { expectedSourceHash: 'fresh', topDiameterM: '1', bottomDiameterM: '1.2' },
+      query: { expectedSourceHash: 'fresh' },
     });
     expect(r.statusCode).toBe(200);
     expect(r.body).toContain('data-projection="current-conditional-ga"');

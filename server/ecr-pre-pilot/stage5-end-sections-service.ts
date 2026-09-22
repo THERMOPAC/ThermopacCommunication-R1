@@ -1,7 +1,7 @@
 import { pool } from "../db";
 import { validateStage1Snapshot } from "./stage1";
 import { getStage5Revisions, stage5Hash, Stage5Error, scoped } from "./stage5-geometry-service";
-import { calculateEndSections, END_SECTION_RULESET, type EndSelections } from "../../shared/ecr-stage5-end-sections";
+import { calculateEndSections, calculateAutomaticEndSections, AUTOMATIC_END_RULESET, END_SECTION_RULESET, type EndSelections } from "../../shared/ecr-stage5-end-sections";
 import { validatePersistedStage2HetsAuthority } from "./stage4-pre-pilot-sizing-service";
 
 /** Read ONLY the Stage-2 identity carried by this frozen Stage-4 snapshot.
@@ -37,10 +37,13 @@ async function inspectNormalProductAuthority(client: { query: (...args: any[]) =
 }
 
 export async function getStage5EndSections(user: number, design: number, revisionId: string, selections: EndSelections) {
-  return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, selections));
+  return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, selections), 'read');
+}
+export async function getAutomaticStage5EndSections(user: number, design: number, revisionId: string) {
+  return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, null), 'read');
 }
 
-async function calculateCurrent(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, revisionId: string, selections: EndSelections) {
+async function calculateCurrent(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, revisionId: string, selections: EndSelections | null) {
   // Ownership and immutable snapshot integrity use the existing Stage 5 service.
   const active = (await getStage5Revisions(user, design, revisionId, client))[0];
   if (!active || active.currentness !== "CURRENT") throw new Stage5Error("STAGE5_END_CURRENT_FROZEN_REVISION_REQUIRED");
@@ -54,15 +57,16 @@ async function calculateCurrent(client: { query: (...args: any[]) => Promise<any
   const s = snapshot.stage1;
   const normalProductAuthority = await inspectNormalProductAuthority(client, user, design, active, snapshot);
   // Bind to the verified active-section source; no replacement of its dimensions.
-  const sourceHash = stage5Hash({ ruleset: END_SECTION_RULESET, stage1: snapshot.immutableHash, activeGeometry: stage5Hash(active.geometry), activeSource: active.sourceHash, revisionId, normalProductAuthority });
-  const result = calculateEndSections({
+  const sourceHash = stage5Hash({ ruleset: selections ? END_SECTION_RULESET : AUTOMATIC_END_RULESET, stage1: snapshot.immutableHash, activeGeometry: stage5Hash(active.geometry), activeSource: active.sourceHash, revisionId, normalProductAuthority });
+  const feed = {
     designFeedRateLph: s.designFeedRateLph, rrboDensityKgM3: s.rrboDensityKgM3, nmpDensityKgM3: s.nmpDensityKgM3,
     solventOilRatio: s.solventOilRatio,
     oilComponentWt: [s.saturatesWt, s.monoAromaticsWt, s.diAromaticsWt, s.polyAromaticsWt, s.polarAromaticsWt, s.nmpInFeedWt],
     nmpPurityWt: s.nmpPurityWt, nmpWaterWt: s.nmpWaterWt,
-  }, selections);
-  // Existing Stage 5 scope locks protect Stage 1 and upstream inserts through
-  // this handoff. The immutable geometry is verified in that same transaction.
+  };
+  const result = selections ? calculateEndSections(feed, selections) : calculateAutomaticEndSections(feed);
+  // Read-only calls use one consistent MVCC snapshot; save calls use source
+  // locks. Immutable geometry and Stage 1 are verified in that same transaction.
   return { ...result, normalProductAuthority, sourceHash, stage1Hash: snapshot.immutableHash,
     active: { revisionId, sourceHash: active.sourceHash, diameterM: b.columnDiameterM,
       compartmentCount: b.compartmentCount, installedActiveHeightM: b.installedActiveHeightM } };

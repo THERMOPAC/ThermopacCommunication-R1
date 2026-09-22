@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { pool } from '../db';
-import { getP1Candidates } from './p1-candidate-service';
+import { getP1Candidates, getP1CandidateHistory } from './p1-candidate-service';
 import { AUTOMATIC_SELECTION_HASH, AUTOMATIC_SELECTION_VERSION } from './automatic-hydraulic-selection';
 import { kuhniRunHash } from './kuhni-hydrodynamics';
 import {
@@ -489,17 +489,25 @@ function isCurrentStage4Calculation(
 export async function loadStage4PrePilotSizingAuthority(
   userId: number,
   designId: number,
+  options: { client?: Pick<typeof pool, 'query'> } = {},
 ): Promise<Stage4PrePilotSizingAuthority> {
-  const design = await pool.query<{ input_data: unknown }>(
+  const client = options.client ?? pool;
+  const design = await client.query<{ input_data: unknown }>(
     'SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2',
     [designId, userId],
   );
   if (!design.rows[0]) fail('ECR_PRE_PILOT_DESIGN_NOT_FOUND');
   const stage1 = validateStage1Snapshot(design.rows[0].input_data);
   if (stage1.stage1.phaseConfiguration === 'rrbo-continuous-nmp-dispersed') {
-    const candidates = await getP1Candidates(userId, designId);
-    const current = candidates.find((c: any) => !c.stale && c.sourceSnapshotHash === stage1.immutableHash
+    // Discover by metadata, then fully verify the same newest current candidate.
+    // Older scientific grids are not current authority and can be tens of MB each.
+    const candidates = await getP1CandidateHistory(userId, designId, client);
+    const discovered = candidates.find((c: any) => !c.stale && c.sourceSnapshotHash === stage1.immutableHash
       && c.phaseConfiguration === stage1.stage1.phaseConfiguration);
+    const current = discovered ? (await getP1Candidates(userId, designId, discovered.id, client))[0] : null;
+    if (current && (current.stale || current.sourceSnapshotHash !== stage1.immutableHash
+      || current.phaseConfiguration !== stage1.stage1.phaseConfiguration))
+      fail('STAGE4_CURRENT_AUTOMATIC_P1_SELECTION_REQUIRED');
     const selection = current?.status === 'completed' ? current.automaticSelection : null;
     if (!selection?.selected) fail('STAGE4_CURRENT_AUTOMATIC_P1_SELECTION_REQUIRED');
     const chosen = selection.selected;
@@ -518,7 +526,7 @@ export async function loadStage4PrePilotSizingAuthority(
       stage3ImmutableHash: current.immutableHash, hydraulics: { diameterM: chosen.geometry.columnDiameterM } };
     return { projection, solverInput, lineageHash: kuhniRunHash({ owner: { userId, designId }, solverInput, selection }) };
   }
-  const stage2Rows = await pool.query<PersistedStage2>(
+  const stage2Rows = await client.query<PersistedStage2>(
     `SELECT id::text,design_id,created_by,input_snapshot,model_hash,engine_hash,status,result_snapshot FROM ecr_pre_pilot_predictive_nt_jobs
       WHERE design_id=$1 AND created_by=$2 AND status='completed'
         AND result_snapshot IS NOT NULL
@@ -544,7 +552,7 @@ export async function loadStage4PrePilotSizingAuthority(
     ? validatePersistedStage2HetsAuthority(stage2, stage1)
     : null;
 
-  const optimizerStage3Rows = await pool.query<{
+  const optimizerStage3Rows = await client.query<{
     id: string; immutable_hash: string; stage1_snapshot_hash: string;
     implementation_hash: string;
     stage2_job_id: string | null; stage2_result_hash: string | null;

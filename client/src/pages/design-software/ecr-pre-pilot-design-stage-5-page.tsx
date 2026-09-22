@@ -19,7 +19,8 @@ async function responseError(response: Response) {
   const body = object(await response.json().catch(() => ({})));
   // Only expose API error codes, never proxy HTML or database/runtime text.
   const code = typeof body.error === "string" && /^[A-Z][A-Z0-9_]+$/.test(body.error) ? body.error : "STAGE5_REQUEST_FAILED";
-  return `${code} (HTTP ${response.status})`;
+  const ref = typeof body.reference === "string" && /^[a-f0-9-]{36}$/.test(body.reference) ? ` Reference ${body.reference}.` : "";
+  return `${code} (HTTP ${response.status}).${response.status >= 500 ? " Server authority/export failed; retry. If it persists, report this reference." : ""}${ref}`;
 }
 
 function ValueGrid({ title, data }: { title: string; data: unknown }) {
@@ -56,10 +57,11 @@ export default function EcrPrePilotDesignStage5Page() {
   const [basis, setBasis] = useState<RecordValue | null>(null);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [selected, setSelected] = useState<Revision | null>(null);
-  const [endProjection, setEndProjection] = useState<{ key: string; result: Stage5EndProjection | null } | null>(null);
+  const automaticActiveOpened = useRef<string | null>(null);
+  const [endProjection, setEndProjection] = useState<{ key: string; result: Stage5EndProjection | null; issue?: string | null } | null>(null);
   const endKey = `${design?.id ?? "none"}:${selected?.id ?? "none"}:${String(basis?.sourceHash ?? "")}`;
-  const acceptEndProjection = useCallback((result: Stage5EndProjection | null) => {
-    setEndProjection({ key: endKey, result });
+  const acceptEndProjection = useCallback((result: Stage5EndProjection | null, issue: string | null = null) => {
+    setEndProjection({ key: endKey, result, issue });
   }, [endKey]);
   const currentEnd = endProjection?.key === endKey && String(endProjection.result?.active.revisionId) === String(selected?.id)
     ? endProjection.result : null;
@@ -174,8 +176,7 @@ export default function EcrPrePilotDesignStage5Page() {
       const suffix = format === "design-data" ? "design-data.pdf" : `export.${format}?presentation=${presentation}${format === "svg" ? `&view=${view}` : ""}`;
       const response = await fetch(`${base(design.id)}/revisions/${selected.id}/${suffix}`, { credentials: "include" });
       if (!response.ok) {
-        const details = await response.json().catch(() => ({}));
-        throw new Error(details.error ?? `Drawing download failed (${response.status}).`);
+        throw new Error(await responseError(response));
       }
       const blob = await response.blob();
       const expected = format === "svg" ? "image/svg+xml" : "application/pdf";
@@ -203,6 +204,16 @@ export default function EcrPrePilotDesignStage5Page() {
       toast({ title: "Revision unavailable", description: messageOf(cause), variant: "destructive" });
     }
   };
+  useEffect(() => {
+    if (selected || !design?.id || !sourceHash) return;
+    const key = `${design.id}:${String(sourceHash)}`;
+    if (automaticActiveOpened.current === key) return;
+    const latest = revisions.filter(row => row.sourceHash === sourceHash)
+      .sort((a, b) => Number(b.revision) - Number(a.revision))[0];
+    if (!latest) return;
+    automaticActiveOpened.current = key;
+    void selectRevision(latest);
+  }, [design?.id, sourceHash, revisions, selected]);
   const previewGeometry = async () => {
     if (!design?.id || frozen) return;
     setBusy("preview");
@@ -234,8 +245,7 @@ export default function EcrPrePilotDesignStage5Page() {
     if (!projection || !design?.id) return;
     setDownloading(true);
     try {
-      const query = new URLSearchParams({ topDiameterM: String(projection.assemblies.top.diameterM),
-        bottomDiameterM: String(projection.assemblies.bottom.diameterM), expectedSourceHash: projection.sourceHash });
+      const query = new URLSearchParams({ expectedSourceHash: projection.sourceHash });
       const response = await fetch(`${base(design.id)}/revisions/${projection.active.revisionId}/end-sections/ga.svg?${query}`,
         { credentials: "include", cache: "no-store" });
       if (!response.ok) throw new Error(await responseError(response));
@@ -255,7 +265,7 @@ export default function EcrPrePilotDesignStage5Page() {
 
   return <Layout><style>{`@media (max-width: 767px) { body:has([data-testid="stage5-page"]) aside:not([data-stage5-history]) { display: none; } body:has([data-testid="stage5-page"]) main { min-width: 0; width: 100%; } body:has([data-testid="stage5-page"]) main[class*="flex-1"] > div { max-width: 100% !important; width: 100%; } }`}</style><main className="mx-auto min-h-[100dvh] w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8" data-testid="stage5-page">
     <header className="border-b-2 border-slate-800 pb-4">
-      <p className="mb-2 text-xs text-slate-700" role="status">{downloading ? "Preparing drawing download…" : "Current conditional GA uses the same live end comparisons as the controls. Historical SVG/PDF downloads preserve the saved active drawing package, including its old end reservations; they are NOT the current GA."}</p>
+      <p className="mb-2 text-xs text-slate-700" role="status">{downloading ? "Preparing drawing download…" : "Current GA uses system-owned end authority. Undetermined end dimensions remain symbolic. Historical downloads preserve the original saved drawing package."}</p>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div className="flex gap-3"><div className="rounded-md border border-cyan-900/30 bg-cyan-950 p-2.5 text-cyan-100"><FilePlus2 className="h-5 w-5" /></div><div><p className="font-mono text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-800">Frozen hydraulic geometry → HETS sizing → automatic R1 construction</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">Kühni geometry & drawings <span className="font-mono text-sm text-cyan-800">/ Stage 5</span></h1><p className="mt-1 text-xs text-slate-600">System-generated pre-pilot layout — inherited authority and approved engineering rules remain distinct.</p></div></div><Button type="button" variant="outline" onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-4")} className="h-8 gap-1.5 text-xs"><ArrowLeft className="h-3.5 w-3.5" /> HETS physical sizing</Button></div>
       <div className="mt-4 border border-amber-500 bg-amber-50 px-3 py-2 font-mono text-[10px] font-bold tracking-wide text-amber-950">{R1_WATERMARK}</div>
     </header>
@@ -297,9 +307,9 @@ export default function EcrPrePilotDesignStage5Page() {
             {currentGeometry ? <div className="p-3">
               <div className="mb-3 flex flex-wrap gap-1">{(Object.keys(stage5ViewNames) as Stage5View[]).map(name => <Button key={name} type="button" size="sm" variant={view === name ? "default" : "outline"} onClick={() => setView(name)} className="h-7 text-[10px]">{stage5ViewNames[name]}</Button>)}</div>
               {view === "ga" ? currentGaSvg ? <div data-testid="stage5-current-ga">
-                <p className="mb-2 text-xs font-semibold text-cyan-900">CURRENT CONDITIONAL GENERAL ARRANGEMENT · NOT TO SCALE. Diameter comparisons are provisional; unknown axial heights remain TBD. Historical end reservations are not used.</p>
+                <p className="mb-2 text-xs font-semibold text-cyan-900">CURRENT SYSTEM GENERAL ARRANGEMENT · NOT TO SCALE. End dimensions pending; symbolic profiles are not selected diameters. Frozen active geometry is unchanged.</p>
                 <Stage5DrawingViewer key={`${endKey}:current-ga`} geometry={currentGeometry} view="ga" active onSelect={setView} projectionSvg={currentGaSvg} />
-              </div> : <p data-testid="stage5-current-ga-unavailable" role="status" className="rounded border border-amber-300 bg-amber-50 p-4 text-xs">Current conditional GA unavailable: select a current saved Ø700 / 20-compartment revision and resolve the end-section authority state above. Loading, invalidated or rejected results never fall back to the old saved GA. Historical files remain separately downloadable.</p>
+              </div> : <p data-testid="stage5-current-ga-unavailable" role="status" className="rounded border border-amber-300 bg-amber-50 p-4 text-xs">Current GA unavailable: {endProjection?.key === endKey && endProjection.issue ? endProjection.issue : selected ? "Reading current end-section authority. Wait for completion or use Refresh authority above." : "Awaiting the current frozen active revision."} Loading or rejected authority never falls back to the historical GA.</p>
                 : selected && !frozenSvg ? <p role="alert" className="text-sm text-red-800">Frozen drawing missing. This revision cannot be regenerated or exported.</p>
                   : <Stage5DrawingViewer geometry={currentGeometry} view={view} active onSelect={setView} frozenSvg={frozenSvg} />}
               <p className="mt-3 rounded bg-slate-100 p-2 text-xs">The schedules below belong to the frozen active drawing snapshot. Its historical end/nozzle reservations are not the current conditional GA; use the current end-section schedules above for those assemblies. Active detail tabs remain unchanged.</p>

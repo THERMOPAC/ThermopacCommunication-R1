@@ -1,179 +1,84 @@
 import { useEffect, useState } from "react";
-import { END_DIAMETERS_M, END_SECTION_RULESET, type Stage5EndProjection, type EndSelections } from "@shared/ecr-stage5-end-sections";
+import { AUTOMATIC_END_RULESET, type Stage5EndProjection } from "@shared/ecr-stage5-end-sections";
 import { Button } from "@/components/ui/button";
-import { renderEndSchematic } from "@shared/ecr-stage5-end-schematic";
 
 const f = (n: number) => n.toFixed(3);
-const pending = "Pending source-qualified NORMAL product duty";
-const dimension = (n: number | null) => n === null ? "Pending" : `${f(n)} m`;
 
 export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash, onProjectionChange, refreshToken = 0 }: {
   designId: string | number; revisionId?: string | number; sourceHash?: string;
-  onProjectionChange?: (projection: Stage5EndProjection | null) => void;
+  onProjectionChange?: (projection: Stage5EndProjection | null, issue?: string | null) => void;
   refreshToken?: number;
 }) {
-  const [selection, setSelection] = useState<EndSelections>({ topDiameterM: .9, bottomDiameterM: .9 });
   const [result, storeResult] = useState<Stage5EndProjection | null>(null);
-  // One authoritative response powers the controls, schematic and page GA.
-  // Revocation is synchronous with selection edits, failures and refreshes.
-  const setResult = (value: Stage5EndProjection | null) => { storeResult(value); onProjectionChange?.(value); };
   const [error, setError] = useState<string | null>(null);
-  const [storageError, setStorageError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<{ sourceHash: string; selection: EndSelections } | null>(null);
-  const [action, setAction] = useState<"save" | "export" | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const publish = (value: Stage5EndProjection | null, issue: string | null = null) => {
+    storeResult(value); onProjectionChange?.(value, issue);
+  };
   useEffect(() => {
     const controller = new AbortController();
-    setReady(false);
+    publish(null); setError(null); setLoading(Boolean(revisionId));
+    if (!revisionId) return () => controller.abort();
     void (async () => {
       try {
-        const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/stage5/end-sections/selections`, { credentials: "include", signal: controller.signal, cache: "no-store" });
-        if (!response.ok) throw new Error(`Saved selections unavailable (HTTP ${response.status}). Displayed defaults are unsaved comparisons.`);
-        const body = await response.json();
-        if (controller.signal.aborted) return;
-        const valid = (n: number) => END_DIAMETERS_M.some(d => d === n);
-        if (body && (!valid(body.selection?.topDiameterM) || !valid(body.selection?.bottomDiameterM) || typeof body.sourceHash !== "string"))
-          throw new Error("Saved selection contract is invalid; no saved result admitted.");
-        setSaved(body);
-        if (body) setSelection({ topDiameterM: body.selection.topDiameterM, bottomDiameterM: body.selection.bottomDiameterM });
-        setStorageError(null);
-      } catch (e) {
-        if (!controller.signal.aborted) setStorageError(e instanceof Error ? e.message : "Saved selections unavailable.");
-      } finally { if (!controller.signal.aborted) setReady(true); }
-    })();
-    return () => controller.abort();
-  }, [designId]);
-  useEffect(() => {
-    const controller = new AbortController();
-    setResult(null);
-    setError(null);
-    if (!ready || !revisionId) return () => controller.abort();
-    const load = async () => {
-      try {
-        const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/stage5/revisions/${revisionId}/end-sections?topDiameterM=${selection.topDiameterM}&bottomDiameterM=${selection.bottomDiameterM}`,
+        const response = await fetch(`/api/ecr-pre-pilot/designs/${designId}/stage5/revisions/${revisionId}/end-sections`,
           { credentials: "include", signal: controller.signal, cache: "no-store" });
         const body = await response.json();
-        if (!response.ok) throw new Error(typeof body.error === "string" && /^[A-Z0-9_]+$/.test(body.error)
-          ? body.error : `END_SECTION_REQUEST_FAILED_HTTP_${response.status}`);
-        if (body.ruleset !== END_SECTION_RULESET) throw new Error("STAGE5_END_OBSOLETE_BASIS_RESPONSE");
-        if (!controller.signal.aborted) setResult(body);
-      } catch (e) {
-        if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "END_SECTION_REQUEST_FAILED");
-      }
-    };
-    void load();
+        if (!response.ok) {
+          const code = typeof body.error === "string" && /^[A-Z0-9_]+$/.test(body.error) ? body.error : "STAGE5_END_REQUEST_FAILED";
+          const ref = typeof body.reference === "string" && /^[a-f0-9-]{36}$/.test(body.reference) ? ` Reference ${body.reference}.` : "";
+          throw new Error(`${code} (HTTP ${response.status}). ${response.status >= 500 ? "Server authority read failed; retry. This is not a geometry selection error." : "Current source authority could not be admitted."}${ref}`);
+        }
+        if (body.ruleset !== AUTOMATIC_END_RULESET || body.selectionAuthority !== "NO_ADMITTED_SYSTEM_DIAMETER_RULE"
+          || body.assemblies?.top?.diameterM !== null || body.assemblies?.bottom?.diameterM !== null)
+          throw new Error("STAGE5_END_SYSTEM_AUTHORITY_RESPONSE_REQUIRED");
+        if (!controller.signal.aborted) publish(body);
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          const issue = cause instanceof Error ? cause.message : "STAGE5_END_REQUEST_FAILED";
+          setError(issue); publish(null, issue);
+        }
+      } finally { if (!controller.signal.aborted) setLoading(false); }
+    })();
     return () => controller.abort();
-  }, [designId, revisionId, sourceHash, selection, refresh, refreshToken, ready]);
-  // Revalidate authority on focus and periodically. Never retain a last-good result
-  // when a new source request fails; selections are preferences, not qualification.
-  useEffect(() => {
-    const update = () => { setResult(null); setRefresh(n => n + 1); };
-    window.addEventListener("focus", update);
-    const timer = window.setInterval(update, 60000);
-    return () => { window.removeEventListener("focus", update); window.clearInterval(timer); };
-  }, []);
-  const choose = (end: "top" | "bottom", value: number) => {
-    const next = { ...selection, [`${end}DiameterM`]: value };
-    setResult(null);
-    setSelection(next);
-    setNotice(null);
-  };
-  const perform = async (kind: "save" | "export") => {
-    if (!result || !revisionId) return;
-    setAction(kind); setNotice(null);
-    const url = `/api/ecr-pre-pilot/designs/${designId}/stage5/revisions/${revisionId}/end-sections`;
-    try {
-      const response = kind === "save"
-        ? await fetch(url, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...selection, expectedSourceHash: result.sourceHash }) })
-        : await fetch(`${url}/export.svg?topDiameterM=${selection.topDiameterM}&bottomDiameterM=${selection.bottomDiameterM}&expectedSourceHash=${result.sourceHash}`, { credentials: "include", cache: "no-store" });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(typeof body.error === "string" && /^[A-Z0-9_]+$/.test(body.error) ? body.error : `END_SECTION_ACTION_FAILED_HTTP_${response.status}`);
-      }
-      if (kind === "save") {
-        setSaved(await response.json()); setStorageError(null); setNotice("Saved provisional diameter selections. Saving does not qualify normal product authority, nozzle envelopes or final dimensions.");
-      } else {
-        const href = URL.createObjectURL(await response.blob());
-        const a = document.createElement("a"); a.href = href; a.download = "stage5-conditional-end-assemblies.svg"; a.click();
-        setTimeout(() => URL.revokeObjectURL(href), 1000);
-        setNotice("Exported conditional, unscaled schematic; historical drawings unchanged.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "End-section action failed."); setResult(null);
-    } finally { setAction(null); }
-  };
-  return <section data-testid="stage5-end-sections" className="mt-4 rounded border border-cyan-300 bg-white">
-    <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-cyan-50 p-3">
-      <div><p className="text-[10px] font-semibold uppercase tracking-wide text-cyan-800">Normal-process end geometry · S/O 1.5 mass for NOZZLES ONLY</p>
-        <h2 className="text-sm font-semibold">Top and bottom disengagement assemblies</h2></div>
-      <div className="flex gap-2"><Button variant="outline" size="sm" disabled={action !== null} onClick={() => { setResult(null); setRefresh(n => n + 1); }}>Refresh authority</Button>
-        <Button size="sm" disabled={!result || action !== null} onClick={() => void perform("save")}>{action === "save" ? "Saving…" : "Save end selections"}</Button>
-        <Button variant="outline" size="sm" disabled={!result || action !== null} onClick={() => void perform("export")}>{action === "export" ? "Exporting…" : "Export conditional SVG"}</Button></div>
+  }, [designId, revisionId, sourceHash, refresh, refreshToken]);
+  // No background polling of large immutable scientific snapshots.
+  const retry = () => { publish(null); setRefresh(n => n + 1); };
+  return <section data-testid="stage5-end-sections" className="mt-4 rounded border border-cyan-200 bg-white">
+    <header className="flex items-center justify-between gap-3 border-b bg-cyan-50 p-3">
+      <h2 className="text-sm font-semibold">System-generated end arrangement</h2>
+      <Button size="sm" variant="outline" disabled={loading || !revisionId} onClick={retry}>Refresh authority</Button>
     </header>
-    <div className="space-y-4 p-3 text-xs leading-5">
-      <p className="rounded border border-amber-300 bg-amber-50 p-2"><strong>Provisional framework — not fabrication release.</strong> Frozen Stage 5 active section is inherited unchanged. Stage 1 normal process S/O governs material flows and residence geometry. The fixed 1.5 mass ratio applies ONLY to nozzle sizing; it never changes product split, normal residence volumes or shell dimensions. Stage 1/2, historical drawings and saved active snapshots remain unchanged.</p>
-      {!revisionId && <p role="status">Select a saved current Stage 5 revision to attach the separate end assemblies. An unsaved preview is not frozen authority.</p>}
-      {storageError && <p role="alert">{storageError}</p>}
-      {notice && <p role="status">{notice}</p>}
-      {error && <p role="alert" className="rounded bg-red-50 p-2 text-red-800">{error}. No previous result is being reused.</p>}
-      {revisionId && !result && !error && <p role="status">Checking current feed and frozen active-section authority…</p>}
-      <div className="flex flex-wrap gap-6">{(["top", "bottom"] as const).map(end => <label key={end} className="flex items-center gap-2 capitalize">
-        {end} comparison ID
-        <select disabled={!ready || action !== null} aria-label={`${end} comparison diameter`} value={selection[`${end}DiameterM`]} onChange={e => choose(end, Number(e.target.value))} className="rounded border bg-white p-1">
-          {END_DIAMETERS_M.map(d => <option key={d} value={d}>{d * 1000} mm{d === .7 ? " — reference / exception" : ""}</option>)}
-        </select>
-      </label>)}</div>
-      <p className="text-slate-600">Diameter choices are provisional comparisons only, not final engineering selections. Save persists them separately from Stage 1/2 and frozen Stage 5. No balance qualification control is available.</p>
+    <div className="space-y-3 p-3 text-xs leading-5">
+      {!revisionId && <p role="status">Awaiting the current frozen active revision. End geometry is read from system authority, not user diameter choices.</p>}
+      {loading && <p role="status">Reading saved feed and verifying the frozen active source. Large saved scientific records can take tens of seconds; no sizing job is being started.</p>}
+      {error && <p role="alert" className="rounded bg-red-50 p-2 text-red-800">{error} No previous GA is being reused.</p>}
       {result && <>
-        <p data-testid="end-selection-currentness">{!saved ? "UNSAVED COMPARISONS" : saved.sourceHash !== result.sourceHash
-          ? "SAVED SOURCE OUTDATED — recalculated comparison only; review and save against current authority."
-          : saved.selection.topDiameterM !== selection.topDiameterM || saved.selection.bottomDiameterM !== selection.bottomDiameterM
-            ? "UNSAVED DIAMETER CHANGES" : `SAVED COMPARISONS · CURRENT SOURCE · ${result.materialContract.status}`}</p>
-        <div data-testid="end-assembly-schematic" className="overflow-x-auto" dangerouslySetInnerHTML={{ __html: renderEndSchematic(result) }} />
-        <p className="break-all font-mono text-[10px]">CURRENT READ · {result.sourceHash}<br />Stage 1 · {result.stage1Hash}<br />
-          Frozen active revision {result.active.revisionId}: Ø{result.active.diameterM * 1000} mm × {result.active.compartmentCount} compartments; installed active height {f(result.active.installedActiveHeightM)} m.</p>
-        <section data-testid="end-normal-process-basis"><h3 className="font-semibold">NORMAL process feed/material basis — saved Stage 1 S/O {result.feed.solventOilMassRatio} mass</h3>
-          <p>Oil: {f(result.feed.designFeedRateLph)} L/h ÷ 1000 = {f(result.feed.oilM3H)} m³/h; density {f(result.feed.rrboDensityKgM3)} kg/m³ → {f(result.feed.oilKgH)} kg/h.</p>
-          <p>Normal wet solvent: {result.feed.solventOilMassRatio} × oil mass = {f(result.feed.wetSolventKgH)} kg/h ÷ {f(result.feed.nmpDensityKgM3)} kg/m³ = {f(result.feed.wetSolventM3H)} m³/h. NMP/water = {result.feed.nmpPurityWt}/{result.feed.nmpWaterWt} wt%.</p>
-          <p>Combined NORMAL feed: {f(result.materialContract.totalFeedKgH)} kg/h. No nozzle override is applied to this balance.</p>
-          <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th>Component</th><th>Combined feed kg/h</th><th>Raffinate / extract / closure</th></tr></thead>
-            <tbody>{result.materialContract.componentNames.map((name, i) => <tr className="border-t" key={name}><td>{name}</td><td>{f(result.materialContract.componentFeedKgH[i])}</td><td>{result.materialContract.raffinateComponentKgH && result.materialContract.extractComponentKgH && result.materialContract.componentResidualKgH
-              ? `${f(result.materialContract.raffinateComponentKgH[i])} / ${f(result.materialContract.extractComponentKgH[i])} / ${f(result.materialContract.componentResidualKgH[i])} kg/h`
-              : "Pending / pending / not established"}</td></tr>)}</tbody></table></div>
-          <p className="mt-2 text-amber-900">{result.materialContract.requiredEvidence}</p>
-          {result.normalProductAuthority && <p data-testid="end-normal-authority">{result.normalProductAuthority.status}: {result.normalProductAuthority.detail}</p>}
-        </section>
-        <div className="grid gap-3 lg:grid-cols-2">{(["top", "bottom"] as const).map(end => {
-          const g = result.assemblies[end];
-          return <section key={end} className="rounded border p-3"><h3 className="font-semibold capitalize">{end} assembly · Ø{g.diameterM * 1000} mm · {end === "top" ? "upwards to raffinate" : "downwards to extract"}</h3>
-            <ol className="list-decimal pl-5">
-              <li>Frozen active boundary → additional Ø700 feed/distribution neck. Length TBD; outside active height.</li>
-              <li>Transition minimum {f(g.transitionMinimumM)} m; 30° half-angle conical portion. Sharp-cone reference {f(g.sharpConeReferenceM)} m is NOT the physical transition length. {g.transitionStatus.replaceAll("_", " ")}.</li>
-              <li>Interface {end === "top" ? "above" : "below"} transition by 0.150 m.</li>
-              <li>Interface → product opening <strong>near edge</strong>: H₁₀ = Qnormal × {f(g.residenceCoefficientMPerM3H)} m/(m³/h). {g.residenceHeightM === null ? pending : `Normal product flow ${f(g.normalProductM3H!)} m³/h; H₁₀ ${f(g.residenceHeightM)} m; near edge ${f(g.productOpeningNearEdgeM!)} m outward from transition end`}.</li>
-              <li>Opening envelope and nozzle centre: TBD. Centre offset = H₁₀ + near-edge allowance; OD/2 only a provisional simple radial-pipe envelope, not bore/2.</li>
-              <li>Beyond product opening <strong>far outer edge</strong>: ≥{f(g.postOpeningExtensionM)} m straight shell.</li>
-              <li>Torispherical head; depth/radii/thickness TBD. Zero head residence credit.</li>
-            </ol>
-            <p className="mt-2">Straight shell = 0.150 + H₁₀ + opening near/far envelope + post-extension. Total assembly also needs neck, physical transition and head depths. Both totals remain null.</p>
-          </section>;
-        })}</div>
-        <section><h3 className="font-semibold">Diameter comparison — normal-flow residence coefficient only</h3>
-          <p>H₁₀ = Qnormal / [6 × 0.90 × πD²/4]. Only straight liquid volume between interface and product opening near edge earns credit. Transition, interface allowance, nozzle band, post-extension and head earn none. 120% is never the residence basis.</p>
-          <table className="w-full text-left"><thead><tr><th>ID mm</th><th>H₁₀ per m³/h (m)</th><th>Transition / post min (m)</th><th>Actual top / bottom H₁₀</th></tr></thead><tbody>{result.comparisons.map(g => <tr key={g.diameterM} className="border-t"><td>{g.diameterM * 1000}</td><td>{f(g.residenceCoefficientMPerM3H)}</td><td>{f(g.transitionMinimumM)} / {f(g.postOpeningExtensionM)}</td><td>{dimension(g.residenceHeightM)} / {dimension(g.bottomResidenceHeightM)}</td></tr>)}</tbody></table>
-        </section>
-        <section data-testid="end-nozzle-only-basis"><h3 className="font-semibold">NOZZLE-ONLY basis — fixed S/O 1.5 mass, 120% hydraulic check</h3>
-          <p>RRBO feed retains normal {f(result.nozzleSizingBasis.oilM3H)} m³/h. Wet-solvent nozzle basis: 1.5 × {f(result.nozzleSizingBasis.oilKgH)} kg/h = {f(result.nozzleSizingBasis.wetSolventKgH)} kg/h, or {f(result.nozzleSizingBasis.wetSolventM3H)} m³/h before the 120% check. This is not a normal process material balance, product-flow calculation or residence basis.</p>
-          <p>Provisional nominal Schedule 40 OD/wall assumptions; ID = OD − 2wall. Velocity ≤0.5 m/s is a preliminary screen, not an ASME criterion. Final schedule, corrosion/lining deductions and reinforcement TBD.</p>
-          {([["Oil feed P01", result.nozzles.oilFeed], ["Wet solvent feed P03", result.nozzles.wetSolventFeed]] as const).map(([name, n]) => <div className="mt-2 overflow-x-auto" key={name}><h4 className="font-semibold">{name}: Q120 = {f(n.hydraulic120M3H)} m³/h; required bore {f(n.requiredBoreMm)} mm; minimum screened DN {n.provisionalDn ?? "none in listed candidates"}</h4>
-            <table className="w-full text-left"><thead><tr><th>DN</th><th>OD / wall mm</th><th>Bore mm</th><th>v120 m/s</th><th>Screen</th></tr></thead><tbody>{n.candidates.map(c => <tr key={c.dn} className="border-t"><td>{c.dn}</td><td>{c.odMm} / {c.wallMm}</td><td>{f(c.boreMm)}</td><td>{f(c.velocity120MS)}</td><td>{c.passes ? "Pass (provisional)" : "Fail"}</td></tr>)}</tbody></table>
-          </div>)}
-          <p>Raffinate P04 and extract P02 nozzle flows, bores and selections remain conditional: a separate defensible product-nozzle flow envelope is unavailable. Do not redistribute products using S/O 1.5 or substitute this nozzle hold for normal residence authority.</p>
-        </section>
-        <p className="rounded bg-slate-100 p-2">Mechanical holds: knuckles/formed junctions, ASME design, pressure, material, thickness, reinforcement, neck distribution details and head geometry. Normal-duty holds: source-qualified product flow/density authority, droplet loading/DSDs, anti-swirl, coalescence, settling and return through the Ø700 throat. Ten-minute residence does not prove &lt;5 wt% physical NMP or dissolved-solvent removal. Nozzle-only S/O 1.5 neither changes nor rerates the active process.</p>
+        <div data-testid="end-system-status" className="rounded bg-amber-50 p-3">
+          <strong>Source ready · end dimensions pending</strong>
+          <p>The active section is unchanged. A symbolic current GA is available below; end shell diameters and heights are not yet determined.</p>
+          <p>{result.materialContract.status !== "SOURCE_QUALIFIED_NORMAL_DUTY" ? "Normal product flow/density authority is missing. " : ""}An independent approved system diameter-selection rule is missing. Ten-minute residence alone cannot uniquely choose both diameter and height.</p>
+        </div>
+        <details>
+          <summary className="cursor-pointer font-semibold text-cyan-900">Design basis and pending engineering inputs</summary>
+          <div className="mt-3 space-y-3">
+            <ul className="list-disc pl-5">{result.pendingRequirements.map(s => <li key={s}>{s}</li>)}</ul>
+            <section data-testid="end-normal-process-basis">
+              <h3 className="font-semibold">NORMAL process — saved Stage 1 S/O {result.feed.solventOilMassRatio} mass</h3>
+              <p>Oil {f(result.feed.oilKgH)} kg/h; normal wet solvent {f(result.feed.wetSolventKgH)} kg/h. Combined NORMAL feed: {f(result.materialContract.totalFeedKgH)} kg/h.</p>
+              <p>{result.normalProductAuthority?.detail ?? result.materialContract.requiredEvidence}</p>
+            </section>
+            <section data-testid="end-nozzle-only-basis">
+              <h3 className="font-semibold">S/O 1.5 MASS — NOZZLES ONLY</h3>
+              <p>Wet-solvent nozzle basis {f(result.nozzleSizingBasis.wetSolventKgH)} kg/h; 120% hydraulic check. This does not change normal material flows, product split or residence geometry.</p>
+              <p>Feed nozzle preliminary screens: oil DN {result.nozzles.oilFeed.provisionalDn ?? "pending"}; wet solvent DN {result.nozzles.wetSolventFeed.provisionalDn ?? "pending"}. Product opening envelopes remain unknown.</p>
+            </section>
+            <p>Additional Ø700 feed necks lie outside active height. Transition conical portion 30°; transition/post-opening minima max(0.200 m, 0.4D), with D pending. Interfaces ±0.150 m from transitions. H10 uses NORMAL product flow and 0.90 usable straight volume to the near opening edge; extension starts at the far edge. Heads give zero residence credit. Mechanical lengths, knuckles, head profiles and overall elevations remain unqualified.</p>
+            <p className="break-all font-mono text-[10px]">Current source: {result.sourceHash}<br />Frozen revision {result.active.revisionId}: Ø{result.active.diameterM * 1000} mm × {result.active.compartmentCount} compartments; active height {f(result.active.installedActiveHeightM)} m.</p>
+            <p>Historical comparison preferences are not current design authority. No manual diameter selection or save is required.</p>
+          </div>
+        </details>
       </>}
     </div>
   </section>;

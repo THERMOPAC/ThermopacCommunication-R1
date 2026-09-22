@@ -94,6 +94,13 @@ async function open(width = 1440): Promise<Page> {
   await page.goto(`${origin}/design-software/ecr-pre-pilot-design/stage-5`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[data-testid="stage5-page"]', { timeout: 30000 });
   await page.waitForFunction(() => !document.querySelector('[data-testid="stage5-loading"]'), { timeout: 30000 });
+  // The primary page now opens the current frozen revision automatically.
+  // These older construction-workflow tests explicitly enter new-revision mode.
+  if (mode !== "missing" && mode !== "history-failed") {
+    await page.waitForFunction(() => [...document.querySelectorAll("button")].some(b => b.textContent?.trim() === "New R1 revision from current basis"));
+    await page.$$eval("button", bs => bs.find(b => b.textContent?.trim() === "New R1 revision from current basis")?.click());
+    await page.waitForFunction(() => !document.querySelector('[data-testid="stage5-loading"]'));
+  }
   return page;
 }
 const click = async (page: Page, label: string) => page.$$eval("button", (buttons, text) => buttons.find(b => b.textContent?.trim() === text)?.click(), label);
@@ -135,7 +142,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(register).toContain("CAD Design Data");
       expect(register).toContain("Save an immutable revision first");
       expect(register).not.toContain("Gross free-area fraction");
-      expect(requests).toEqual([{ path: `${api}/preview`, body: {} }]);
+      expect(requests).toEqual([{ path: `${api}/preview`, body: {} }, { path: `${api}/preview`, body: {} }]);
       for (const [label, view] of [
         ["General arrangement", "ga"], ["Longitudinal section", "section"], ["Typical compartment", "compartment"],
         ["Rotor detail", "rotor"], ["Stator detail", "stator"],

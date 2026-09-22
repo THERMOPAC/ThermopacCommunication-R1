@@ -67,15 +67,15 @@ async function append(userId: number, designId: number, basis: any, metadata: an
   [designId, userId, basis.stage1SnapshotHash, basis, { candidateOnly: true, designNt: 7 }, payload, metadata.implementationHash, hash]);
 }
 
-export async function getP1Candidates(userId: number, designId: number, candidateId?: string) {
-  const { snapshot } = await savedBasis(userId, designId);
-  return candidateViews(pool, userId, designId, snapshot.immutableHash, candidateId);
+export async function getP1Candidates(userId: number, designId: number, candidateId?: string, client: QueryClient = pool) {
+  const { snapshot } = await savedBasis(userId, designId, client);
+  return candidateViews(client, userId, designId, snapshot.immutableHash, candidateId);
 }
 
 /** Discovery only: never authority. Do not transfer or hash scientific grids on every poll. */
-export async function getP1CandidateHistory(userId: number, designId: number) {
-  const { snapshot } = await savedBasis(userId, designId);
-  const rows = await pool.query(`SELECT DISTINCT ON (result_snapshot#>>'{metadata,id}')
+export async function getP1CandidateHistory(userId: number, designId: number, client: QueryClient = pool) {
+  const { snapshot } = await savedBasis(userId, designId, client);
+  const rows = await client.query(`SELECT DISTINCT ON (result_snapshot#>>'{metadata,id}')
       id::text AS "ledgerId", result_snapshot->'metadata' AS metadata,
       result_snapshot#>>'{result,status}' AS "resultStatus", created_at AS "createdAt"
     FROM ecr_pre_pilot_kuhni_geometry_resolver_runs
@@ -88,7 +88,8 @@ export async function getP1CandidateHistory(userId: number, designId: number) {
       stale: metadata.sourceSnapshotHash !== snapshot.immutableHash,
       status: persistenceError ? 'failed' : metadata.status === 'running' && Date.now() - Date.parse(metadata.requestedAt) > 16 * 60_000 ? 'interrupted' : metadata.status,
       ...(persistenceError ? { error: persistenceError } : {}) };
-  }).sort((a: any, b: any) => Date.parse(b.requestedAt ?? b.createdAt) - Date.parse(a.requestedAt ?? a.createdAt));
+  }).sort((a: any, b: any) => Date.parse(b.requestedAt ?? b.createdAt) - Date.parse(a.requestedAt ?? a.createdAt)
+    || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 /** Same full integrity/ownership checks as Stage 4; only the response is reduced. */
