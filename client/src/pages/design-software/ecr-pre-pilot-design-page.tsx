@@ -2633,10 +2633,39 @@ export function EcrPrePilotDesignWorkflowPage({ stage = 1 }: { stage?: 1 | 2 }) 
                                 <p className="mt-1 font-mono text-[10px]">{formatVector(trial.overallComponentBalanceResidualMol)}</p>
                               </div>
                             </div>
-                            <p>
-                              Target checks: {Object.entries(trial.targetCompliance ?? {})
-                                .map(([key, value]) => `${key}=${value.status ?? "UNKNOWN"}`).join(" · ")}
-                            </p>
+                            <section className="rounded border p-3" aria-label="Target checks">
+                              <h4 className="mb-2 text-sm font-bold">Target checks</h4>
+                              <ul className="grid gap-2 md:grid-cols-2">
+                                {Object.entries(trial.targetCompliance ?? {}).map(([key, value]) => {
+                                  const labels: Record<string, string> = {
+                                    minimumRecoveryPct: "Minimum NMP-free recovery",
+                                    maximumNmpRaffinateWt: "Maximum NMP in raffinate",
+                                    targetRaffinateSulfurPpm: "Predicted raffinate sulfur",
+                                    minimumRaffinateSaturatesWt: "Minimum raffinate saturates",
+                                    maximumRaffinatePolarAromaticsWt: "Maximum polar aromatics",
+                                    maximumRaffinateTotalAromaticsWt: "Maximum total aromatics",
+                                  };
+                                  const status = value.status ?? "UNKNOWN";
+                                  const passed = status === "PASS";
+                                  const failed = status === "FAIL";
+                                  return (
+                                    <li key={key} className={`flex items-start gap-2 rounded border p-2 text-sm font-bold ${
+                                      passed ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                        : failed ? "border-red-200 bg-red-50 text-red-800"
+                                          : "border-slate-200 bg-slate-50 text-slate-700"
+                                    }`}>
+                                      <span aria-hidden="true" className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border-2 border-current">
+                                        {passed ? "✓" : failed ? "×" : "−"}
+                                      </span>
+                                      <span>{labels[key] ?? key} — {status.replaceAll("_", " ")}</span>
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                              {!Object.keys(trial.targetCompliance ?? {}).length && (
+                                <p className="font-semibold text-slate-600">Target checks not recorded.</p>
+                              )}
+                            </section>
                             <p>
                               Component extraction diagnostics: {Object.entries(
                                 (trial.productMetrics.componentExtractionPct as Record<string, number> | undefined) ?? {},
