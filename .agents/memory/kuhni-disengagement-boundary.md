@@ -81,6 +81,12 @@ Droplet size, terminal velocity, design margin, allowable velocity, diameter and
 
 **How to apply:** Resolve each end's model chain independently from normal product authority and applicable product properties. HOLD only for genuinely missing or inapplicable models/data, with the exact gap identified. Existing terminal-velocity mathematics does not by itself qualify outlet droplet populations, phase-inverted bottom duty, margins or fabrication rounding. Never promote offline research assumptions into production defaults.
 
+A liquid-drop terminal correlation's viscosity-ratio applicability alone cannot qualify either end; check shape, mobility and all experimental dimensionless ranges at the actual governing size.
+
+**Why:** Primary-source audit found the nominal top viscosity ratio outside Myint's tested range, while a nominal bottom size could pass viscosity ratio yet fall below its experimental Eötvös range. Barry–Parlange supplies a spherical-fluid candidate, not evidence of actual outlet capture.
+
+**How to apply:** Keep candidate equations distinct from admitted per-end models. Seek qualified product properties and outlet-flux populations before domain evaluation; do not interpret the absence of qualified evidence as proof that qualification is impossible.
+
 Separate the current engineering report from the full historical calculation/audit archive; preserve both.
 
 **Why:** The user explicitly rejected a roughly 300-page data dump as an engineering handoff. Most pages repeated upstream hydraulic records, while historical end dimensions and nozzle allowances could be mistaken for current design.

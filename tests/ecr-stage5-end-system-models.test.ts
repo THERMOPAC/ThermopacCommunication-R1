@@ -73,6 +73,14 @@ describe('governed system end-sizing architecture', () => {
       expect(a.holds).toEqual(expect.arrayContaining(['MODEL_UNAVAILABLE', 'DESIGN_CRITERION_REQUIRED', 'PROCESS_SOURCE_REQUIRED', 'PROPERTY_SOURCE_REQUIRED']));
       expect(a.diameterM).toBeNull(); expect(a.residenceHeightM).toBeNull();
       expect(a.modelAudit.some(a => a.reason.includes('d32'))).toBe(true);
+      expect(a.modelAuthority).toMatchObject({
+        id: 'ECR_END_SOURCE_AUDIT', version: '1.0.0', status: 'NO_COMPLETE_QUALIFIED_CHAIN_FOUND',
+      });
+      expect(a.modelAudit.filter(row => row.eligibility === 'NO_QUALIFIED_SOURCE_FOUND')).toHaveLength(3);
+      expect(a.modelAudit.find(row => row.modelId.endsWith(':liquid-drop-terminal'))?.eligibility)
+        .toBe('CANDIDATE_NOT_QUALIFIED');
+      expect(endEngineeringRows(a).find(([label]) => label === 'Independent model authority')?.[1])
+        .toContain('ECR_END_SOURCE_AUDIT / 1.0.0');
     }
     expect(JSON.stringify(r)).not.toMatch(/USER_APPROVAL_REQUIRED|topDiameterM|bottomDiameterM/);
     const sourceOnly = evaluateEndSystemModels('top', { flow: source('top').flow }, models('top'));

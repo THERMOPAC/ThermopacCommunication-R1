@@ -1,5 +1,6 @@
 import type { EndEngineeringAuthority, EndEngineeringEvidence, FabricationDiameterRule,
   QualifiedNormalEndFlow, QualifiedOpeningEnvelope, SystemModelEvidence } from '../../shared/ecr-stage5-end-sections';
+import { auditedEndModelEvidence, END_MODEL_AUTHORITY } from './stage5-end-model-authority';
 
 export type End = 'top' | 'bottom';
 export interface NormalEndProperties {
@@ -100,7 +101,9 @@ export type EndSystemSourceResolver = (context: EndSystemSourceContext) => Promi
 export const resolveStage5EndSystemAuthority: EndSystemSourceResolver = async () => {
   const end = (which: End): EndEngineeringEvidence => ({
     ...evaluateEndSystemModels(which, {}, {}),
+    modelAuthority: { ...END_MODEL_AUTHORITY },
     modelAudit: [
+      ...auditedEndModelEvidence(which),
       { modelId: 'P1_HINZE_D32_ACTIVE_COMPARTMENT', citation: 'rrbo-wetnmp-hydraulic-p1.ts: d32 and six hydraulic scenarios',
         eligibility: 'NOT_ELIGIBLE_FOR_END_DUTY', reason: which === 'top'
           ? 'Mean turbulent active-compartment d32 is not the terminal-stator outlet flux/capture population or qualified return-path duty.'

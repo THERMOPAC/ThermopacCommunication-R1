@@ -148,6 +148,7 @@ export interface QualifiedOpeningEnvelope {
   nearHalfExtentM: number; farHalfExtentM: number;
 }
 export interface EndEngineeringEvidence {
+  modelAuthority?: { id: string; version: string; status: string; source: string };
   normalFlow?: QualifiedNormalEndFlow;
   separation?: SeparationCriterion;
   fabrication?: FabricationDiameterRule;
@@ -255,6 +256,7 @@ function calculateGovernedEnd(end: "top" | "bottom", activeDiameterM: number | u
     separationCriterionStatus: criterionReady ? "BUILTIN_MODEL_ELIGIBLE"
       : evidence.modelChainStatus === "ELIGIBLE_AWAITING_SOURCE" ? "BUILTIN_MODEL_ELIGIBLE_AWAITING_PROCESS_OR_PROPERTIES"
         : "MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED",
+    modelAuthority: evidence.modelAuthority ?? null,
     criterionBasis: criterionReady ? criterion! : null, uDesignMS: u, calculatedDiameterM: dCalc,
     fabricationRoundingRule: roundingDescription, diameterM,
     diameterStatus: diameterM === null ? "HOLD" : transitionRequired ? "CALCULATED_HOLD_TRANSITION_RULE" : "SYSTEM_CALCULATED_FROM_GOVERNED_MODELS",
@@ -320,6 +322,9 @@ export function endEngineeringRows(a: AutomaticEndSectionResult["assemblies"]["t
     ["Flow source / revision", a.flowSource ? `${a.flowSource.identity} / ${a.flowSource.revision}` : "PROCESS_SOURCE_REQUIRED"],
     ["Separation duty", a.separationDuty],
     ["System separation model status", a.separationCriterionStatus],
+    ["Independent model authority", a.modelAuthority
+      ? `${a.modelAuthority.id} / ${a.modelAuthority.version}; ${a.modelAuthority.status}; ${a.modelAuthority.source}`
+      : "No versioned source audit supplied"],
     ["System separation model / version / citation", basis ? modelText(basis.model) : a.separationCriterionStatus],
     ["Governing droplet diameter / model", basis?.kind === "SYSTEM_TERMINAL_MODEL"
       ? `${value(basis.governingDropletDiameterM)}; ${basis.governingDropletCriterion}; ${modelText(basis.dropletModel)}` : "MODEL_UNAVAILABLE or system Udesign model"],
@@ -352,6 +357,6 @@ export function endEngineeringRows(a: AutomaticEndSectionResult["assemblies"]["t
 }
 export type Stage5EndProjection = AutomaticEndSectionResult & {
   sourceHash: string; stage1Hash: string;
-  normalProductAuthority?: { status: string; detail: string; holds: string[] };
+  normalProductAuthority?: { status: string; detail: string; holds: readonly string[] };
   active: { revisionId: string; sourceHash?: string; diameterM: number; compartmentCount: number; installedActiveHeightM: number };
 };

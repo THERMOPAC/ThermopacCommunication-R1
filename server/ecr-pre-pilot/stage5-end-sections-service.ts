@@ -4,13 +4,13 @@ import { getStage5Revisions, stage5Hash, Stage5Error, scoped } from "./stage5-ge
 import { calculateEndSections, calculateAutomaticEndSections, AUTOMATIC_END_RULESET, END_SECTION_RULESET, type EndSelections, type Stage5EndProjection } from "../../shared/ecr-stage5-end-sections";
 import { validatePersistedStage2HetsAuthority } from "./stage4-pre-pilot-sizing-service";
 import { resolveStage5EndSystemAuthority, type EndSystemSourceResolver } from "./stage5-end-system-models";
+import { validatePersistedAcceptedSevenComponentNtForStage4 } from "./predictive-nt-job-service";
+import { bindNormalProductTrial } from "./stage5-normal-product-source";
 
-/** Read ONLY the Stage-2 identity carried by this frozen Stage-4 snapshot.
- * The existing contract is explicitly AVAILABLE_REFERENCE_ONLY and its streams
- * have component masses/moles, not qualified product volumetric rates/densities.
- * It supplies neither an end-duty trial selection nor product-density authority.
- * Never select latest job, N4 or N7, scale a partition, or use inlet density as
- * product density. There is currently no admitted normal-product source adapter. */
+/** Read only the Stage-2 identity carried by this frozen Stage-4 snapshot.
+ * The persisted Stage-1 compatibility check remains mandatory. The accepted
+ * seven-component validator then designates the unique accepted trial; this
+ * service never searches for another job or chooses N4/N7 itself. */
 async function inspectNormalProductAuthority(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, active: any, snapshot: Parameters<typeof validatePersistedStage2HetsAuthority>[1]) {
   const reference = active.sourceStage4?.result?.actualStage2NtReference;
   const holds = ["NORMAL_END_DUTY_PRODUCT_TRIAL_NOT_DESIGNATED", "NORMAL_PRODUCT_PHASE_DENSITIES_NOT_QUALIFIED"];
@@ -32,9 +32,28 @@ async function inspectNormalProductAuthority(client: { query: (...args: any[]) =
   if (evidence.resultHash !== reference.stage2ResultHash || evidence.theoreticalStages !== reference.value)
     return { status: "NORMAL_STAGE2_REFERENCE_IDENTITY_MISMATCH", reference: { jobId: reference.stage2JobId },
       holds, detail: "Frozen Stage 4 and persisted Stage 2 identities differ; no product flow was admitted." };
-  return { status: "NORMAL_STAGE2_THEORETICAL_REFERENCE_ONLY",
-    reference: { jobId: reference.stage2JobId, resultHash: evidence.resultHash, theoreticalStages: evidence.theoreticalStages },
-    holds, detail: "Verified normal-process Stage 2 theoretical reference, not a designated normal end-product duty. Persisted boundary streams do not provide qualified operating-temperature product densities. No N4/N7 selection or product-density proxy is made." };
+  const frozenReference = { stage2JobId: reference.stage2JobId,
+    stage2ResultHash: reference.stage2ResultHash, value: reference.value };
+  try {
+    // The worker's persisted contract establishes a normalized oil-feed mass
+    // basis (100 mass units). Convert the current Stage-1 volumetric oil rate
+    // to its physical mass rate before scaling both simultaneous products.
+    const trusted = validatePersistedAcceptedSevenComponentNtForStage4(row);
+    if (trusted.designId !== design) throw new Error("STAGE5_NORMAL_PRODUCT_DESIGN_IDENTITY_MISMATCH");
+    const stage1OilKgH = snapshot.stage1.designFeedRateLph / 1000 * snapshot.stage1.rrboDensityKgM3;
+    const bound = bindNormalProductTrial(trusted, frozenReference, stage1OilKgH);
+    return { ...bound,
+      reference: { jobId: reference.stage2JobId, resultHash: reference.stage2ResultHash,
+        theoreticalStages: reference.value },
+      stage1Compatibility: evidence.stage1Compatibility };
+  } catch (error) {
+    const reason = error instanceof Error && error.message ? error.message : "STAGE5_NORMAL_PRODUCT_TRIAL_INVALID";
+    return { status: "NORMAL_PRODUCT_TRIAL_NOT_ADMITTED",
+      reference: { jobId: reference.stage2JobId, resultHash: reference.stage2ResultHash,
+        theoreticalStages: reference.value },
+      holds: ["NORMAL_PRODUCT_BOUND_TRIAL_INVALID", "NORMAL_PRODUCT_PHASE_DENSITIES_NOT_QUALIFIED"],
+      detail: `The frozen accepted Stage 2 trial could not be bound to the current normal oil mass rate (${reason}). No product mass or volumetric flow was admitted.` };
+  }
 }
 
 export async function getStage5EndSections(user: number, design: number, revisionId: string, selections: EndSelections) {

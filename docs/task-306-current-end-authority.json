@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "verifiedAtUtc": "2026-09-22T12:12:36Z",
+  "databaseEnvironment": "development",
+  "databaseAccess": "READ_ONLY",
+  "design": {
+    "id": 269,
+    "projectNumber": 236
+  },
+  "frozenStage5Discovery": {
+    "frozenRevisionCount": 8,
+    "revisionNumbersCheckedNewestFirst": [
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2,
+      1
+    ],
+    "currentFrozenRevisionExists": false
+  },
+  "automaticEndAuthority": {
+    "service": "getAutomaticStage5EndSections",
+    "invokedForEveryFrozenRevision": true,
+    "resultAvailable": false,
+    "status": "NO_CURRENT_FROZEN_STAGE5_REVISION",
+    "serviceRejection": "STAGE5_END_CURRENT_FROZEN_REVISION_REQUIRED",
+    "boundNormalTrial": {
+      "status": "NOT_REACHED",
+      "evidence": "The service rejected each frozen revision at its CURRENT-revision gate before normal-product authority inspection."
+    },
+    "operatingProductDensities": {
+      "status": "NOT_REACHED",
+      "evidence": "No current automatic authority result exists from which density qualification or density HOLD fields can be reported."
+    },
+    "endModelHolds": {
+      "status": "NOT_REACHED",
+      "evidence": "No current automatic authority result exists from which top or bottom model HOLD fields can be reported."
+    }
+  },
+  "conclusion": "Project 236 has design 269 and eight frozen Stage 5 revisions, but none is CURRENT against the updated upstream authority. Therefore there is no current frozen Stage 5 design on which the automatic end-sizing authority can run; reporting bound-trial, density, or per-end model HOLD results as current would be invalid."
+}
