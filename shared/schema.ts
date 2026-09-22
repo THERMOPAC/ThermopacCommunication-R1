@@ -17203,6 +17203,16 @@ export const ecrPrePilotDesigns = pgTable('ecr_pre_pilot_designs', {
   userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_design_user_key_uidx').on(table.createdBy, table.allocationKey),
 }));
 
+export const ecrPrePilotStage5EndSections = pgTable('ecr_pre_pilot_stage5_end_sections', {
+  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
+  createdBy: integer('created_by').notNull().references(() => users.id),
+  selection: jsonb('selection').notNull(),
+  sourceHash: text('source_hash').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  scopeKey: primaryKey({ columns: [table.designId, table.createdBy] }),
+}));
+
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
     return 'bytea';

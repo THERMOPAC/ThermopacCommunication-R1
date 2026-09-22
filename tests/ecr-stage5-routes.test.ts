@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const calls = vi.hoisted(() => ({ auth: vi.fn(), basis: vi.fn(), revisions: vi.fn(), summaries: vi.fn(), preview: vi.fn(), save: vi.fn(), pdf: vi.fn(), dataPdf: vi.fn() }));
+const ends = vi.hoisted(() => ({ calculate: vi.fn(), read: vi.fn(), save: vi.fn() }));
+vi.mock('../server/ecr-pre-pilot/stage5-end-sections-service', () => ({
+  getStage5EndSections: ends.calculate, readEndSelections: ends.read, saveEndSelections: ends.save,
+}));
 vi.mock('../server/auth-middleware', () => ({ ensureAuthenticated: calls.auth }));
 vi.mock('../server/ecr-pre-pilot/stage5-geometry-service', () => ({
   getStage5Basis: calls.basis, getStage5Revisions: calls.revisions, getStage5RevisionSummaries: calls.summaries, previewStage5: calls.preview,
@@ -10,6 +14,7 @@ vi.mock('../server/ecr-pre-pilot/stage5-geometry-report', () => ({ createStage5P
 vi.mock('../server/ecr-pre-pilot/stage5-design-data-report', () => ({ createStage5DesignDataPdf: calls.dataPdf }));
 import { setupStage5GeometryRoutes } from '../server/ecr-pre-pilot/stage5-geometry-routes';
 import { Stage5Error } from '../server/ecr-pre-pilot/stage5-geometry-service';
+import { calculateEndSections } from '../shared/ecr-stage5-end-sections';
 let routes: { method: string; path: string; middleware: any[] }[];
 beforeEach(() => {
   vi.clearAllMocks(); routes = [];
@@ -17,7 +22,7 @@ beforeEach(() => {
   setupStage5GeometryRoutes(app as any);
 });
 async function request(suffix: string, method = 'get', overrides: any = {}) {
-  const route = routes.find(r => r.path.endsWith(suffix) && r.method === method)!;
+  const route = routes.find(r => r.path.endsWith(suffix) && r.method === method && (suffix.includes('end-sections') || !r.path.includes('end-sections')))!;
   const response: any = { statusCode: 200, headers: {} };
   response.status = (n: number) => { response.statusCode = n; return response; };
   response.json = response.send = (body: any) => { response.body = body; return response; };
@@ -70,10 +75,10 @@ describe('Stage 5 HTTP boundary', () => {
       query: { payload: 'summary' }, body: { expectedSourceHash: 'current-hash', sourceStage3: {} },
     })).statusCode).toBe(400);
   });
-  it('protects all eight endpoints and exposes no mutation of existing revisions', () => {
-    expect(routes).toHaveLength(8);
+  it('protects all endpoints and exposes no mutation of existing revisions', () => {
+    expect(routes).toHaveLength(12);
     expect(routes.every(r => r.middleware[0] === calls.auth)).toBe(true);
-    expect(routes.filter(r => r.method === 'post').map(r => r.path.split('/').at(-1))).toEqual(['preview', 'revisions']);
+    expect(routes.filter(r => r.method === 'post').map(r => r.path.split('/').at(-1))).toEqual(['end-sections', 'preview', 'revisions']);
   });
   it('rejects invalid identifiers and unauthenticated handler access', async () => {
     expect((await request('/basis', 'get', { user: null })).statusCode).toBe(401);
@@ -131,5 +136,51 @@ describe('Stage 5 HTTP boundary', () => {
     expect(calls.preview).toHaveBeenCalledWith(12, 23);
     await request('/revisions', 'post', { body: { expectedSourceHash: 'hash' } });
     expect(calls.save).toHaveBeenCalledWith(12, 23, undefined, 'hash', undefined);
+  });
+});
+
+describe('independent end-section routes', () => {
+  it('scopes reads and saves to owner and rejects fake qualification inputs', async () => {
+    ends.calculate.mockResolvedValue({ sourceHash: 'fresh' });
+    const r = await request('/end-sections', 'get', { query: { topDiameterM: '.9', bottomDiameterM: '1.2' } });
+    expect(r.body.sourceHash).toBe('fresh');
+    expect(ends.calculate).toHaveBeenCalledWith(12, 23, '1', { topDiameterM: .9, bottomDiameterM: 1.2 });
+    expect((await request('/end-sections', 'get', { query: { qualified: 'true' } })).statusCode).toBe(400);
+    expect((await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, qualified: true } })).statusCode).toBe(400);
+    ends.save.mockResolvedValue({ status: 'SAVED_PROVISIONAL_SELECTIONS_ONLY' });
+    await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, expectedSourceHash: 'fresh' } });
+    expect(ends.save).toHaveBeenCalledWith(12, 23, '1', { topDiameterM: .9, bottomDiameterM: 1 }, 'fresh');
+    expect(calls.save).not.toHaveBeenCalled();
+  });
+  it('returns explicit pending-source errors, rejects stale export and unauthorized requests', async () => {
+    ends.calculate.mockRejectedValueOnce(new Stage5Error('STAGE5_END_CURRENT_FROZEN_REVISION_REQUIRED'));
+    expect((await request('/end-sections')).statusCode).toBe(409);
+    ends.calculate.mockResolvedValue({ sourceHash: 'changed' });
+    expect((await request('/end-sections/export.svg', 'get', { query: { expectedSourceHash: 'old' } })).statusCode).toBe(409);
+    expect((await request('/end-sections', 'get', { user: null })).statusCode).toBe(401);
+    expect((await request('/end-sections', 'get', { params: { id: '23', revisionId: 'NaN' } })).statusCode).toBe(400);
+  });
+  it('returns empty saved state honestly', async () => {
+    ends.read.mockResolvedValue(null);
+    expect((await request('/end-sections/selections')).body).toBeNull();
+    expect(ends.read).toHaveBeenCalledWith(12, 23);
+  });
+  it('exports an authenticated current-source conditional schematic without rewriting active drawings', async () => {
+    ends.calculate.mockResolvedValue({ ...calculateEndSections({
+      designFeedRateLph: 1000, rrboDensityKgM3: 880, nmpDensityKgM3: 1015,
+      oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
+    }, { topDiameterM: .9, bottomDiameterM: 1.2 }), sourceHash: 'fresh' });
+    const r = await request('/end-sections/export.svg', 'get', {
+      query: { expectedSourceHash: 'fresh', topDiameterM: '.9', bottomDiameterM: '1.2' },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.contentType).toBe('image/svg+xml');
+    expect(r.body).toContain('NOT TO SCALE');
+    expect(r.body).toContain('data-end-profile="top"');
+    expect(r.body).toContain('data-part="symbolic-knuckled-transition"');
+    expect(r.body).toContain('sourceHash');
+    expect(r.body).toContain('fresh');
+    expect(calls.save).not.toHaveBeenCalled();
+    expect(calls.preview).not.toHaveBeenCalled();
   });
 });

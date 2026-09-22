@@ -6,6 +6,7 @@ import { Stage5DrawingViewer, stage5ViewNames, type Stage5View } from "@/compone
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { R1_COMPLETE, R1_RULESET, R1_WATERMARK, R2_RULESET } from "@shared/ecr-stage5-r1";
+import { Stage5EndSectionsPanel } from "@/components/ecr-pre-pilot/stage5-end-sections-panel";
 
 type RecordValue = Record<string, unknown>;
 type Revision = RecordValue & { id: string | number; revision: string | number; createdAt: string; inputs: RecordValue; geometry: unknown; drawings?: Partial<Record<Stage5View, string>>; sourceHash: string; status?: string; currentness?: string; notes?: string | null };
@@ -229,6 +230,7 @@ export default function EcrPrePilotDesignStage5Page() {
       <section className="mt-5 rounded border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950"><div className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>Mechanical exclusions:</strong> this package does not establish pressure-vessel wall/head thickness, shaft strength or deflection, critical speed, bearings or seals, motor/gearbox adequacy, or structural/support calculations.</div></div></section>
       {basisError && <section data-testid="stage5-source-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Inherited basis unavailable.</strong> {basisError}</section>}
       {historyError && <section data-testid="stage5-history-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Stage 5 revision history unavailable.</strong> {historyError} Current basis and preview are independent of revision history. <Button type="button" variant="outline" disabled={historyLoading} onClick={() => design?.id != null && void readHistory(design.id)} className="ml-2 h-8 text-xs">Retry history</Button></section>}
+      {design?.id != null && <Stage5EndSectionsPanel key={String(design.id)} designId={design.id as string | number} revisionId={selected?.id} sourceHash={typeof sourceHash === "string" ? sourceHash : undefined} />}
       {constructionError && <section data-testid="stage5-construction-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Construction generation blocked.</strong> {constructionError}<p className="mt-1">The inherited basis remains read-only below. Engineering review of the stated construction rule is required; do not change upstream inputs just to fit a template.</p></section>}
       {selected && (selected.currentness !== "CURRENT" || !object(selected.geometry).ruleset) && <section data-testid="stage5-stale-banner" className="mt-4 flex gap-2 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><AlertTriangle className="h-4 w-4 shrink-0" /><div><strong>Historical / superseded revision.</strong> This frozen package is read-only and is never regenerated under new rules. A new R1 revision uses the current frozen upstream basis, not historical construction inputs.</div></section>}
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">

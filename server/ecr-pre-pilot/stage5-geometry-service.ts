@@ -99,7 +99,7 @@ async function owned(client: QueryClient, userId: number, designId: number) {
  * therefore also prevent source inserts/updates during the authoritative handoff.
  * The owner row serializes revision allocation and protects Stage-1 edits.
  * No scientific calculation, optimizer creation or lifecycle GET is invoked. */
-async function scoped<T>(userId: number, designId: number, fn: (client: QueryClient) => Promise<T>): Promise<T> {
+export async function scoped<T>(userId: number, designId: number, fn: (client: QueryClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -230,8 +230,8 @@ export async function saveStage5Revision(u: number, d: number, input: unknown, e
     return record(inserted.rows[0], source.sourceHash, inserted.rows[0].revision);
   });
 }
-export async function getStage5Revisions(u: number, d: number, id?: string) {
-  return scoped(u, d, async c => {
+export async function getStage5Revisions(u: number, d: number, id?: string, transaction?: QueryClient) {
+  const read = async (c: QueryClient) => {
     const rows = await c.query(`SELECT * FROM ecr_pre_pilot_stage5_geometry_revisions
       WHERE design_id=$1 AND created_by=$2 ORDER BY revision DESC`, [d, u]);
     if (id && !rows.rows.some((r: any) => String(r.id) === id)) throw new Stage5Error('STAGE5_REVISION_NOT_FOUND', 404);
@@ -244,7 +244,8 @@ export async function getStage5Revisions(u: number, d: number, id?: string) {
     }
     const latest = rows.rows.find((r: any) => r.source_hash === currentHash)?.revision ?? 0;
     return rows.rows.filter((r: any) => !id || String(r.id) === id).map((r: any) => record(r, currentHash, latest));
-  });
+  };
+  return transaction ? read(transaction) : scoped(u, d, read);
 }
 
 /** Non-authoritative navigation metadata only. Never hydrate/hash frozen source
