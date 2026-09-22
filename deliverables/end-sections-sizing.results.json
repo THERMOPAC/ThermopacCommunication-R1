@@ -1,0 +1,1798 @@
+{
+  "status": "PRELIMINARY_CONDITIONAL_LAYOUT_AND_NOZZLES; CAPTURE/RETURN/FABRICATION HOLD",
+  "geometryDecision": {
+    "selectedEndGeometry": null,
+    "comparisonOnly": true,
+    "calmHeightsAreArbitraryAllowancesNotCalculatedOptima": true,
+    "topSelectionRequiresStage20BoundaryAndReturnClosure": true,
+    "retainedBottomNeck": {
+      "diameterM": 0.7,
+      "heightM": 0.3
+    },
+    "overallVesselHeightM": null,
+    "reasonNoTotal": "Retained axial-stack ledger not closed; no neck deletion authorized."
+  },
+  "sourceHashes": {
+    ".agents/memory/kuhni-disengagement-boundary.md": "247a32cd6022d05e0b26a65a53f14271a189e91bafebf086dc39e7a092aa46f0",
+    "deliverables/kuhni-end-section-preliminary-calculation.input.json": "3e65f398cfd714f599ab7fcb420e07c4a4d3c6637053a71498567099413536d2",
+    "deliverables/disengager-input-audit.md": "d5af8b9e9d7ce6052a093b0dd4e7f15ba2c2cdd55046f05b16deae63655bb302",
+    "deliverables/kuhni-terminal-flow-evidence.md": "fffd4746aae637c3b8bbb219f1381d2e91c557864e717535467cb4e62c6f99bf",
+    "deliverables/kuhni-terminal-chain.md": "78f2e10f737e17bd701405f6e617d5d3ef60fd60f811ab1996b0da1457c13a24",
+    "deliverables/kuhni-terminal-coalescence-review.md": "ca9fbc741d1ae4f45e526d043a7d0c6186d3db8765c37d7d7fc73a6ff756ca6b"
+  },
+  "frozenActive": {
+    "diameterM": 0.7,
+    "stages": 20,
+    "activeHeightM": 4.2,
+    "pitchM": 0.21,
+    "rotorDiameterM": 0.231,
+    "rpm": 30,
+    "Np": 1.2,
+    "statorOpenFraction": 0.4
+  },
+  "feeds": {
+    "oilKgH": 3476,
+    "oilM3H": 4,
+    "solventKgH": 2085.6,
+    "solventM3H": 2.0547783251231526
+  },
+  "properties": {
+    "top": {
+      "rhoC": 869,
+      "rhoD": 1015,
+      "muC": 0.0598,
+      "muD": 0.001416,
+      "direction": "NMP settles against upward RRBO"
+    },
+    "bottom": {
+      "rhoC": 1015,
+      "rhoD": 869,
+      "muC": 0.001416,
+      "muD": 0.0598,
+      "direction": "RRBO rises against downward extract"
+    }
+  },
+  "trials": [
+    {
+      "thermodynamicTrialN": 4,
+      "streams": {
+        "oilFeed": {
+          "massKgH": 3476,
+          "volumeProxyM3H": 4,
+          "componentMassKgH": [
+            2954.6,
+            243.32,
+            139.04,
+            69.52,
+            69.52,
+            0,
+            0
+          ],
+          "densityProxyKgM3": 869
+        },
+        "finalExtract": {
+          "massKgH": 2240.460813836314,
+          "volumeProxyM3H": 2.207350555503758,
+          "componentMassKgH": [
+            148.14320261116282,
+            135.01774746067773,
+            71.34340418441707,
+            39.500455269163176,
+            57.90530000435269,
+            1786.7707967104259,
+            1.7799075961147586
+          ],
+          "densityProxyKgM3": 1015
+        },
+        "finalRaffinate": {
+          "massKgH": 3321.1391861636857,
+          "volumeProxyM3H": 3.821794230337958,
+          "componentMassKgH": [
+            2806.456797388837,
+            108.30225253932225,
+            67.69659581558294,
+            30.01954473083683,
+            11.614699995647307,
+            288.4012032895741,
+            8.648092403885245
+          ],
+          "densityProxyKgM3": 869
+        },
+        "freshWetSolvent": {
+          "massKgH": 2085.6,
+          "volumeProxyM3H": 2.0547783251231526,
+          "componentMassKgH": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            2075.172,
+            10.427999999999999
+          ],
+          "densityProxyKgM3": 1015
+        }
+      },
+      "residualKgH": 4.547473508864641e-13,
+      "componentResidualKgH": [
+        8.526512829121202e-14,
+        2.842170943040401e-14,
+        -1.4210854715202004e-14,
+        -7.105427357601002e-15,
+        0,
+        0,
+        -4.884981308350689e-15
+      ]
+    },
+    {
+      "thermodynamicTrialN": 7,
+      "streams": {
+        "oilFeed": {
+          "massKgH": 3476,
+          "volumeProxyM3H": 4,
+          "componentMassKgH": [
+            2954.6,
+            243.32,
+            139.04,
+            69.52,
+            69.52,
+            0,
+            0
+          ],
+          "densityProxyKgM3": 869
+        },
+        "finalExtract": {
+          "massKgH": 2282.926436894786,
+          "volumeProxyM3H": 2.2491886077781142,
+          "componentMassKgH": [
+            153.76619630257704,
+            142.93723785604132,
+            74.26725643910358,
+            41.73509129672173,
+            63.51705091799202,
+            1805.5310309250474,
+            1.1725731573030456
+          ],
+          "densityProxyKgM3": 1015
+        },
+        "finalRaffinate": {
+          "massKgH": 3278.6735631052175,
+          "volumeProxyM3H": 3.772927000121079,
+          "componentMassKgH": [
+            2800.8338036974224,
+            100.38276214395893,
+            64.77274356089669,
+            27.78490870327872,
+            6.002949082009948,
+            269.6409690749533,
+            9.255426842697535
+          ],
+          "densityProxyKgM3": 869
+        },
+        "freshWetSolvent": {
+          "massKgH": 2085.6,
+          "volumeProxyM3H": 2.0547783251231526,
+          "componentMassKgH": [
+            0,
+            0,
+            0,
+            0,
+            0,
+            2075.172,
+            10.427999999999999
+          ],
+          "densityProxyKgM3": 1015
+        }
+      },
+      "residualKgH": -3.183231456205249e-12,
+      "componentResidualKgH": [
+        5.115907697472721e-13,
+        -2.5579538487363607e-13,
+        -2.7000623958883807e-13,
+        -4.476419235288631e-13,
+        -1.9753088054130785e-12,
+        -6.821210263296962e-13,
+        -5.81312775693732e-13
+      ]
+    }
+  ],
+  "sizingEnvelope": {
+    "topM3H": 3.821794230337958,
+    "bottomM3H": 2.2491886077781142,
+    "designRateMultiplier": 1.2,
+    "warning": "Independent scenario maxima, not one balanced operating case; physical reflux not established."
+  },
+  "sections": [
+    {
+      "side": "top",
+      "diameterM": 0.7,
+      "grossStraightHeightM": 1.6,
+      "effectiveCalmHeightM": 0.7,
+      "effectiveAreaM2": 0.3463605900582747,
+      "netCalmVolumeM3": 0.24245241304079226,
+      "nominalResidenceS": 228.38191549356875,
+      "residenceAt120PercentS": 190.3182629113073,
+      "velocityMS": 0.0030650412861595953,
+      "designVelocityMS": 0.003678049543391514,
+      "neutralSizeMm": 1.5359144112646397,
+      "sizeFor2xDesignSlipMm": 2.420325464053039,
+      "coneAxialHeightM": 0,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.00033174550797642393,
+          "Re": 0.0024104251373872274,
+          "Eo": 0.03254024772727273,
+          "We": 0.000004347175741470155,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": -0.00334630403541509,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.0013171038524950347,
+          "Re": 0.019139853642444568,
+          "Eo": 0.13016099090909092,
+          "We": 0.00013704624210232372,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": -0.0023609456908964795,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.002926561063705209,
+          "Re": 0.06379217970802241,
+          "Eo": 0.2928622295454546,
+          "We": 0.0010149240196620508,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": -0.0007514884796863052,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.005113562794465094,
+          "Re": 0.14861826315686175,
+          "Eo": 0.5206439636363637,
+          "We": 0.004131466863564151,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.0014355132510735797,
+          "crossingTimeS": 487.6304690858756,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.010978682051639639,
+          "Re": 0.47861913225124647,
+          "Eo": 1.1714489181818184,
+          "We": 0.028565955923065663,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.007300632508248125,
+          "crossingTimeS": 95.88210325737563,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "top",
+      "diameterM": 0.9,
+      "grossStraightHeightM": 1.6,
+      "effectiveCalmHeightM": 0.7,
+      "effectiveAreaM2": 0.5725552611167398,
+      "netCalmVolumeM3": 0.40078868278171786,
+      "nominalResidenceS": 377.52928887712386,
+      "residenceAt120PercentS": 314.6077407309366,
+      "velocityMS": 0.0018541607780471624,
+      "designVelocityMS": 0.0022249929336565946,
+      "neutralSizeMm": 1.1889561634401427,
+      "sizeFor2xDesignSlipMm": 1.8608172007305261,
+      "coneAxialHeightM": 0.17320508075688779,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.00033174550797642393,
+          "Re": 0.0024104251373872274,
+          "Eo": 0.03254024772727273,
+          "We": 0.000004347175741470155,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": -0.0018932474256801706,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.0013171038524950347,
+          "Re": 0.019139853642444568,
+          "Eo": 0.13016099090909092,
+          "We": 0.00013704624210232372,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": -0.0009078890811615599,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.002926561063705209,
+          "Re": 0.06379217970802241,
+          "Eo": 0.2928622295454546,
+          "We": 0.0010149240196620508,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.0007015681300486143,
+          "crossingTimeS": 997.7648214315184,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.005113562794465094,
+          "Re": 0.14861826315686175,
+          "Eo": 0.5206439636363637,
+          "We": 0.004131466863564151,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.0028885698608084993,
+          "crossingTimeS": 242.33445397926874,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.010978682051639639,
+          "Re": 0.47861913225124647,
+          "Eo": 1.1714489181818184,
+          "We": 0.028565955923065663,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.008753689117983044,
+          "crossingTimeS": 79.96628513593917,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "top",
+      "diameterM": 1,
+      "grossStraightHeightM": 1.6,
+      "effectiveCalmHeightM": 0.7,
+      "effectiveAreaM2": 0.7068583470577035,
+      "netCalmVolumeM3": 0.4948008429403924,
+      "nominalResidenceS": 466.0855418236097,
+      "residenceAt120PercentS": 388.40461818634145,
+      "velocityMS": 0.0015018702302182017,
+      "designVelocityMS": 0.001802244276261842,
+      "neutralSizeMm": 1.0686011230707704,
+      "sizeFor2xDesignSlipMm": 1.6691436718680457,
+      "coneAxialHeightM": 0.2598076211353316,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.00033174550797642393,
+          "Re": 0.0024104251373872274,
+          "Eo": 0.03254024772727273,
+          "We": 0.000004347175741470155,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": -0.001470498768285418,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.0013171038524950347,
+          "Re": 0.019139853642444568,
+          "Eo": 0.13016099090909092,
+          "We": 0.00013704624210232372,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": -0.00048514042376680724,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.002926561063705209,
+          "Re": 0.06379217970802241,
+          "Eo": 0.2928622295454546,
+          "We": 0.0010149240196620508,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.001124316787443367,
+          "crossingTimeS": 622.6003274324139,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.005113562794465094,
+          "Re": 0.14861826315686175,
+          "Eo": 0.5206439636363637,
+          "We": 0.004131466863564151,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.0033113185182032517,
+          "crossingTimeS": 211.39615417601857,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.010978682051639639,
+          "Re": 0.47861913225124647,
+          "Eo": 1.1714489181818184,
+          "We": 0.028565955923065663,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.009176437775377798,
+          "crossingTimeS": 76.28232404934285,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "top",
+      "diameterM": 1.2,
+      "grossStraightHeightM": 1.6,
+      "effectiveCalmHeightM": 0.7,
+      "effectiveAreaM2": 1.017876019763093,
+      "netCalmVolumeM3": 0.712513213834165,
+      "nominalResidenceS": 671.1631802259981,
+      "residenceAt120PercentS": 559.3026501883318,
+      "velocityMS": 0.0010429654376515288,
+      "designVelocityMS": 0.0012515585251818345,
+      "neutralSizeMm": 0.8889310813656391,
+      "sizeFor2xDesignSlipMm": 1.384943010475321,
+      "coneAxialHeightM": 0.43301270189221935,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.00033174550797642393,
+          "Re": 0.0024104251373872274,
+          "Eo": 0.03254024772727273,
+          "We": 0.000004347175741470155,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": -0.0009198130172054105,
+          "crossingTimeS": null,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.0013171038524950347,
+          "Re": 0.019139853642444568,
+          "Eo": 0.13016099090909092,
+          "We": 0.00013704624210232372,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": 0.00006554532731320017,
+          "crossingTimeS": 10679.632381041249,
+          "crossesCalmHeightWithinNominalDesignResidence": false
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.002926561063705209,
+          "Re": 0.06379217970802241,
+          "Eo": 0.2928622295454546,
+          "We": 0.0010149240196620508,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.0016750025385233744,
+          "crossingTimeS": 417.9098144036822,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.005113562794465094,
+          "Re": 0.14861826315686175,
+          "Eo": 0.5206439636363637,
+          "We": 0.004131466863564151,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.0038620042692832594,
+          "crossingTimeS": 181.25303629711195,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.010978682051639639,
+          "Re": 0.47861913225124647,
+          "Eo": 1.1714489181818184,
+          "We": 0.028565955923065663,
+          "relativeForceResidual": 0,
+          "netReturnVelocityMS": 0.009727123526457805,
+          "crossingTimeS": 71.96372063087283,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "bottom",
+      "diameterM": 0.7,
+      "grossStraightHeightM": 1.2,
+      "effectiveCalmHeightM": 0.5,
+      "effectiveAreaM2": 0.3463605900582747,
+      "netCalmVolumeM3": 0.17318029502913734,
+      "nominalResidenceS": 277.18843139650056,
+      "residenceAt120PercentS": 230.9903594970838,
+      "velocityMS": 0.001803827084272437,
+      "designVelocityMS": 0.002164592501126924,
+      "neutralSizeMm": 0.18414223078276024,
+      "sizeFor2xDesignSlipMm": 0.29662677610540034,
+      "coneAxialHeightM": 0,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.010271548253204896,
+          "Re": 3.68136351589088,
+          "Eo": 0.03254024772727273,
+          "We": 0.004867603366849333,
+          "relativeForceResidual": -3.3306690738754696e-16,
+          "netReturnVelocityMS": 0.008106955752077972,
+          "crossingTimeS": 61.675432220268405,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.026372676403189393,
+          "Re": 18.904143043246638,
+          "Eo": 0.13016099090909092,
+          "We": 0.06417734832521389,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": 0.024208083902062468,
+          "crossingTimeS": 20.654257562177452,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.0415656029665051,
+          "Re": 44.691829460807924,
+          "Eo": 0.2928622295454546,
+          "We": 0.23912929639345565,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.039401010465378174,
+          "crossingTimeS": 12.69002987726297,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.05564032749819501,
+          "Re": 79.7668536873841,
+          "Eo": 0.5206439636363637,
+          "We": 0.5713243154123622,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.053475734997068085,
+          "crossingTimeS": 9.350035114569506,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.08137806579962645,
+          "Re": 174.9973237004679,
+          "Eo": 1.1714489181818184,
+          "We": 1.8331978465057246,
+          "relativeForceResidual": 2.220446049250313e-16,
+          "netReturnVelocityMS": 0.07921347329849952,
+          "crossingTimeS": 6.312057522283537,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "bottom",
+      "diameterM": 0.9,
+      "grossStraightHeightM": 1.2,
+      "effectiveCalmHeightM": 0.5,
+      "effectiveAreaM2": 0.5725552611167398,
+      "netCalmVolumeM3": 0.2862776305583699,
+      "nominalResidenceS": 458.20944781870503,
+      "residenceAt120PercentS": 381.84120651558754,
+      "velocityMS": 0.0010912040386339432,
+      "designVelocityMS": 0.0013094448463607318,
+      "neutralSizeMm": 0.1416619817533127,
+      "sizeFor2xDesignSlipMm": 0.224689733569243,
+      "coneAxialHeightM": 0.17320508075688779,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.010271548253204896,
+          "Re": 3.68136351589088,
+          "Eo": 0.03254024772727273,
+          "We": 0.004867603366849333,
+          "relativeForceResidual": -3.3306690738754696e-16,
+          "netReturnVelocityMS": 0.008962103406844165,
+          "crossingTimeS": 55.79047432304349,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.026372676403189393,
+          "Re": 18.904143043246638,
+          "Eo": 0.13016099090909092,
+          "We": 0.06417734832521389,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": 0.02506323155682866,
+          "crossingTimeS": 19.949542375104112,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.0415656029665051,
+          "Re": 44.691829460807924,
+          "Eo": 0.2928622295454546,
+          "We": 0.23912929639345565,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.04025615812014437,
+          "crossingTimeS": 12.42045995814483,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.05564032749819501,
+          "Re": 79.7668536873841,
+          "Eo": 0.5206439636363637,
+          "We": 0.5713243154123622,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.05433088265183428,
+          "crossingTimeS": 9.202869079159335,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.08137806579962645,
+          "Re": 174.9973237004679,
+          "Eo": 1.1714489181818184,
+          "We": 1.8331978465057246,
+          "relativeForceResidual": 2.220446049250313e-16,
+          "netReturnVelocityMS": 0.08006862095326571,
+          "crossingTimeS": 6.244643582557004,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "bottom",
+      "diameterM": 1,
+      "grossStraightHeightM": 1.2,
+      "effectiveCalmHeightM": 0.5,
+      "effectiveAreaM2": 0.7068583470577035,
+      "netCalmVolumeM3": 0.3534291735288517,
+      "nominalResidenceS": 565.6906763193889,
+      "residenceAt120PercentS": 471.4088969328241,
+      "velocityMS": 0.0008838752712934941,
+      "designVelocityMS": 0.0010606503255521928,
+      "neutralSizeMm": 0.1270930239993355,
+      "sizeFor2xDesignSlipMm": 0.2006712099416013,
+      "coneAxialHeightM": 0.2598076211353316,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.010271548253204896,
+          "Re": 3.68136351589088,
+          "Eo": 0.03254024772727273,
+          "We": 0.004867603366849333,
+          "relativeForceResidual": -3.3306690738754696e-16,
+          "netReturnVelocityMS": 0.009210897927652704,
+          "crossingTimeS": 54.28352413926049,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.026372676403189393,
+          "Re": 18.904143043246638,
+          "Eo": 0.13016099090909092,
+          "We": 0.06417734832521389,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": 0.0253120260776372,
+          "crossingTimeS": 19.753456260925024,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.0415656029665051,
+          "Re": 44.691829460807924,
+          "Eo": 0.2928622295454546,
+          "We": 0.23912929639345565,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.040504952640952906,
+          "crossingTimeS": 12.344169475573473,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.05564032749819501,
+          "Re": 79.7668536873841,
+          "Eo": 0.5206439636363637,
+          "We": 0.5713243154123622,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.05457967717264282,
+          "crossingTimeS": 9.160918970231963,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.08137806579962645,
+          "Re": 174.9973237004679,
+          "Eo": 1.1714489181818184,
+          "We": 1.8331978465057246,
+          "relativeForceResidual": 2.220446049250313e-16,
+          "netReturnVelocityMS": 0.08031741547407426,
+          "crossingTimeS": 6.225299918439178,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    },
+    {
+      "side": "bottom",
+      "diameterM": 1.2,
+      "grossStraightHeightM": 1.2,
+      "effectiveCalmHeightM": 0.5,
+      "effectiveAreaM2": 1.017876019763093,
+      "netCalmVolumeM3": 0.5089380098815465,
+      "nominalResidenceS": 814.59457389992,
+      "residenceAt120PercentS": 678.8288115832667,
+      "velocityMS": 0.0006138022717315932,
+      "designVelocityMS": 0.0007365627260779117,
+      "neutralSizeMm": 0.10547793781547421,
+      "sizeFor2xDesignSlipMm": 0.1655633381971782,
+      "coneAxialHeightM": 0.43301270189221935,
+      "sensitivities": [
+        {
+          "independentTestDiameterMm": 0.5,
+          "velocityMS": 0.010271548253204896,
+          "Re": 3.68136351589088,
+          "Eo": 0.03254024772727273,
+          "We": 0.004867603366849333,
+          "relativeForceResidual": -3.3306690738754696e-16,
+          "netReturnVelocityMS": 0.009534985527126985,
+          "crossingTimeS": 52.43846449242136,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1,
+          "velocityMS": 0.026372676403189393,
+          "Re": 18.904143043246638,
+          "Eo": 0.13016099090909092,
+          "We": 0.06417734832521389,
+          "relativeForceResidual": -4.440892098500626e-16,
+          "netReturnVelocityMS": 0.02563611367711148,
+          "crossingTimeS": 19.50373626430014,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 1.5,
+          "velocityMS": 0.0415656029665051,
+          "Re": 44.691829460807924,
+          "Eo": 0.2928622295454546,
+          "We": 0.23912929639345565,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.04082904024042719,
+          "crossingTimeS": 12.246185486009077,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 2,
+          "velocityMS": 0.05564032749819501,
+          "Re": 79.7668536873841,
+          "Eo": 0.5206439636363637,
+          "We": 0.5713243154123622,
+          "relativeForceResidual": 4.440892098500626e-16,
+          "netReturnVelocityMS": 0.0549037647721171,
+          "crossingTimeS": 9.106843621294349,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        },
+        {
+          "independentTestDiameterMm": 3,
+          "velocityMS": 0.08137806579962645,
+          "Re": 174.9973237004679,
+          "Eo": 1.1714489181818184,
+          "We": 1.8331978465057246,
+          "relativeForceResidual": 2.220446049250313e-16,
+          "netReturnVelocityMS": 0.08064150307354853,
+          "crossingTimeS": 6.200281256463913,
+          "crossesCalmHeightWithinNominalDesignResidence": true
+        }
+      ]
+    }
+  ],
+  "returnChecks": [
+    {
+      "side": "top",
+      "boundary": "terminal stator, both faces and 700 mm throat",
+      "planes": [
+        {
+          "openFraction": 1,
+          "carrierVelocityMS": 0.003310244589052363,
+          "neutralSizeMm": 1.5977103444073513,
+          "twiceCarrierSizeMm": 2.2893887991105353
+        },
+        {
+          "openFraction": 0.4,
+          "carrierVelocityMS": 0.008275611472630907,
+          "neutralSizeMm": 2.576596255798912,
+          "twiceCarrierSizeMm": 3.7665830616950635
+        }
+      ],
+      "diluteCapacitySensitivities": [
+        {
+          "dmm": 0.5,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.008359203507707988,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 0.5,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.008711169971190428,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 1,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.008359203507707988,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 1,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.008711169971190428,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 1.5,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.008359203507707988,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 1.5,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.008711169971190428,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 2,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.008359203507707988,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 2,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.008711169971190428,
+          "eligibleCountercurrentM3H": 0
+        },
+        {
+          "dmm": 3,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.008359203507707988,
+          "eligibleCountercurrentM3H": 0.014516546145938511
+        },
+        {
+          "dmm": 3,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.008711169971190428,
+          "eligibleCountercurrentM3H": 0.06283014577189237
+        }
+      ]
+    },
+    {
+      "side": "bottom",
+      "boundary": "lower phase interface and first active compartment; bottom plate free fraction provisional",
+      "planes": [
+        {
+          "openFraction": 1,
+          "carrierVelocityMS": 0.0019481332510142319,
+          "neutralSizeMm": 0.19179270814900334,
+          "twiceCarrierSizeMm": 0.2795301083256802
+        },
+        {
+          "openFraction": 0.4,
+          "carrierVelocityMS": 0.0048703331275355794,
+          "neutralSizeMm": 0.3172554452899075,
+          "twiceCarrierSizeMm": 0.48307739997687893
+        }
+      ],
+      "diluteCapacitySensitivities": [
+        {
+          "dmm": 0.5,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.004919528411652101,
+          "eligibleCountercurrentM3H": 0.029659660005181124
+        },
+        {
+          "dmm": 0.5,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.005126666450037452,
+          "eligibleCountercurrentM3H": 0.1425587437700125
+        },
+        {
+          "dmm": 1,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.004919528411652101,
+          "eligibleCountercurrentM3H": 0.11888839995130154
+        },
+        {
+          "dmm": 1,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.005126666450037452,
+          "eligibleCountercurrentM3H": 0.5887024435006147
+        },
+        {
+          "dmm": 1.5,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.004919528411652101,
+          "eligibleCountercurrentM3H": 0.20308409609821457
+        },
+        {
+          "dmm": 1.5,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.005126666450037452,
+          "eligibleCountercurrentM3H": 1.0096809242351796
+        },
+        {
+          "dmm": 2,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.004919528411652101,
+          "eligibleCountercurrentM3H": 0.28108297439747526
+        },
+        {
+          "dmm": 2,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.005126666450037452,
+          "eligibleCountercurrentM3H": 1.399675315731483
+        },
+        {
+          "dmm": 3,
+          "assumedAlpha": 0.01,
+          "velocityMS": 0.004919528411652101,
+          "eligibleCountercurrentM3H": 0.4237155859950632
+        },
+        {
+          "dmm": 3,
+          "assumedAlpha": 0.05,
+          "velocityMS": 0.005126666450037452,
+          "eligibleCountercurrentM3H": 2.112838373719423
+        }
+      ]
+    }
+  ],
+  "propertySensitivity": [
+    {
+      "side": "top",
+      "muFactor": 0.7,
+      "deltaDensityFactor": 0.8,
+      "sizeFor2xDesignSlipMm": 1.5660938045366501
+    },
+    {
+      "side": "top",
+      "muFactor": 0.7,
+      "deltaDensityFactor": 1,
+      "sizeFor2xDesignSlipMm": 1.3990193751597106
+    },
+    {
+      "side": "top",
+      "muFactor": 0.7,
+      "deltaDensityFactor": 1.2,
+      "sizeFor2xDesignSlipMm": 1.2759159144525478
+    },
+    {
+      "side": "top",
+      "muFactor": 1,
+      "deltaDensityFactor": 0.8,
+      "sizeFor2xDesignSlipMm": 1.8682120851105581
+    },
+    {
+      "side": "top",
+      "muFactor": 1,
+      "deltaDensityFactor": 1,
+      "sizeFor2xDesignSlipMm": 1.6691436718680457
+    },
+    {
+      "side": "top",
+      "muFactor": 1,
+      "deltaDensityFactor": 1.2,
+      "sizeFor2xDesignSlipMm": 1.5224359774548861
+    },
+    {
+      "side": "top",
+      "muFactor": 1.3,
+      "deltaDensityFactor": 0.8,
+      "sizeFor2xDesignSlipMm": 2.1273559768322885
+    },
+    {
+      "side": "top",
+      "muFactor": 1.3,
+      "deltaDensityFactor": 1,
+      "sizeFor2xDesignSlipMm": 1.900852914692485
+    },
+    {
+      "side": "top",
+      "muFactor": 1.3,
+      "deltaDensityFactor": 1.2,
+      "sizeFor2xDesignSlipMm": 1.7339036508810233
+    },
+    {
+      "side": "bottom",
+      "muFactor": 0.7,
+      "deltaDensityFactor": 0.8,
+      "sizeFor2xDesignSlipMm": 0.21200146036365444
+    },
+    {
+      "side": "bottom",
+      "muFactor": 0.7,
+      "deltaDensityFactor": 1,
+      "sizeFor2xDesignSlipMm": 0.18895291407288362
+    },
+    {
+      "side": "bottom",
+      "muFactor": 0.7,
+      "deltaDensityFactor": 1.2,
+      "sizeFor2xDesignSlipMm": 0.17202614209950473
+    },
+    {
+      "side": "bottom",
+      "muFactor": 1,
+      "deltaDensityFactor": 0.8,
+      "sizeFor2xDesignSlipMm": 0.2519978451188626
+    },
+    {
+      "side": "bottom",
+      "muFactor": 1,
+      "deltaDensityFactor": 1,
+      "sizeFor2xDesignSlipMm": 0.224689733569243
+    },
+    {
+      "side": "bottom",
+      "muFactor": 1,
+      "deltaDensityFactor": 1.2,
+      "sizeFor2xDesignSlipMm": 0.2046234588361951
+    },
+    {
+      "side": "bottom",
+      "muFactor": 1.3,
+      "deltaDensityFactor": 0.8,
+      "sizeFor2xDesignSlipMm": 0.2862736787991461
+    },
+    {
+      "side": "bottom",
+      "muFactor": 1.3,
+      "deltaDensityFactor": 1,
+      "sizeFor2xDesignSlipMm": 0.255318338406043
+    },
+    {
+      "side": "bottom",
+      "muFactor": 1.3,
+      "deltaDensityFactor": 1.2,
+      "sizeFor2xDesignSlipMm": 0.23256348615986977
+    }
+  ],
+  "pipes": [
+    {
+      "DN": 25,
+      "odMm": 33.4,
+      "wallMm": 3.38,
+      "boreMm": 26.64
+    },
+    {
+      "DN": 40,
+      "odMm": 48.3,
+      "wallMm": 3.68,
+      "boreMm": 40.94
+    },
+    {
+      "DN": 50,
+      "odMm": 60.3,
+      "wallMm": 3.91,
+      "boreMm": 52.48
+    },
+    {
+      "DN": 65,
+      "odMm": 73,
+      "wallMm": 5.16,
+      "boreMm": 62.68
+    },
+    {
+      "DN": 80,
+      "odMm": 88.9,
+      "wallMm": 5.49,
+      "boreMm": 77.92
+    },
+    {
+      "DN": 100,
+      "odMm": 114.3,
+      "wallMm": 6.02,
+      "boreMm": 102.25999999999999
+    }
+  ],
+  "nozzles": [
+    {
+      "tag": "P01",
+      "service": "RRBO feed",
+      "side": "bottom",
+      "qM3H": 4,
+      "rho": 869,
+      "mu": 0.0598,
+      "selectedDN": 65,
+      "requiredBoreAt120PercentAnd05MSMm": 58.26924963157755,
+      "candidates": [
+        {
+          "DN": 40,
+          "boreMm": 40.94,
+          "areaM2": 0.001316392981140583,
+          "nominalVelocityMS": 0.8440573043380964,
+          "designVelocityMS": 1.0128687652057158,
+          "Re": 602.5867936136558,
+          "DarcyFrictionFactor": 0.10620876640226062,
+          "regime": "laminar",
+          "momentumForceN": 1.1735772759516894,
+          "dynamicPressurePa": 445.75491238750317,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 346.9204643069698,
+          "assumedK3LocalLossPa": 1337.2647371625094,
+          "assumedK1to10TotalLossPa": [
+            792.675376694473,
+            4804.469588182002
+          ],
+          "selected": false
+        },
+        {
+          "DN": 50,
+          "boreMm": 52.48,
+          "areaM2": 0.0021631046658803473,
+          "nominalVelocityMS": 0.5136649782311424,
+          "designVelocityMS": 0.6163979738773709,
+          "Re": 470.0819994387018,
+          "DarcyFrictionFactor": 0.13614645971642983,
+          "regime": "laminar",
+          "momentumForceN": 0.7141997857325805,
+          "dynamicPressurePa": 165.08673782595565,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 128.48308823059233,
+          "assumedK3LocalLossPa": 495.26021347786696,
+          "assumedK1to10TotalLossPa": [
+            293.569826056548,
+            1779.3504664901488
+          ],
+          "selected": false
+        },
+        {
+          "DN": 65,
+          "boreMm": 62.68,
+          "areaM2": 0.003085658481348219,
+          "nominalVelocityMS": 0.36008881664235004,
+          "designVelocityMS": 0.43210657997082,
+          "Re": 393.5849286940501,
+          "DarcyFrictionFactor": 0.16260785242046158,
+          "regime": "laminar",
+          "momentumForceN": 0.5006674906595235,
+          "dynamicPressurePa": 81.12814390929718,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 63.140108098032705,
+          "assumedK3LocalLossPa": 243.38443172789152,
+          "assumedK1to10TotalLossPa": [
+            144.26825200732986,
+            874.4215471910045
+          ],
+          "selected": true
+        },
+        {
+          "DN": 80,
+          "boreMm": 77.92,
+          "areaM2": 0.004768565683579121,
+          "nominalVelocityMS": 0.23300740407902895,
+          "designVelocityMS": 0.2796088848948347,
+          "Re": 316.6055355562508,
+          "DarcyFrictionFactor": 0.20214428622530897,
+          "regime": "laminar",
+          "momentumForceN": 0.32397349463148184,
+          "dynamicPressurePa": 33.969700338521754,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 26.437811196938334,
+          "assumedK3LocalLossPa": 101.90910101556526,
+          "assumedK1to10TotalLossPa": [
+            60.40751153546009,
+            366.13481458215585
+          ],
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "P02",
+      "service": "extract outlet",
+      "side": "bottom",
+      "qM3H": 2.2491886077781142,
+      "rho": 1015,
+      "mu": 0.001416,
+      "selectedDN": 50,
+      "requiredBoreAt120PercentAnd05MSMm": 43.694056643826826,
+      "candidates": [
+        {
+          "DN": 40,
+          "boreMm": 40.94,
+          "areaM2": 0.001316392981140583,
+          "nominalVelocityMS": 0.4746110183072878,
+          "designVelocityMS": 0.5695332219687453,
+          "Re": 16713.587894782093,
+          "DarcyFrictionFactor": 0.029342017659509056,
+          "regime": "turbulent",
+          "momentumForceN": 0.43340081637410505,
+          "dynamicPressurePa": 164.61680614499585,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 35.39464508762907,
+          "assumedK3LocalLossPa": 493.85041843498755,
+          "assumedK1to10TotalLossPa": [
+            200.0114512326249,
+            1681.5627065375875
+          ],
+          "selected": false
+        },
+        {
+          "DN": 50,
+          "boreMm": 52.48,
+          "areaM2": 0.0021631046658803473,
+          "nominalVelocityMS": 0.2888323543130196,
+          "designVelocityMS": 0.3465988251756235,
+          "Re": 13038.382020052948,
+          "DarcyFrictionFactor": 0.030475695107593355,
+          "regime": "turbulent",
+          "momentumForceN": 0.2637532069967017,
+          "dynamicPressurePa": 60.966353398659635,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 10.62114328124622,
+          "assumedK3LocalLossPa": 182.8990601959789,
+          "assumedK1to10TotalLossPa": [
+            71.58749667990585,
+            620.2846772678427
+          ],
+          "selected": true
+        },
+        {
+          "DN": 65,
+          "boreMm": 62.68,
+          "areaM2": 0.003085658481348219,
+          "nominalVelocityMS": 0.202476916045069,
+          "designVelocityMS": 0.2429722992540828,
+          "Re": 10916.628723873306,
+          "DarcyFrictionFactor": 0.031519179779370764,
+          "regime": "turbulent",
+          "momentumForceN": 0.18489596180008566,
+          "dynamicPressurePa": 29.960535638943902,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 4.519774293666805,
+          "assumedK3LocalLossPa": 89.88160691683171,
+          "assumedK1to10TotalLossPa": [
+            34.48030993261071,
+            304.12513068310585
+          ],
+          "selected": false
+        },
+        {
+          "DN": 80,
+          "boreMm": 77.92,
+          "areaM2": 0.004768565683579121,
+          "nominalVelocityMS": 0.1310193996956259,
+          "designVelocityMS": 0.15722327963475108,
+          "Re": 8781.497541226627,
+          "DarcyFrictionFactor": 0.033049022110417804,
+          "regime": "turbulent",
+          "momentumForceN": 0.11964306052449161,
+          "dynamicPressurePa": 12.54497352699687,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 1.5962491303965305,
+          "assumedK3LocalLossPa": 37.63492058099061,
+          "assumedK1to10TotalLossPa": [
+            14.141222657393401,
+            127.04598440036524
+          ],
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "P03",
+      "service": "fresh wet NMP feed",
+      "side": "top",
+      "qM3H": 2.0547783251231526,
+      "rho": 1015,
+      "mu": 0.001416,
+      "selectedDN": 50,
+      "requiredBoreAt120PercentAnd05MSMm": 41.76302207464943,
+      "candidates": [
+        {
+          "DN": 40,
+          "boreMm": 40.94,
+          "areaM2": 0.001316392981140583,
+          "nominalVelocityMS": 0.4335876635289492,
+          "designVelocityMS": 0.520305196234739,
+          "Re": 15268.936550040935,
+          "DarcyFrictionFactor": 0.029890159357522414,
+          "regime": "turbulent",
+          "momentumForceN": 0.3617161724223905,
+          "dynamicPressurePa": 137.38912984365166,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 30.09220555704509,
+          "assumedK3LocalLossPa": 412.167389530955,
+          "assumedK1to10TotalLossPa": [
+            167.48133540069674,
+            1403.9835039935617
+          ],
+          "selected": false
+        },
+        {
+          "DN": 50,
+          "boreMm": 52.48,
+          "areaM2": 0.0021631046658803473,
+          "nominalVelocityMS": 0.2638669159110518,
+          "designVelocityMS": 0.3166402990932622,
+          "Re": 11911.399816285746,
+          "DarcyFrictionFactor": 0.031114294607343763,
+          "regime": "turbulent",
+          "momentumForceN": 0.22012833592963585,
+          "dynamicPressurePa": 50.88249759750929,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 9.05015065133212,
+          "assumedK3LocalLossPa": 152.64749279252788,
+          "assumedK1to10TotalLossPa": [
+            59.93264824884141,
+            517.8751266264251
+          ],
+          "selected": true
+        },
+        {
+          "DN": 65,
+          "boreMm": 62.68,
+          "areaM2": 0.003085658481348219,
+          "nominalVelocityMS": 0.1849756738889865,
+          "designVelocityMS": 0.2219708086667838,
+          "Re": 9973.041837247541,
+          "DarcyFrictionFactor": 0.032224673288026494,
+          "regime": "turbulent",
+          "momentumForceN": 0.15431410618514807,
+          "dynamicPressurePa": 25.00505274934436,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 3.8566352364270453,
+          "assumedK3LocalLossPa": 75.01515824803309,
+          "assumedK1to10TotalLossPa": [
+            28.861687985771404,
+            253.90716272987066
+          ],
+          "selected": false
+        },
+        {
+          "DN": 80,
+          "boreMm": 77.92,
+          "areaM2": 0.004768565683579121,
+          "nominalVelocityMS": 0.11969464087370017,
+          "designVelocityMS": 0.1436335690484402,
+          "Re": 8022.462299264322,
+          "DarcyFrictionFactor": 0.03384024165430809,
+          "regime": "turbulent",
+          "momentumForceN": 0.09985405720247563,
+          "dynamicPressurePa": 10.47003059497847,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 1.3641235836578687,
+          "assumedK3LocalLossPa": 31.41009178493541,
+          "assumedK1to10TotalLossPa": [
+            11.83415417863634,
+            106.06442953344256
+          ],
+          "selected": false
+        }
+      ]
+    },
+    {
+      "tag": "P04",
+      "service": "raffinate outlet",
+      "side": "top",
+      "qM3H": 3.821794230337958,
+      "rho": 869,
+      "mu": 0.0598,
+      "selectedDN": 65,
+      "requiredBoreAt120PercentAnd05MSMm": 56.95647195245959,
+      "candidates": [
+        {
+          "DN": 40,
+          "boreMm": 40.94,
+          "areaM2": 0.001316392981140583,
+          "nominalVelocityMS": 0.8064533339484866,
+          "designVelocityMS": 0.9677440007381839,
+          "Re": 575.7406827776298,
+          "DarcyFrictionFactor": 0.11116115625395007,
+          "regime": "laminar",
+          "momentumForceN": 1.071337507675467,
+          "dynamicPressurePa": 406.9216119441822,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 331.4646572186356,
+          "assumedK3LocalLossPa": 1220.7648358325466,
+          "assumedK1to10TotalLossPa": [
+            738.3862691628177,
+            4400.680776660457
+          ],
+          "selected": false
+        },
+        {
+          "DN": 50,
+          "boreMm": 52.48,
+          "areaM2": 0.0021631046658803473,
+          "nominalVelocityMS": 0.49078046253261315,
+          "designVelocityMS": 0.5889365550391358,
+          "Re": 449.13916831014035,
+          "DarcyFrictionFactor": 0.14249480899382752,
+          "regime": "laminar",
+          "momentumForceN": 0.6519800903682399,
+          "dynamicPressurePa": 150.7047025167631,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 122.75898132392008,
+          "assumedK3LocalLossPa": 452.1141075502893,
+          "assumedK1to10TotalLossPa": [
+            273.4636838406832,
+            1629.806006491551
+          ],
+          "selected": false
+        },
+        {
+          "DN": 65,
+          "boreMm": 62.68,
+          "areaM2": 0.003085658481348219,
+          "nominalVelocityMS": 0.34404634046323906,
+          "designVelocityMS": 0.4128556085558869,
+          "Re": 376.0501524077244,
+          "DarcyFrictionFactor": 0.1701900653150364,
+          "regime": "laminar",
+          "momentumForceN": 0.45705031326747037,
+          "dynamicPressurePa": 74.06041790272447,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 60.3271252079941,
+          "assumedK3LocalLossPa": 222.18125370817341,
+          "assumedK1to10TotalLossPa": [
+            134.38754311071855,
+            800.9313042352387
+          ],
+          "selected": true
+        },
+        {
+          "DN": 80,
+          "boreMm": 77.92,
+          "areaM2": 0.004768565683579121,
+          "nominalVelocityMS": 0.2226265881338145,
+          "designVelocityMS": 0.2671519057605774,
+          "Re": 302.50030227048467,
+          "DarcyFrictionFactor": 0.21157003652437195,
+          "regime": "laminar",
+          "momentumForceN": 0.29574955429325384,
+          "dynamicPressurePa": 31.010326156530414,
+          "assumedNeckLengthM": 0.3,
+          "straightNeckLossPa": 25.2599685738058,
+          "assumedK3LocalLossPa": 93.03097846959125,
+          "assumedK1to10TotalLossPa": [
+            56.27029473033622,
+            335.36323013910993
+          ],
+          "selected": false
+        }
+      ]
+    }
+  ],
+  "distributorAllowances": [
+    {
+      "service": "RRBO feed",
+      "assumedExitVelocityMS": 0.1,
+      "totalOpenAreaM2": 0.013333333333333332,
+      "equivalentOpenDiameterMm": 130.29400317411196,
+      "holeCountIf10mm": 170,
+      "dynamicPressurePa": 4.345000000000001
+    },
+    {
+      "service": "fresh wet NMP feed",
+      "assumedExitVelocityMS": 0.1,
+      "totalOpenAreaM2": 0.0068492610837438414,
+      "equivalentOpenDiameterMm": 93.3849563047404,
+      "holeCountIf10mm": 88,
+      "dynamicPressurePa": 5.075000000000001
+    }
+  ],
+  "performance": [
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.02,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.9607843137254901,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.02,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.9607843137254901,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.02,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.9607843137254901,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.02,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.9607843137254901,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0.005,
+      "physicalOutletKgPerKgCarrier": 0.015,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.4778325123152711,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0.01,
+      "physicalOutletKgPerKgCarrier": 0.01,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 0.9900990099009901,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.02,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.9607843137254901,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0.009000000000000001,
+      "physicalOutletKgPerKgCarrier": 0.011,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 1.0880316518298714,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.02,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0.018000000000000002,
+      "physicalOutletKgPerKgCarrier": 0.0019999999999999983,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 0.19960079840319345,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.1,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 9.09090909090909,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.1,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 9.09090909090909,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.1,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 9.09090909090909,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.1,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 9.09090909090909,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0.025,
+      "physicalOutletKgPerKgCarrier": 0.07500000000000001,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 6.9767441860465125,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0.05,
+      "physicalOutletKgPerKgCarrier": 0.05,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 4.761904761904762,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.1,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 9.09090909090909,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0.045000000000000005,
+      "physicalOutletKgPerKgCarrier": 0.055,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 5.213270142180095,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.1,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0.09000000000000001,
+      "physicalOutletKgPerKgCarrier": 0.009999999999999995,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 0.9900990099009896,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0.4736842105263158
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.25,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 20,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.25,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 20,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.25,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 20,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.25,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 20,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0.0625,
+      "physicalOutletKgPerKgCarrier": 0.1875,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 15.789473684210526,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0.5,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0.125,
+      "physicalOutletKgPerKgCarrier": 0.125,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 11.11111111111111,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 0,
+      "returnedKgPerKgCarrier": 0,
+      "physicalOutletKgPerKgCarrier": 0.25,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 20,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 0.5,
+      "returnedKgPerKgCarrier": 0.1125,
+      "physicalOutletKgPerKgCarrier": 0.1375,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 12.08791208791209,
+      "below5": false,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    },
+    {
+      "assumedGrossLoadingKgPerKgCarrier": 0.25,
+      "assumedEligibleFluxFraction": 0.9,
+      "assumedActualReturnFractionOfEligible": 1,
+      "returnedKgPerKgCarrier": 0.225,
+      "physicalOutletKgPerKgCarrier": 0.024999999999999994,
+      "normalizedInventoryRate": 0,
+      "physicalNmpWtPercent": 2.4390243902439024,
+      "below5": true,
+      "requiredOverallReturnFractionForStrict5": 0.7894736842105263
+    }
+  ],
+  "physicalOnlyCarrierProxy": [
+    {
+      "trialN": 4,
+      "carrierProxyKgH": 3321.1391861636857,
+      "strict5PercentMaximumDispersedNmpKgH": 174.79679927177293
+    },
+    {
+      "trialN": 7,
+      "carrierProxyKgH": 3278.6735631052175,
+      "strict5PercentMaximumDispersedNmpKgH": 172.56176647922197
+    }
+  ],
+  "checks": {
+    "totalAndComponentMassBalances": true,
+    "forceBalances": true,
+    "activeGeometry": true,
+    "sourceHashesUnchanged": true
+  }
+}

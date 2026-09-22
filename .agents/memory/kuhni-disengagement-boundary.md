@@ -62,3 +62,9 @@ Use one frozen Stage-20 boundary contract across all candidate tops, retaining l
 **Why:** The user explicitly approved this methodology and requires steady operation with bounded NMP inventory; a low outlet obtained through indefinite accumulation is a failed design.
 
 **How to apply:** The terminal domain must include the final rotor compartment, actual plate openings/thickness and both faces. Export axial/radial/tangential velocity and pressure with source-labelled bidirectional droplet flux, recrossings and unresolved contact inventory. Preserve top-flow feedback when transferring boundaries; compare candidate outlet and physically closed return at the same duty, never replace lower-face return with upper-face crossing.
+
+The user clarified that “both sections” means top raffinate and bottom extract disengagement sections, including their nozzles—not resizing the active extraction column.
+
+**Why:** The wording “extraction section” was ambiguous; the user explicitly selected the two disengagement ends with Ø700/20 stages preserved.
+
+**How to apply:** Include independent bottom phase-inverted separation and process-nozzle calculations. Do not invent a bottom carryunder specification or promote illustrative end diameters/heights to selected dimensions before coupled separation and return qualification.

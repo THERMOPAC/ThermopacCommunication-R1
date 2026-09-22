@@ -1731,3 +1731,17 @@ mtime_ms = 1790013401690
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/c9420d1d-92da-4ab5-b233-bc9fbb3f4b9b/308e90e4-dd28-4c55-907d-2b0c7c2d8087"
 storage_version_token = "1790015875753832"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "y4-R3NuhgU9rTYP-twY5f"
+uri = "file://deliverables/end-sections-sizing.md"
+type = "text"
+title = "Top and bottom disengagement sections — preliminary calculations"
+description = "Independent hydraulic comparisons for both ends, process-nozzle bore calculations and explicit limits. Active Ø700/20-stage geometry unchanged; final end dimensions and separation performance not yet qualified."
+logical_id = "3b682897-42cb-4598-b3f7-779e65f22127"
+content_hash = "sha256:1a88752525761e2d45dbf72e664452cdbe9a3af16d3b4a10d0a11d9357f2a99c"
+size = 19164
+mtime_ms = 1790048632792
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/3b682897-42cb-4598-b3f7-779e65f22127/ba795585-aa34-470e-8f28-927dee2047e3"
+storage_version_token = "1790048658924920"
+content_type = "text/markdown"
