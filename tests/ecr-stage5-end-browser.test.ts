@@ -30,7 +30,9 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
     const dir = resolve("screenshots");
     mkdirSync(dir, { recursive: true });
     const download = resolve(dir, "stage5-conditional-end-assemblies.svg");
+    const gaDownload = resolve(dir, "stage5-current-conditional-ga.svg");
     if (existsSync(download)) rmSync(download);
+    if (existsSync(gaDownload)) rmSync(gaDownload);
     const browser = await puppeteer.launch({
       executablePath: execSync("command -v chromium", { encoding: "utf8" }).trim(),
       headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"],
@@ -69,6 +71,7 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
           sourceHash: "fixture-end-current", stage1Hash: "fixture-stage1",
           active: { revisionId: "501", diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 } };
           if (p.endsWith("export.svg")) return void q.respond({ status: 200, contentType: "image/svg+xml", body: renderEndSchematic(result) });
+          if (p.endsWith("ga.svg")) return void q.respond({ status: 200, contentType: "image/svg+xml", body: renderEndSchematic(result, "ga") });
           return send(result);
         }
         if (p.startsWith("/api/")) return send([]);
@@ -80,14 +83,23 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
         await page.waitForFunction(() => [...document.querySelectorAll("button")].some(b => b.textContent?.includes("REV 2")));
         await page.$$eval("button", bs => bs.find(b => b.textContent?.includes("REV 2"))?.click());
         await page.waitForSelector('[data-testid="end-assembly-schematic"] svg');
+        await page.waitForSelector('[data-testid="stage5-current-ga"] [data-part="integrated-frozen-active"]');
       };
       await page.goto(`${process.env.END_BROWSER_ORIGIN}/design-software/ecr-pre-pilot-design/stage-5`, { waitUntil: "domcontentloaded" });
       await openSaved();
+      const activeBefore = await page.$eval('[data-testid="stage5-current-ga"] [data-part="integrated-frozen-active"]', el => el.outerHTML);
+      const historicalBefore = JSON.stringify(revision);
       expect(new URL(page.url()).pathname).toBe("/design-software/ecr-pre-pilot-design/stage-5");
       await page.select('select[aria-label="top comparison diameter"]', "1");
       await page.select('select[aria-label="bottom comparison diameter"]', "1.2");
       await page.waitForFunction(() => document.querySelector('[data-testid="stage5-end-sections"]')?.textContent?.includes("bottom assembly · Ø1200 mm"));
       expect(calculations.at(-1)).toContain("topDiameterM=1&bottomDiameterM=1.2");
+      await page.waitForFunction(() => document.querySelector('[data-testid="stage5-current-ga"] [data-end-profile="top"]')?.getAttribute("data-shell-width") === "210"
+        && document.querySelector('[data-testid="stage5-current-ga"] [data-end-profile="bottom"]')?.getAttribute("data-shell-width") === "252");
+      expect(await page.$eval('[data-testid="stage5-current-ga"] [data-part="integrated-frozen-active"]', el => el.outerHTML)).toBe(activeBefore);
+      expect(JSON.stringify(revision)).toBe(historicalBefore);
+      expect(await page.$$eval("button", bs => bs.some(b => b.textContent?.trim() === "Historical PDF package"))).toBe(true);
+      expect(await page.$$eval("button", bs => bs.some(b => b.textContent?.trim() === "Historical SVG view"))).toBe(true);
       await click("Save end selections");
       await page.waitForFunction(() => document.querySelector('[data-testid="end-selection-currentness"]')?.textContent?.includes("SAVED COMPARISONS"));
       expect(writes).toEqual([{ topDiameterM: 1, bottomDiameterM: 1.2, expectedSourceHash: "fixture-end-current" }]);
@@ -105,12 +117,31 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
       expect(readFileSync(download, "utf8")).toContain("PENDING NORMAL PRODUCT AUTHORITY");
       expect(readFileSync(download, "utf8")).toContain("S/O=1.5 MASS FOR NOZZLES ONLY");
       expect(readFileSync(download, "utf8")).toContain("NOT TO SCALE");
+      const displayedGa = await page.$eval('[data-testid="stage5-current-ga"] svg[data-projection="current-conditional-ga"]', el => el.outerHTML);
+      await click("Current conditional GA SVG");
+      await expect.poll(() => existsSync(gaDownload), { timeout: 10000 }).toBe(true);
+      const exportedGa = readFileSync(gaDownload, "utf8");
+      expect(exportedGa).toContain('data-projection="current-conditional-ga"');
+      expect(exportedGa).toContain('data-shell-width="210"');
+      expect(exportedGa).toContain('data-shell-width="252"');
+      expect(exportedGa).toContain('data-active-height-m="4.2"');
+      expect(displayedGa).toContain('data-active-height-m="4.2"');
       const panel = await page.$('[data-testid="stage5-end-sections"]');
       await panel!.evaluate(el => el.scrollIntoView({ block: "start" }));
       await page.screenshot({ path: resolve(dir, "end-sections.png"), fullPage: false });
+      // The app has an inner scrolling layout. Give the full GA sufficient
+      // viewport height and scroll that element explicitly, avoiding a clipped
+      // element screenshot that would hide the top header or bottom dish.
+      await page.setViewport({ width: 1440, height: 2200 });
+      const gaPanel = await page.$('[data-testid="stage5-current-ga"]');
+      await gaPanel!.evaluate(el => el.scrollIntoView({ block: "start" }));
+      await gaPanel!.screenshot({ path: resolve(dir, "stage5-current-ga.png") });
       reject = true; await click("Refresh authority");
       await page.waitForFunction(() => document.querySelector('[data-testid="stage5-end-sections"]')?.textContent?.includes("STAGE5_END_SOURCE_CHANGED"));
       expect(await page.$('[data-testid="end-assembly-schematic"]')).toBeNull();
+      expect(await page.$('[data-testid="stage5-current-ga"]')).toBeNull();
+      expect(await page.$('[data-testid="stage5-current-ga-unavailable"]')).not.toBeNull();
+      expect(await page.$eval('[data-testid="export-current-ga"]', el => (el as HTMLButtonElement).disabled)).toBe(true);
       expect(await page.$$eval("button", bs => bs.find(b => b.textContent?.trim() === "Save end selections")?.disabled)).toBe(true);
       expect(errors).toEqual([]);
     } finally { await browser.close(); }

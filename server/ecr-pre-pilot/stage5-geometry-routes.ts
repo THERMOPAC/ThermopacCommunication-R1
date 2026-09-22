@@ -62,15 +62,15 @@ export function setupStage5GeometryRoutes(app: Express) {
       topDiameterM: body.topDiameterM, bottomDiameterM: body.bottomDiameterM,
     }, body.expectedSourceHash));
   }));
-  app.get(`${base}/revisions/:revisionId/end-sections/export.svg`, ensureAuthenticated, handle(async (q, r, u, d) => {
+  for (const mode of ['assemblies', 'ga'] as const) app.get(`${base}/revisions/:revisionId/end-sections/${mode === 'ga' ? 'ga.svg' : 'export.svg'}`, ensureAuthenticated, handle(async (q, r, u, d) => {
     if (Object.keys(q.query).some(k => !['topDiameterM', 'bottomDiameterM', 'expectedSourceHash'].includes(k)))
       throw new Stage5Error('STAGE5_END_UNSUPPORTED_INPUT', 400);
     const result = await getStage5EndSections(u, d, String(q.params.revisionId), {
       topDiameterM: Number(q.query.topDiameterM), bottomDiameterM: Number(q.query.bottomDiameterM),
     });
     if (q.query.expectedSourceHash !== result.sourceHash) throw new Stage5Error('STAGE5_END_SOURCE_CHANGED');
-    r.setHeader('Content-Disposition', 'attachment; filename="stage5-conditional-end-assemblies.svg"');
-    return r.type('image/svg+xml').send(renderEndSchematic(result));
+    r.setHeader('Content-Disposition', `attachment; filename="${mode === 'ga' ? 'stage5-current-conditional-ga' : 'stage5-conditional-end-assemblies'}.svg"`);
+    return r.type('image/svg+xml').send(renderEndSchematic(result, mode));
   }));
   app.get(`${base}/revisions`, ensureAuthenticated, handle(async (q, r, u, d) => {
     return r.json(q.query.payload === 'summary'

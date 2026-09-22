@@ -124,7 +124,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
     const page = await open(width);
     try {
       const root = '[data-testid="stage5-page"]';
-      expect(await page.$$eval(`${root} input, ${root} select, ${root} textarea`, nodes => nodes.length)).toBe(0);
+      expect(await page.$$eval(`${root} input, ${root} select, ${root} textarea`, nodes => nodes.filter(n => !n.closest('[data-testid="stage5-end-sections"]')).length)).toBe(0);
       expect(await page.$eval(root, el => el.textContent)).toContain(R1_COMPLETE);
       expect(await page.$eval(root, el => el.textContent)).toContain(R1_WATERMARK);
       const validation = await page.$eval('[data-testid="stage5-validation-summary"]', el => el.textContent ?? "");
@@ -141,6 +141,10 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
         ["Rotor detail", "rotor"], ["Stator detail", "stator"],
       ]) {
         await click(page, label);
+        if (view === "ga") {
+          await page.waitForSelector('[data-testid="stage5-current-ga-unavailable"]');
+          continue; // Unsaved active preview is not current end-GA authority.
+        }
         await page.waitForSelector(`[data-testid="stage5-drawing-${view}"] svg`, { timeout: 5000 });
         const drawing = await page.$(`[data-testid="stage5-drawing-${view}"]`);
         expect(await drawing!.evaluate(el => el.textContent)).toContain(R1_WATERMARK);
@@ -183,15 +187,15 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       for (const [label, view] of [["General arrangement","ga"],["Longitudinal section","section"],["Typical compartment","compartment"],["Rotor detail","rotor"],["Stator detail","stator"]]) {
         const file = `${artifactDir}/stage5-r3-dimensioned-v2-${view}.svg`;
         if (existsSync(file)) rmSync(file);
-        await click(page, label); await click(page, "SVG view");
+        await click(page, label); await click(page, "Historical SVG view");
         await expect.poll(() => existsSync(file), { timeout: 10000 }).toBe(true);
         expect(readFileSync(file, "utf8")).toContain("NOT FOR FABRICATION");
-        const drawing = await page.$(`[data-testid="stage5-drawing-${view}"]`);
+        const drawing = await page.$(view === "ga" ? '[data-testid="stage5-current-ga-unavailable"]' : `[data-testid="stage5-drawing-${view}"]`);
         await drawing!.screenshot({ path: `${artifactDir}/fixture-browser-${view}-saved-desktop.png` });
       }
       const pdf = `${artifactDir}/stage5-r3-dimensioned-v2.pdf`;
       if (existsSync(pdf)) rmSync(pdf);
-      await click(page, "PDF package");
+      await click(page, "Historical PDF package");
       await expect.poll(() => existsSync(pdf), { timeout: 10000 }).toBe(true);
       expect(readFileSync(pdf).subarray(0, 5).toString()).toBe("%PDF-");
       const dataPdf = `${artifactDir}/stage5-r3-design-data.pdf`;
@@ -210,7 +214,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
     try {
       await page.$$eval("button", buttons => buttons.find(b => b.textContent?.includes("REV 2"))?.click());
       await page.waitForFunction(() => document.body.innerText.includes("Frozen revision 2"));
-      await click(page, "SVG view");
+      await click(page, "Historical SVG view");
       await page.waitForFunction(() => document.body.innerText.includes("STAGE5_FIXTURE_EXPORT_DENIED"));
     } finally { failDownload = false; await page.close(); }
   });
@@ -222,8 +226,10 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       await page.$$eval("button", buttons => buttons.find(b => b.textContent?.includes("REV 1"))?.click());
       await page.waitForFunction(() => document.body.innerText.includes("Historical pre-R1 snapshot"));
       expect(requests).toHaveLength(before);
-      expect(await page.$$eval('[data-testid="stage5-page"] input, [data-testid="stage5-page"] select', nodes => nodes.length)).toBe(0);
-      expect(await page.$eval('[data-testid="stage5-drawing-ga"]', el => el.textContent)).toContain("Net free area");
+      expect(await page.$$eval('[data-testid="stage5-page"] input, [data-testid="stage5-page"] select', nodes => nodes.filter(n => !n.closest('[data-testid="stage5-end-sections"]')).length)).toBe(0);
+      expect(await page.$('[data-testid="stage5-current-ga-unavailable"]')).not.toBeNull();
+      await click(page, "Longitudinal section");
+      expect(await page.$('[data-testid="stage5-drawing-section"] svg')).not.toBeNull();
     } finally { await page.close(); }
   });
   it("shows only failed and unresolved validation rows and never hides TBD items", async () => {
@@ -267,7 +273,7 @@ describe.sequential("automatic R1 Stage5 browser workflow", () => {
       expect(await page.$$eval("button", buttons => (buttons.find(b => b.textContent?.includes("Save immutable revision")) as HTMLButtonElement).disabled)).toBe(true);
       expect(requests.some(r => r.path.endsWith("/revisions"))).toBe(false);
       await page.$$eval("button", buttons => buttons.find(b => b.textContent?.includes("REV 1"))?.click());
-      await page.waitForSelector('[data-testid="stage5-drawing-ga"]');
+      await page.waitForSelector('[data-testid="stage5-current-ga-unavailable"]');
     } finally { await page.close(); }
   });
 });

@@ -76,7 +76,7 @@ describe('Stage 5 HTTP boundary', () => {
     })).statusCode).toBe(400);
   });
   it('protects all endpoints and exposes no mutation of existing revisions', () => {
-    expect(routes).toHaveLength(12);
+    expect(routes).toHaveLength(13);
     expect(routes.every(r => r.middleware[0] === calls.auth)).toBe(true);
     expect(routes.filter(r => r.method === 'post').map(r => r.path.split('/').at(-1))).toEqual(['end-sections', 'preview', 'revisions']);
   });
@@ -184,5 +184,22 @@ describe('independent end-section routes', () => {
     expect(r.body).toContain('fresh');
     expect(calls.save).not.toHaveBeenCalled();
     expect(calls.preview).not.toHaveBeenCalled();
+  });
+  it('exports current integrated GA from identical end authority and rejects stale export', async () => {
+    ends.calculate.mockResolvedValue({ ...calculateEndSections({
+      designFeedRateLph: 1000, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
+      oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
+    }, { topDiameterM: 1, bottomDiameterM: 1.2 }), sourceHash: 'fresh',
+    active: { revisionId: '1', diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 } });
+    const r = await request('/end-sections/ga.svg', 'get', {
+      query: { expectedSourceHash: 'fresh', topDiameterM: '1', bottomDiameterM: '1.2' },
+    });
+    expect(r.statusCode).toBe(200);
+    expect(r.body).toContain('data-projection="current-conditional-ga"');
+    expect(r.body).toContain('data-part="integrated-frozen-active"');
+    expect(r.headers['Content-Disposition']).toContain('stage5-current-conditional-ga.svg');
+    expect((await request('/end-sections/ga.svg', 'get', { query: { expectedSourceHash: 'old' } })).statusCode).toBe(409);
+    expect(calls.revisions).not.toHaveBeenCalled();
+    expect(calls.save).not.toHaveBeenCalled();
   });
 });

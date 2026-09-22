@@ -19,16 +19,19 @@ export function Stage5DrawingViewer({
   active,
   onSelect,
   frozenSvg,
+  projectionSvg,
 }: {
   geometry: unknown;
   view: Stage5View;
   active: boolean;
   onSelect: (view: Stage5View) => void;
   frozenSvg?: string;
+  /** Ephemeral, source-checked current projection; never a saved drawing. */
+  projectionSvg?: string;
 }) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  const rawSvg = frozenSvg ?? renderStage5Svg(geometry as never, view);
+  const rawSvg = projectionSvg ?? frozenSvg ?? renderStage5Svg(geometry as never, view);
   const svg = rawSvg;
   const viewport = rawSvg.match(/viewBox=["']\s*[\d.-]+\s+[\d.-]+\s+([\d.]+)\s+([\d.]+)["']/);
   const aspectRatio = viewport ? `${viewport[1]} / ${viewport[2]}` : "11 / 6";
@@ -38,7 +41,7 @@ export function Stage5DrawingViewer({
     <section data-testid={`stage5-drawing-${view}`} className={`overflow-hidden rounded-md border ${active ? "border-cyan-700 ring-1 ring-cyan-700/30" : "border-slate-300"} bg-white`}>
       <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
         <button type="button" onClick={() => onSelect(view)} className="text-left text-xs font-semibold text-slate-900">
-          {viewNames[view]}
+          {projectionSvg ? "Current conditional general arrangement" : viewNames[view]}
         </button>
         {active && (
           <div className="flex items-center gap-1">

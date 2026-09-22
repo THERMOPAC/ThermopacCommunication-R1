@@ -117,3 +117,8 @@ export function calculateEndSections(feed: EndFeedBasis, selections: EndSelectio
   };
 }
 export type EndSectionResult = ReturnType<typeof calculateEndSections>;
+export type Stage5EndProjection = EndSectionResult & {
+  sourceHash: string; stage1Hash: string;
+  normalProductAuthority?: { status: string; detail: string; holds: string[] };
+  active: { revisionId: string; sourceHash?: string; diameterM: number; compartmentCount: number; installedActiveHeightM: number };
+};

@@ -1,22 +1,22 @@
 import { useEffect, useState } from "react";
-import { END_DIAMETERS_M, END_SECTION_RULESET, type EndSectionResult, type EndSelections } from "@shared/ecr-stage5-end-sections";
+import { END_DIAMETERS_M, END_SECTION_RULESET, type Stage5EndProjection, type EndSelections } from "@shared/ecr-stage5-end-sections";
 import { Button } from "@/components/ui/button";
 import { renderEndSchematic } from "@shared/ecr-stage5-end-schematic";
 
-type Payload = EndSectionResult & { sourceHash: string; stage1Hash: string;
-  normalProductAuthority?: { status: string; detail: string; holds: string[] };
-  active: {
-  revisionId: string; diameterM: number; compartmentCount: number; installedActiveHeightM: number;
-} };
 const f = (n: number) => n.toFixed(3);
 const pending = "Pending source-qualified NORMAL product duty";
 const dimension = (n: number | null) => n === null ? "Pending" : `${f(n)} m`;
 
-export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash }: {
+export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash, onProjectionChange, refreshToken = 0 }: {
   designId: string | number; revisionId?: string | number; sourceHash?: string;
+  onProjectionChange?: (projection: Stage5EndProjection | null) => void;
+  refreshToken?: number;
 }) {
   const [selection, setSelection] = useState<EndSelections>({ topDiameterM: .9, bottomDiameterM: .9 });
-  const [result, setResult] = useState<Payload | null>(null);
+  const [result, storeResult] = useState<Stage5EndProjection | null>(null);
+  // One authoritative response powers the controls, schematic and page GA.
+  // Revocation is synchronous with selection edits, failures and refreshes.
+  const setResult = (value: Stage5EndProjection | null) => { storeResult(value); onProjectionChange?.(value); };
   const [error, setError] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ sourceHash: string; selection: EndSelections } | null>(null);
@@ -65,7 +65,7 @@ export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash }: {
     };
     void load();
     return () => controller.abort();
-  }, [designId, revisionId, sourceHash, selection, refresh, ready]);
+  }, [designId, revisionId, sourceHash, selection, refresh, refreshToken, ready]);
   // Revalidate authority on focus and periodically. Never retain a last-good result
   // when a new source request fails; selections are preferences, not qualification.
   useEffect(() => {

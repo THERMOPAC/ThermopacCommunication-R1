@@ -135,4 +135,22 @@ describe("independent end framework", () => {
     expect(topProfile(small)).toContain('y1="540"'); // top interface above active y=710
     expect(bottomProfile(small)).toContain('y1="340"'); // bottom interface below active y=170
   });
+  it("composes a coherent current GA while keeping the frozen active projection identical", () => {
+    const active = { revisionId: "1", sourceHash: "frozen", diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 };
+    const before = JSON.stringify(active);
+    const a = renderEndSchematic({ ...calculateEndSections(feed, selection), active }, "ga");
+    const b = renderEndSchematic({ ...calculateEndSections(feed, { topDiameterM: 1.2, bottomDiameterM: .9 }), active }, "ga");
+    const frozen = (svg: string) => svg.split('<g data-part="integrated-frozen-active"')[1].split("</g>")[0];
+    expect(frozen(a)).toBe(frozen(b));
+    expect(JSON.stringify(active)).toBe(before);
+    expect(a).toContain('data-shell-width="189"');
+    expect(b).toContain('data-shell-width="252"');
+    expect(a).toContain('data-active-compartments="20"');
+    expect(a).toContain('data-active-height-m="4.2"');
+    expect(a).toContain('data-projection="current-conditional-ga"');
+    expect(a).toContain("NORMAL process S/O=0.6");
+    expect(a).toContain("S/O=1.5 MASS FOR NOZZLES ONLY");
+    expect(a).toContain("Overall vessel height and absolute outlet elevations remain TBD");
+    expect(() => renderEndSchematic(calculateEndSections(feed, selection), "ga")).toThrow("FROZEN_ACTIVE");
+  });
 });

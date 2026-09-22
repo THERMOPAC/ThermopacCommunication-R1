@@ -90,4 +90,17 @@ describe("end-section UI states and authority requests", () => {
     resolve({ ok: true, json: async () => result }); await flush();
     expect(hooks.values[1]).toBeNull();
   });
+  it("publishes exactly the panel authority to the GA owner and revokes it before refetch", async () => {
+    const publish = vi.fn();
+    hooks.values = [{ topDiameterM: .9, bottomDiameterM: .9 }, result, null, null, null, null, null, true, 0];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => result }));
+    hooks.index = 0;
+    renderToStaticMarkup(React.createElement(Stage5EndSectionsPanel, { designId: 269, revisionId: "1", onProjectionChange: publish }));
+    const cleanup = hooks.effects[1]();
+    expect(publish).toHaveBeenNthCalledWith(1, null);
+    await flush();
+    expect(publish).toHaveBeenNthCalledWith(2, result);
+    expect(hooks.values[1]).toBe(result);
+    cleanup();
+  });
 });

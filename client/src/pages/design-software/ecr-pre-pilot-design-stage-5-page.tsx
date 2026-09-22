@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowLeft, Download, FilePlus2, Loader2, RefreshCw, Save, ShieldAlert } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import Layout from "@/components/layout";
 import { Stage5DrawingViewer, stage5ViewNames, type Stage5View } from "@/components/ecr-pre-pilot/stage5-drawing-viewer";
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { R1_COMPLETE, R1_RULESET, R1_WATERMARK, R2_RULESET } from "@shared/ecr-stage5-r1";
 import { Stage5EndSectionsPanel } from "@/components/ecr-pre-pilot/stage5-end-sections-panel";
+import { renderEndSchematic } from "@shared/ecr-stage5-end-schematic";
+import type { Stage5EndProjection } from "@shared/ecr-stage5-end-sections";
 
 type RecordValue = Record<string, unknown>;
 type Revision = RecordValue & { id: string | number; revision: string | number; createdAt: string; inputs: RecordValue; geometry: unknown; drawings?: Partial<Record<Stage5View, string>>; sourceHash: string; status?: string; currentness?: string; notes?: string | null };
@@ -54,6 +56,17 @@ export default function EcrPrePilotDesignStage5Page() {
   const [basis, setBasis] = useState<RecordValue | null>(null);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [selected, setSelected] = useState<Revision | null>(null);
+  const [endProjection, setEndProjection] = useState<{ key: string; result: Stage5EndProjection | null } | null>(null);
+  const endKey = `${design?.id ?? "none"}:${selected?.id ?? "none"}:${String(basis?.sourceHash ?? "")}`;
+  const acceptEndProjection = useCallback((result: Stage5EndProjection | null) => {
+    setEndProjection({ key: endKey, result });
+  }, [endKey]);
+  const currentEnd = endProjection?.key === endKey && String(endProjection.result?.active.revisionId) === String(selected?.id)
+    ? endProjection.result : null;
+  const currentGaSvg = currentEnd ? renderEndSchematic(currentEnd, "ga") : undefined;
+  const currentEndRef = useRef(currentEnd);
+  currentEndRef.current = currentEnd;
+  const [endRefreshToken, setEndRefreshToken] = useState(0);
   const [preview, setPreview] = useState<unknown>(null);
   const [view, setView] = useState<Stage5View>("ga");
   const [loading, setLoading] = useState(true);
@@ -216,13 +229,33 @@ export default function EcrPrePilotDesignStage5Page() {
       toast({ title: `Revision ${record.revision} saved`, description: "Frozen geometry and drawing package are now traceable to the current upstream source." });
     } catch (cause) { toast({ title: "Save blocked", description: messageOf(cause), variant: "destructive" }); } finally { setBusy(null); }
   };
+  const exportCurrentGa = async () => {
+    const projection = currentEnd;
+    if (!projection || !design?.id) return;
+    setDownloading(true);
+    try {
+      const query = new URLSearchParams({ topDiameterM: String(projection.assemblies.top.diameterM),
+        bottomDiameterM: String(projection.assemblies.bottom.diameterM), expectedSourceHash: projection.sourceHash });
+      const response = await fetch(`${base(design.id)}/revisions/${projection.active.revisionId}/end-sections/ga.svg?${query}`,
+        { credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error(await responseError(response));
+      const blob = await response.blob();
+      if (currentEndRef.current !== projection) throw new Error("Current GA changed during export; retry after authority refresh.");
+      const href = URL.createObjectURL(blob), anchor = document.createElement("a");
+      anchor.href = href; anchor.download = "stage5-current-conditional-ga.svg"; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1000);
+    } catch (error) {
+      setEndProjection(null); setEndRefreshToken(n => n + 1);
+      toast({ title: "Current GA export unavailable", description: messageOf(error), variant: "destructive" });
+    } finally { setDownloading(false); }
+  };
   const newRevision = () => { setSelected(null); setPreview(null); void read(); };
   const frozenSvg = selected?.drawings?.[view];
   const registerFileName = { download: () => void exportRevision("design-data"), available: Boolean(selected && object(selected.geometry).r1Model), busy: downloading, saved: Boolean(selected) };
 
   return <Layout><style>{`@media (max-width: 767px) { body:has([data-testid="stage5-page"]) aside:not([data-stage5-history]) { display: none; } body:has([data-testid="stage5-page"]) main { min-width: 0; width: 100%; } body:has([data-testid="stage5-page"]) main[class*="flex-1"] > div { max-width: 100% !important; width: 100%; } }`}</style><main className="mx-auto min-h-[100dvh] w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8" data-testid="stage5-page">
     <header className="border-b-2 border-slate-800 pb-4">
-      <p className="mb-2 text-xs text-slate-700" role="status">{downloading ? "Preparing drawing download…" : "Save or open a revision to download. SVG view downloads the selected drawing; PDF package downloads all five views. R1 downloads use dimensioned-v2 presentation of the same saved geometry; original historical artifacts remain unchanged."}</p>
+      <p className="mb-2 text-xs text-slate-700" role="status">{downloading ? "Preparing drawing download…" : "Current conditional GA uses the same live end comparisons as the controls. Historical SVG/PDF downloads preserve the saved active drawing package, including its old end reservations; they are NOT the current GA."}</p>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div className="flex gap-3"><div className="rounded-md border border-cyan-900/30 bg-cyan-950 p-2.5 text-cyan-100"><FilePlus2 className="h-5 w-5" /></div><div><p className="font-mono text-[10px] font-semibold uppercase tracking-[.2em] text-cyan-800">Frozen hydraulic geometry → HETS sizing → automatic R1 construction</p><h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-950">Kühni geometry & drawings <span className="font-mono text-sm text-cyan-800">/ Stage 5</span></h1><p className="mt-1 text-xs text-slate-600">System-generated pre-pilot layout — inherited authority and approved engineering rules remain distinct.</p></div></div><Button type="button" variant="outline" onClick={() => navigate("/design-software/ecr-pre-pilot-design/stage-4")} className="h-8 gap-1.5 text-xs"><ArrowLeft className="h-3.5 w-3.5" /> HETS physical sizing</Button></div>
       <div className="mt-4 border border-amber-500 bg-amber-50 px-3 py-2 font-mono text-[10px] font-bold tracking-wide text-amber-950">{R1_WATERMARK}</div>
     </header>
@@ -230,7 +263,7 @@ export default function EcrPrePilotDesignStage5Page() {
       <section className="mt-5 rounded border border-red-300 bg-red-50 p-3 text-[11px] leading-5 text-red-950"><div className="flex gap-2"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><div><strong>Mechanical exclusions:</strong> this package does not establish pressure-vessel wall/head thickness, shaft strength or deflection, critical speed, bearings or seals, motor/gearbox adequacy, or structural/support calculations.</div></div></section>
       {basisError && <section data-testid="stage5-source-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Inherited basis unavailable.</strong> {basisError}</section>}
       {historyError && <section data-testid="stage5-history-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Stage 5 revision history unavailable.</strong> {historyError} Current basis and preview are independent of revision history. <Button type="button" variant="outline" disabled={historyLoading} onClick={() => design?.id != null && void readHistory(design.id)} className="ml-2 h-8 text-xs">Retry history</Button></section>}
-      {design?.id != null && <Stage5EndSectionsPanel key={String(design.id)} designId={design.id as string | number} revisionId={selected?.id} sourceHash={typeof sourceHash === "string" ? sourceHash : undefined} />}
+      {design?.id != null && <Stage5EndSectionsPanel key={endKey} designId={design.id as string | number} revisionId={selected?.id} sourceHash={typeof sourceHash === "string" ? sourceHash : undefined} onProjectionChange={acceptEndProjection} refreshToken={endRefreshToken} />}
       {constructionError && <section data-testid="stage5-construction-error" className="mt-4 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><strong>Construction generation blocked.</strong> {constructionError}<p className="mt-1">The inherited basis remains read-only below. Engineering review of the stated construction rule is required; do not change upstream inputs just to fit a template.</p></section>}
       {selected && (selected.currentness !== "CURRENT" || !object(selected.geometry).ruleset) && <section data-testid="stage5-stale-banner" className="mt-4 flex gap-2 rounded border border-amber-400 bg-amber-50 p-3 text-xs text-amber-950"><AlertTriangle className="h-4 w-4 shrink-0" /><div><strong>Historical / superseded revision.</strong> This frozen package is read-only and is never regenerated under new rules. A new R1 revision uses the current frozen upstream basis, not historical construction inputs.</div></section>}
       <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -251,7 +284,28 @@ export default function EcrPrePilotDesignStage5Page() {
               {frozen && !object(currentGeometry).ruleset ? <p className="mt-2">Historical pre-R1 snapshot: preserved exactly, not upgraded or regenerated.</p> : null}
             </div>
           </section>
-          <section className="rounded border border-slate-200 bg-white"><div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 p-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Derived single geometry model</p><h2 className="text-sm font-semibold text-slate-950">Preliminary drawing package</h2></div>{selected && <div className="flex gap-2"><Button type="button" variant="outline" onClick={() => exportRevision("svg")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> SVG view</Button><Button type="button" variant="outline" onClick={() => exportRevision("pdf")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" /> PDF package</Button></div>}</div>{selected && <p data-testid="stage5-source-status" className="border-b border-slate-200 bg-cyan-50 px-3 py-2 font-mono text-[10px] text-cyan-950">FROZEN SOURCE · {selected.sourceHash} · {selected.currentness ?? selected.status ?? "saved"}</p>}{currentGeometry ? <div className="p-3"><div className="mb-3 flex flex-wrap gap-1">{(Object.keys(stage5ViewNames) as Stage5View[]).map(name => <Button key={name} type="button" size="sm" variant={view === name ? "default" : "outline"} onClick={() => setView(name)} className="h-7 text-[10px]">{stage5ViewNames[name]}</Button>)}</div>{selected && !frozenSvg ? <p role="alert" className="text-sm text-red-800">Frozen drawing missing. This revision cannot be regenerated or exported.</p> : <Stage5DrawingViewer geometry={currentGeometry} view={view} active onSelect={setView} frozenSvg={frozenSvg} />}<GeometrySchedules geometry={currentGeometry} registerFileName={registerFileName} /></div> : <div data-testid="stage5-empty-drawing" className="p-8 text-center text-sm text-slate-600"><p className="font-semibold text-slate-800">No compatible generated geometry is available.</p><p className="mt-1 text-xs">R1 generates from the frozen upstream basis automatically. Resolve the explicit source or compatibility error; construction-dimension entry is not required or accepted. Export requires a saved immutable revision.</p></div>}</section>
+          <section className="rounded border border-slate-200 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 p-3">
+              <div><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Current end assemblies + unchanged frozen active</p><h2 className="text-sm font-semibold text-slate-950">Preliminary drawing package</h2></div>
+              <div className="flex flex-wrap gap-2">
+                <Button data-testid="export-current-ga" type="button" disabled={!currentEnd || downloading} onClick={() => void exportCurrentGa()} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Current conditional GA SVG</Button>
+                {selected && <><Button type="button" variant="outline" onClick={() => exportRevision("svg")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Historical SVG view</Button>
+                  <Button type="button" variant="outline" onClick={() => exportRevision("pdf")} className="h-8 gap-1 text-xs"><Download className="h-3.5 w-3.5" />Historical PDF package</Button></>}
+              </div>
+            </div>
+            {selected && <p data-testid="stage5-source-status" className="border-b border-slate-200 bg-cyan-50 px-3 py-2 font-mono text-[10px] text-cyan-950">FROZEN ACTIVE SOURCE · {selected.sourceHash} · {selected.currentness ?? selected.status ?? "saved"}</p>}
+            {currentGeometry ? <div className="p-3">
+              <div className="mb-3 flex flex-wrap gap-1">{(Object.keys(stage5ViewNames) as Stage5View[]).map(name => <Button key={name} type="button" size="sm" variant={view === name ? "default" : "outline"} onClick={() => setView(name)} className="h-7 text-[10px]">{stage5ViewNames[name]}</Button>)}</div>
+              {view === "ga" ? currentGaSvg ? <div data-testid="stage5-current-ga">
+                <p className="mb-2 text-xs font-semibold text-cyan-900">CURRENT CONDITIONAL GENERAL ARRANGEMENT · NOT TO SCALE. Diameter comparisons are provisional; unknown axial heights remain TBD. Historical end reservations are not used.</p>
+                <Stage5DrawingViewer key={`${endKey}:current-ga`} geometry={currentGeometry} view="ga" active onSelect={setView} projectionSvg={currentGaSvg} />
+              </div> : <p data-testid="stage5-current-ga-unavailable" role="status" className="rounded border border-amber-300 bg-amber-50 p-4 text-xs">Current conditional GA unavailable: select a current saved Ø700 / 20-compartment revision and resolve the end-section authority state above. Loading, invalidated or rejected results never fall back to the old saved GA. Historical files remain separately downloadable.</p>
+                : selected && !frozenSvg ? <p role="alert" className="text-sm text-red-800">Frozen drawing missing. This revision cannot be regenerated or exported.</p>
+                  : <Stage5DrawingViewer geometry={currentGeometry} view={view} active onSelect={setView} frozenSvg={frozenSvg} />}
+              <p className="mt-3 rounded bg-slate-100 p-2 text-xs">The schedules below belong to the frozen active drawing snapshot. Its historical end/nozzle reservations are not the current conditional GA; use the current end-section schedules above for those assemblies. Active detail tabs remain unchanged.</p>
+              <GeometrySchedules geometry={currentGeometry} registerFileName={registerFileName} />
+            </div> : <div data-testid="stage5-empty-drawing" className="p-8 text-center text-sm text-slate-600"><p className="font-semibold text-slate-800">No compatible generated geometry is available.</p><p className="mt-1 text-xs">R1 generates from the frozen upstream basis automatically. Resolve the explicit source or compatibility error; construction-dimension entry is not required or accepted. Export requires a saved immutable revision.</p></div>}
+          </section>
         </div>
         <aside data-stage5-history className="space-y-4"><section className="rounded border border-slate-200 bg-white"><div className="border-b border-slate-200 bg-slate-50 px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-[.14em] text-cyan-800">Revision control</p><h2 className="text-sm font-semibold text-slate-950">Saved drawing records</h2><p className="mt-1 text-[10px] text-slate-600">Navigation metadata only. Snapshot integrity is verified when opening or exporting a revision.</p></div>{historyLoading ? <p className="p-4 text-xs text-slate-600">Reading revision metadata…</p> : historyError ? <p className="p-4 text-xs text-amber-900">History could not be read. Retry history above.</p> : revisions.length ? <div className="divide-y divide-slate-100">{revisions.map(revision => <button type="button" key={revision.id} onClick={() => void selectRevision(revision)} className={`w-full p-3 text-left text-xs hover:bg-slate-50 ${selected?.id === revision.id ? "bg-cyan-50" : ""}`}><div className="flex justify-between gap-2"><strong>REV {revision.revision}</strong><span className="font-mono text-[9px] text-slate-500">{historyLabel(revision)}</span></div><p className="mt-1 text-[10px] text-slate-600">{new Date(revision.createdAt).toLocaleString()}</p><p className="mt-1 break-all font-mono text-[9px] text-slate-500">{revision.sourceHash}</p></button>)}</div> : <div data-testid="stage5-empty-revisions" className="p-4 text-xs text-slate-600">No Stage 5 revision exists. A preview is not an issued drawing; save the current geometry to establish traceability.</div>}</section>
           <section className="rounded border border-slate-200 bg-slate-50 p-3 text-[10px] leading-5 text-slate-700"><strong className="text-slate-900">R1 evidence legend</strong><p className="mt-1">A: frozen Stage-3/4 authority. B: documented source construction family. C: approved R1 engineering rules and geometric envelopes—not mechanical or hydraulic qualification. Historical classifications remain unchanged.</p></section>
