@@ -84,7 +84,7 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
       const historicalBefore = JSON.stringify(revision);
       expect(new URL(page.url()).pathname).toBe("/design-software/ecr-pre-pilot-design/stage-5");
       expect(await page.$$('[data-testid="stage5-end-sections"] select')).toHaveLength(0);
-      expect(await page.$eval('[data-testid="end-system-status"]', el => el.textContent)).toContain("end dimensions pending");
+      expect(await page.$eval('[data-testid="end-system-status"]', el => el.textContent)).toContain("independent system end calculations");
       expect(calculations.at(-1)).toBe("");
       await click("Refresh authority");
       await openSaved();

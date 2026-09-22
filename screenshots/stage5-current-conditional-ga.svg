@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" data-projection="current-conditional-ga" data-system-design="pending" viewBox="0 0 960 1060" role="img" aria-label="System-generated pending end arrangement, symbolic only">
-    <title>System end design pending — NOT TO SCALE</title>
-    <metadata>{"ruleset":"ECR_END_SECTIONS_SYSTEM_AUTHORITY_PENDING_V3","sourceHash":"fixture-end-current","active":{"revisionId":"501","diameterM":0.7,"compartmentCount":20,"installedActiveHeightM":4.2},"selectionAuthority":"NO_ADMITTED_SYSTEM_DIAMETER_RULE","assemblies":{"top":{"diameterM":null,"residenceHeightM":null,"straightShellHeightM":null,"totalAssemblyHeightM":null,"productOpeningNearEdgeM":null,"productOpeningEnvelopeM":null},"bottom":{"diameterM":null,"residenceHeightM":null,"straightShellHeightM":null,"totalAssemblyHeightM":null,"productOpeningNearEdgeM":null,"productOpeningEnvelopeM":null}}}</metadata>
+<svg xmlns="http://www.w3.org/2000/svg" data-projection="current-conditional-ga" data-system-design="pending" viewBox="0 0 1060 1060" role="img" aria-label="Independent system end calculations with conditional symbolic profiles">
+    <title>System end calculations and engineering holds — NOT TO SCALE</title>
+    <metadata>{"ruleset":"ECR_END_SECTIONS_INDEPENDENT_DIAMETER_HEIGHT_V4","sourceHash":"fixture-end-current","active":{"revisionId":"501","diameterM":0.7,"compartmentCount":20,"installedActiveHeightM":4.2},"selectionAuthority":"SERVER_BUILTIN_PER_END_MODELS","assemblies":{"top":{"end":"top","status":"HOLD","overallEngineeringStatus":"HOLD / FROZEN_ACTIVE_DIAMETER_AUTHORITY_REQUIRED / MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED / PROCESS_SOURCE_REQUIRED","holds":["FROZEN_ACTIVE_DIAMETER_AUTHORITY_REQUIRED","MODEL_UNAVAILABLE","DESIGN_CRITERION_REQUIRED","PROCESS_SOURCE_REQUIRED"],"missingCriteria":["MODEL_UNAVAILABLE:END_SEPARATION_CRITERION","MODEL_UNAVAILABLE:SYSTEM_DROPLET_TERMINAL_VELOCITY_AND_MARGIN_CHAIN","MODEL_UNAVAILABLE:FABRICATION_DIAMETER_ROUNDING_RULE"],"processDependencies":["SOURCE_QUALIFIED_NORMAL_PRODUCT_FLOW_AND_SOURCE_REVISION_REQUIRED"],"propertyDependencies":[],"modelAudit":[],"separationDuty":"NMP droplets settling/returning against upward RRBO-rich raffinate","normalProductM3H":null,"flowSource":null,"separationCriterionStatus":"MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED","criterionBasis":null,"uDesignMS":null,"calculatedDiameterM":null,"fabricationRoundingRule":null,"diameterM":null,"diameterStatus":"HOLD","residenceHeightM":null,"residenceTimeMinutes":10,"usableVolumeFactor":0.9,"feedDistribution":{"diameterM":null,"additionalOutsideActive":true,"lengthM":null},"transition":{"status":"DIAMETER_PENDING","inheritedActiveDiameterM":null,"endDiameterM":null,"conicalAngleReferenceDeg":30,"angleConvention":"HALF_ANGLE_ASSUMED_FOR_REFERENCE_ONLY_NOT_FABRICATION_APPROVAL","nominalSharpConeReferenceM":null,"minimumLengthM":null,"physicalLengthM":null,"formedJunctionStatus":"ENGINEERING_QUALIFICATION_REQUIRED","residenceCreditM3":0},"interfaceAllowanceM":0.15,"interfaceDirection":"UP_FROM_TRANSITION","interfaceResidenceCreditM3":0,"productOpeningNearEdgeM":null,"productNozzleCentreM":null,"productOpeningFarEdgeM":null,"productNozzlePositionStatus":"PENDING_QUALIFIED_OPENING_ENVELOPE_OR_H10","productOpeningEnvelopeM":null,"nozzleEnvelopeStatus":"QUALIFIED_NOZZLE_OPENING_ENVELOPE_REQUIRED","nozzleEnvelopeSource":null,"postOpeningExtensionM":null,"straightShellHeightM":null,"straightShellStatus":"CONDITIONAL_PENDING_H10_OR_NOZZLE_ENVELOPE","head":{"type":"TORISPHERICAL","status":"SPECIFIED_PROFILE_MECHANICAL_DIMENSIONS_PENDING","residenceCreditM3":0},"totalAssemblyHeightM":null,"overallElevationStatus":"PENDING_NECK_TRANSITION_HEAD_AND_GLOBAL_DATUM"},"bottom":{"end":"bottom","status":"HOLD","overallEngineeringStatus":"HOLD / FROZEN_ACTIVE_DIAMETER_AUTHORITY_REQUIRED / MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED / PROCESS_SOURCE_REQUIRED","holds":["FROZEN_ACTIVE_DIAMETER_AUTHORITY_REQUIRED","MODEL_UNAVAILABLE","DESIGN_CRITERION_REQUIRED","PROCESS_SOURCE_REQUIRED"],"missingCriteria":["MODEL_UNAVAILABLE:END_SEPARATION_CRITERION","MODEL_UNAVAILABLE:SYSTEM_DROPLET_TERMINAL_VELOCITY_AND_MARGIN_CHAIN","MODEL_UNAVAILABLE:FABRICATION_DIAMETER_ROUNDING_RULE"],"processDependencies":["SOURCE_QUALIFIED_NORMAL_PRODUCT_FLOW_AND_SOURCE_REVISION_REQUIRED"],"propertyDependencies":[],"modelAudit":[],"separationDuty":"RRBO droplets rising/returning against downward NMP-rich extract","normalProductM3H":null,"flowSource":null,"separationCriterionStatus":"MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED","criterionBasis":null,"uDesignMS":null,"calculatedDiameterM":null,"fabricationRoundingRule":null,"diameterM":null,"diameterStatus":"HOLD","residenceHeightM":null,"residenceTimeMinutes":10,"usableVolumeFactor":0.9,"feedDistribution":{"diameterM":null,"additionalOutsideActive":true,"lengthM":null},"transition":{"status":"DIAMETER_PENDING","inheritedActiveDiameterM":null,"endDiameterM":null,"conicalAngleReferenceDeg":30,"angleConvention":"HALF_ANGLE_ASSUMED_FOR_REFERENCE_ONLY_NOT_FABRICATION_APPROVAL","nominalSharpConeReferenceM":null,"minimumLengthM":null,"physicalLengthM":null,"formedJunctionStatus":"ENGINEERING_QUALIFICATION_REQUIRED","residenceCreditM3":0},"interfaceAllowanceM":0.15,"interfaceDirection":"DOWN_FROM_TRANSITION","interfaceResidenceCreditM3":0,"productOpeningNearEdgeM":null,"productNozzleCentreM":null,"productOpeningFarEdgeM":null,"productNozzlePositionStatus":"PENDING_QUALIFIED_OPENING_ENVELOPE_OR_H10","productOpeningEnvelopeM":null,"nozzleEnvelopeStatus":"QUALIFIED_NOZZLE_OPENING_ENVELOPE_REQUIRED","nozzleEnvelopeSource":null,"postOpeningExtensionM":null,"straightShellHeightM":null,"straightShellStatus":"CONDITIONAL_PENDING_H10_OR_NOZZLE_ENVELOPE","head":{"type":"TORISPHERICAL","status":"SPECIFIED_PROFILE_MECHANICAL_DIMENSIONS_PENDING","residenceCreditM3":0},"totalAssemblyHeightM":null,"overallElevationStatus":"PENDING_NECK_TRANSITION_HEAD_AND_GLOBAL_DATUM"}}}</metadata>
     <rect width="100%" height="100%" fill="white"/>
     <g font-family="Arial,sans-serif" fill="#0f172a">
-      <text x="20" y="28" font-size="19" font-weight="bold">CURRENT SYSTEM ARRANGEMENT — END DIMENSIONS PENDING</text>
-      <text x="20" y="50" font-size="13">NOT TO SCALE. End widths/heights are symbolic, not chosen diameters or physical dimensions.</text>
+      <text x="20" y="28" font-size="19" font-weight="bold">CURRENT SYSTEM ARRANGEMENT — INDEPENDENT TOP / BOTTOM STATUS</text>
+      <text x="20" y="50" font-size="13">NOT TO SCALE. Numeric labels are system results where available; profiles remain conditional, not fabrication geometry.</text>
       <text x="20" y="72" font-size="13">NORMAL process S/O=0.6 mass. S/O=1.5 MASS FOR NOZZLES ONLY.</text>
-      <g data-end-profile="top" data-sizing="pending" data-diameter="unknown">
+      <g data-end-profile="top" data-sizing="hold" data-diameter="unknown">
       <g fill="none" stroke="#475569" stroke-width="2">
         <path data-part="additional-feed-neck" d="M130 405 V359 M210 405 V359"/>
         <path data-part="symbolic-knuckled-transition" d="M130 359 Q130 347 115 339 L87 318 Q75 309 75 295
@@ -18,15 +18,15 @@
         <path data-part="product-nozzle" d="M265 201 H305 M265 185 H305" stroke-dasharray="4 4"/>
         <path data-part="unknown-height-break" d="M68 236 l14 -6 l-14 -6 M258 236 l14 -6 l-14 -6"/>
       </g>
-      <text x="340" y="111" font-size="13">TOP / RAFFINATE — SYSTEM DESIGN PENDING</text>
+      <text x="340" y="111" font-size="13">TOP / RAFFINATE — HOLD: SYSTEM MODEL / SOURCE GAPS</text>
       <text x="340" y="135" font-size="13">Head profile symbolic; depth/radii TBD; zero residence credit</text>
-      <text x="340" y="163" font-size="13">Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending</text>
-      <text x="340" y="192" font-size="13">Product opening: near/far edges and nozzle envelope pending</text>
-      <text x="340" y="224" font-size="13">Shell diameter and H10 unresolved — no selected dimensions</text>
-      <text x="340" y="250" font-size="13">10 min NORMAL flow / 0.90 usable straight volume only</text>
+      <text x="340" y="163" font-size="13">Post-opening pending; straight shell pending</text>
+      <text x="340" y="192" font-size="13">Opening near / centre / far: pending / pending / pending</text>
+      <text x="340" y="224" font-size="13">System Dshell pending; H10 pending</text>
+      <text x="340" y="250" font-size="13">Dcalc pending; 10 min NORMAL / 0.90 usable volume</text>
       <text x="340" y="277" font-size="13">Interface rule: 0.150 m above transition</text>
-      <text x="340" y="313" font-size="13">30° conical portion; formed junctions and physical length TBD</text>
-      <text x="340" y="337" font-size="13">Transition ≥ max(0.200 m, 0.4D); no numeric D admitted</text>
+      <text x="340" y="313" font-size="13">30° half-angle reference only; convention / formed junctions unqualified</text>
+      <text x="340" y="337" font-size="13">Nominal cone pending; physical transition pending</text>
       <text x="340" y="380" font-size="13">Additional Ø700 neck outside active: wet solvent P03</text>
     </g>
       <g data-part="integrated-frozen-active" data-active-diameter-m="0.7" data-active-compartments="20" data-active-height-m="4.2">
@@ -38,7 +38,7 @@
         <text x="340" y="551" font-size="13">No user diameter comparison or historical preference governs this GA.</text>
         <text x="340" y="578" font-size="13">No overall height or absolute outlet elevations established.</text>
       </g>
-      <g data-end-profile="bottom" data-sizing="pending" data-diameter="unknown">
+      <g data-end-profile="bottom" data-sizing="hold" data-diameter="unknown">
       <g fill="none" stroke="#475569" stroke-width="2">
         <path data-part="additional-feed-neck" d="M130 635 V681 M210 635 V681"/>
         <path data-part="symbolic-knuckled-transition" d="M130 681 Q130 693 115 701 L87 722 Q75 731 75 745
@@ -50,18 +50,18 @@
         <path data-part="product-nozzle" d="M265 839 H305 M265 855 H305" stroke-dasharray="4 4"/>
         <path data-part="unknown-height-break" d="M68 804 l14 -6 l-14 -6 M258 804 l14 -6 l-14 -6"/>
       </g>
-      <text x="340" y="929" font-size="13">BOTTOM / EXTRACT — SYSTEM DESIGN PENDING</text>
+      <text x="340" y="929" font-size="13">BOTTOM / EXTRACT — HOLD: SYSTEM MODEL / SOURCE GAPS</text>
       <text x="340" y="905" font-size="13">Head profile symbolic; depth/radii TBD; zero residence credit</text>
-      <text x="340" y="877" font-size="13">Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending</text>
-      <text x="340" y="848" font-size="13">Product opening: near/far edges and nozzle envelope pending</text>
-      <text x="340" y="816" font-size="13">Shell diameter and H10 unresolved — no selected dimensions</text>
-      <text x="340" y="790" font-size="13">10 min NORMAL flow / 0.90 usable straight volume only</text>
+      <text x="340" y="877" font-size="13">Post-opening pending; straight shell pending</text>
+      <text x="340" y="848" font-size="13">Opening near / centre / far: pending / pending / pending</text>
+      <text x="340" y="816" font-size="13">System Dshell pending; H10 pending</text>
+      <text x="340" y="790" font-size="13">Dcalc pending; 10 min NORMAL / 0.90 usable volume</text>
       <text x="340" y="763" font-size="13">Interface rule: 0.150 m below transition</text>
-      <text x="340" y="727" font-size="13">30° conical portion; formed junctions and physical length TBD</text>
-      <text x="340" y="703" font-size="13">Transition ≥ max(0.200 m, 0.4D); no numeric D admitted</text>
+      <text x="340" y="727" font-size="13">30° half-angle reference only; convention / formed junctions unqualified</text>
+      <text x="340" y="703" font-size="13">Nominal cone pending; physical transition pending</text>
       <text x="340" y="660" font-size="13">Additional Ø700 neck outside active: oil feed P01</text>
     </g>
-      <text x="20" y="990" font-size="13">Required: source-qualified normal product duty and an independent system diameter-selection rule.</text>
-      <text x="20" y="1015" font-size="13">Ten-minute residence alone cannot uniquely determine both diameter and height.</text>
+      <text x="20" y="990" font-size="13">System chain: normal flow + product properties + end-specific droplet / terminal / margin models → Dcalc → Dshell → H10.</text>
+      <text x="20" y="1015" font-size="13">HOLD means a genuine model / source gap, not missing user sizing inputs. See per-end model/source audit in report.</text>
       <text x="20" y="1040" font-size="13">Opening envelopes, necks, formed junctions and heads need mechanical authority. NOT FOR FABRICATION.</text>
     </g></svg>

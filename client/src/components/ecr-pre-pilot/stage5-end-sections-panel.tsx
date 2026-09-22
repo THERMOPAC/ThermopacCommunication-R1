@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AUTOMATIC_END_RULESET, type Stage5EndProjection } from "@shared/ecr-stage5-end-sections";
+import { AUTOMATIC_END_RULESET, endEngineeringRows, type Stage5EndProjection } from "@shared/ecr-stage5-end-sections";
 import { Button } from "@/components/ui/button";
 
 const f = (n: number) => n.toFixed(3);
@@ -30,8 +30,8 @@ export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash, onPro
           const ref = typeof body.reference === "string" && /^[a-f0-9-]{36}$/.test(body.reference) ? ` Reference ${body.reference}.` : "";
           throw new Error(`${code} (HTTP ${response.status}). ${response.status >= 500 ? "Server authority read failed; retry. This is not a geometry selection error." : "Current source authority could not be admitted."}${ref}`);
         }
-        if (body.ruleset !== AUTOMATIC_END_RULESET || body.selectionAuthority !== "NO_ADMITTED_SYSTEM_DIAMETER_RULE"
-          || body.assemblies?.top?.diameterM !== null || body.assemblies?.bottom?.diameterM !== null)
+        if (body.ruleset !== AUTOMATIC_END_RULESET || body.selectionAuthority !== "SERVER_BUILTIN_PER_END_MODELS"
+          || !body.assemblies?.top?.overallEngineeringStatus || !body.assemblies?.bottom?.overallEngineeringStatus)
           throw new Error("STAGE5_END_SYSTEM_AUTHORITY_RESPONSE_REQUIRED");
         if (!controller.signal.aborted) publish(body);
       } catch (cause) {
@@ -56,13 +56,19 @@ export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash, onPro
       {error && <p role="alert" className="rounded bg-red-50 p-2 text-red-800">{error} No previous GA is being reused.</p>}
       {result && <>
         <div data-testid="end-system-status" className="rounded bg-amber-50 p-3">
-          <strong>Source ready · end dimensions pending</strong>
-          <p>The active section is unchanged. A symbolic current GA is available below; end shell diameters and heights are not yet determined.</p>
-          <p>{result.materialContract.status !== "SOURCE_QUALIFIED_NORMAL_DUTY" ? "Normal product flow/density authority is missing. " : ""}An independent approved system diameter-selection rule is missing. Ten-minute residence alone cannot uniquely choose both diameter and height.</p>
+          <strong>Source ready · independent system end calculations</strong>
+          <p>The active section is unchanged. The system, not the user, determines droplet basis, terminal velocity, margin, diameter and height. HOLD identifies genuine source/property or built-in model gaps; it is not a request for user sizing values.</p>
+          {(["top", "bottom"] as const).map(end => <p key={end} data-testid={`end-${end}-status`}><strong>{end.toUpperCase()}:</strong> {result.assemblies[end].overallEngineeringStatus}</p>)}
         </div>
         <details>
           <summary className="cursor-pointer font-semibold text-cyan-900">Design basis and pending engineering inputs</summary>
           <div className="mt-3 space-y-3">
+            {(["top", "bottom"] as const).map(end => <section key={end} data-testid={`end-${end}-engineering`}>
+              <h3 className="font-semibold">{end.toUpperCase()} — system calculation and source trace</h3>
+              <dl className="divide-y">{endEngineeringRows(result.assemblies[end]).map(([label, value]) =>
+                <div key={label} className="grid gap-1 py-1 sm:grid-cols-[220px_1fr]"><dt className="font-medium">{label}</dt><dd className="break-words">{value}</dd></div>)}</dl>
+              {result.assemblies[end].modelAudit.map(a => <p key={a.modelId}><strong>{a.modelId}: {a.eligibility}</strong> — {a.reason} Source: {a.citation}</p>)}
+            </section>)}
             <ul className="list-disc pl-5">{result.pendingRequirements.map(s => <li key={s}>{s}</li>)}</ul>
             <section data-testid="end-normal-process-basis">
               <h3 className="font-semibold">NORMAL process — saved Stage 1 S/O {result.feed.solventOilMassRatio} mass</h3>
@@ -74,7 +80,7 @@ export function Stage5EndSectionsPanel({ designId, revisionId, sourceHash, onPro
               <p>Wet-solvent nozzle basis {f(result.nozzleSizingBasis.wetSolventKgH)} kg/h; 120% hydraulic check. This does not change normal material flows, product split or residence geometry.</p>
               <p>Feed nozzle preliminary screens: oil DN {result.nozzles.oilFeed.provisionalDn ?? "pending"}; wet solvent DN {result.nozzles.wetSolventFeed.provisionalDn ?? "pending"}. Product opening envelopes remain unknown.</p>
             </section>
-            <p>Additional Ø700 feed necks lie outside active height. Transition conical portion 30°; transition/post-opening minima max(0.200 m, 0.4D), with D pending. Interfaces ±0.150 m from transitions. H10 uses NORMAL product flow and 0.90 usable straight volume to the near opening edge; extension starts at the far edge. Heads give zero residence credit. Mechanical lengths, knuckles, head profiles and overall elevations remain unqualified.</p>
+            <p>Additional feed necks inherit Ø{result.active.diameterM * 1000} mm and lie outside active height. Dcalc = √[4(Qnormal/3600)/(π Udesign)]. H10 = Qnormal/(6 × 0.90 × π Dshell²/4). Hstraight = 0.150 + H10 + eNear + eFar + max(0.200, 0.40 Dshell). Thirty-degree sharp-cone references are not fabricated transitions; angle convention and formed junctions remain unqualified. Interfaces are mirrored ±0.150 m. Heads give zero residence credit.</p>
             <p className="break-all font-mono text-[10px]">Current source: {result.sourceHash}<br />Frozen revision {result.active.revisionId}: Ø{result.active.diameterM * 1000} mm × {result.active.compartmentCount} compartments; active height {f(result.active.installedActiveHeightM)} m.</p>
             <p>Historical comparison preferences are not current design authority. No manual diameter selection or save is required.</p>
           </div>

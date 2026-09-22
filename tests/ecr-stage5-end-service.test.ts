@@ -31,6 +31,22 @@ beforeEach(() => {
   });
 });
 describe("end service source and persistence gate", () => {
+  it("executes a server-owned model resolver bound to the verified source, without snapshot or preference writes", async () => {
+    const before = JSON.stringify(state.active);
+    const model = { status: "BUILTIN_MODEL_ELIGIBLE" as const, modelId: "TEST_ONLY_DIRECT_SYSTEM_MODEL", version: "fixture-1", citation: "Numerical test only" };
+    const resolver = vi.fn(async () => ({ top: {
+      normalFlow: { status: "SOURCE_QUALIFIED_NORMAL_FLOW" as const, qM3H: 4, sourceIdentity: "fixture-duty", sourceRevision: "r1" },
+      separation: { kind: "SYSTEM_UDESIGN_MODEL" as const, model, uDesignMS: .001 },
+      fabrication: { kind: "BUILTIN_INCREMENT" as const, model, incrementM: .1 },
+    } }));
+    const result = await getAutomaticStage5EndSections(12, 23, "1", resolver);
+    expect(result.assemblies.top.diameterM).toBeGreaterThan(.7);
+    expect(result.assemblies.bottom.diameterM).toBeNull();
+    expect(resolver).toHaveBeenCalledWith(expect.objectContaining({ designId: 23, revisionId: "1", activeSourceHash: "active-a", stage1Hash: "stage1-a" }));
+    expect(JSON.stringify(state.active)).toBe(before);
+    expect(state.revisions).toHaveBeenCalledTimes(1);
+    expect(state.query.mock.calls.some(([sql]) => /INSERT|UPDATE|stage5_end_sections/.test(sql))).toBe(false);
+  });
   it("hydrates the current report revision only once and shares the read transaction", async () => {
     const { revision, ends } = await getStage5EngineeringReportSource(12, 23, "1");
     expect(revision).toBe(state.active);
@@ -44,7 +60,7 @@ describe("end service source and persistence gate", () => {
     const r = await getAutomaticStage5EndSections(12, 23, "1");
     expect(r.assemblies.top.diameterM).toBeNull();
     expect(r.assemblies.bottom.residenceHeightM).toBeNull();
-    expect(r.ruleset).toContain("SYSTEM_AUTHORITY_PENDING");
+    expect(r.ruleset).toContain("INDEPENDENT_DIAMETER_HEIGHT");
     expect(r.feed.wetSolventKgH).toBe(1320);
     expect(r.nozzleSizingBasis.wetSolventKgH).toBe(3300);
     expect(state.query.mock.calls.some(([sql]) => /INSERT|UPDATE|stage5_end_sections/.test(sql))).toBe(false);
@@ -117,7 +133,12 @@ describe("end service source and persistence gate", () => {
     state.active.currentness = "OUTDATED";
     await expect(getStage5EndSections(12, 23, "1", selections)).rejects.toThrow("CURRENT_FROZEN");
     state.active.currentness = "CURRENT"; state.active.geometry.basis.columnDiameterM = .6;
-    await expect(getStage5EndSections(12, 23, "1", selections)).rejects.toThrow("700_20");
+    state.active.geometry.basis.compartmentCount = 13;
+    const general = await getAutomaticStage5EndSections(12, 23, "1");
+    expect(general.active).toMatchObject({ diameterM: .6, compartmentCount: 13 });
+    expect(general.assemblies.top.feedDistribution.diameterM).toBe(.6);
+    state.active.geometry.basis.columnDiameterM = 0;
+    await expect(getAutomaticStage5EndSections(12, 23, "1")).rejects.toThrow("FROZEN_ACTIVE_BASIS");
     await expect(saveEndSelections(12, 23, "1", selections, undefined)).rejects.toThrow("EXPECTED_SOURCE");
     state.query.mockResolvedValue({ rows: [] });
     await expect(readEndSelections(12, 23)).rejects.toThrow("NOT_FOUND");

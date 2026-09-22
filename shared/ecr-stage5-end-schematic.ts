@@ -3,10 +3,20 @@ import type { AutomaticEndSectionResult, EndSectionResult, Stage5EndProjection }
 function renderPendingSystemSchematic(result: AutomaticEndSectionResult & { sourceHash?: string; active?: Stage5EndProjection["active"] }, integrated: boolean): string {
   const esc = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const a = result.active;
+  const f = (v: number | null | undefined) => v == null ? "pending" : `${Number(v.toPrecision(5))} m`;
   const profile = (top: boolean) => {
+    const end = result.assemblies[top ? "top" : "bottom"];
     const y = (n: number) => top ? 405 - n : 635 + n;
     const text = (n: number, s: string) => `<text x="340" y="${y(n)}" font-size="13">${esc(s)}</text>`;
-    return `<g data-end-profile="${top ? "top" : "bottom"}" data-sizing="pending" data-diameter="unknown">
+    if (end.holds.includes("TRANSITION_RULE_REQUIRED")) return `<g data-end-profile="${top ? "top" : "bottom"}" data-sizing="hold-transition">
+      ${text(270, `${top ? "TOP" : "BOTTOM"} — HOLD / TRANSITION_RULE_REQUIRED`)}
+      ${text(235, `Calculated Dshell ${f(end.diameterM)} does not exceed inherited active ID.`)}
+      ${text(200, "No expander or end profile is released; no diameter clamp.")}
+      ${text(165, `Dcalc ${f(end.calculatedDiameterM)}; H10 ${f(end.residenceHeightM)}.`)}
+      ${text(130, "Torispherical dish intent; mechanical geometry pending.")}
+      ${text(95, "Overall elevations and fabrication geometry remain HOLD.")}
+    </g>`;
+    return `<g data-end-profile="${top ? "top" : "bottom"}" data-sizing="${end.diameterM === null ? "hold" : "calculated-conditional"}" data-diameter="${end.diameterM ?? "unknown"}">
       <g fill="none" stroke="#475569" stroke-width="2">
         <path data-part="additional-feed-neck" d="M130 ${y(0)} V${y(46)} M210 ${y(0)} V${y(46)}"/>
         <path data-part="symbolic-knuckled-transition" d="M130 ${y(46)} Q130 ${y(58)} 115 ${y(66)} L87 ${y(87)} Q75 ${y(96)} 75 ${y(110)}
@@ -18,26 +28,26 @@ function renderPendingSystemSchematic(result: AutomaticEndSectionResult & { sour
         <path data-part="product-nozzle" d="M265 ${y(204)} H305 M265 ${y(220)} H305" stroke-dasharray="4 4"/>
         <path data-part="unknown-height-break" d="M68 ${y(169)} l14 -6 l-14 -6 M258 ${y(169)} l14 -6 l-14 -6"/>
       </g>
-      ${text(294, `${top ? "TOP / RAFFINATE" : "BOTTOM / EXTRACT"} — SYSTEM DESIGN PENDING`)}
+      ${text(294, `${top ? "TOP / RAFFINATE" : "BOTTOM / EXTRACT"} — ${end.status === "HOLD" ? "HOLD: SYSTEM MODEL / SOURCE GAPS" : "SYSTEM CALCULATED / CONDITIONAL"}`)}
       ${text(270, "Head profile symbolic; depth/radii TBD; zero residence credit")}
-      ${text(242, "Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending")}
-      ${text(213, "Product opening: near/far edges and nozzle envelope pending")}
-      ${text(181, "Shell diameter and H10 unresolved — no selected dimensions")}
-      ${text(155, "10 min NORMAL flow / 0.90 usable straight volume only")}
+      ${text(242, `Post-opening ${f(end.postOpeningExtensionM)}; straight shell ${f(end.straightShellHeightM)}`)}
+      ${text(213, `Opening near / centre / far: ${f(end.productOpeningNearEdgeM)} / ${f(end.productNozzleCentreM)} / ${f(end.productOpeningFarEdgeM)}`)}
+      ${text(181, `System Dshell ${f(end.diameterM)}; H10 ${f(end.residenceHeightM)}`)}
+      ${text(155, `Dcalc ${f(end.calculatedDiameterM)}; 10 min NORMAL / 0.90 usable volume`)}
       ${text(128, `Interface rule: 0.150 m ${top ? "above" : "below"} transition`)}
-      ${text(92, "30° conical portion; formed junctions and physical length TBD")}
-      ${text(68, "Transition ≥ max(0.200 m, 0.4D); no numeric D admitted")}
-      ${text(25, `Additional Ø700 neck outside active: ${top ? "wet solvent P03" : "oil feed P01"}`)}
+      ${text(92, "30° half-angle reference only; convention / formed junctions unqualified")}
+      ${text(68, `Nominal cone ${f(end.transition.nominalSharpConeReferenceM)}; physical transition pending`)}
+      ${text(25, `Additional Ø${a ? Number((a.diameterM * 1000).toFixed(2)) : "pending"} neck outside active: ${top ? "wet solvent P03" : "oil feed P01"}`)}
     </g>`;
   };
-  return `<svg xmlns="http://www.w3.org/2000/svg" data-projection="${integrated ? "current-conditional-ga" : "conditional-end-assemblies"}" data-system-design="pending" viewBox="0 0 960 1060" role="img" aria-label="System-generated pending end arrangement, symbolic only">
-    <title>System end design pending — NOT TO SCALE</title>
+  return `<svg xmlns="http://www.w3.org/2000/svg" data-projection="${integrated ? "current-conditional-ga" : "conditional-end-assemblies"}" data-system-design="${result.status === "SYSTEM_END_DESIGN_PENDING" ? "pending" : "calculated-conditional"}" viewBox="0 0 1060 1060" role="img" aria-label="Independent system end calculations with conditional symbolic profiles">
+    <title>System end calculations and engineering holds — NOT TO SCALE</title>
     <metadata>${esc(JSON.stringify({ ruleset: result.ruleset, sourceHash: result.sourceHash, active: a,
       selectionAuthority: result.selectionAuthority, assemblies: result.assemblies }))}</metadata>
     <rect width="100%" height="100%" fill="white"/>
     <g font-family="Arial,sans-serif" fill="#0f172a">
-      <text x="20" y="28" font-size="19" font-weight="bold">CURRENT SYSTEM ARRANGEMENT — END DIMENSIONS PENDING</text>
-      <text x="20" y="50" font-size="13">NOT TO SCALE. End widths/heights are symbolic, not chosen diameters or physical dimensions.</text>
+      <text x="20" y="28" font-size="19" font-weight="bold">CURRENT SYSTEM ARRANGEMENT — INDEPENDENT TOP / BOTTOM STATUS</text>
+      <text x="20" y="50" font-size="13">NOT TO SCALE. Numeric labels are system results where available; profiles remain conditional, not fabrication geometry.</text>
       <text x="20" y="72" font-size="13">NORMAL process S/O=${result.feed.solventOilMassRatio} mass. S/O=1.5 MASS FOR NOZZLES ONLY.</text>
       ${profile(true)}
       ${a ? `<g data-part="integrated-frozen-active" data-active-diameter-m="${a.diameterM}" data-active-compartments="${a.compartmentCount}" data-active-height-m="${a.installedActiveHeightM}">
@@ -50,8 +60,8 @@ function renderPendingSystemSchematic(result: AutomaticEndSectionResult & { sour
         <text x="340" y="578" font-size="13">No overall height or absolute outlet elevations established.</text>
       </g>` : ""}
       ${profile(false)}
-      <text x="20" y="990" font-size="13">Required: source-qualified normal product duty and an independent system diameter-selection rule.</text>
-      <text x="20" y="1015" font-size="13">Ten-minute residence alone cannot uniquely determine both diameter and height.</text>
+      <text x="20" y="990" font-size="13">System chain: normal flow + product properties + end-specific droplet / terminal / margin models → Dcalc → Dshell → H10.</text>
+      <text x="20" y="1015" font-size="13">HOLD means a genuine model / source gap, not missing user sizing inputs. See per-end model/source audit in report.</text>
       <text x="20" y="1040" font-size="13">Opening envelopes, necks, formed junctions and heads need mechanical authority. NOT FOR FABRICATION.</text>
     </g></svg>`;
 }
@@ -62,7 +72,7 @@ export function renderEndSchematic(result: (EndSectionResult | AutomaticEndSecti
   const escape = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const integrated = mode === "ga";
   const active = result.active;
-  if (integrated && (!active || !Number.isFinite(active.diameterM) || Math.abs(active.diameterM - .7) > 1e-9 || active.compartmentCount !== 20
+   if (integrated && (!active || !Number.isFinite(active.diameterM) || active.diameterM <= 0 || !Number.isSafeInteger(active.compartmentCount) || active.compartmentCount <= 0
     || !Number.isFinite(active.installedActiveHeightM) || active.installedActiveHeightM <= 0))
     throw new Error("STAGE5_END_FROZEN_ACTIVE_GA_REQUIRED");
   if ("selectionAuthority" in result) return renderPendingSystemSchematic(result, integrated);

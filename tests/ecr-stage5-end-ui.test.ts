@@ -24,12 +24,34 @@ const render = (publish = vi.fn(), revisionId: string | undefined = "1") => {
 const flush = async () => { await new Promise(resolve => setTimeout(resolve, 0)); };
 beforeEach(() => { hooks.values = []; hooks.index = 0; hooks.effects = []; vi.unstubAllGlobals(); });
 describe("system end-section authority UI", () => {
+  it("accepts and publishes calculated numeric top results independently of a bottom HOLD", async () => {
+    const model = { status: "BUILTIN_MODEL_ELIGIBLE" as const, modelId: "TEST_ONLY_UI_SYSTEM_MODEL", version: "fixture", citation: "UI fixture only" };
+    const numerical = { ...result, ...calculateAutomaticEndSections({
+      designFeedRateLph: 2300, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
+      oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
+    }, null, .7, { top: {
+      normalFlow: { status: "SOURCE_QUALIFIED_NORMAL_FLOW", qM3H: 4, sourceIdentity: "fixture-normal", sourceRevision: "r1" },
+      separation: { kind: "SYSTEM_UDESIGN_MODEL", model, uDesignMS: .001 },
+      fabrication: { kind: "BUILTIN_INCREMENT", model, incrementM: .1 },
+    } }) };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => numerical }));
+    const publish = vi.fn(); render(publish); hooks.effects[0](); await flush();
+    expect(publish).toHaveBeenLastCalledWith(numerical, null);
+    const html = render();
+    expect(html).toContain("SYSTEM_CALCULATED_FROM_GOVERNED_MODELS");
+    expect(html).toContain("TEST_ONLY_UI_SYSTEM_MODEL");
+    expect(html).toContain("1.2 m");
+    expect(html).toContain("DESIGN_CRITERION_REQUIRED");
+    expect(html).not.toContain("<select");
+    expect(html).not.toContain("<input");
+  });
   it("shows pending system design without manual selectors, save actions or invented diameter", () => {
     hooks.values = [result, null, false, 0];
     const html = render();
     expect(html).toContain("Source ready");
-    expect(html).toContain("end dimensions pending");
-    expect(html).toContain("Ten-minute residence alone cannot uniquely choose");
+    expect(html).toContain("independent system end calculations");
+    expect(html).toContain("MODEL_UNAVAILABLE");
+    expect(html).toContain("not a request for user sizing values");
     expect(html).toContain("<details");
     expect(html).toContain("Combined NORMAL feed: 3238.400");
     expect(html).toContain("NOZZLES ONLY");

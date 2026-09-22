@@ -29,13 +29,20 @@ describe.skipIf(process.env.STAGE5_LIVE_READ !== "1")("development stored Stage 
       ]);
       expect(revision.currentness).toBe("CURRENT");
       expect(ends.active.sourceHash).toBe(revision.sourceHash);
-      expect(ends.active).toMatchObject({ revisionId, diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 });
+      expect(ends.active).toMatchObject({ revisionId, diameterM: revision.geometry.basis.columnDiameterM,
+        compartmentCount: revision.geometry.basis.compartmentCount, installedActiveHeightM: revision.geometry.basis.installedActiveHeightM });
       const svg = renderEndSchematic(ends, "ga");
       expect(svg).toContain('data-projection="current-conditional-ga"');
       expect(svg).toContain('data-system-design="pending"');
       expect(svg).not.toContain('data-shell-width');
       expect(ends.assemblies.top.diameterM).toBeNull();
       expect(ends.assemblies.bottom.diameterM).toBeNull();
+      for (const a of Object.values(ends.assemblies)) {
+        expect(a.holds).toContain("MODEL_UNAVAILABLE");
+        expect(a.holds).toContain("PROCESS_SOURCE_REQUIRED");
+        expect(a.holds).toContain("PROPERTY_SOURCE_REQUIRED");
+        expect(a.modelAudit.length).toBeGreaterThan(0);
+      }
       const pdf = await createStage5DesignDataPdf(pdfRecord, design);
       const engineeringPdf = await createStage5EngineeringReportPdf(revision, ends, design);
       const folder = "deliverables/stage5-engineering-report";

@@ -8,11 +8,11 @@ const selection = { topDiameterM: .9, bottomDiameterM: 1.2 };
 describe("independent end framework", () => {
   it("does not invent automatic diameters or heights from residence alone", () => {
     const r = calculateAutomaticEndSections(feed);
-    expect(r.selectionAuthority).toBe("NO_ADMITTED_SYSTEM_DIAMETER_RULE");
+    expect(r.selectionAuthority).toBe("SERVER_BUILTIN_PER_END_MODELS");
     expect(r.assemblies.top.diameterM).toBeNull();
     expect(r.assemblies.bottom.residenceHeightM).toBeNull();
     expect(r.assemblies.top.productOpeningEnvelopeM).toBeNull();
-    expect(r.pendingRequirements.join(" ")).toContain("does not uniquely select");
+    expect(r.pendingRequirements.join(" ")).toContain("MODEL_UNAVAILABLE");
     const active = { revisionId: "8", diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 };
     const before = JSON.stringify(active);
     const svg = renderEndSchematic({ ...r, active }, "ga");
@@ -26,6 +26,7 @@ describe("independent end framework", () => {
     expect(JSON.stringify(active)).toBe(before);
     const qualified = calculateAutomaticEndSections(feed, {
       sourceIdentity: "qualified-normal-duty",
+      sourceRevision: "test-revision-1",
       raffinateComponentKgH: r.materialContract.componentFeedKgH.map(m => m * .5),
       extractComponentKgH: r.materialContract.componentFeedKgH.map(m => m * .5),
       raffinateDensityKgM3: 900, extractDensityKgM3: 1000,
@@ -34,7 +35,7 @@ describe("independent end framework", () => {
     expect(qualified.normalProductFlows.topM3H).toBeGreaterThan(0);
     expect(qualified.assemblies.top.diameterM).toBeNull();
     expect(qualified.assemblies.top.residenceHeightM).toBeNull();
-    expect(qualified.pendingRequirements.join(" ")).toContain("diameter-selection rule");
+    expect(qualified.pendingRequirements.join(" ")).toContain("FABRICATION_DIAMETER_ROUNDING_RULE");
   });
   it("preserves NORMAL Stage 1 mass S/O and confines the 1.5 override to nozzle sizing", () => {
     const before = JSON.stringify(feed);

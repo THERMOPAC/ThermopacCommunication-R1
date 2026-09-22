@@ -75,6 +75,12 @@ End diameters are system design outputs, not user-selected comparison inputs.
 
 **How to apply:** Show system-calculated dimensions only with an independent supported diameter-selection basis and normal product duty. Otherwise show explicit pending dimensions and symbolic profiles, never promote historical comparisons or saved preferences to current geometry.
 
+Droplet size, terminal velocity, design margin, allowable velocity, diameter and height are system outputs—not user inputs or per-design user approvals.
+
+**Why:** The user explicitly requires deterministic sizing using the application's qualified built-in models. Earlier approval-oriented wording wrongly delegated software engineering calculations to the end user.
+
+**How to apply:** Resolve each end's model chain independently from normal product authority and applicable product properties. HOLD only for genuinely missing or inapplicable models/data, with the exact gap identified. Existing terminal-velocity mathematics does not by itself qualify outlet droplet populations, phase-inverted bottom duty, margins or fabrication rounding. Never promote offline research assumptions into production defaults.
+
 Separate the current engineering report from the full historical calculation/audit archive; preserve both.
 
 **Why:** The user explicitly rejected a roughly 300-page data dump as an engineering handoff. Most pages repeated upstream hydraulic records, while historical end dimensions and nozzle allowances could be mistaken for current design.

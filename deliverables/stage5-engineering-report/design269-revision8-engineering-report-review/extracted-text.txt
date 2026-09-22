@@ -1,17 +1,21 @@
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 1
 Engineering review and document authority
-This report combines verified frozen active-section geometry with the current system-owned end-
-design basis. End geometry is not selected. It is a review document, not a fabrication release or a 
-completed pressure-vessel design.
+This report combines verified frozen active-section geometry with independent system-owned top/
+bottom end calculations. The user supplies no droplet size, terminal velocity, margin, diameter or 
+height. Missing built-in models, process sources and property sources are separate engineering 
+holds. This is not a fabrication release.
 Scope
 Disposition
 Frozen active section
 Ø700 mm; 20 compartments; active height 4200 mm. Unchanged.
 Current ends
-SYSTEM PENDING. Diameters, residence heights, opening envelopes and 
-overall elevations are undetermined.
+TOP: HOLD / MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED / 
+PROPERTY_SOURCE_REQUIRED / PROCESS_SOURCE_REQUIRED. BOTTOM: 
+HOLD / MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED / 
+PROPERTY_SOURCE_REQUIRED / PROCESS_SOURCE_REQUIRED. Overall 
+mechanical elevations remain unqualified.
 Five engineering drawings
 Current GA, active-only longitudinal section, typical compartment, rotor 
 and stator.
@@ -27,7 +31,7 @@ not a target length.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 2
 Frozen active design basis
 Quantity
@@ -65,7 +69,7 @@ hydraulic or stage-efficiency policy is changed by this report.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 3
 Process-flow directions and authority separation
 Basis
@@ -87,7 +91,7 @@ connection coordinates are not substituted for current pending locations.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 4
 Active internals — dimensional schedule
 Explicit active-component values only. The shaft diameter is retained; full shaft length, supports, seal 
@@ -168,7 +172,7 @@ mm
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 5
 Active internals — dimensional schedule (continued)
 Frozen parameter
@@ -192,7 +196,7 @@ m²
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 6
 Rotor and stator construction
 Component
@@ -247,7 +251,7 @@ unchanged.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 7
 Key geometric clearances and calculation summary
 Geometric diagnostic
@@ -274,7 +278,7 @@ Stack check: 20 × 210 mm = 4200 mm; inherited installed active height 4200 mm.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 8
 Compartment elevations — relative active datum
 All elevations are relative to the frozen active bottom = 0 mm. A datum translation only: original 
@@ -387,7 +391,7 @@ Top [mm]
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 9
 Normal process material basis
 Quantity
@@ -429,68 +433,379 @@ densities; no product allocation is inferred from these totals.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 10
 Current end-section design basis
 Frozen Stage 4 has no bound Stage 2 product reference. Normal product flows remain unknown; 
 nozzle-only S/O does not resolve or cause this hold.
-Requirement
-Current engineering disposition
-Source-qualified normal product duty
-NORMAL_PRODUCT_AUTHORITY_PENDING
-Independent diameter-selection rule
-NO_ADMITTED_SYSTEM_DIAMETER_RULE
-Top / bottom shell diameter
-TBD / TBD — no automatic numerical selection admitted
-Residence height / straight shell / total 
-assembly
-TBD — no numerical geometry fabricated
-Additional feed-distribution necks
-Ø700 mm outside frozen active height; lengths pending
-Transitions
-Conical portion 30°; physical knuckles and lengths pending; 
-minimum max(0.200 m, 0.4D)
-Interfaces
-±0.150 m from transitions, not an overall vessel elevation
-Opening envelope
-Unknown; nozzle centre and near/far opening edges unqualified
-Extension after opening
-From far opening edge: minimum max(0.200 m, 0.4D); D pending
-Heads
-Current symbolic torispherical intent only; mechanical profiles 
-pending; zero residence credit
+Additional feed-distribution necks inherit Ø700 mm, outside frozen active height. Their lengths 
+remain mechanically unqualified. Top and bottom models are independent; NMP active-compartment 
+d32 is never substituted for a bottom RRBO outlet droplet basis.
+System chain: authoritative normal flow + operating product properties + governing outlet droplet 
+model → terminal settling/rising velocity vt → defined system margin → Udesign → Dcalc → built-in 
+upward fabrication rounding → Dshell → H10 → nozzle-dependent straight shell.
+Dcalc = √[4 × (Qnormal / 3600) / (π × Udesign)], with Qnormal in m³/h and Udesign in m/s. For 
+terminal-model branches the governed margin convention specifies Udesign = f × vt OR vt / f; 
+neither convention nor f is assumed. Diameter is never clamped to the active ID.
+If Dshell ≤ inherited active ID, HOLD / TRANSITION_RULE_REQUIRED: no expander is invented. A 30° 
+half-angle sharp-cone reference (Dshell − Dactive)/(2 tan 30°) is explicitly nominal only; the angle 
+convention and formed/knuckled junction require engineering qualification. Transition volume 
+receives zero residence credit.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
 11
+TOP — system calculation, status and source trace
+Calculated values are system outputs from eligible built-in models and source-qualified data, not 
+required user inputs. DESIGN_CRITERION_REQUIRED identifies a software model gap, never a missing 
+user approval.
+Required engineering output
+Current result / authority
+Overall engineering status
+HOLD / MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED / 
+PROPERTY_SOURCE_REQUIRED / PROCESS_SOURCE_REQUIRED
+Normal product flow Qnormal
+Pending
+Flow source / revision
+PROCESS_SOURCE_REQUIRED
+Separation duty
+NMP droplets settling/returning against upward RRBO-rich raffinate
+System separation model status
+MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED
+System separation model / version / 
+citation
+MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED
+Governing droplet diameter / model
+MODEL_UNAVAILABLE or system Udesign model
+Terminal velocity / model
+No qualified terminal result
+Product-property source
+PROPERTY_SOURCE_REQUIRED:TOP_OPERATING_PRODUCT_DENSITIE
+S_VISCOSITIES_INTERFACIAL_TENSION_AND_PHASE_IDENTITY
+System margin / convention
+MODEL_UNAVAILABLE or included in system Udesign model
+System allowable velocity Udesign
+Pending
+Calculated minimum diameter Dcalc
+Pending
+Fabrication rounding rule
+MODEL_UNAVAILABLE: fabrication rule
+Selected physical shell ID Dshell
+Pending; HOLD
+Ten-minute residence height H10
+Pending; NORMAL flow, 10 min, usable fraction 0.90
+Transition status
+DIAMETER_PENDING
+Transition nominal / minimum / 
+physical
+Pending / Pending / Pending; 30° half-angle reference only; formed 
+junction unqualified; zero residence credit
+Interface allowance
+0.150 m; UP_FROM_TRANSITION; zero residence credit
+Product opening near edge / centre / 
+far edge
+Pending / Pending / Pending; relative outward from transition
+Product-nozzle position status
+PENDING_QUALIFIED_OPENING_ENVELOPE_OR_H10
+Opening envelope eNear / eFar
+Pending / Pending; 
+QUALIFIED_NOZZLE_OPENING_ENVELOPE_REQUIRED
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+12
+TOP — system calculation, status and source trace (continued)
+Required engineering output
+Current result / authority
+Opening envelope source
+Qualified physical envelope unavailable
+Post-opening extension
+Pending; max(0.200 m, 0.40 Dshell), from far edge
+Total straight-shell height
+Pending; CONDITIONAL_PENDING_H10_OR_NOZZLE_ENVELOPE
+Torispherical dish
+SPECIFIED_PROFILE_MECHANICAL_DIMENSIONS_PENDING; zero 
+residence credit
+Overall assembly / elevation
+Pending; PENDING_NECK_TRANSITION_HEAD_AND_GLOBAL_DATUM
+Specific system-model gaps
+MODEL_UNAVAILABLE:TOP_DROPLET_MODEL; 
+MODEL_UNAVAILABLE:TOP_TERMINAL_MODEL; 
+MODEL_UNAVAILABLE:TOP_MARGIN_MODEL; 
+MODEL_UNAVAILABLE:TOP_FABRICATION_MODEL; 
+MODEL_UNAVAILABLE:END_SEPARATION_CRITERION; MODEL_UNAVAI
+LABLE:SYSTEM_DROPLET_TERMINAL_VELOCITY_AND_MARGIN_CHAIN
+; MODEL_UNAVAILABLE:FABRICATION_DIAMETER_ROUNDING_RULE
+Process dependencies
+SOURCE_QUALIFIED_NORMAL_PRODUCT_FLOW_AND_SOURCE_REVISI
+ON_REQUIRED
+Property dependencies
+PROPERTY_SOURCE_REQUIRED:TOP_OPERATING_PRODUCT_DENSITIE
+S_VISCOSITIES_INTERFACIAL_TENSION_AND_PHASE_IDENTITY
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+13
+TOP — built-in model applicability audit
+Model / source
+Eligibility and reason
+P1_HINZE_D32_ACTIVE_COMPARTMEN
+T
+rrbo-wetnmp-hydraulic-p1.ts: d32 
+and six hydraulic scenarios
+NOT_ELIGIBLE_FOR_END_DUTY: Mean turbulent active-compartment 
+d32 is not the terminal-stator outlet flux/capture population or 
+qualified return-path duty.
+BARRY_PARLANGE_MOBILE / 
+SCHILLER_NAUMANN_IMMOBILE / 
+MYINT_SIGNED_TERMINAL
+rrbo-wetnmp-hydraulic-p1.ts; kuhni-
+geometry-resolver-v140.ts 
+signedTerminalState
+CONDITIONAL_TERMINAL_MODELS_ONLY: Real drag/force-balance 
+implementations exist, but end-specific droplet population, operating 
+product properties, interface mobility, spherical-drop regime and 
+return-path applicability are not qualified.
+AUTOMATIC_HYDRAULIC_SELECTION
+automatic-hydraulic-selection.ts: 
+qualificationUnknowns
+NOT_END_SEPARATION_MODEL: Explicitly lists inversion, entrainment 
+and disengagement as unknown; hydraulic knee/loading margin is 
+not an end Udesign margin.
+END_MARGIN_AND_FABRICATION_RUL
+E
+ecr-stage5-r1.ts geometric envelope 
+exclusions; legacy 
+END_DIAMETERS_M comparisons
+MODEL_UNAVAILABLE: No governed end-duty velocity factor/
+convention or fabrication rounding series found. Legacy comparison 
+diameters and active-column search grids are not fabrication rules.
+OFFLINE_PROPOSAL_AND_TERMINAL_
+CHAIN
+deliverables/disengager-preliminary-
+proposal.mjs; deliverables/kuhni-
+terminal-chain.md; deliverables/
+disengager-drag-evidence.md (Myint 
+et al., DOI 10.1299/jfst.1.72)
+CONDITIONAL_RESEARCH_NOT_LIVE_MODEL_AUTHORITY: Prior 
+proposal explicitly labels the 200 µm bottom target and 0.50 velocity 
+fraction engineer-selected, with N4/N7 flow proxies. Terminal-chain 
+research says PASS mathematics / HOLD actual performance, with 
+assumed DSD widths/loading and unqualified return. None 
+establishes an admitted current end population, margin or 
+fabrication series.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+14
+BOTTOM — system calculation, status and source trace
+Calculated values are system outputs from eligible built-in models and source-qualified data, not 
+required user inputs. DESIGN_CRITERION_REQUIRED identifies a software model gap, never a missing 
+user approval.
+Required engineering output
+Current result / authority
+Overall engineering status
+HOLD / MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED / 
+PROPERTY_SOURCE_REQUIRED / PROCESS_SOURCE_REQUIRED
+Normal product flow Qnormal
+Pending
+Flow source / revision
+PROCESS_SOURCE_REQUIRED
+Separation duty
+RRBO droplets rising/returning against downward NMP-rich extract
+System separation model status
+MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED
+System separation model / version / 
+citation
+MODEL_UNAVAILABLE / DESIGN_CRITERION_REQUIRED
+Governing droplet diameter / model
+MODEL_UNAVAILABLE or system Udesign model
+Terminal velocity / model
+No qualified terminal result
+Product-property source
+PROPERTY_SOURCE_REQUIRED:BOTTOM_OPERATING_PRODUCT_DEN
+SITIES_VISCOSITIES_INTERFACIAL_TENSION_AND_PHASE_IDENTITY
+System margin / convention
+MODEL_UNAVAILABLE or included in system Udesign model
+System allowable velocity Udesign
+Pending
+Calculated minimum diameter Dcalc
+Pending
+Fabrication rounding rule
+MODEL_UNAVAILABLE: fabrication rule
+Selected physical shell ID Dshell
+Pending; HOLD
+Ten-minute residence height H10
+Pending; NORMAL flow, 10 min, usable fraction 0.90
+Transition status
+DIAMETER_PENDING
+Transition nominal / minimum / 
+physical
+Pending / Pending / Pending; 30° half-angle reference only; formed 
+junction unqualified; zero residence credit
+Interface allowance
+0.150 m; DOWN_FROM_TRANSITION; zero residence credit
+Product opening near edge / centre / 
+far edge
+Pending / Pending / Pending; relative outward from transition
+Product-nozzle position status
+PENDING_QUALIFIED_OPENING_ENVELOPE_OR_H10
+Opening envelope eNear / eFar
+Pending / Pending; 
+QUALIFIED_NOZZLE_OPENING_ENVELOPE_REQUIRED
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+15
+BOTTOM — system calculation, status and source trace (continued)
+Required engineering output
+Current result / authority
+Opening envelope source
+Qualified physical envelope unavailable
+Post-opening extension
+Pending; max(0.200 m, 0.40 Dshell), from far edge
+Total straight-shell height
+Pending; CONDITIONAL_PENDING_H10_OR_NOZZLE_ENVELOPE
+Torispherical dish
+SPECIFIED_PROFILE_MECHANICAL_DIMENSIONS_PENDING; zero 
+residence credit
+Overall assembly / elevation
+Pending; PENDING_NECK_TRANSITION_HEAD_AND_GLOBAL_DATUM
+Specific system-model gaps
+MODEL_UNAVAILABLE:BOTTOM_DROPLET_MODEL; 
+MODEL_UNAVAILABLE:BOTTOM_TERMINAL_MODEL; 
+MODEL_UNAVAILABLE:BOTTOM_MARGIN_MODEL; 
+MODEL_UNAVAILABLE:BOTTOM_FABRICATION_MODEL; 
+MODEL_UNAVAILABLE:END_SEPARATION_CRITERION; MODEL_UNAVAI
+LABLE:SYSTEM_DROPLET_TERMINAL_VELOCITY_AND_MARGIN_CHAIN
+; MODEL_UNAVAILABLE:FABRICATION_DIAMETER_ROUNDING_RULE
+Process dependencies
+SOURCE_QUALIFIED_NORMAL_PRODUCT_FLOW_AND_SOURCE_REVISI
+ON_REQUIRED
+Property dependencies
+PROPERTY_SOURCE_REQUIRED:BOTTOM_OPERATING_PRODUCT_DEN
+SITIES_VISCOSITIES_INTERFACIAL_TENSION_AND_PHASE_IDENTITY
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+16
+BOTTOM — built-in model applicability audit
+Model / source
+Eligibility and reason
+P1_HINZE_D32_ACTIVE_COMPARTMEN
+T
+rrbo-wetnmp-hydraulic-p1.ts: d32 
+and six hydraulic scenarios
+NOT_ELIGIBLE_FOR_END_DUTY: NMP active-compartment d32 does 
+not model RRBO droplets rising in NMP-rich extract after phase 
+inversion.
+BARRY_PARLANGE_MOBILE / 
+SCHILLER_NAUMANN_IMMOBILE / 
+MYINT_SIGNED_TERMINAL
+rrbo-wetnmp-hydraulic-p1.ts; kuhni-
+geometry-resolver-v140.ts 
+signedTerminalState
+CONDITIONAL_TERMINAL_MODELS_ONLY: Real drag/force-balance 
+implementations exist, but end-specific droplet population, operating 
+product properties, interface mobility, spherical-drop regime and 
+return-path applicability are not qualified.
+AUTOMATIC_HYDRAULIC_SELECTION
+automatic-hydraulic-selection.ts: 
+qualificationUnknowns
+NOT_END_SEPARATION_MODEL: Explicitly lists inversion, entrainment 
+and disengagement as unknown; hydraulic knee/loading margin is 
+not an end Udesign margin.
+END_MARGIN_AND_FABRICATION_RUL
+E
+ecr-stage5-r1.ts geometric envelope 
+exclusions; legacy 
+END_DIAMETERS_M comparisons
+MODEL_UNAVAILABLE: No governed end-duty velocity factor/
+convention or fabrication rounding series found. Legacy comparison 
+diameters and active-column search grids are not fabrication rules.
+OFFLINE_PROPOSAL_AND_TERMINAL_
+CHAIN
+deliverables/disengager-preliminary-
+proposal.mjs; deliverables/kuhni-
+terminal-chain.md; deliverables/
+disengager-drag-evidence.md (Myint 
+et al., DOI 10.1299/jfst.1.72)
+CONDITIONAL_RESEARCH_NOT_LIVE_MODEL_AUTHORITY: Prior 
+proposal explicitly labels the 200 µm bottom target and 0.50 velocity 
+fraction engineer-selected, with N4/N7 flow proxies. Terminal-chain 
+research says PASS mathematics / HOLD actual performance, with 
+assumed DSD widths/loading and unqualified return. None 
+establishes an admitted current end population, margin or 
+fabrication series.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+17
 Residence calculation and closure holds
 Ten-minute hold-up: V10 = Qnormal / 6, with Qnormal in m³/h. Usable straight volume = 0.90 × 
 (πD²/4) × H10. Therefore H10 = Qnormal / [6 × 0.90 × (πD²/4)].
-This is one relationship between diameter and height. It does not uniquely choose both, even when 
-normal flow and product density are qualified. No economic optimum, aspect ratio, maximum height 
-or arbitrary candidate diameter is introduced.
+Residence alone does not select diameter. The independent built-in separation model selects the 
+minimum area; the governed fabrication rule rounds upward. No economic optimum, aspect ratio, 
+maximum height or arbitrary candidate diameter is introduced.
 Duty
 Qualified volume [m³/h]
 H10 [m]
 Top normal product
 TBD
-TBD — D unselected
+TBD
 Bottom normal product
 TBD
-TBD — D unselected
-• Source-qualified NORMAL raffinate/extract flows and operating-temperature densities.
-• An approved independent system diameter-selection rule. Ten-minute residence relates diameter 
-and height; it does not uniquely select either.
-• Qualified opening envelopes and mechanical neck, transition and head geometry.
-Residence extends from the interface to the near product-opening edge. The post-opening extension 
-starts at the far edge. Heads receive no residence-volume credit. Nozzle-only S/O must not enter this 
-calculation.
+TBD
+• TOP: MODEL_UNAVAILABLE:TOP_DROPLET_MODEL
+• TOP: MODEL_UNAVAILABLE:TOP_TERMINAL_MODEL
+• TOP: MODEL_UNAVAILABLE:TOP_MARGIN_MODEL
+• TOP: MODEL_UNAVAILABLE:TOP_FABRICATION_MODEL
+• TOP: MODEL_UNAVAILABLE:END_SEPARATION_CRITERION
+• TOP: MODEL_UNAVAILABLE:SYSTEM_DROPLET_TERMINAL_VELOCITY_AND_MARGIN_CHAIN
+• TOP: MODEL_UNAVAILABLE:FABRICATION_DIAMETER_ROUNDING_RULE
+• TOP: SOURCE_QUALIFIED_NORMAL_PRODUCT_FLOW_AND_SOURCE_REVISION_REQUIRED
+• TOP: PROPERTY_SOURCE_REQUIRED:TOP_OPERATING_PRODUCT_DENSITIES_VISCOSITIES_INTERFACI
+AL_TENSION_AND_PHASE_IDENTITY
+• TOP: QUALIFIED_NOZZLE_OPENING_ENVELOPE_REQUIRED
+• TOP: ENGINEERING_QUALIFICATION_REQUIRED
+• BOTTOM: MODEL_UNAVAILABLE:BOTTOM_DROPLET_MODEL
+• BOTTOM: MODEL_UNAVAILABLE:BOTTOM_TERMINAL_MODEL
+• BOTTOM: MODEL_UNAVAILABLE:BOTTOM_MARGIN_MODEL
+• BOTTOM: MODEL_UNAVAILABLE:BOTTOM_FABRICATION_MODEL
+• BOTTOM: MODEL_UNAVAILABLE:END_SEPARATION_CRITERION
+• BOTTOM: MODEL_UNAVAILABLE:SYSTEM_DROPLET_TERMINAL_VELOCITY_AND_MARGIN_CHAIN
+• BOTTOM: MODEL_UNAVAILABLE:FABRICATION_DIAMETER_ROUNDING_RULE
+• BOTTOM: SOURCE_QUALIFIED_NORMAL_PRODUCT_FLOW_AND_SOURCE_REVISION_REQUIRED
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-12
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+18
+Residence calculation and closure holds (continued)
+• BOTTOM: PROPERTY_SOURCE_REQUIRED:BOTTOM_OPERATING_PRODUCT_DENSITIES_VISCOSITIES_I
+NTERFACIAL_TENSION_AND_PHASE_IDENTITY
+• BOTTOM: QUALIFIED_NOZZLE_OPENING_ENVELOPE_REQUIRED
+• BOTTOM: ENGINEERING_QUALIFICATION_REQUIRED
+Residence extends from the interface to the near product-opening edge. The post-opening extension 
+starts at the far edge. Heads receive no residence-volume credit. Nozzle-only S/O must not enter this 
+calculation.
+Hstraight = 0.150 + H10 + eNear + eFar + Hpost; Hpost = max(0.200 m, 0.40 Dshell). Centre 
+distance from transition = 0.150 + H10 + eNear. Near/far extents come only from a qualified actual 
+nozzle envelope. Missing envelope does not block D or H10 but prevents exact centre and total 
+straight-shell height. Top distances run upward; bottom distances run downward. Torispherical dish 
+follows the post-opening extension, with zero residence credit.
+
+
+STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+19
 Current preliminary nozzle schedule
 Service
 Basis m³/h
@@ -534,8 +849,8 @@ positions are excluded.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-13
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+20
 Oil feed: hydraulic pipe screen
 Qbasis = 4 m³/h. Qcheck = 1.20 Qbasis = 4.8 m³/h. Required bore = √[4 Qcheck / (3600 π × 0.5)] = 
 58.27 mm.
@@ -582,8 +897,8 @@ vessel opening envelope.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-14
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+21
 Wet-solvent feed — nozzle-only S/O: hydraulic pipe 
 screen
 Qbasis = 5.1369 m³/h. Qcheck = 1.20 Qbasis = 6.1643 m³/h. Required bore = √[4 Qcheck / (3600 π × 
@@ -631,8 +946,8 @@ vessel opening envelope.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-15
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+22
 Design validation summary and outstanding work
 Saved validation register
 Count
@@ -651,8 +966,9 @@ Normal end-product duty
 Designated simultaneous source-qualified raffinate/extract flow and 
 operating-temperature density
 End geometry
-Independent diameter rule, opening envelope and mechanical 
-transition/head closure
+Eligible end-specific built-in droplet/terminal/margin/fabrication 
+models; source-qualified properties; opening envelope and 
+mechanical transition/head closure
 Rotating assembly
 Strength, deflection, critical speed, tolerances, bearings, seals and 
 drive assessment
@@ -667,45 +983,45 @@ qualification or completed end sizing. No approval is inferred from a historical
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-16
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+23
 General arrangement — current symbolic ends
-CURRENT SYSTEM ARRANGEMENT — END DIMENSIONS PENDING
-NOT TO SCALE. End widths/heights are symbolic, not chosen diameters or physical dimensions.
+CURRENT SYSTEM ARRANGEMENT — INDEPENDENT TOP / BOTTOM STATUS
+NOT TO SCALE. Numeric labels are system results where available; profiles remain conditional, not fabrication geometry.
 NORMAL process S/O=0.6 mass. S/O=1.5 MASS FOR NOZZLES ONLY.
-TOP / RAFFINATE — SYSTEM DESIGN PENDING
+TOP / RAFFINATE — HOLD: SYSTEM MODEL / SOURCE GAPS
 Head profile symbolic; depth/radii TBD; zero residence credit
-Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending
-Product opening: near/far edges and nozzle envelope pending
-Shell diameter and H10 unresolved — no selected dimensions
-10 min NORMAL flow / 0.90 usable straight volume only
+Post-opening pending; straight shell pending
+Opening near / centre / far: pending / pending / pending
+System Dshell pending; H10 pending
+Dcalc pending; 10 min NORMAL / 0.90 usable volume
 Interface rule: 0.150 m above transition
-30° conical portion; formed junctions and physical length TBD
-Transition ≥ max(0.200 m, 0.4D); no numeric D admitted
+30° half-angle reference only; convention / formed junctions unqualified
+Nominal cone pending; physical transition pending
 Additional Ø700 neck outside active: wet solvent P03
 FROZEN ACTIVE SECTION — UNCHANGED
 Ø700 mm × 20 compartments; active height 4.200 m
 Revision 8; inherited internals remain in frozen detail tabs.
 No user diameter comparison or historical preference governs this GA.
 No overall height or absolute outlet elevations established.
-BOTTOM / EXTRACT — SYSTEM DESIGN PENDING
+BOTTOM / EXTRACT — HOLD: SYSTEM MODEL / SOURCE GAPS
 Head profile symbolic; depth/radii TBD; zero residence credit
-Beyond far edge: extension ≥ max(0.200 m, 0.4D); D pending
-Product opening: near/far edges and nozzle envelope pending
-Shell diameter and H10 unresolved — no selected dimensions
-10 min NORMAL flow / 0.90 usable straight volume only
+Post-opening pending; straight shell pending
+Opening near / centre / far: pending / pending / pending
+System Dshell pending; H10 pending
+Dcalc pending; 10 min NORMAL / 0.90 usable volume
 Interface rule: 0.150 m below transition
-30° conical portion; formed junctions and physical length TBD
-Transition ≥ max(0.200 m, 0.4D); no numeric D admitted
+30° half-angle reference only; convention / formed junctions unqualified
+Nominal cone pending; physical transition pending
 Additional Ø700 neck outside active: oil feed P01
-Required: source-qualified normal product duty and an independent system diameter-selection rule.
-Ten-minute residence alone cannot uniquely determine both diameter and height.
+System chain: normal flow + product properties + end-specific droplet / terminal / margin models → Dcalc → Dshell → H10.
+HOLD means a genuine model / source gap, not missing user sizing inputs. See per-end model/source audit in report.
 Opening envelopes, necks, formed junctions and heads need mechanical authority. NOT FOR FABRICATION.
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-17
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+24
 Longitudinal section — frozen active only
 FROZEN COLUMN ID Ø700
 ACTIVE HEIGHT 4200
@@ -734,8 +1050,8 @@ PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-18
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+25
 Typical compartment — frozen detail
 D Ø700
 do Ø112
@@ -763,8 +1079,8 @@ PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-19
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+26
 Rotor — frozen detail
 PLAN
 SWEPT DR Ø231
@@ -791,8 +1107,8 @@ PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-20
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+27
 Stator — frozen detail
 PLAN
 COLUMN ID Ø700
@@ -822,8 +1138,8 @@ PRELIMINARY PRE-PILOT GEOMETRY — NOT FOR FABRICATION
 
 
 STAGE 5 ENGINEERING REPORT | Design 269 | Revision 8
-PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending
-21
+PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status
+28
 Compact traceability and audit handoff
 Identity
 Verified reference
@@ -835,8 +1151,8 @@ Frozen active source SHA-256
 d69bc153d009196c806639257001dd8abf0914f572e4d1809cbf5f440e
 078138
 Current end source SHA-256
-b7359f962cab45f79f5abdde27436e689a7c5434db99ebe3d7af31dd98
-5a22fd
+83b520ead175e722271c600ab46f08ca85210d463eccd1a80b101ac2fe
+6037a0
 Stage 1 immutable hash
 06bb9227b30f1f4c67b3ed557db34f61fe749037addf66163194dd46e2
 e98c5f
@@ -847,7 +1163,7 @@ Frozen geometry ruleset
 ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R5_CURRENT_BASIS_SHR
 OUDED_PERFORATED
 Current end ruleset
-ECR_END_SECTIONS_SYSTEM_AUTHORITY_PENDING_V3
+ECR_END_SECTIONS_INDEPENDENT_DIAMETER_HEIGHT_V4
 Source status at read
 CURRENT
 The current report source is read in one consistent read-only transaction, with a single frozen revision 

@@ -35,6 +35,14 @@ async function request(suffix: string, method = 'get', overrides: any = {}) {
   return response;
 }
 describe('Stage 5 HTTP boundary', () => {
+  it('never accepts client model, criterion, flow, margin or diameter overrides', async () => {
+    for (const key of ['models', 'separation', 'normalFlow', 'uDesignMS', 'safetyFactor', 'dropletDiameterM', 'fabrication']) {
+      expect((await request('/end-sections', 'get', { query: { [key]: 'arbitrary-client-value' } })).statusCode).toBe(400);
+      expect((await request('/engineering-report.pdf', 'get', { query: { expectedSourceHash: 'source', [key]: 'arbitrary' } })).statusCode).toBe(400);
+    }
+    expect(ends.calculate).not.toHaveBeenCalled();
+    expect(ends.reportSource).not.toHaveBeenCalled();
+  });
   it('exports a current Engineering Report only with matching end authority and leaves archive source-independent', async () => {
     const revision = { revision: 8, geometry: { r1Model: {} }, currentness: 'CURRENT' };
     ends.reportSource.mockResolvedValue({ revision, ends: { sourceHash: 'end-source' } });

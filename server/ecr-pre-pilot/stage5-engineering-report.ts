@@ -1,7 +1,7 @@
 import PDFDocument from 'pdfkit';
 import SVGtoPDF from 'svg-to-pdfkit';
 import type { Stage5Geometry } from '../../shared/ecr-stage5-geometry';
-import { AUTOMATIC_END_RULESET, type Stage5EndProjection } from '../../shared/ecr-stage5-end-sections';
+import { AUTOMATIC_END_RULESET, endEngineeringRows, type Stage5EndProjection } from '../../shared/ecr-stage5-end-sections';
 import { renderEndSchematic } from '../../shared/ecr-stage5-end-schematic';
 import { renderStage5Svg } from '../../shared/ecr-stage5-drawings';
 import { renderStage5R1Svg } from '../../shared/ecr-stage5-r1-drawings';
@@ -31,7 +31,7 @@ export function stage5EngineeringReportContent(record: RecordSource, ends: Stage
   const g = record.geometry, d = g.dimensions;
   if (record.currentness !== 'CURRENT' || !g.r1Model || String(record.id) !== String(ends.active.revisionId)
     || record.sourceHash !== ends.active.sourceHash || ends.ruleset !== AUTOMATIC_END_RULESET
-    || ends.assemblies.top.diameterM !== null || ends.assemblies.bottom.diameterM !== null
+    || ends.selectionAuthority !== 'SERVER_BUILTIN_PER_END_MODELS'
     || d.columnDiameterM !== ends.active.diameterM || d.installedActiveHeightM !== ends.active.installedActiveHeightM
     || g.compartments.length !== ends.active.compartmentCount)
     throw new Stage5Error('STAGE5_ENGINEERING_REPORT_CURRENT_AUTHORITY_REQUIRED', 409);
@@ -70,7 +70,7 @@ export async function createStage5EngineeringReportPdf(record: RecordSource, end
       pageNumber++;
       doc.font('Engineering').fontSize(8).fillColor('#334155')
         .text(`STAGE 5 ENGINEERING REPORT | Design ${designId} | Revision ${record.revision}`, 40, 24);
-      doc.fontSize(7).text('PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; end dimensions pending', 40, 40);
+      doc.fontSize(7).text('PRELIMINARY — NOT FOR FABRICATION | Active geometry frozen; independent end calculation status', 40, 40);
       doc.text(`${pageNumber}`, doc.page.width - 65, doc.page.height - 28, { lineBreak: false });
       y = 70;
     };
@@ -102,10 +102,10 @@ export async function createStage5EngineeringReportPdf(record: RecordSource, end
     };
     try {
       section('Engineering review and document authority',
-        'This report combines verified frozen active-section geometry with the current system-owned end-design basis. End geometry is not selected. It is a review document, not a fabrication release or a completed pressure-vessel design.');
+        'This report combines verified frozen active-section geometry with independent system-owned top/bottom end calculations. The user supplies no droplet size, terminal velocity, margin, diameter or height. Missing built-in models, process sources and property sources are separate engineering holds. This is not a fabrication release.');
       table(['Scope', 'Disposition'], [
         ['Frozen active section', `Ø${mm(ends.active.diameterM)} mm; ${ends.active.compartmentCount} compartments; active height ${mm(ends.active.installedActiveHeightM)} mm. Unchanged.`],
-        ['Current ends', 'SYSTEM PENDING. Diameters, residence heights, opening envelopes and overall elevations are undetermined.'],
+        ['Current ends', `TOP: ${ends.assemblies.top.overallEngineeringStatus}. BOTTOM: ${ends.assemblies.bottom.overallEngineeringStatus}. Overall mechanical elevations remain unqualified.`],
         ['Five engineering drawings', 'Current GA, active-only longitudinal section, typical compartment, rotor and stator.'],
         ['Historical end/nozzle reservations', 'Not current authority. Excluded from the current schedules and longitudinal section.'],
         ['Calculation & Audit Archive', 'Separate complete saved report: detailed source records, coordinates, validation, provenance and historical reservations.'],
@@ -200,28 +200,33 @@ export async function createStage5EngineeringReportPdf(record: RecordSource, end
 
       section('Current end-section design basis',
         ends.normalProductAuthority?.detail ?? ends.materialContract.requiredEvidence);
-      table(['Requirement', 'Current engineering disposition'], [
-        ['Source-qualified normal product duty', ends.materialContract.status],
-        ['Independent diameter-selection rule', ends.selectionAuthority],
-        ['Top / bottom shell diameter', 'TBD / TBD — no automatic numerical selection admitted'],
-        ['Residence height / straight shell / total assembly', 'TBD — no numerical geometry fabricated'],
-        ['Additional feed-distribution necks', 'Ø700 mm outside frozen active height; lengths pending'],
-        ['Transitions', 'Conical portion 30°; physical knuckles and lengths pending; minimum max(0.200 m, 0.4D)'],
-        ['Interfaces', '±0.150 m from transitions, not an overall vessel elevation'],
-        ['Opening envelope', 'Unknown; nozzle centre and near/far opening edges unqualified'],
-        ['Extension after opening', 'From far opening edge: minimum max(0.200 m, 0.4D); D pending'],
-        ['Heads', 'Current symbolic torispherical intent only; mechanical profiles pending; zero residence credit'],
-      ], [.4, .6]);
+      text(`Additional feed-distribution necks inherit Ø${mm(ends.active.diameterM)} mm, outside frozen active height. Their lengths remain mechanically unqualified. Top and bottom models are independent; NMP active-compartment d32 is never substituted for a bottom RRBO outlet droplet basis.`);
+      text('System chain: authoritative normal flow + operating product properties + governing outlet droplet model → terminal settling/rising velocity vt → defined system margin → Udesign → Dcalc → built-in upward fabrication rounding → Dshell → H10 → nozzle-dependent straight shell.');
+      text('Dcalc = √[4 × (Qnormal / 3600) / (π × Udesign)], with Qnormal in m³/h and Udesign in m/s. For terminal-model branches the governed margin convention specifies Udesign = f × vt OR vt / f; neither convention nor f is assumed. Diameter is never clamped to the active ID.');
+      text('If Dshell ≤ inherited active ID, HOLD / TRANSITION_RULE_REQUIRED: no expander is invented. A 30° half-angle sharp-cone reference (Dshell − Dactive)/(2 tan 30°) is explicitly nominal only; the angle convention and formed/knuckled junction require engineering qualification. Transition volume receives zero residence credit.');
+      for (const end of ['top', 'bottom'] as const) {
+        const assembly = ends.assemblies[end];
+        section(`${end.toUpperCase()} — system calculation, status and source trace`,
+          'Calculated values are system outputs from eligible built-in models and source-qualified data, not required user inputs. DESIGN_CRITERION_REQUIRED identifies a software model gap, never a missing user approval.');
+        table(['Required engineering output', 'Current result / authority'], endEngineeringRows(assembly), [.37, .63]);
+        if (assembly.modelAudit.length) {
+          section(`${end.toUpperCase()} — built-in model applicability audit`);
+          table(['Model / source', 'Eligibility and reason'], assembly.modelAudit.map(a => [
+            `${a.modelId}\n${a.citation}`, `${a.eligibility}: ${a.reason}`,
+          ]), [.36, .64]);
+        }
+      }
 
       section('Residence calculation and closure holds');
       text('Ten-minute hold-up: V10 = Qnormal / 6, with Qnormal in m³/h. Usable straight volume = 0.90 × (πD²/4) × H10. Therefore H10 = Qnormal / [6 × 0.90 × (πD²/4)].');
-      text('This is one relationship between diameter and height. It does not uniquely choose both, even when normal flow and product density are qualified. No economic optimum, aspect ratio, maximum height or arbitrary candidate diameter is introduced.');
+      text('Residence alone does not select diameter. The independent built-in separation model selects the minimum area; the governed fabrication rule rounds upward. No economic optimum, aspect ratio, maximum height or arbitrary candidate diameter is introduced.');
       table(['Duty', 'Qualified volume [m³/h]', 'H10 [m]'], [
-        ['Top normal product', n(ends.normalProductFlows.topM3H, 4), 'TBD — D unselected'],
-        ['Bottom normal product', n(ends.normalProductFlows.bottomM3H, 4), 'TBD — D unselected'],
+        ['Top normal product', n(ends.assemblies.top.normalProductM3H, 4), n(ends.assemblies.top.residenceHeightM, 4)],
+        ['Bottom normal product', n(ends.assemblies.bottom.normalProductM3H, 4), n(ends.assemblies.bottom.residenceHeightM, 4)],
       ]);
       for (const requirement of ends.pendingRequirements) text(`• ${requirement}`);
       text('Residence extends from the interface to the near product-opening edge. The post-opening extension starts at the far edge. Heads receive no residence-volume credit. Nozzle-only S/O must not enter this calculation.');
+      text('Hstraight = 0.150 + H10 + eNear + eFar + Hpost; Hpost = max(0.200 m, 0.40 Dshell). Centre distance from transition = 0.150 + H10 + eNear. Near/far extents come only from a qualified actual nozzle envelope. Missing envelope does not block D or H10 but prevents exact centre and total straight-shell height. Top distances run upward; bottom distances run downward. Torispherical dish follows the post-opening extension, with zero residence credit.');
 
       section('Current preliminary nozzle schedule');
       const nozzleRow = (name: string, flow: ReturnType<typeof import('../../shared/ecr-stage5-end-sections').endNozzle>) => {
@@ -252,7 +257,7 @@ export async function createStage5EngineeringReportPdf(record: RecordSource, end
       text('Counts describe the complete historical frozen construction register, including historical end reservations; they do not validate the current pending ends. Individual machine check rows and source calculations are retained in the Audit Archive.');
       table(['Engineering area', 'Release condition'], [
         ['Normal end-product duty', 'Designated simultaneous source-qualified raffinate/extract flow and operating-temperature density'],
-        ['End geometry', 'Independent diameter rule, opening envelope and mechanical transition/head closure'],
+        ['End geometry', 'Eligible end-specific built-in droplet/terminal/margin/fabrication models; source-qualified properties; opening envelope and mechanical transition/head closure'],
         ['Rotating assembly', 'Strength, deflection, critical speed, tolerances, bearings, seals and drive assessment'],
         ['Pressure equipment', 'Design pressure/temperature, materials, wall/head thickness and reinforcement'],
         ['Interfaces and installation', 'Loads, supports, nozzle positions, maintainability and overall elevations'],

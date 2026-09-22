@@ -1764,14 +1764,14 @@ content_type = "text/markdown"
 id = "TRLhVD3Wv9wtt0_S_GvYe"
 uri = "file://deliverables/stage5-engineering-report/design269-revision8-engineering-report.pdf"
 type = "pdf"
-title = "Stage 5 Engineering Report — 21 pages"
-description = "Concise report with all five drawings, current nozzle calculations, frozen active geometry and explicit pending end dimensions."
+title = "Updated Stage 5 Engineering Report — 28 pages"
+description = "Independent system-model status, calculation chain and detailed missing-source reasons for both ends, plus all five drawing views."
 logical_id = "aacef108-1509-4c23-b9c0-ad2c8dee08df"
-content_hash = "sha256:4e4aa29d6a08e2d3f32be23f6f1d6d0219014ecae33b1469772d37ed16477235"
-size = 285925
-mtime_ms = 1790066607510
-storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aacef108-1509-4c23-b9c0-ad2c8dee08df/51b14493-8acb-44ce-a75f-2630c5475766"
-storage_version_token = "1790066826727093"
+content_hash = "sha256:7ecaa4c49158af0fc7dc13ab71dd854ff743511ff2f0c657ec9248d0feaf5096"
+size = 306161
+mtime_ms = 1790068981290
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/aacef108-1509-4c23-b9c0-ad2c8dee08df/290b22b6-24ae-468e-a1e3-ff50991ef867"
+storage_version_token = "1790069189345229"
 content_type = "application/pdf"
 
 [[outputs]]

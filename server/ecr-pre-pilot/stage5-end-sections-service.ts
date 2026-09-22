@@ -3,6 +3,7 @@ import { validateStage1Snapshot } from "./stage1";
 import { getStage5Revisions, stage5Hash, Stage5Error, scoped } from "./stage5-geometry-service";
 import { calculateEndSections, calculateAutomaticEndSections, AUTOMATIC_END_RULESET, END_SECTION_RULESET, type EndSelections, type Stage5EndProjection } from "../../shared/ecr-stage5-end-sections";
 import { validatePersistedStage2HetsAuthority } from "./stage4-pre-pilot-sizing-service";
+import { resolveStage5EndSystemAuthority, type EndSystemSourceResolver } from "./stage5-end-system-models";
 
 /** Read ONLY the Stage-2 identity carried by this frozen Stage-4 snapshot.
  * The existing contract is explicitly AVAILABLE_REFERENCE_ONLY and its streams
@@ -39,40 +40,47 @@ async function inspectNormalProductAuthority(client: { query: (...args: any[]) =
 export async function getStage5EndSections(user: number, design: number, revisionId: string, selections: EndSelections) {
   return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, selections), 'read');
 }
-export async function getAutomaticStage5EndSections(user: number, design: number, revisionId: string) {
-  return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, null), 'read');
+export async function getAutomaticStage5EndSections(user: number, design: number, revisionId: string,
+  resolveModels: EndSystemSourceResolver = resolveStage5EndSystemAuthority) {
+  return scoped(user, design, client => calculateCurrent(client, user, design, revisionId, null, undefined, resolveModels), 'read');
 }
 /** One verified revision hydration and one consistent current-source transaction. */
-export async function getStage5EngineeringReportSource(user: number, design: number, revisionId: string) {
+export async function getStage5EngineeringReportSource(user: number, design: number, revisionId: string,
+  resolveModels: EndSystemSourceResolver = resolveStage5EndSystemAuthority) {
   return scoped(user, design, async client => {
     const revision = (await getStage5Revisions(user, design, revisionId, client))[0];
-    const ends = await calculateCurrent(client, user, design, revisionId, null, revision);
+    const ends = await calculateCurrent(client, user, design, revisionId, null, revision, resolveModels);
     return { revision, ends: ends as Stage5EndProjection };
   }, 'read');
 }
 
-async function calculateCurrent(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, revisionId: string, selections: EndSelections | null, verifiedRevision?: Awaited<ReturnType<typeof getStage5Revisions>>[number]) {
+async function calculateCurrent(client: { query: (...args: any[]) => Promise<any> }, user: number, design: number, revisionId: string, selections: EndSelections | null, verifiedRevision?: Awaited<ReturnType<typeof getStage5Revisions>>[number],
+  resolveModels: EndSystemSourceResolver = resolveStage5EndSystemAuthority) {
   // Ownership and immutable snapshot integrity use the existing Stage 5 service.
   const active = verifiedRevision ?? (await getStage5Revisions(user, design, revisionId, client))[0];
   if (!active || active.currentness !== "CURRENT") throw new Stage5Error("STAGE5_END_CURRENT_FROZEN_REVISION_REQUIRED");
   const b = active.geometry?.basis;
-  if (!b || !Number.isFinite(b.columnDiameterM) || Math.abs(b.columnDiameterM - .7) > 1e-9 || b.compartmentCount !== 20
+  if (!b || !Number.isFinite(b.columnDiameterM) || b.columnDiameterM <= 0 || !Number.isSafeInteger(b.compartmentCount) || b.compartmentCount <= 0
     || !Number.isFinite(b.installedActiveHeightM) || b.installedActiveHeightM <= 0)
-    throw new Stage5Error("STAGE5_END_APPROVED_700_20_STAGE_BASIS_REQUIRED");
+    throw new Stage5Error("STAGE5_END_FROZEN_ACTIVE_BASIS_REQUIRED");
   const row = await client.query("SELECT input_data FROM ecr_pre_pilot_designs WHERE id=$1 AND created_by=$2", [design, user]);
   if (!row.rows[0]) throw new Stage5Error("ECR_PRE_PILOT_DESIGN_NOT_FOUND", 404);
   const snapshot = validateStage1Snapshot(row.rows[0].input_data);
   const s = snapshot.stage1;
   const normalProductAuthority = await inspectNormalProductAuthority(client, user, design, active, snapshot);
+  const systemAuthority = selections ? {} : await resolveModels({
+    designId: design, revisionId, activeSourceHash: active.sourceHash, stage1Hash: snapshot.immutableHash, normalProductAuthority,
+  });
   // Bind to the verified active-section source; no replacement of its dimensions.
-  const sourceHash = stage5Hash({ ruleset: selections ? END_SECTION_RULESET : AUTOMATIC_END_RULESET, stage1: snapshot.immutableHash, activeGeometry: stage5Hash(active.geometry), activeSource: active.sourceHash, revisionId, normalProductAuthority });
+  const sourceHash = stage5Hash({ ruleset: selections ? END_SECTION_RULESET : AUTOMATIC_END_RULESET, stage1: snapshot.immutableHash, activeGeometry: stage5Hash(active.geometry), activeSource: active.sourceHash, revisionId, normalProductAuthority,
+    ...(!selections ? { systemAuthority } : {}) });
   const feed = {
     designFeedRateLph: s.designFeedRateLph, rrboDensityKgM3: s.rrboDensityKgM3, nmpDensityKgM3: s.nmpDensityKgM3,
     solventOilRatio: s.solventOilRatio,
     oilComponentWt: [s.saturatesWt, s.monoAromaticsWt, s.diAromaticsWt, s.polyAromaticsWt, s.polarAromaticsWt, s.nmpInFeedWt],
     nmpPurityWt: s.nmpPurityWt, nmpWaterWt: s.nmpWaterWt,
   };
-  const result = selections ? calculateEndSections(feed, selections) : calculateAutomaticEndSections(feed);
+  const result = selections ? calculateEndSections(feed, selections) : calculateAutomaticEndSections(feed, null, b.columnDiameterM, systemAuthority);
   // Read-only calls use one consistent MVCC snapshot; save calls use source
   // locks. Immutable geometry and Stage 1 are verified in that same transaction.
   return { ...result, normalProductAuthority, sourceHash, stage1Hash: snapshot.immutableHash,
