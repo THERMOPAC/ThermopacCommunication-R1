@@ -66,7 +66,7 @@ export function renderEndSchematic(result: EndSectionResult & { sourceHash?: str
         </g>
       </g>
       <text x="${cx}" y="${y(205) - 6}" font-size="12" text-anchor="middle">ID ${g.diameterM * 1000} mm</text>
-      <text x="${cx + 5}" y="${y(285)}" font-size="13" fill="#92400e">H10 TBD</text>
+      <text x="${cx + 5}" y="${y(285)}" font-size="13" fill="#92400e">${g.residenceHeightM === null ? "H10 TBD" : `H10 ${g.residenceHeightM.toFixed(3)} m`}</text>
       <text x="${left + 8}" y="${y(355) - direction * 6}" font-size="11" fill="#0369a1">near edge</text>
       <text x="${left + 8}" y="${y(375) + direction * 14}" font-size="11" fill="#0369a1">far edge</text>
       <g fill="#0f172a">
@@ -74,7 +74,7 @@ export function renderEndSchematic(result: EndSectionResult & { sourceHash?: str
         ${leader(32, cx + neckHalf)}${label(32, "Additional Ø700 feed/distribution neck", `${end === "top" ? "Wet solvent P03" : "Oil feed P01"} inlet; extra neck length TBD`)}
         ${leader(100)}${label(100, `30° knuckled transition ≥${(g.transitionMinimumM * 1000).toFixed(0)} mm`, "Conical portion; physical length / radii TBD")}
         ${leader(153, right + 13)}${label(153, `Interface 150 mm ${end === "top" ? "above" : "below"} transition`)}
-        ${leader(285)}${label(285, "H10 at normal product flow — PENDING BALANCE", "10 min / 0.90 usable straight volume only")}
+        ${leader(285)}${label(285, g.residenceHeightM === null ? "H10 — PENDING NORMAL PRODUCT AUTHORITY" : `Normal Q ${g.normalProductM3H!.toFixed(3)} m³/h → H10 ${g.residenceHeightM.toFixed(3)} m`, "10 min / 0.90 usable straight volume only")}
         ${leader(365, right + 42)}${label(365, end === "top" ? "Raffinate P04 product opening" : "Extract P02 product opening", "Near edge → envelope TBD → far edge")}
         ${leader(416, right + 13)}${label(416, `Post-opening straight ≥${(g.postOpeningExtensionM * 1000).toFixed(0)} mm`, "Begins at far outer edge; no residence credit")}
         ${leader(485, cx + shellHalf * .85)}${label(485, "Torispherical head — symbolic profile", "Depth / crown / knuckle radii TBD; zero credit")}
@@ -83,12 +83,12 @@ export function renderEndSchematic(result: EndSectionResult & { sourceHash?: str
   };
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1540 885" role="img" aria-label="Conditional top and bottom vessel profiles, not to scale; widths reflect selected diameters, unknown axial lengths symbolic">
   <title>Conditional top and bottom disengagement vessel profiles — NOT TO SCALE</title>
-  <desc>Top assembly rises from a dashed frozen active reference; bottom assembly is mirrored downwards. Each includes an additional 700 mm feed neck and feed nozzle, symbolic knuckled expansion, straight shell, 150 mm interface offset, interrupted H10 residence region pending normal product flow, product nozzle with near and far opening edges, post-opening extension, and symbolic torispherical head. Horizontal shell widths reflect selected diameters. Vertical lengths, nozzle sizes, 30 degree conical angle and head or knuckle profiles are not drawn to engineering scale. Residence ends at the near edge; post-extension starts at the far edge. No product balance, mechanical radii or total assembly height is qualified.</desc>
+  <desc>Top assembly rises from a dashed frozen active reference; bottom assembly is mirrored downwards. Each includes an additional 700 mm feed neck and feed nozzle, symbolic knuckled expansion, straight shell, 150 mm interface offset, interrupted H10 residence region governed exclusively by source-qualified normal product flow, product nozzle with near and far opening edges, post-opening extension, and symbolic torispherical head. Horizontal shell widths reflect selected diameters. Vertical lengths, nozzle sizes, 30 degree conical angle and head or knuckle profiles are not drawn to engineering scale. Residence ends at the near edge; post-extension starts at the far edge. Mechanical radii and total assembly heights remain unqualified. Fixed S/O 1.5 mass is for nozzle sizing only and must not alter normal flows or geometry.</desc>
   <metadata>${escape(JSON.stringify({ ruleset: result.ruleset, sourceHash: result.sourceHash ?? null, status: result.status,
     topDiameterM: result.assemblies.top.diameterM, bottomDiameterM: result.assemblies.bottom.diameterM }))}</metadata>
   <rect width="1540" height="885" fill="white"/><g font-family="Arial,sans-serif" fill="#0f172a">
   <text x="20" y="28" font-size="20" font-weight="bold">PROVISIONAL — NOT TO SCALE — NO FABRICATION / SEPARATION CLAIM</text>
-  <text x="20" y="49" font-size="13">Independent S/O=1.5 mass | 10 min normal flow | 0.90 usable straight volume | No product balance qualified</text>
+  <text x="20" y="49" font-size="13">NORMAL process S/O=${result.feed.solventOilMassRatio} mass | 10 min normal product flow | 0.90 usable volume | S/O=1.5 MASS FOR NOZZLES ONLY</text>
   <text x="20" y="70" font-size="13">Diameter-relative widths only. All axial spacing, nozzle envelopes, head curves and knuckles are symbolic — no dimensions may be measured.</text>
   ${profile("top")}${profile("bottom")}
   <text x="20" y="800" font-size="14">Read top upwards and bottom downwards from the dashed active boundary. Amber zone is the sole residence-credit region.</text>

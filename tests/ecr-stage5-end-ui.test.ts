@@ -13,7 +13,7 @@ vi.mock("react", async () => ({
 }));
 import { Stage5EndSectionsPanel } from "../client/src/components/ecr-pre-pilot/stage5-end-sections-panel";
 import { calculateEndSections } from "../shared/ecr-stage5-end-sections";
-const result = { ...calculateEndSections({ designFeedRateLph: 2300, rrboDensityKgM3: 880, nmpDensityKgM3: 1015,
+const result = { ...calculateEndSections({ designFeedRateLph: 2300, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
   oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2 }, { topDiameterM: .9, bottomDiameterM: .9 }),
   sourceHash: "current-source", stage1Hash: "stage1-source",
   active: { revisionId: "1", diameterM: .7, compartmentCount: 20, installedActiveHeightM: 4.2 } };
@@ -42,7 +42,12 @@ describe("end-section UI states and authority requests", () => {
     expect(html).toContain('data-end-profile="top"');
     expect(html).toContain('data-end-profile="bottom"');
     expect(html).toContain('data-part="symbolic-torispherical-head"');
-    expect(html).toContain("Pending / pending");
+    expect(html).toContain("Pending / Pending");
+    expect(html).toContain("NOZZLES ONLY");
+    expect(html).toContain("Normal wet solvent: 0.6");
+    expect(html).toContain("Combined NORMAL feed: 3238.400");
+    expect(html).not.toContain("Independent S/O=1.5");
+    expect(html).not.toContain("NO_QUALIFIED_INDEPENDENT_SO15_BALANCE");
     expect(html).toContain("Save end selections");
     expect(html).not.toContain('type="checkbox"');
   });
@@ -55,6 +60,16 @@ describe("end-section UI states and authority requests", () => {
     await flush();
     expect(hooks.values[2]).toBe("STAGE5_END_SOURCE_CHANGED");
     expect(render()).toContain("No previous result is being reused");
+    cleanup();
+  });
+  it("rejects an old nozzle-as-process response even if its HTTP request succeeds", async () => {
+    hooks.values = [{ topDiameterM: .9, bottomDiameterM: .9 }, result, null, null, null, null, null, true, 0];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      ...result, ruleset: "ECR_END_SECTIONS_NORMAL10_SO15_V1",
+    }) }));
+    render(); const cleanup = hooks.effects[1](); await flush();
+    expect(hooks.values[1]).toBeNull();
+    expect(hooks.values[2]).toBe("STAGE5_END_OBSOLETE_BASIS_RESPONSE");
     cleanup();
   });
   it("loads authenticated persisted choices without trusting their old source as current", async () => {

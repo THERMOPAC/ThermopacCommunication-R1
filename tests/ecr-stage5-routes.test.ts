@@ -147,6 +147,8 @@ describe('independent end-section routes', () => {
     expect(ends.calculate).toHaveBeenCalledWith(12, 23, '1', { topDiameterM: .9, bottomDiameterM: 1.2 });
     expect((await request('/end-sections', 'get', { query: { qualified: 'true' } })).statusCode).toBe(400);
     expect((await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, qualified: true } })).statusCode).toBe(400);
+    expect((await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1,
+      expectedSourceHash: 'fresh', normalProducts: { sourceIdentity: 'user-claimed-source' } } })).statusCode).toBe(400);
     ends.save.mockResolvedValue({ status: 'SAVED_PROVISIONAL_SELECTIONS_ONLY' });
     await request('/end-sections', 'post', { body: { topDiameterM: .9, bottomDiameterM: 1, expectedSourceHash: 'fresh' } });
     expect(ends.save).toHaveBeenCalledWith(12, 23, '1', { topDiameterM: .9, bottomDiameterM: 1 }, 'fresh');
@@ -167,7 +169,7 @@ describe('independent end-section routes', () => {
   });
   it('exports an authenticated current-source conditional schematic without rewriting active drawings', async () => {
     ends.calculate.mockResolvedValue({ ...calculateEndSections({
-      designFeedRateLph: 1000, rrboDensityKgM3: 880, nmpDensityKgM3: 1015,
+      designFeedRateLph: 1000, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
       oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
     }, { topDiameterM: .9, bottomDiameterM: 1.2 }), sourceHash: 'fresh' });
     const r = await request('/end-sections/export.svg', 'get', {

@@ -63,7 +63,7 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
           }
           calculations.push(u.search);
           const result = { ...calculateEndSections({
-            designFeedRateLph: 4000, rrboDensityKgM3: 869, nmpDensityKgM3: 1015,
+            designFeedRateLph: 4000, rrboDensityKgM3: 869, nmpDensityKgM3: 1015, solventOilRatio: .6,
             oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
           }, { topDiameterM: Number(u.searchParams.get("topDiameterM")), bottomDiameterM: Number(u.searchParams.get("bottomDiameterM")) }),
           sourceHash: "fixture-end-current", stage1Hash: "fixture-stage1",
@@ -94,10 +94,16 @@ describe.skipIf(!process.env.END_BROWSER_ORIGIN)("integrated end-section browser
       await page.reload({ waitUntil: "domcontentloaded" }); await openSaved();
       expect(await page.$eval('select[aria-label="top comparison diameter"]', e => (e as HTMLSelectElement).value)).toBe("1");
       expect(await page.$eval('select[aria-label="bottom comparison diameter"]', e => (e as HTMLSelectElement).value)).toBe("1.2");
-      expect(await page.$eval('[data-testid="end-selection-currentness"]', e => e.textContent)).toContain("PRODUCT BALANCE STILL PENDING");
+      expect(await page.$eval('[data-testid="end-selection-currentness"]', e => e.textContent)).toContain("NORMAL_PRODUCT_AUTHORITY_PENDING");
+      const normalText = await page.$eval('[data-testid="end-normal-process-basis"]', e => e.textContent);
+      expect(normalText).toContain("Normal wet solvent: 0.6");
+      expect(normalText).toContain("Combined NORMAL feed: 5561.600");
+      expect(normalText).not.toContain("8690.000");
+      expect(await page.$eval('[data-testid="end-nozzle-only-basis"]', e => e.textContent)).toContain("5214.000");
       await click("Export conditional SVG");
       await expect.poll(() => existsSync(download), { timeout: 10000 }).toBe(true);
-      expect(readFileSync(download, "utf8")).toContain("PENDING BALANCE");
+      expect(readFileSync(download, "utf8")).toContain("PENDING NORMAL PRODUCT AUTHORITY");
+      expect(readFileSync(download, "utf8")).toContain("S/O=1.5 MASS FOR NOZZLES ONLY");
       expect(readFileSync(download, "utf8")).toContain("NOT TO SCALE");
       const panel = await page.$('[data-testid="stage5-end-sections"]');
       await panel!.evaluate(el => el.scrollIntoView({ block: "start" }));

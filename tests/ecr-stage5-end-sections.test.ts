@@ -2,21 +2,24 @@ import { describe, expect, it } from "vitest";
 import { calculateEndSections, endGeometry, endNozzle, residenceHeight, type EndFeedBasis } from "../shared/ecr-stage5-end-sections";
 import { renderEndSchematic } from "../shared/ecr-stage5-end-schematic";
 
-const feed: EndFeedBasis = { designFeedRateLph: 4000, rrboDensityKgM3: 869, nmpDensityKgM3: 1015,
+const feed: EndFeedBasis = { designFeedRateLph: 4000, rrboDensityKgM3: 869, nmpDensityKgM3: 1015, solventOilRatio: .6,
   oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2 };
 const selection = { topDiameterM: .9, bottomDiameterM: 1.2 };
 describe("independent end framework", () => {
-  it("converts actual Stage 1 units/densities, fixes mass S/O and closes inlet component totals", () => {
+  it("preserves NORMAL Stage 1 mass S/O and confines the 1.5 override to nozzle sizing", () => {
     const before = JSON.stringify(feed);
     const r = calculateEndSections(feed, selection);
     expect(r.feed.oilKgH).toBe(3476);
-    expect(r.feed.wetSolventKgH).toBe(5214);
-    expect(r.feed.wetSolventM3H).toBeCloseTo(5214 / 1015);
-    expect(r.materialContract.componentFeedKgH.reduce((a, b) => a + b)).toBeCloseTo(8690);
+    expect(r.feed.wetSolventKgH).toBeCloseTo(2085.6);
+    expect(r.feed.wetSolventM3H).toBeCloseTo(2085.6 / 1015);
+    expect(r.materialContract.componentFeedKgH.reduce((a, b) => a + b)).toBeCloseTo(5561.6);
+    expect(r.nozzleSizingBasis.wetSolventKgH).toBe(5214);
+    expect(r.nozzles.wetSolventFeed.nozzleBasisM3H).toBeCloseTo(5214 / 1015);
+    expect(r.feed.solventOilMassRatio).toBe(.6);
     expect(JSON.stringify(feed)).toBe(before);
     expect(calculateEndSections({ ...feed, designFeedRateLph: 1250, rrboDensityKgM3: 900 }, selection).feed.oilKgH).toBe(1125);
   });
-  it("has no product admission path, including injected flags and N4/N7 extrapolations", () => {
+  it("does not admit product flows from injected feed flags or N4/N7 extrapolations", () => {
     const r = calculateEndSections({ ...feed, qualified: true, topProductM3H: 999, n4: {} } as any, selection);
     expect(r.assemblies.top.residenceHeightM).toBeNull();
     expect(r.assemblies.bottom.normalProductM3H).toBeNull();
@@ -24,6 +27,39 @@ describe("independent end framework", () => {
     expect(r.nozzles.raffinate).toBeNull();
     expect(r.nozzles.extract).toBeNull();
     expect(r.assemblies.top.totalAssemblyLengthM).toBeNull();
+  });
+  it("Stage 1 S/O changes normal material feeds but never changes fixed 1.5 nozzle sizing", () => {
+    const a = calculateEndSections(feed, selection);
+    const b = calculateEndSections({ ...feed, solventOilRatio: .8 }, selection);
+    expect(b.feed.wetSolventKgH).toBeCloseTo(3476 * .8);
+    expect(b.materialContract.totalFeedKgH).not.toBe(a.materialContract.totalFeedKgH);
+    expect(b.materialContract.componentFeedKgH).not.toEqual(a.materialContract.componentFeedKgH);
+    expect(b.nozzleSizingBasis).toEqual(a.nozzleSizingBasis);
+    expect(b.nozzles).toEqual(a.nozzles);
+    expect(b.assemblies).toEqual(a.assemblies); // unknown NORMAL duty stays unknown
+  });
+  it("source-qualified NORMAL product evidence calculates residence independently of nozzle sizing", () => {
+    const inlet = calculateEndSections(feed, selection).materialContract.componentFeedKgH;
+    // Synthetic numerical closure fixture, not a production qualification source.
+    const duty = { sourceIdentity: "test-only-normal-duty", raffinateComponentKgH: inlet.map(m => .5 * m),
+      extractComponentKgH: inlet.map(m => .5 * m), raffinateDensityKgM3: 900, extractDensityKgM3: 1000 };
+    const a = calculateEndSections(feed, selection, duty);
+    // Alter a nozzle-volumetric property while retaining the same normal mass
+    // inputs and qualified PRODUCT densities: residence must be identical.
+    const b = calculateEndSections({ ...feed, nmpDensityKgM3: 1100 }, selection, duty);
+    expect(a.nozzles.wetSolventFeed).not.toEqual(b.nozzles.wetSolventFeed);
+    expect(a.assemblies).toEqual(b.assemblies);
+    expect(a.comparisons).toEqual(b.comparisons);
+    expect(a.materialContract).toEqual(b.materialContract);
+    expect(a.assemblies.top.normalProductM3H).toBeCloseTo(2780.8 / 900);
+    expect(a.assemblies.top.residenceHeightM).toBeCloseTo(residenceHeight(2780.8 / 900, .9));
+    expect(a.assemblies.top.productOpeningNearEdgeM).toBeCloseTo(.15 + residenceHeight(2780.8 / 900, .9));
+    expect(a.nozzles.raffinate).toBeNull(); // separate product nozzle envelope hold
+    expect(a.nozzles.extract).toBeNull();
+    expect(() => calculateEndSections({ ...feed, solventOilRatio: .8 }, selection, duty)).toThrow("NORMAL_COMPONENT_BALANCE");
+    expect(() => calculateEndSections(feed, selection, { ...duty, raffinateDensityKgM3: NaN })).toThrow("NORMAL_PRODUCT_CONTRACT");
+    expect(renderEndSchematic(a)).toContain("Normal Q");
+    expect(renderEndSchematic(a)).not.toContain("PENDING NORMAL PRODUCT AUTHORITY");
   });
   it("uses normal volume only with independent mirrored geometry and near/far opening holds", () => {
     expect(residenceHeight(4, .9)).toBeCloseTo(4 / (6 * .9 * Math.PI * .9 ** 2 / 4));
@@ -54,6 +90,7 @@ describe("independent end framework", () => {
     for (const value of [0, -1, NaN, Infinity]) {
       expect(() => calculateEndSections({ ...feed, designFeedRateLph: value }, selection)).toThrow();
       expect(() => calculateEndSections({ ...feed, nmpDensityKgM3: value }, selection)).toThrow();
+      expect(() => calculateEndSections({ ...feed, solventOilRatio: value }, selection)).toThrow();
     }
     expect(() => calculateEndSections({ ...feed, oilComponentWt: [100] }, selection)).toThrow();
     expect(() => calculateEndSections({ ...feed, nmpPurityWt: 90 }, selection)).toThrow();
@@ -63,7 +100,8 @@ describe("independent end framework", () => {
   it("exports complete conditional sequence without inventing mechanical dimensions", () => {
     const svg = renderEndSchematic(calculateEndSections(feed, selection));
     expect(svg).toContain("NOT TO SCALE");
-    expect(svg).toContain("PENDING BALANCE");
+    expect(svg).toContain("PENDING NORMAL PRODUCT AUTHORITY");
+    expect(svg).toContain("S/O=1.5 MASS FOR NOZZLES ONLY");
     expect(svg).toContain("Additional Ø700");
     expect(svg).toContain("far edge");
     expect(svg).toContain("Torispherical");
