@@ -1787,3 +1787,17 @@ mtime_ms = 1790066607598
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7fe394bb-34a9-490e-a663-2650f654306b/6da0e37d-c1e6-482a-95bf-23c80d2f9cbf"
 storage_version_token = "1790066830421242"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "AjNeSmVFrVjZin0Oeq5t6"
+uri = "file://deliverables/nt-comparison-preview/stage2-nt-comparison-approval.pdf"
+type = "pdf"
+title = "Stage 2 — Nₜ Comparison · Approval Preview"
+description = "One-page landscape PDF with all ten trials, saved target limits, colour-coded results, numerical checks and reporting notes."
+logical_id = "ca293f18-e439-4e64-ae2d-48b7cc638026"
+content_hash = "sha256:ad7dedfbcc5a338830823a289bde81f88f99fb938264609cbfbbf4265b628a84"
+size = 1551654
+mtime_ms = 1790135118338
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/ca293f18-e439-4e64-ae2d-48b7cc638026/16e8664e-1126-4a8b-af79-21c9dae2bacc"
+storage_version_token = "1790135135904266"
+content_type = "application/pdf"
