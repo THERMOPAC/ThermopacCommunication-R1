@@ -83,6 +83,12 @@ Droplet size, terminal velocity, design margin, allowable velocity, diameter and
 
 A liquid-drop terminal correlation's viscosity-ratio applicability alone cannot qualify either end; check shape, mobility and all experimental dimensionless ranges at the actual governing size.
 
+GPSA supports a ten-minute preliminary retention precedent, not RRBO/NMP-specific validation.
+
+**Why:** The uploaded GPSA Chapter 7, Example 7-4 on printed p. 7-35 explicitly specifies ten minutes normal retention for each liquid phase (five minutes minimum). Pages 7-36–37 separately check settling and off-normal levels. Earlier review of only pp. 7-12–13 missed this explicit precedent. The example is horizontal, uses 150-micron drops and 0.31/0.65-cP liquids, and cannot validate vertical Kühni outlet populations or the project 0.90 usable-volume factor.
+
+**How to apply:** Cite Example 7-4 when explaining Thermopac's preliminary ten-minute volume criterion, but retain independent top/bottom capture and return validation. Do not describe the example as a mandatory GPSA minimum or as proven adequacy for RRBO/wet NMP.
+
 **Why:** Primary-source audit found the nominal top viscosity ratio outside Myint's tested range, while a nominal bottom size could pass viscosity ratio yet fall below its experimental Eötvös range. Barry–Parlange supplies a spherical-fluid candidate, not evidence of actual outlet capture.
 
 **How to apply:** Keep candidate equations distinct from admitted per-end models. Seek qualified product properties and outlet-flux populations before domain evaluation; do not interpret the absence of qualified evidence as proof that qualification is impossible.
