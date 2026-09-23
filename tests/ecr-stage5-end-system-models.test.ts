@@ -74,13 +74,37 @@ describe('governed system end-sizing architecture', () => {
       expect(a.diameterM).toBeNull(); expect(a.residenceHeightM).toBeNull();
       expect(a.modelAudit.some(a => a.reason.includes('d32'))).toBe(true);
       expect(a.modelAuthority).toMatchObject({
-        id: 'ECR_END_SOURCE_AUDIT', version: '1.0.0', status: 'NO_COMPLETE_QUALIFIED_CHAIN_FOUND',
+        id: 'ECR_END_QUALIFICATION_PROTOCOL', version: '2.0.0',
+        status: 'PROTOCOL_ISSUED_NO_MODELS_QUALIFIED_HOLD',
+        evidenceReview: 'docs/stage5-end-qualification-evidence-review.md',
+        supersedes: 'ECR_END_SOURCE_AUDIT / 1.0.0',
       });
-      expect(a.modelAudit.filter(row => row.eligibility === 'NO_QUALIFIED_SOURCE_FOUND')).toHaveLength(3);
+      expect(a.modelAudit.filter(row => row.eligibility === 'NO_QUALIFIED_SOURCE_FOUND')).toHaveLength(2);
       expect(a.modelAudit.find(row => row.modelId.endsWith(':liquid-drop-terminal'))?.eligibility)
         .toBe('CANDIDATE_NOT_QUALIFIED');
+      expect(a.modelAudit.find(row => row.modelId.endsWith(':fabrication-rounding'))).toMatchObject({
+        evidenceId: `${a.end === 'top' ? 'TOP' : 'BOTTOM'}-QP-FAB-001`,
+        eligibility: 'CANDIDATE_NOT_QUALIFIED',
+      });
+      expect(a.modelAudit.find(row => row.modelId.endsWith(':fabrication-rounding'))?.reason)
+        .toContain('IS 4049 Part 2 Table 1');
       expect(endEngineeringRows(a).find(([label]) => label === 'Independent model authority')?.[1])
-        .toContain('ECR_END_SOURCE_AUDIT / 1.0.0');
+        .toContain('ECR_END_QUALIFICATION_PROTOCOL / 2.0.0');
+      expect(endEngineeringRows(a).find(([label]) => label === 'Independent model authority')?.[1])
+        .toContain('supersedes ECR_END_SOURCE_AUDIT / 1.0.0');
+      expect(endEngineeringRows(a).find(([label]) => label === 'Independent model authority')?.[1])
+        .toContain('docs/stage5-end-qualification-evidence-review.md');
+      const prefix = a.end === 'top' ? 'TOP' : 'BOTTOM';
+      expect(a.missingCriteria).toEqual(expect.arrayContaining([
+        `QUALIFICATION_EVIDENCE_REQUIRED:${prefix}-QP-DSD-001`,
+        `QUALIFICATION_EVIDENCE_REQUIRED:${prefix}-QP-PROP-001`,
+        `QUALIFICATION_EVIDENCE_REQUIRED:${prefix}-QP-TERM-001`,
+        `QUALIFICATION_EVIDENCE_REQUIRED:${prefix}-QP-MARGIN-001`,
+        `QUALIFICATION_EVIDENCE_REQUIRED:${prefix}-QP-FAB-001`,
+        `QUALIFICATION_EVIDENCE_REQUIRED:${prefix}-QP-CTRL-001`,
+      ]));
+      expect(a.modelAudit.filter(row => row.evidenceId?.startsWith(`${prefix}-QP-`)).map(row => row.evidenceId))
+        .toHaveLength(6);
     }
     expect(JSON.stringify(r)).not.toMatch(/USER_APPROVAL_REQUIRED|topDiameterM|bottomDiameterM/);
     const sourceOnly = evaluateEndSystemModels('top', { flow: source('top').flow }, models('top'));
@@ -94,6 +118,32 @@ describe('governed system end-sizing architecture', () => {
     expect(f.holds).toContain('PROCESS_SOURCE_REQUIRED');
     expect(f.holds).not.toContain('PROPERTY_SOURCE_REQUIRED');
     expect(f.holds).not.toContain('MODEL_UNAVAILABLE');
+  });
+  it('keeps qualification evidence holes independent and cannot be relaxed by an authority claim', async () => {
+    const claimed = await resolveStage5EndSystemAuthority({ designId: 99, revisionId: 'frozen-r9',
+      activeSourceHash: 'stage5-hash', stage1Hash: 'stage1-hash',
+      normalProductAuthority: { status: 'CLAIMED_QUALIFIED', detail: 'A status claim is not qualification evidence' } });
+    const topIds = claimed.top!.modelAudit!.flatMap(row => row.evidenceId ? [row.evidenceId] : []);
+    const bottomIds = claimed.bottom!.modelAudit!.flatMap(row => row.evidenceId ? [row.evidenceId] : []);
+    expect(topIds).toEqual(['TOP-QP-DSD-001', 'TOP-QP-TERM-001', 'TOP-QP-MARGIN-001',
+      'TOP-QP-FAB-001', 'TOP-QP-PROP-001', 'TOP-QP-CTRL-001']);
+    expect(bottomIds).toEqual(['BOTTOM-QP-DSD-001', 'BOTTOM-QP-TERM-001', 'BOTTOM-QP-MARGIN-001',
+      'BOTTOM-QP-FAB-001', 'BOTTOM-QP-PROP-001', 'BOTTOM-QP-CTRL-001']);
+    expect(new Set([...topIds, ...bottomIds]).size).toBe(12);
+    for (const end of [claimed.top!, claimed.bottom!]) {
+      expect(end.separation).toBeUndefined();
+      expect(end.fabrication).toBeUndefined();
+      expect(end.modelChainStatus).toBe('MODEL_UNAVAILABLE');
+      expect(end.modelAuthority?.supersedes).toBe('ECR_END_SOURCE_AUDIT / 1.0.0');
+    }
+    const result = calculateAutomaticEndSections(feed, null, .55, claimed);
+    for (const assembly of Object.values(result.assemblies)) {
+      expect(assembly.status).toBe('HOLD');
+      expect(assembly.calculatedDiameterM).toBeNull();
+      expect(assembly.diameterM).toBeNull();
+      expect(assembly.residenceHeightM).toBeNull();
+    }
+    expect(JSON.stringify(claimed)).not.toContain('"status":"BUILTIN_MODEL_ELIGIBLE"');
   });
   it('never promotes the top droplet model into bottom phase-inverted duty', () => {
     const wrong = evaluateEndSystemModels('bottom', source('bottom'), models('top'));

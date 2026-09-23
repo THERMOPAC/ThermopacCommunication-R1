@@ -59,6 +59,30 @@ describe("system end-section authority UI", () => {
     expect(html).not.toContain("Save end selections");
     expect(html).not.toContain("900 mm");
   });
+  it("renders resolver pending evidence IDs and authority lineage without UI mapping changes", () => {
+    const authority = { id: "ECR_END_QUALIFICATION_PROTOCOL", version: "2.0.0",
+      status: "PROTOCOL_ISSUED_NO_MODELS_QUALIFIED_HOLD",
+      source: "docs/stage5-end-qualification-protocol.md",
+      evidenceReview: "docs/stage5-end-qualification-evidence-review.md",
+      supersedes: "ECR_END_SOURCE_AUDIT / 1.0.0" };
+    const pending = calculateAutomaticEndSections({
+      designFeedRateLph: 2300, rrboDensityKgM3: 880, nmpDensityKgM3: 1015, solventOilRatio: .6,
+      oilComponentWt: [60, 15, 10, 8, 6, 1], nmpPurityWt: 98, nmpWaterWt: 2,
+    }, null, .7, { top: {
+      modelAuthority: authority,
+      modelDependencies: ["QUALIFICATION_EVIDENCE_REQUIRED:TOP-QP-DSD-001", "QUALIFICATION_EVIDENCE_REQUIRED:TOP-QP-FAB-001"],
+    }, bottom: {
+      modelAuthority: authority,
+      modelDependencies: ["QUALIFICATION_EVIDENCE_REQUIRED:BOTTOM-QP-DSD-001", "QUALIFICATION_EVIDENCE_REQUIRED:BOTTOM-QP-FAB-001"],
+    } });
+    hooks.values = [{ ...pending, sourceHash: "qualification-source", stage1Hash: "stage1-source",
+      active: result.active }, null, false, 0];
+    const html = render();
+    expect(html).toContain("QUALIFICATION_EVIDENCE_REQUIRED:TOP-QP-DSD-001");
+    expect(html).toContain("QUALIFICATION_EVIDENCE_REQUIRED:BOTTOM-QP-FAB-001");
+    expect(html).toContain("evidence review docs/stage5-end-qualification-evidence-review.md");
+    expect(html).toContain("supersedes ECR_END_SOURCE_AUDIT / 1.0.0");
+  });
   it("fetches no preferences, publishes the same authoritative result, and installs no poll/focus effect", async () => {
     const fetcher = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
     vi.stubGlobal("fetch", fetcher);

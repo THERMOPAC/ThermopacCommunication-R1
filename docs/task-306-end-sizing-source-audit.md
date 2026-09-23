@@ -1,5 +1,16 @@
 # Task 306 — automatic end-sizing source audit
 
+> **Superseded evidence state (2026-09-23):** This document preserves the
+> original bounded repository/source audit. Its qualification decision remains
+> fail-closed, but later review found a controlled formed-end ID **candidate**
+> and refined the terminal-model domains. Use
+> [`stage5-end-qualification-evidence-review.md`](stage5-end-qualification-evidence-review.md)
+> for the current evidence record and
+> [`stage5-end-qualification-protocol.md`](stage5-end-qualification-protocol.md)
+> for the current `ECR_END_QUALIFICATION_PROTOCOL / 2.0.0` admission procedure.
+> Statements below that no controlled series was found describe this earlier
+> audit, not a claim that no standard exists.
+
 **Scope:** scientific/process evidence needed by the live, per-end
 `droplet → terminal velocity → margin → allowable velocity → calculated
 diameter → fabrication diameter → normal-flow residence height` chain.

@@ -148,7 +148,7 @@ export interface QualifiedOpeningEnvelope {
   nearHalfExtentM: number; farHalfExtentM: number;
 }
 export interface EndEngineeringEvidence {
-  modelAuthority?: { id: string; version: string; status: string; source: string };
+  modelAuthority?: { id: string; version: string; status: string; source: string; evidenceReview?: string; supersedes?: string };
   normalFlow?: QualifiedNormalEndFlow;
   separation?: SeparationCriterion;
   fabrication?: FabricationDiameterRule;
@@ -156,7 +156,7 @@ export interface EndEngineeringEvidence {
   modelDependencies?: string[];
   modelChainStatus?: "ELIGIBLE_AWAITING_SOURCE" | "MODEL_UNAVAILABLE" | "EVALUATED";
   propertyDependencies?: string[];
-  modelAudit?: { modelId: string; citation: string; eligibility: string; reason: string }[];
+  modelAudit?: { modelId: string; evidenceId?: string; citation: string; eligibility: string; reason: string }[];
 }
 export interface EndEngineeringAuthority { top?: EndEngineeringEvidence; bottom?: EndEngineeringEvidence }
 const nonempty = (s: unknown): s is string => typeof s === "string" && s.trim().length > 0;
@@ -324,6 +324,8 @@ export function endEngineeringRows(a: AutomaticEndSectionResult["assemblies"]["t
     ["System separation model status", a.separationCriterionStatus],
     ["Independent model authority", a.modelAuthority
       ? `${a.modelAuthority.id} / ${a.modelAuthority.version}; ${a.modelAuthority.status}; ${a.modelAuthority.source}`
+        + (a.modelAuthority.evidenceReview ? `; evidence review ${a.modelAuthority.evidenceReview}` : "")
+        + (a.modelAuthority.supersedes ? `; supersedes ${a.modelAuthority.supersedes}` : "")
       : "No versioned source audit supplied"],
     ["System separation model / version / citation", basis ? modelText(basis.model) : a.separationCriterionStatus],
     ["Governing droplet diameter / model", basis?.kind === "SYSTEM_TERMINAL_MODEL"

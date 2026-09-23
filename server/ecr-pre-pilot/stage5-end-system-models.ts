@@ -1,6 +1,6 @@
 import type { EndEngineeringAuthority, EndEngineeringEvidence, FabricationDiameterRule,
   QualifiedNormalEndFlow, QualifiedOpeningEnvelope, SystemModelEvidence } from '../../shared/ecr-stage5-end-sections';
-import { auditedEndModelEvidence, END_MODEL_AUTHORITY } from './stage5-end-model-authority';
+import { auditedEndModelEvidence, END_MODEL_AUTHORITY, END_QUALIFICATION_EVIDENCE_IDS } from './stage5-end-model-authority';
 
 export type End = 'top' | 'bottom';
 export interface NormalEndProperties {
@@ -99,28 +99,36 @@ export type EndSystemSourceResolver = (context: EndSystemSourceContext) => Promi
  * outlet populations. No missing capture duty, margin or fabrication series
  * is created here, and no values are requested from the end user. */
 export const resolveStage5EndSystemAuthority: EndSystemSourceResolver = async () => {
-  const end = (which: End): EndEngineeringEvidence => ({
-    ...evaluateEndSystemModels(which, {}, {}),
-    modelAuthority: { ...END_MODEL_AUTHORITY },
-    modelAudit: [
-      ...auditedEndModelEvidence(which),
-      { modelId: 'P1_HINZE_D32_ACTIVE_COMPARTMENT', citation: 'rrbo-wetnmp-hydraulic-p1.ts: d32 and six hydraulic scenarios',
-        eligibility: 'NOT_ELIGIBLE_FOR_END_DUTY', reason: which === 'top'
-          ? 'Mean turbulent active-compartment d32 is not the terminal-stator outlet flux/capture population or qualified return-path duty.'
-          : 'NMP active-compartment d32 does not model RRBO droplets rising in NMP-rich extract after phase inversion.' },
-      { modelId: 'BARRY_PARLANGE_MOBILE / SCHILLER_NAUMANN_IMMOBILE / MYINT_SIGNED_TERMINAL',
-        citation: 'rrbo-wetnmp-hydraulic-p1.ts; kuhni-geometry-resolver-v140.ts signedTerminalState',
-        eligibility: 'CONDITIONAL_TERMINAL_MODELS_ONLY',
-        reason: 'Real drag/force-balance implementations exist, but end-specific droplet population, operating product properties, interface mobility, spherical-drop regime and return-path applicability are not qualified.' },
-      { modelId: 'AUTOMATIC_HYDRAULIC_SELECTION', citation: 'automatic-hydraulic-selection.ts: qualificationUnknowns',
-        eligibility: 'NOT_END_SEPARATION_MODEL', reason: 'Explicitly lists inversion, entrainment and disengagement as unknown; hydraulic knee/loading margin is not an end Udesign margin.' },
-      { modelId: 'END_MARGIN_AND_FABRICATION_RULE', citation: 'ecr-stage5-r1.ts geometric envelope exclusions; legacy END_DIAMETERS_M comparisons',
-        eligibility: 'MODEL_UNAVAILABLE', reason: 'No governed end-duty velocity factor/convention or fabrication rounding series found. Legacy comparison diameters and active-column search grids are not fabrication rules.' },
-      { modelId: 'OFFLINE_PROPOSAL_AND_TERMINAL_CHAIN',
-        citation: 'deliverables/disengager-preliminary-proposal.mjs; deliverables/kuhni-terminal-chain.md; deliverables/disengager-drag-evidence.md (Myint et al., DOI 10.1299/jfst.1.72)',
-        eligibility: 'CONDITIONAL_RESEARCH_NOT_LIVE_MODEL_AUTHORITY',
-        reason: 'Prior proposal explicitly labels the 200 µm bottom target and 0.50 velocity fraction engineer-selected, with N4/N7 flow proxies. Terminal-chain research says PASS mathematics / HOLD actual performance, with assumed DSD widths/loading and unqualified return. None establishes an admitted current end population, margin or fabrication series.' },
-    ],
-  });
+  const end = (which: End): EndEngineeringEvidence => {
+    const unavailable = evaluateEndSystemModels(which, {}, {});
+    return {
+      ...unavailable,
+      modelAuthority: { ...END_MODEL_AUTHORITY },
+      modelDependencies: [
+        ...(unavailable.modelDependencies ?? []),
+        ...END_QUALIFICATION_EVIDENCE_IDS[which].map(id => `QUALIFICATION_EVIDENCE_REQUIRED:${id}`),
+      ],
+      modelAudit: [
+        ...auditedEndModelEvidence(which),
+        { modelId: 'P1_HINZE_D32_ACTIVE_COMPARTMENT', citation: 'rrbo-wetnmp-hydraulic-p1.ts: d32 and six hydraulic scenarios',
+          eligibility: 'NOT_ELIGIBLE_FOR_END_DUTY', reason: which === 'top'
+            ? 'Mean turbulent active-compartment d32 is not the terminal-stator outlet flux/capture population or qualified return-path duty.'
+            : 'NMP active-compartment d32 does not model RRBO droplets rising in NMP-rich extract after phase inversion.' },
+        { modelId: 'BARRY_PARLANGE_MOBILE / SCHILLER_NAUMANN_IMMOBILE / MYINT_SIGNED_TERMINAL',
+          citation: 'rrbo-wetnmp-hydraulic-p1.ts; kuhni-geometry-resolver-v140.ts signedTerminalState',
+          eligibility: 'CONDITIONAL_TERMINAL_MODELS_ONLY',
+          reason: 'Real drag/force-balance implementations exist, but end-specific droplet population, operating product properties, interface mobility, spherical-drop regime and return-path applicability are not qualified.' },
+        { modelId: 'AUTOMATIC_HYDRAULIC_SELECTION', citation: 'automatic-hydraulic-selection.ts: qualificationUnknowns',
+          eligibility: 'NOT_END_SEPARATION_MODEL', reason: 'Explicitly lists inversion, entrainment and disengagement as unknown; hydraulic knee/loading margin is not an end Udesign margin.' },
+        { modelId: 'END_MARGIN_AND_FABRICATION_RULE', citation: 'ecr-stage5-r1.ts geometric envelope exclusions; legacy END_DIAMETERS_M comparisons',
+          eligibility: 'MODEL_UNAVAILABLE',
+          reason: 'No governed end-duty velocity factor/convention or adopted fabrication rounding rule exists. IS 4049 Part 2 Table 1 is a controlled formed-end inside-diameter candidate only; it lacks project/fabricator adoption and does not prescribe process round-up. Legacy comparison diameters and active-column search grids remain ineligible.' },
+        { modelId: 'OFFLINE_PROPOSAL_AND_TERMINAL_CHAIN',
+          citation: 'deliverables/disengager-preliminary-proposal.mjs; deliverables/kuhni-terminal-chain.md; deliverables/disengager-drag-evidence.md (Myint et al., DOI 10.1299/jfst.1.72)',
+          eligibility: 'CONDITIONAL_RESEARCH_NOT_LIVE_MODEL_AUTHORITY',
+          reason: 'Prior proposal explicitly labels the 200 µm bottom target and 0.50 velocity fraction engineer-selected, with N4/N7 flow proxies. Terminal-chain research says PASS mathematics / HOLD actual performance, with assumed DSD widths/loading and unqualified return. None establishes an admitted current end population, margin or fabrication series.' },
+      ],
+    };
+  };
   return { top: end('top'), bottom: end('bottom') };
 };
