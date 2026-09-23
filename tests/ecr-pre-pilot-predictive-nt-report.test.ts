@@ -217,6 +217,7 @@ describe('Predictive N_T completed-snapshot report', () => {
   it('renders continuous main sections, appendices, exact blockers, and stage orientation', async () => {
     const text = await pdfText(await generatePredictiveNtReport(completedSnapshot()));
     for (const heading of [
+      'Theoretical-stage comparison & selection',
       '1. Frozen Design Basis',
       '2. Overall N_T Engineering Comparison',
       '3. Component Extraction Performance',
@@ -287,6 +288,39 @@ describe('Predictive N_T completed-snapshot report', () => {
     expect(text).toContain('2. Overall N_T Engineering Comparison');
     expect(text).toContain('Recovery = NMP-free RRBO recovery.');
     expect((text.match(/UNCONVERGED/g) ?? []).length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('renders frozen targetCompliance and keeps numerical and saved acceptance separate', async () => {
+    const snapshot = completedSnapshot();
+    snapshot.result.trials = Array.from({ length: 10 }, (_, index) => ({
+      ...trial(index + 1),
+      numericalAcceptancePassed: index !== 8,
+      accepted: index >= 3 && index !== 8,
+      targetCompliance: {
+        minimumRecoveryPct: {
+          calculated: 91 - index,
+          target: index === 9 ? 86 : 85,
+          direction: 'MINIMUM',
+          status: index < 2 ? 'PASS' : 'FAIL',
+        },
+        targetRaffinateSulfurPpm: index === 8 ? undefined : {
+          calculated: 1400 + index,
+          target: 1500,
+          direction: 'MAXIMUM',
+          status: 'PASS',
+        },
+      },
+    }));
+    const text = await pdfText(await generatePredictiveNtReport(snapshot));
+    expect(text).toContain('MINIMUM SAVED ACCEPTED N_T: 4');
+    expect(text).toContain('mixed saved limits');
+    expect(text).toContain('UNAVAILABLE');
+    expect(text).toContain('Numerical');
+    expect(text).toContain('Saved');
+    expect(text).toContain('acceptance');
+    expect(text).toContain('SULFUR BASIS MISMATCH');
+    expect(text).toContain('Historical saved PASS/FAIL is preserved');
+    expect(text).toContain('does not mutate the job snapshot');
   });
 
   it('calculates the saved pre-pilot sulfur allocation with recovery normalization', () => {

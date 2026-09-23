@@ -50,6 +50,9 @@ function label(input: string) {
 
 const HYDROCARBON_COMPONENTS = ['SAT', 'MONO', 'DI', 'POLY', 'PA'] as const;
 
+export const PREDICTIVE_NT_REPORT_RENDERER_VERSION =
+  '2026-09-23-theoretical-stage-comparison-v1';
+
 function finiteNumber(input: unknown): number | null {
   return typeof input === 'number' && Number.isFinite(input) ? input : null;
 }
@@ -334,6 +337,158 @@ export async function generatePredictiveNtReport(
       }), 42, 555, [228, 68, 68, 68, 78], 20, 7);
     if (prePilotMultistage) text('*BASIS MISMATCH: result is feed-basis retained sulfur; target is intended raffinate concentration. Historical PASS is preserved, NOT demonstrated product-concentration compliance.', 42, 700, 510, 8, COLORS.amber, true);
   }
+
+  const comparisonTargetOrder = [
+    'minimumRecoveryPct',
+    'minimumNmpFreeRecoveryPct',
+    'maximumNmpRaffinateWt',
+    'minimumRaffinateSaturatesWt',
+    'maximumRaffinateTotalAromaticsWt',
+    'maximumRaffinatePolarAromaticsWt',
+    'targetRaffinateSulfurPpm',
+  ];
+  // This page is a literal view of the frozen result fields. In particular, do
+  // not use reporting-enriched aliases when enumerating targetCompliance.
+  const comparisonTrials: any[] = r.result.trials;
+  const frozenTargetKeys = Array.from(new Set(
+    comparisonTrials.flatMap((trial: any) => Object.keys(trial?.targetCompliance ?? {})),
+  )).sort((left, right) => {
+    const leftIndex = comparisonTargetOrder.indexOf(left);
+    const rightIndex = comparisonTargetOrder.indexOf(right);
+    return (leftIndex < 0 ? comparisonTargetOrder.length : leftIndex)
+      - (rightIndex < 0 ? comparisonTargetOrder.length : rightIndex)
+      || left.localeCompare(right);
+  });
+  const acceptedStageCounts = comparisonTrials
+    .filter((trial: any) => trial?.accepted === true && finiteNumber(trial?.stageCount) !== null)
+    .map((trial: any) => Number(trial.stageCount));
+  const minimumSavedAccepted = acceptedStageCounts.length > 0
+    ? Math.min(...acceptedStageCounts)
+    : null;
+  const targetHeading = (key: string) => {
+    const saved = comparisonTrials
+      .map((trial: any) => trial?.targetCompliance?.[key])
+      .filter((entry: any) => entry && typeof entry === 'object');
+    const targets = Array.from(new Set(saved
+      .map((entry: any) => finiteNumber(entry.target))
+      .filter((entry: number | null): entry is number => entry !== null)));
+    const directions = Array.from(new Set(saved
+      .map((entry: any) => entry.direction)
+      .filter((entry: unknown): entry is string => typeof entry === 'string' && entry.length > 0)));
+    const shortLabels: Record<string, string> = {
+      minimumRecoveryPct: 'RRBO recovery',
+      minimumNmpFreeRecoveryPct: 'RRBO recovery',
+      maximumNmpRaffinateWt: 'NMP in raffinate',
+      minimumRaffinateSaturatesWt: 'Saturates',
+      maximumRaffinateTotalAromaticsWt: 'Total aromatics',
+      maximumRaffinatePolarAromaticsWt: 'Polar aromatics',
+      targetRaffinateSulfurPpm: 'Sulfur*',
+    };
+    const unit = key === 'targetRaffinateSulfurPpm' ? ' ppm' : ' wt%';
+    const limit = targets.length === 1 && directions.length === 1
+      ? `${directions[0] === 'MINIMUM' ? '>=' : directions[0] === 'MAXIMUM' ? '<=' : directions[0]} ${value(targets[0])}${unit}`
+      : targets.length === 0
+        ? 'saved limit unavailable'
+        : 'mixed saved limits';
+    return `${shortLabels[key] ?? label(key)}\n${limit}`;
+  };
+
+  page(
+    'Theoretical-stage comparison & selection',
+    true,
+    'Saved target checks, numerical acceptance, and final saved acceptance are reported separately; no scientific acceptance is recalculated.',
+  );
+  const comparisonWidth = doc.page.width - 84;
+  doc.roundedRect(42, 92, comparisonWidth, 46, 4)
+    .fill(minimumSavedAccepted === null ? '#FFF3E5' : '#E4F3EC');
+  text(
+    minimumSavedAccepted === null
+      ? 'MINIMUM SAVED ACCEPTED N_T: NOT ASSIGNED'
+      : `MINIMUM SAVED ACCEPTED N_T: ${minimumSavedAccepted}`,
+    54, 105, comparisonWidth - 24, 11,
+    minimumSavedAccepted === null ? COLORS.amber : COLORS.green, true,
+  );
+  text(
+    minimumSavedAccepted === null
+      ? 'No trial in the frozen result has saved acceptance = true.'
+      : 'Highlight identifies the lowest stage count with saved acceptance = true; it is not an economic optimum or a reporting re-evaluation.',
+    54, 122, comparisonWidth - 24, 7.4, COLORS.muted,
+  );
+  if (frozenTargetKeys.length === 0) {
+    doc.roundedRect(42, 158, comparisonWidth, 92, 4).fill(COLORS.pale);
+    text('SAVED TARGET COMPARISON UNAVAILABLE', 54, 178, comparisonWidth - 24, 11, COLORS.amber, true);
+    text('No targetCompliance entries are persisted for any frozen trial. Numerical and saved acceptance states are listed below without inventing target limits or results.', 54, 202, comparisonWidth - 24, 8.5);
+  }
+  const fixedWidths = [36, 78, 92];
+  const availableTargetWidth = comparisonWidth - fixedWidths.reduce((sum, width) => sum + width, 0);
+  const targetWidth = frozenTargetKeys.length > 0 ? availableTargetWidth / frozenTargetKeys.length : availableTargetWidth;
+  const widths = [
+    fixedWidths[0],
+    ...frozenTargetKeys.map(() => targetWidth),
+    fixedWidths[1],
+    fixedWidths[2],
+  ];
+  const headers = ['N_T', ...frozenTargetKeys.map(targetHeading), 'Numerical\nchecks', 'Saved\nacceptance'];
+  const tableY = frozenTargetKeys.length === 0 ? 270 : 158;
+  const rowHeight = 25;
+  doc.rect(42, tableY, comparisonWidth, 38).fill(COLORS.navy);
+  let comparisonX = 42;
+  headers.forEach((header, index) => {
+    text(header, comparisonX + 2, tableY + 8, widths[index] - 4,
+      frozenTargetKeys.length > 7 ? 5.2 : 6.2, '#FFFFFF', true, 'center');
+    comparisonX += widths[index];
+  });
+  comparisonTrials.forEach((trial: any, rowIndex: number) => {
+    const rowY = tableY + 38 + rowIndex * rowHeight;
+    const highlighted = minimumSavedAccepted !== null
+      && Number(trial?.stageCount) === minimumSavedAccepted;
+    doc.rect(42, rowY, comparisonWidth, rowHeight)
+      .fill(highlighted ? '#DDF2EE' : rowIndex % 2 ? COLORS.pale : '#FFFFFF');
+    const row = [
+      String(trial?.stageCount ?? '—'),
+      ...frozenTargetKeys.map((key) => {
+        const entry = trial?.targetCompliance?.[key];
+        if (!entry || typeof entry !== 'object') return 'UNAVAILABLE';
+        return `${value(entry.calculated)}\n${entry.status ?? 'STATUS UNAVAILABLE'}`;
+      }),
+      trial?.numericalAcceptancePassed === true
+        ? 'PASS'
+        : trial?.numericalAcceptancePassed === false
+          ? 'FAIL'
+          : 'UNAVAILABLE',
+      trial?.accepted === true
+        ? 'ACCEPTED'
+        : trial?.accepted === false
+          ? 'NOT ACCEPTED'
+          : 'UNAVAILABLE',
+    ];
+    comparisonX = 42;
+    row.forEach((entry, index) => {
+      const status = String(entry).split('\n').at(-1);
+      const color = ['PASS', 'ACCEPTED'].includes(status ?? '') ? COLORS.green
+        : ['FAIL', 'NOT ACCEPTED'].includes(status ?? '') ? COLORS.red
+          : status === 'UNAVAILABLE' || status === 'STATUS UNAVAILABLE' ? COLORS.amber
+            : COLORS.ink;
+      text(entry, comparisonX + 2, rowY + 5, widths[index] - 4,
+        frozenTargetKeys.length > 7 ? 5.2 : 6.4, color,
+        highlighted || ['PASS', 'FAIL', 'ACCEPTED', 'NOT ACCEPTED'].includes(status ?? ''),
+        'center');
+      comparisonX += widths[index];
+    });
+  });
+  const comparisonNotesY = tableY + 38 + comparisonTrials.length * rowHeight + 12;
+  text(
+    'BASIS  Recovery is NMP-free hydrocarbon recovery. Saturates and aromatics are wt% on an NMP-free raffinate basis; NMP is wt% of total raffinate. Displayed limits, values, and PASS/FAIL statuses come only from each frozen targetCompliance record. Missing and mixed saved targets remain explicit.',
+    42, comparisonNotesY, comparisonWidth, 7.2, COLORS.muted,
+  );
+  text(
+    '* SULFUR BASIS MISMATCH  The saved result is feed-basis retained-sulfur equivalent, while the saved intended target is raffinate concentration. Historical saved PASS/FAIL is preserved, but PASS is NOT demonstrated product-concentration compliance.',
+    42, comparisonNotesY + 31, comparisonWidth, 7.5, COLORS.amber, true,
+  );
+  text(
+    'ACCEPTANCE  Product-target statuses, numerical checks, and saved acceptance are distinct frozen fields. Product-target passes alone do not establish acceptance. This page does not mutate the job snapshot, rerun equilibrium, or recompute scientific acceptance.',
+    42, comparisonNotesY + 55, comparisonWidth, 7.2, COLORS.muted, true,
+  );
 
   page('Contents and reading guide');
   contentsPage = pageNumber - 1;

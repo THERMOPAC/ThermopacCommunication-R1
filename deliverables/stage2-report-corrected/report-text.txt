@@ -29,39 +29,201 @@ Maximum polar aromatics (wt%) 0.38 0.5 0.12 PASS
 Maximum total aromatics (wt%) 6.81 7 0.19 PASS
 *BASIS MISMATCH: result is feed-basis retained sulfur; target is intended raffinate concentration. Historical PASS is preserved, NOT
 demonstrated product-concentration compliance.
-Page 1 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 1 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 1 of 53 --
+-- 1 of 54 --
 
 2 PROJECT 236 | FROZEN STAGE-2 REPORT
+Theoretical-stage comparison & selection
+Saved target checks, numerical acceptance, and final saved acceptance are reported separately; no scientific acceptance is recalculated.
+MINIMUM SAVED ACCEPTED N_T: 4
+Highlight identifies the lowest stage count with saved acceptance = true; it is not an economic optimum or a reporting re-evaluation.
+N_T RRBO recovery
+>= 80 wt%
+NMP in raffinate
+<= 20 wt%
+Saturates
+>= 90 wt%
+Total aromatics
+<= 7 wt%
+Polar aromatics
+<= 0.5 wt%
+Sulfur*
+<= 2500 ppm
+Numerical
+checks
+Saved
+acceptance
+1 91.32
+PASS
+11.96
+PASS
+89.57
+FAIL
+9.33
+FAIL
+1.1
+FAIL
+2099.61
+PASS
+PASS NOT ACCEPTED
+2 88.81
+PASS
+9.98
+PASS
+91.41
+PASS
+7.87
+FAIL
+0.71
+FAIL
+1605.52
+PASS
+PASS NOT ACCEPTED
+3 87.63
+PASS
+9.12
+PASS
+92.31
+PASS
+7.18
+FAIL
+0.51
+FAIL
+1368.39
+PASS
+PASS NOT ACCEPTED
+4 87
+PASS
+8.68
+PASS
+92.8
+PASS
+6.81
+PASS
+0.38
+PASS
+1237.55
+PASS
+PASS ACCEPTED
+5 86.64
+PASS
+8.45
+PASS
+93.09
+PASS
+6.61
+PASS
+0.3
+PASS
+1158.98
+PASS
+PASS ACCEPTED
+6 86.43
+PASS
+8.31
+PASS
+93.26
+PASS
+6.5
+PASS
+0.24
+PASS
+1108.82
+PASS
+PASS ACCEPTED
+7 86.3
+PASS
+8.22
+PASS
+93.37
+PASS
+6.43
+PASS
+0.2
+PASS
+1075.19
+PASS
+PASS ACCEPTED
+8 86.22
+PASS
+8.17
+PASS
+93.44
+PASS
+6.4
+PASS
+0.17
+PASS
+1051.68
+PASS
+PASS ACCEPTED
+9 86.16
+PASS
+8.14
+PASS
+93.48
+PASS
+6.38
+PASS
+0.14
+PASS
+—
+NOT_CALCULABLE
+FAIL NOT ACCEPTED
+10 86.13
+PASS
+8.12
+PASS
+93.52
+PASS
+6.37
+PASS
+0.12
+PASS
+1021.87
+PASS
+PASS ACCEPTED
+BASIS Recovery is NMP-free hydrocarbon recovery. Saturates and aromatics are wt% on an NMP-free raffinate basis; NMP is wt% of total raffinate. Displayed limits, values, and PASS/FAIL statuses come only from each frozen
+targetCompliance record. Missing and mixed saved targets remain explicit.
+* SULFUR BASIS MISMATCH The saved result is feed-basis retained-sulfur equivalent, while the saved intended target is raffinate concentration. Historical saved PASS/FAIL is preserved, but PASS is NOT
+demonstrated product-concentration compliance.
+ACCEPTANCE Product-target statuses, numerical checks, and saved acceptance are distinct frozen fields. Product-target passes alone do not establish acceptance. This page does not mutate the job snapshot, rerun
+equilibrium, or recompute scientific acceptance.
+Page 2 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+
+-- 2 of 54 --
+
+3 PROJECT 236 | FROZEN STAGE-2 REPORT
 Contents and reading guide
 Frozen acceptance is preserved. Reporting-derived component removal does not re-evaluate qualification. Green comparison
 rows identify the saved selected trial; unaccepted trials remain diagnostic.
 Main report and appendix groups are indexed below; PDF bookmarks provide every trial page.
 Predictive N_T — Seven-Component cCOSMO (with H2O) 1
-1. Frozen Design Basis 3
-1.2 Frozen solvent and stream basis 4
-1.3 Frozen thermodynamic basis 5
-1.4 Seven-component molecular identities 6
-1.5 Frozen Design Basis — Sulfur Allocation 7
-2. Overall N_T Engineering Comparison 8
-3. Component Extraction Performance 9
-4. Governed Sulfur Post-Processing 10
-Engineering trends versus frozen targets 11
-5. Engineering Stage Selection 12
-6. Scientific Qualification Summary 13
-Appendix A — All trial diagnostics, stability and outlets (bookmarked individually) 14
-Appendix B — Multistart / Solver Evidence 44
-Appendix C — Frozen qualification dispositions 45
-Appendix D — Supplementary global TPD evidence 46
-Appendix E — Governance / Report Status 47
-Appendix F — Governance and Provenance 48
-Appendix F — Model and molecular provenance 49
-Page 2 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Theoretical-stage comparison & selection 2
+1. Frozen Design Basis 4
+1.2 Frozen solvent and stream basis 5
+1.3 Frozen thermodynamic basis 6
+1.4 Seven-component molecular identities 7
+1.5 Frozen Design Basis — Sulfur Allocation 8
+2. Overall N_T Engineering Comparison 9
+3. Component Extraction Performance 10
+4. Governed Sulfur Post-Processing 11
+Engineering trends versus frozen targets 12
+5. Engineering Stage Selection 13
+6. Scientific Qualification Summary 14
+Appendix A — All trial diagnostics, stability and outlets (bookmarked individually) 15
+Appendix B — Multistart / Solver Evidence 45
+Appendix C — Frozen qualification dispositions 46
+Appendix D — Supplementary global TPD evidence 47
+Appendix E — Governance / Report Status 48
+Appendix F — Governance and Provenance 49
+Appendix F — Model and molecular provenance 50
+Page 3 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 2 of 53 --
+-- 3 of 54 --
 
-3 PROJECT 236 | FROZEN STAGE-2 REPORT
+4 PROJECT 236 | FROZEN STAGE-2 REPORT
 1. Frozen Design Basis
 OWNER-CONTROLLED / SAVED STAGE-1 INPUT AUTHORITY
 Project reference 236
@@ -84,11 +246,11 @@ Minimum saturates 90 wt% NMP-free
 Minimum RRBO recovery 80 wt%
 Maximum NMP in raffinate 20 wt% full stream
 Raffinate sulfur target 2500 ppm
-Page 3 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 4 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 3 of 53 --
+-- 4 of 54 --
 
-4 PROJECT 236 | FROZEN STAGE-2 REPORT
+5 PROJECT 236 | FROZEN STAGE-2 REPORT
 1.2 Frozen solvent and stream basis
 Saved Stage-1 conditions and actual frozen boundary construction
 Fresh-solvent NMP purity 99.5 wt%
@@ -109,11 +271,11 @@ RRBO / NMP density 869 / 1015 kg/m3
 RRBO / NMP dynamic viscosity 59.8 / 1.42 cP
 Saved interfacial tension 11 mN/m
 Saved basis notes No notes recorded
-Page 4 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 5 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 4 of 53 --
+-- 5 of 54 --
 
-5 PROJECT 236 | FROZEN STAGE-2 REPORT
+6 PROJECT 236 | FROZEN STAGE-2 REPORT
 1.3 Frozen thermodynamic basis
 NIST COSMO-SAC-2010 / cCOSMO implementation and job-specific amendments
 Base activity model COSMO-SAC-2010
@@ -129,11 +291,11 @@ COSMO-SAC-2010 contribution is retained with the persisted additive Redlich-Kist
 an unamended COSMO-SAC prediction. Model and parameter digests, molecular generation routes and sigma-
 profile provenance follow in the provenance appendix. Missing artifacts are never replaced with current-model
 values.
-Page 5 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 6 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 5 of 53 --
+-- 6 of 54 --
 
-6 PROJECT 236 | FROZEN STAGE-2 REPORT
+7 PROJECT 236 | FROZEN STAGE-2 REPORT
 1.4 Seven-component molecular identities
 Identities from hash-verified frozen generation manifests; unavailable identities remain explicit
 Family Molecule / surrogate CAS MW g/mol*
@@ -146,11 +308,11 @@ NMP N-METHYL-2-PYRROLIDONE 872-50-4 99.1311
 H2O WATER 7732-18-5 18.01528
 *Reporting reconstruction from persisted boundary component mass / component moles, not a replacement molecular-weight database. PA is a non-sulfur-bearing
 surrogate. H2O is explicitly included in equilibrium.
-Page 6 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 7 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 6 of 53 --
+-- 7 of 54 --
 
-7 PROJECT 236 | FROZEN STAGE-2 REPORT
+8 PROJECT 236 | FROZEN STAGE-2 REPORT
 1.5 Frozen Design Basis — Sulfur Allocation
 OWNER-CONTROLLED MASS ALLOCATION — saved with the completed Stage-1 snapshot
 Component Feed wt% Sulfur allocation % Feed-basis sulfur contribution ppm
@@ -164,11 +326,11 @@ Raffinate sulfur target 2500 ppm
 Allocation total 100 %
 This allocation is an owner-controlled mass-allocation basis. It is not a hidden factor, does not make sulfur a thermodynamic
 component, and does not alter the seven-component equilibrium solution.
-Page 7 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 8 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 7 of 53 --
+-- 8 of 54 --
 
-8 PROJECT 236 | FROZEN STAGE-2 REPORT
+9 PROJECT 236 | FROZEN STAGE-2 REPORT
 2. Overall N_T Engineering Comparison
 Primary process comparison. Product composition is wt% on an NMP-free hydrocarbon basis; NMP is wt% of total raffinate.
 N_T Closure Recovery % NMP wt% SAT wt% Arom wt% PA wt% Sulfur ppm* Targets Saved acceptance
@@ -184,11 +346,11 @@ N_T Closure Recovery % NMP wt% SAT wt% Arom wt% PA wt% Sulfur ppm* Targets Saved
 10 CLOSED 86.13 8.12 93.52 6.37 0.12 1021.9 PASS ACCEPTED
 *Sulfur BASIS MISMATCH: saved result is feed-basis retained sulfur; intended target is raffinate concentration. Historical target PASS is NOT demonstrated product-concentration compliance. All saved statuses/
 selection remain unchanged. Selected trial is highlighted.
-Page 8 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 9 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 8 of 53 --
+-- 9 of 54 --
 
-9 PROJECT 236 | FROZEN STAGE-2 REPORT
+10 PROJECT 236 | FROZEN STAGE-2 REPORT
 3. Component Extraction Performance
 Engineering trade-off between RRBO recovery and aromatic/polar-component removal
 N_T Solver Status RRBO Recovery % SAT Loss % MONO Removal % DI Removal % POLY Removal % PA Removal %
@@ -205,11 +367,11 @@ N_T Solver Status RRBO Recovery % SAT Loss % MONO Removal % DI Removal % POLY Re
 Reporting-derived where metrics were absent: removal/loss (%) = 100*(oil-feed component moles - final-raffinate component moles)/oil-feed component moles. The same
 component MW cancels, so component-relative mass removal is identical. No equilibrium rerun. Recovery uses persisted hydrocarbon mass recovery (or boundary component
 masses if absent). SAT = loss; NMP removal = not applicable. Unaccepted trials remain diagnostic.
-Page 9 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 10 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 9 of 53 --
+-- 10 of 54 --
 
-10 PROJECT 236 | FROZEN STAGE-2 REPORT
+11 PROJECT 236 | FROZEN STAGE-2 REPORT
 4. Governed Sulfur Post-Processing
 POST-PROCESSING MASS ALLOCATION — DOES NOT MODIFY THERMODYNAMICS OR EQUILIBRIUM
 N_T Closure SAT ppm MONO ppm DI ppm POLY ppm PA ppm Feed-basis ppm Allocated removal % Raffinate
@@ -231,11 +393,11 @@ scientifically.
 *BASIS MISMATCH: the original target is intended raffinate sulfur concentration, but the saved comparison uses feed-basis retained sulfur. Historical PASS is NOT demonstrated product-
 concentration compliance. Concentration reduction = 100*(1-C_R/C_F) requires consistent concentration bases. Direct thermodynamic sulfur prediction remains NOT CALCULABLE.
 Scientific review requires separate authorization; no result or target decision is altered.
-Page 10 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 11 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 10 of 53 --
+-- 11 of 54 --
 
-11 PROJECT 236 | FROZEN STAGE-2 REPORT
+12 PROJECT 236 | FROZEN STAGE-2 REPORT
 Engineering trends versus frozen targets
 Filled green = accepted; red cross = not accepted. Points never confer scientific qualification.
 Total aromatics (wt%, hydrocarbon basis)
@@ -262,11 +424,11 @@ Allocated retained sulfur (feed-basis ppm)
 Raffinate target 2500: DIFFERENT BASIS, reference only
 1 2 3 4 5 6 7 8 9 10
 N_T (theoretical stages)
-Page 11 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 12 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 11 of 53 --
+-- 12 of 54 --
 
-12 PROJECT 236 | FROZEN STAGE-2 REPORT
+13 PROJECT 236 | FROZEN STAGE-2 REPORT
 5. Engineering Stage Selection
 Preferred engineering candidate, accepted Predictive N_T, and established theoretical stages are separate states
 Preferred engineering/process-sensitivity candidate N_T = 4
@@ -278,11 +440,11 @@ NO_PHYSICAL_LLE and remain unselected; numerical or target failures cannot becom
 logic.
 Immediately preceding trial N_T=3: Maximum polar aromatics (wt%): 0.5083 versus 0.5; Maximum total aromatics
 (wt%): 7.1787 versus 7. Selection shown above is persisted, not recomputed by this report.
-Page 12 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 13 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 12 of 53 --
+-- 13 of 54 --
 
-13 PROJECT 236 | FROZEN STAGE-2 REPORT
+14 PROJECT 236 | FROZEN STAGE-2 REPORT
 6. Scientific Qualification Summary
 Exact persisted evidence; PASS is never inferred from the absence of a blocker
 Seven-component molecular basis incl. H2O PERSISTED
@@ -302,11 +464,11 @@ Evidence completeness is separate from saved acceptance. In supported 7C matrix 
 termination status are combined endpoint fields. CLOSED establishes both endpoints closed; UNCLOSED does
 not identify the failing endpoint. Individual optimizer terminations are not recorded. Native residuals and branch
 differences are preserved; no gate or selected N_T changes.
-Page 13 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 14 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 13 of 53 --
+-- 14 of 54 --
 
-14 PROJECT 236 | FROZEN STAGE-2 REPORT
+15 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.1.1 — N_T=1 Numerical Diagnostics
 NOT ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 2.880e-16
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 1.757e-14 | Branch EVALUATED (1.239e-15)
@@ -330,11 +492,11 @@ final Extract 1.8793e-2 2.0274e-2 9.3457e-3 3.5403e-3 2.4563e-3 4.7689e-1 6.5370
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 8.327e-17 -1.041e-17 8.674e-18 -6.072e-18 1.301e-18 1.110e-16 -2.880e-16
-Page 14 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 15 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 14 of 53 --
+-- 15 of 54 --
 
-15 PROJECT 236 | FROZEN STAGE-2 REPORT
+16 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.1.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -342,22 +504,22 @@ Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD mi
 Persisted refinement / explicit MONO-rich acceptance (not inferred from the minimum)
 Stage R refinements E refinements R MONO-rich E MONO-rich
 1 PASS PASS PASS PASS
-Page 15 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 16 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 15 of 53 --
+-- 16 of 54 --
 
-16 PROJECT 236 | FROZEN STAGE-2 REPORT
+17 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.1.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
 Stage / phase SAT MONO DI POLY PA NMP H2O
 1 R 0.704907 0.055727 0.027573 0.009319 0.003633 0.183993 0.014848
 1 E 0.034941 0.037696 0.017377 0.006583 0.004567 0.886681 0.012154
-Page 16 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 17 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 16 of 53 --
+-- 17 of 54 --
 
-17 PROJECT 236 | FROZEN STAGE-2 REPORT
+18 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.2.1 — N_T=2 Numerical Diagnostics
 NOT ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 2.173e-15
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 1.785e-13 | Branch EVALUATED (7.940e-14)
@@ -381,11 +543,11 @@ final Extract 2.2424e-2 2.7288e-2 1.2418e-2 4.7550e-3 3.3701e-3 5.0267e-1 4.5748
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 3.469e-18 3.469e-17 5.204e-17 6.332e-17 2.173e-15 0.000e+0 -5.204e-17
-Page 17 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 18 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 17 of 53 --
+-- 18 of 54 --
 
-18 PROJECT 236 | FROZEN STAGE-2 REPORT
+19 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.2.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -395,11 +557,11 @@ Persisted refinement / explicit MONO-rich acceptance (not inferred from the mini
 Stage R refinements E refinements R MONO-rich E MONO-rich
 1 PASS PASS PASS PASS
 2 PASS PASS PASS PASS
-Page 18 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 19 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 18 of 53 --
+-- 19 of 54 --
 
-19 PROJECT 236 | FROZEN STAGE-2 REPORT
+20 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.2.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -408,11 +570,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 1 E 0.038829 0.047252 0.021502 0.008234 0.005836 0.870426 0.007922
 2 R 0.742828 0.048241 0.02449 0.008002 0.002433 0.155181 0.018825
 2 E 0.033185 0.033364 0.015873 0.005836 0.003246 0.894013 0.014483
-Page 19 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 20 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 19 of 53 --
+-- 20 of 54 --
 
-20 PROJECT 236 | FROZEN STAGE-2 REPORT
+21 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.3.1 — N_T=3 Numerical Diagnostics
 NOT ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 2.947e-13
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 1.609e-13 | Branch EVALUATED (3.732e-13)
@@ -436,11 +598,11 @@ final Extract 2.4127e-2 3.0576e-2 1.3772e-2 5.3210e-3 3.8330e-3 5.1332e-1 3.5015
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 7.633e-16 5.631e-15 7.367e-15 8.310e-15 2.947e-13 -2.331e-15 -8.014e-15
-Page 20 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 21 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 20 of 53 --
+-- 21 of 54 --
 
-21 PROJECT 236 | FROZEN STAGE-2 REPORT
+22 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.3.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -452,11 +614,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 1 PASS PASS PASS PASS
 2 PASS PASS PASS PASS
 3 PASS PASS PASS PASS
-Page 21 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 22 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 21 of 53 --
+-- 22 of 54 --
 
-22 PROJECT 236 | FROZEN STAGE-2 REPORT
+23 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.3.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -467,11 +629,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 2 E 0.03762 0.04453 0.020789 0.007786 0.004497 0.874626 0.010151
 3 R 0.760262 0.044287 0.022985 0.007313 0.001758 0.142341 0.021054
 3 E 0.03226 0.031046 0.015142 0.00543 0.002418 0.897916 0.015788
-Page 22 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 23 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 22 of 53 --
+-- 23 of 54 --
 
-23 PROJECT 236 | FROZEN STAGE-2 REPORT
+24 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.4.1 — N_T=4 Numerical Diagnostics
 ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 1.041e-17
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 3.197e-14 | Branch EVALUATED (2.185e-15)
@@ -495,11 +657,11 @@ final Extract 2.5021e-2 3.2317e-2 1.4434e-2 5.6187e-3 4.1074e-3 5.1854e-1 2.8423
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 1.041e-17 0.000e+0 -1.735e-18 -2.602e-18 8.674e-19 0.000e+0 -6.505e-18
-Page 23 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 24 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 23 of 53 --
+-- 24 of 54 --
 
-24 PROJECT 236 | FROZEN STAGE-2 REPORT
+25 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.4.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -513,11 +675,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 2 PASS PASS PASS PASS
 3 PASS PASS PASS PASS
 4 PASS PASS PASS PASS
-Page 24 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 25 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 24 of 53 --
+-- 25 of 54 --
 
-25 PROJECT 236 | FROZEN STAGE-2 REPORT
+26 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.4.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -530,11 +692,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 3 E 0.03696 0.043061 0.020514 0.007548 0.003558 0.876828 0.011532
 4 R 0.769206 0.042067 0.022226 0.006929 0.001337 0.135823 0.022411
 4 E 0.03174 0.029727 0.014781 0.005199 0.00187 0.900067 0.016615
-Page 25 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 26 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 25 of 53 --
+-- 26 of 54 --
 
-26 PROJECT 236 | FROZEN STAGE-2 REPORT
+27 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.5.1 — N_T=5 Numerical Diagnostics
 ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 2.222e-12
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 4.971e-13 | Branch EVALUATED (2.278e-12)
@@ -558,11 +720,11 @@ final Extract 2.5518e-2 3.3298e-2 1.4769e-2 5.7849e-3 4.2868e-3 5.2136e-1 2.4052
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 5.969e-14 -1.086e-13 -1.303e-13 -1.343e-13 -1.753e-13 2.554e-15 -2.222e-12
-Page 26 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 27 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 26 of 53 --
+-- 27 of 54 --
 
-27 PROJECT 236 | FROZEN STAGE-2 REPORT
+28 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.5.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -578,11 +740,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 3 PASS PASS PASS PASS
 4 PASS PASS PASS PASS
 5 PASS PASS PASS PASS
-Page 27 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 28 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 27 of 53 --
+-- 28 of 54 --
 
-28 PROJECT 236 | FROZEN STAGE-2 REPORT
+29 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.5.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -597,11 +759,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 4 E 0.036581 0.042237 0.020433 0.007418 0.002874 0.877984 0.012473
 5 R 0.774115 0.040775 0.021843 0.006709 0.001053 0.132212 0.023293
 5 E 0.031439 0.028957 0.01461 0.005065 0.001488 0.901261 0.01718
-Page 28 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 29 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 28 of 53 --
+-- 29 of 54 --
 
-29 PROJECT 236 | FROZEN STAGE-2 REPORT
+30 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.6.1 — N_T=6 Numerical Diagnostics
 ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 1.616e-12
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 3.067e-13 | Branch EVALUATED (1.612e-12)
@@ -625,11 +787,11 @@ final Extract 2.5803e-2 3.3872e-2 1.4940e-2 5.8807e-3 4.4126e-3 5.2300e-1 2.0982
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 4.433e-14 -8.339e-14 -9.952e-14 -1.019e-13 -8.963e-14 2.776e-15 -1.616e-12
-Page 29 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 30 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 29 of 53 --
+-- 30 of 54 --
 
-30 PROJECT 236 | FROZEN STAGE-2 REPORT
+31 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.6.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -647,11 +809,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 4 PASS PASS PASS PASS
 5 PASS PASS PASS PASS
 6 PASS PASS PASS PASS
-Page 30 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 31 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 30 of 53 --
+-- 31 of 54 --
 
-31 PROJECT 236 | FROZEN STAGE-2 REPORT
+32 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.6.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -668,11 +830,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 5 E 0.036357 0.041771 0.020441 0.007348 0.00236 0.878566 0.013157
 6 R 0.776921 0.040007 0.021655 0.00658 0.000851 0.130091 0.023895
 6 E 0.031259 0.028502 0.014537 0.004988 0.00121 0.901916 0.017587
-Page 31 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 32 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 31 of 53 --
+-- 32 of 54 --
 
-32 PROJECT 236 | FROZEN STAGE-2 REPORT
+33 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.7.1 — N_T=7 Numerical Diagnostics
 ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 9.257e-16
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 1.315e-13 | Branch EVALUATED (1.816e-14)
@@ -696,11 +858,11 @@ final Extract 2.5970e-2 3.4212e-2 1.5025e-2 5.9365e-3 4.5054e-3 5.2398e-1 1.8725
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 7.286e-17 -6.245e-17 -5.378e-17 -6.418e-17 -1.396e-16 -3.331e-16 -9.257e-16
-Page 32 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 33 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 32 of 53 --
+-- 33 of 54 --
 
-33 PROJECT 236 | FROZEN STAGE-2 REPORT
+34 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.7.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -720,11 +882,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 5 PASS PASS PASS PASS
 6 PASS PASS PASS PASS
 7 PASS PASS PASS PASS
-Page 33 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 34 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 33 of 53 --
+-- 34 of 54 --
 
-34 PROJECT 236 | FROZEN STAGE-2 REPORT
+35 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.7.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -743,11 +905,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 6 E 0.036223 0.041512 0.020485 0.007312 0.001964 0.878827 0.013677
 7 R 0.778565 0.039545 0.021568 0.006505 0.000701 0.128791 0.024326
 7 E 0.031151 0.028233 0.014515 0.004943 0.001 0.902265 0.017893
-Page 34 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 35 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 34 of 53 --
+-- 35 of 54 --
 
-35 PROJECT 236 | FROZEN STAGE-2 REPORT
+36 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.8.1 — N_T=8 Numerical Diagnostics
 ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 2.220e-16
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 7.550e-14 | Branch EVALUATED (4.498e-15)
@@ -771,11 +933,11 @@ final Extract 2.6069e-2 3.4416e-2 1.5065e-2 5.9690e-3 4.5764e-3 5.2459e-1 1.7004
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual -1.388e-17 1.388e-17 -8.674e-18 0.000e+0 -6.852e-17 -2.220e-16 -4.770e-17
-Page 35 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 36 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 35 of 53 --
+-- 36 of 54 --
 
-36 PROJECT 236 | FROZEN STAGE-2 REPORT
+37 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.8.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -797,11 +959,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 6 PASS PASS PASS PASS
 7 PASS PASS PASS PASS
 8 PASS PASS PASS PASS
-Page 36 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 37 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 36 of 53 --
+-- 37 of 54 --
 
-37 PROJECT 236 | FROZEN STAGE-2 REPORT
+38 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.8.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -822,11 +984,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 7 E 0.036142 0.041376 0.020541 0.007297 0.001651 0.878907 0.014086
 8 R 0.779541 0.039267 0.021534 0.006461 0.000585 0.127968 0.024645
 8 E 0.031084 0.028076 0.014517 0.004919 0.000837 0.902437 0.018131
-Page 37 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 38 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 37 of 53 --
+-- 38 of 54 --
 
-38 PROJECT 236 | FROZEN STAGE-2 REPORT
+39 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.9.1 — N_T=9 Numerical Diagnostics
 NOT ACCEPTED (persisted) | numerical acceptance FAIL | maximum component balance residual 2.888e-13
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 1.252e-13 | Branch EVALUATED (3.183e-13)
@@ -850,11 +1012,11 @@ final Extract 2.6126e-2 3.4537e-2 1.5081e-2 5.9875e-3 4.6324e-3 5.2499e-1 1.5653
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual -8.812e-16 -5.003e-15 -6.330e-15 -6.668e-15 -2.888e-13 2.331e-15 1.054e-14
-Page 38 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 39 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 38 of 53 --
+-- 39 of 54 --
 
-39 PROJECT 236 | FROZEN STAGE-2 REPORT
+40 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.9.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -878,11 +1040,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 7 PASS PASS PASS PASS
 8 FAIL PASS PASS PASS
 9 PASS PASS PASS PASS
-Page 39 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 40 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 39 of 53 --
+-- 40 of 54 --
 
-40 PROJECT 236 | FROZEN STAGE-2 REPORT
+41 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.9.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -905,11 +1067,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 8 E 0.036094 0.041313 0.020598 0.007293 0.001398 0.878887 0.014417
 9 R 0.780122 0.039101 0.021527 0.006436 0.000493 0.127431 0.024889
 9 E 0.031044 0.027987 0.014529 0.004906 0.000706 0.902507 0.01832
-Page 40 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 41 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 40 of 53 --
+-- 41 of 54 --
 
-41 PROJECT 236 | FROZEN STAGE-2 REPORT
+42 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.10.1 — N_T=10 Numerical Diagnostics
 ACCEPTED (persisted) | numerical acceptance PASS | maximum component balance residual 1.271e-14
 Combined endpoint status CONVERGED | Closure CLOSED | Scaled residual 8.615e-14 | Branch EVALUATED (2.049e-14)
@@ -933,11 +1095,11 @@ final Extract 2.6159e-2 3.4608e-2 1.5084e-2 5.9976e-3 4.6775e-3 5.2524e-1 1.4566
 Overall seven-component balance residual — component moles
 Basis SAT MONO DI POLY PA NMP H2O
 Residual 9.714e-17 -1.943e-16 -2.394e-16 -2.663e-16 -1.271e-14 2.220e-16 4.705e-16
-Page 41 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 42 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 41 of 53 --
+-- 42 of 54 --
 
-42 PROJECT 236 | FROZEN STAGE-2 REPORT
+43 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.10.2 — Stage TPD and Stability Evidence
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 Stage Local balance Stage qualification Isoactivity R min eig E min eig R TPD min E TPD min
@@ -963,11 +1125,11 @@ Stage R refinements E refinements R MONO-rich E MONO-rich
 8 PASS PASS PASS PASS
 9 PASS PASS PASS PASS
 10 PASS PASS PASS PASS
-Page 42 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 43 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 42 of 53 --
+-- 43 of 54 --
 
-43 PROJECT 236 | FROZEN STAGE-2 REPORT
+44 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix A.10.3 — Seven-Component Stage Outlet Compositions
 Stage numbering is from bottom to top: Stage 1 = RRBO-feed/bottom end; final stage = fresh-NMP/top end.
 PHASE MOLE FRACTIONS — NOT PRODUCT MASS FRACTIONS
@@ -992,11 +1154,11 @@ Stage / phase SAT MONO DI POLY PA NMP H2O
 9 E 0.036065 0.041294 0.020651 0.007296 0.001192 0.878813 0.014689
 10 R 0.780468 0.039005 0.021533 0.006422 0.000419 0.127072 0.025081
 10 E 0.031019 0.02794 0.014547 0.004901 0.000601 0.902518 0.018475
-Page 43 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 44 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 43 of 53 --
+-- 44 of 54 --
 
-44 PROJECT 236 | FROZEN STAGE-2 REPORT
+45 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix B — Multistart / Solver Evidence
 Primary convergence is insufficient: both starts must close and boundary products must agree within 1e-6
 N_T Combined endpoint status P closure / residual P / S optimizer termination S closure / residual Branch difference Branch gate
@@ -1014,11 +1176,11 @@ MULTISTART INTERPRETATION BOUNDARY
 Matrix 7C CONVERGED/UNCLOSED and closure are combined endpoint statuses, NOT optimizer termination. CLOSED proves both endpoints closed; UNCLOSED does not
 identify which endpoint failed. Individual optimizer terminations are not separately recorded. Branch gate uses persisted branchReproduced when available. Missing evidence is NOT
 failure; branch reproduction alone does not establish numerical/stage acceptance. No gate is rerun.
-Page 44 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 45 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 44 of 53 --
+-- 45 of 54 --
 
-45 PROJECT 236 | FROZEN STAGE-2 REPORT
+46 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix C — Frozen qualification dispositions
 Exact codes where recorded; native persisted flags otherwise. No invented rejection codes.
 N_T Closure Exact codes / persisted disposition
@@ -1033,11 +1195,11 @@ N_T Closure Exact codes / persisted disposition
 9 CLOSED Exact codes not recorded. Persisted accepted: no; numerical acceptance: false; targets: true; stage 8 acceptance: false; raffinate TPD refinements: false
 (ROUTINE_REFINEMENT_AMBIGUOUS). TRIAL_NOT_PHYSICALLY_NUMERICALLY_VALID
 10 CLOSED Exact codes not recorded. Persisted accepted: yes; numerical acceptance: true; targets: true
-Page 45 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 46 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 45 of 53 --
+-- 46 of 54 --
 
-46 PROJECT 236 | FROZEN STAGE-2 REPORT
+47 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix D — Supplementary global TPD evidence
 Legacy supplementary evidence, separate from native matrix per-stage TPD evidence
 SUPPLEMENTARY GLOBAL EVIDENCE NOT ATTACHED
@@ -1046,11 +1208,11 @@ Absence of this legacy attachment is not a new qualification failure. No current
 CANDIDATE SUPPLEMENTARY EVIDENCE NOT ATTACHED
 No candidate-generated legacy attachment is recorded. This report does not manufacture it or reclassify the saved
 matrix result.
-Page 46 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 47 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 46 of 53 --
+-- 47 of 54 --
 
-47 PROJECT 236 | FROZEN STAGE-2 REPORT
+48 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix E — Governance / Report Status
 7. Governance / Report Status — full immutable provenance is Appendix F
 PERSISTED REPORT STATUS — CALIBRATION NOT REQUIRED
@@ -1067,11 +1229,11 @@ SAT is boundary-mole loss; NMP extraction percentage is not applicable.
 DOCUMENT CONTROL
 Generated automatically and exclusively from the persisted completed job snapshot. No live design inputs were read and no
 scientific calculation was rerun.
-Page 47 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 48 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 47 of 53 --
+-- 48 of 54 --
 
-48 PROJECT 236 | FROZEN STAGE-2 REPORT
+49 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix F — Governance and Provenance
 Immutable identifiers and document-control evidence for the completed snapshot
 Thermodynamic classification PRE_PILOT_MULTISTAGE_PREDICTIVE_MODEL
@@ -1091,11 +1253,11 @@ Completed at 2026-09-15T07:34:35.795Z
 DOCUMENT CONTROL
 Generated exclusively from the persisted completed job snapshot. The renderer does not read live Stage-1 or workspace values
 and does not invoke COSMO-SAC, cascade, TPD, or multistart calculations.
-Page 48 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 49 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 48 of 53 --
+-- 49 of 54 --
 
-49 PROJECT 236 | FROZEN STAGE-2 REPORT
+50 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix F — Model and molecular provenance
 Only frozen fields or artifacts whose bytes match frozen SHA-256 digests
 Input snapshot SHA-256 (report-derived) 278489671d42953a748351174cf76cc30872b4ed5ef3267b4a06a6f868e32907
@@ -1126,11 +1288,11 @@ task238Protocol Sha256 7ea9fdc6e893af039a9b1786d1c154b3e9d9cc09bd2aa9fba66d8d023
 isolated Complist Sha256 ce310440998304063a952323df84b98e4bccc2352a292679bcb70c920fc591a0
 active Thermodynamic Model NATIVE_SEVEN_COMPONENT_CCOSMO_2010_PLUS_ADDITIVE_REDLICH
 _KISTER
-Page 49 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 50 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 49 of 53 --
+-- 50 of 54 --
 
-50 PROJECT 236 | FROZEN STAGE-2 REPORT
+51 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix F — Provenance continued
 frozen Residual Model Sha256 8bce122869260513e695090bb33478465c43222eb90b6541e47072389241b4f1
 frozen Residual Results Sha256 412ea41742d9373f6a3807a188a8cb4d54cbce8e26e61a839a41ed72cf42af29
@@ -1159,11 +1321,11 @@ Qualification Runner Sha256
 sixGenerationManifestSha256 65baa44c36ffae817e52f60a32591f3fc1be7c140517c8b37c95458c834d1fa9
 Hash-verified source server/research/ecr-pre-pilot-six-component-thermodynamics/generated/
 generation-manifest.json
-Page 50 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 51 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 50 of 53 --
+-- 51 of 54 --
 
-51 PROJECT 236 | FROZEN STAGE-2 REPORT
+52 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix F — Provenance continued
 Molecular generation route RDKit ETKDGv3/MMFF94s lowest conformer; xTB 6.7.1 GFN2-xTB tight gas
 geometry; CPCM-X 1.1.0 xTB conductor surface
@@ -1189,11 +1351,11 @@ UHFFFAOYSA-N
 MONO sigma profile SHA-256 0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275
 MONO optimized geometry SHA-256 c9c920c752fc4ea0dae8156d222035afdfed555462e73a2d71eaaf770d1262e3
 MONO surface SHA-256 77733c6aec2cb649d1272c13f0325d3c433db36da59834a95e7754f2379e5057
-Page 51 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 52 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 51 of 53 --
+-- 52 of 54 --
 
-52 PROJECT 236 | FROZEN STAGE-2 REPORT
+53 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix F — Provenance continued
 DI molecular identity 1-METHYLNAPHTHALENE; CAS 90-12-0; InChIKey QPUYECUOLPXSFR-
 UHFFFAOYSA-N
@@ -1214,17 +1376,17 @@ UHFFFAOYSA-N
 NMP sigma profile SHA-256 58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69
 NMP optimized geometry SHA-256 ec8ff8189bda773187773b174e982cc012e800266022aa3197b4019c923ffba6
 NMP surface SHA-256 837958143169284b19e2678ad65d6a39349a059c80057b300df3e1868d761d76
-Page 52 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 53 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 52 of 53 --
+-- 53 of 54 --
 
-53 PROJECT 236 | FROZEN STAGE-2 REPORT
+54 PROJECT 236 | FROZEN STAGE-2 REPORT
 Appendix F — Provenance continued
 H2O molecular identity WATER; CAS 7732-18-5; InChIKey XLYOFNOQVPJJNP-UHFFFAOYSA-N
 H2O sigma profile SHA-256 82fc9cc17f71b4b8d28db01b7a25453ae03bea66b4af8adc21d4b85615cd7bb1
 H2O optimized geometry SHA-256 52e69af7d53aff3f3d673d7aaf00829da2332cf1c2ba9d77780194ed05d930dd
 H2O surface SHA-256 2c4a345271076f9a812f1813422be7152f015b687f6fd1d51968f6e381f5c043
-Page 53 of 53 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
+Page 54 of 54 | Frozen run 145e962e-892a-4424-aab9-91532af9f5ef
 
--- 53 of 53 --
+-- 54 of 54 --
 

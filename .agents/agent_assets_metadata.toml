@@ -1801,3 +1801,17 @@ mtime_ms = 1790135118338
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/ca293f18-e439-4e64-ae2d-48b7cc638026/16e8664e-1126-4a8b-af79-21c9dae2bacc"
 storage_version_token = "1790135135904266"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "okyULcG2Pf8J0oKgGLVkO"
+uri = "file://deliverables/stage2-report-corrected/Project-236-Stage2-a7a03f6f-1587-401b-8329-8b67c53a6a93.pdf"
+type = "pdf"
+title = "Stage 2 Complete PDF — with comparison page"
+description = "The complete 54-page report, with Theoretical-stage comparison & selection on page 2."
+logical_id = "ae41098b-7c33-43d1-accc-b1a2301e5c84"
+content_hash = "sha256:b950e636295f750654728cb9f7bbaef0e230fcac4df9af87287b5a6d5b033ba6"
+size = 140384
+mtime_ms = 1790136358174
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/ae41098b-7c33-43d1-accc-b1a2301e5c84/74d780a6-8db8-40fd-aea1-76ca3bbd46ed"
+storage_version_token = "1790136503670144"
+content_type = "application/pdf"

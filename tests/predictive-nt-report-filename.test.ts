@@ -91,6 +91,7 @@ describe('Predictive N_T report filenames', () => {
       filename: expectedFilename,
     });
     expect(report?.pdf.toString('latin1')).toMatch(/^%PDF/);
+    expect(report?.pdf.equals(row.report_pdf)).toBe(false);
     expect(report?.sha256).toBe(createHash('sha256').update(report!.pdf).digest('hex'));
     expect(JSON.stringify(row)).toBe(before);
     expect(query).toHaveBeenCalledTimes(1);
