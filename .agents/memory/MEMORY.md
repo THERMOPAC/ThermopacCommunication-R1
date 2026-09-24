@@ -1,3 +1,4 @@
+- [Deployment image size](deployment-image-size-boundary.md) — `dist` savings are not image-layer savings; editor-hidden files are not documented publishing exclusions.
 - [HAZOP retirement boundary](hazop-retirement-boundary.md) — remove application execution, not historical studies, reports or engineering-document classifications.
 - [Scientific runtime retirement](scientific-runtime-production-retirement.md) — production no longer retains historical executable replay; preserve immutable results and the full current closure.
 - [Kühni disengagement sizing](kuhni-disengagement-boundary.md) — end sections require independent carryover/capture criteria; dissolved solvent and compartment mean drops cannot establish separator performance.
