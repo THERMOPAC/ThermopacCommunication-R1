@@ -25,21 +25,29 @@ import {
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
-// A representative Kühni operating point that gives a usable holdup
+// Synthetic reference-system formula fixture within the K&H applicability
+// envelope: not a measured published data point or RRBO/NMP validation evidence.
+// Density values describe generic continuous/dispersed phases, not NMP/RRBO.
+const REFERENCE_DIAMETER_M = 0.10;
+const REFERENCE_AREA_M2 = Math.PI * REFERENCE_DIAMETER_M ** 2 / 4;
+const REFERENCE_HEIGHT_M = 0.06;
+const REFERENCE_RHO_C_KG_M3 = 1020;
+const REFERENCE_EPSILON_W_KG = 0.012;
+
 const HOLDUP_INPUTS = {
   Ud_m_s:      0.000278,  // 1 m³/(m²·h) ÷ 3600
   Uc_m_s:      0.000333,  // 1.2 m³/(m²·h) ÷ 3600
-  rho_c_kg_m3: 1020,      // NMP
-  rho_d_kg_m3: 870,       // RRBO
+  rho_c_kg_m3: REFERENCE_RHO_C_KG_M3, // synthetic continuous phase
+  rho_d_kg_m3: 870,       // synthetic dispersed phase
   mu_c_Pa_s:   0.0012,
   mu_d_Pa_s:   0.0010,
   gamma_N_m:   0.015,     // 15 mN/m
   xf:          0.23,      // stator open-area fraction
   // ε = P/(Ac·H·ρc) with the primary K&H one-agitator basis.
-  powerPerAgitator_W: 0.012 * 0.01 * 0.06 * 1020,
-  columnCrossSectionArea_m2: 0.01,
-  compartmentHeight_m: 0.06,
-  columnDiameter_m: 0.10,
+  powerPerAgitator_W: REFERENCE_EPSILON_W_KG * REFERENCE_AREA_M2 * REFERENCE_HEIGHT_M * REFERENCE_RHO_C_KG_M3,
+  columnCrossSectionArea_m2: REFERENCE_AREA_M2,
+  compartmentHeight_m: REFERENCE_HEIGHT_M,
+  columnDiameter_m: REFERENCE_DIAMETER_M,
   rotorDiameter_m: 0.06,
   massTransferDirection: 'no_mass_transfer' as const,
   systemIdentity: 'published_reference_system' as const,
@@ -49,7 +57,7 @@ const ENGINEER_D32_CFG = {
   mode: 'engineer_supplied' as const,
   value_m: 0.002,         // 2 mm
   sourceType: 'Assumed',
-  sourceReference: 'Assumed — ECR-2 simulator development basis',
+  sourceReference: 'Assumed — synthetic reference-system formula test; not RRBO/NMP evidence',
 };
 
 const PUBLISHED_D32_CFG = {
@@ -58,8 +66,8 @@ const PUBLISHED_D32_CFG = {
 };
 
 const PUBLISHED_D32_STATE = {
-  h_comp_m: 0.06,
-  psi_W_kg: 0.012,
+  h_comp_m: HOLDUP_INPUTS.compartmentHeight_m,
+  psi_W_kg: REFERENCE_EPSILON_W_KG,
   rho_c_kg_m3: HOLDUP_INPUTS.rho_c_kg_m3,
   rho_d_kg_m3: HOLDUP_INPUTS.rho_d_kg_m3,
   sigma_N_m: HOLDUP_INPUTS.gamma_N_m,
@@ -81,7 +89,25 @@ function makePreliminaryD32() {
 
 // ── 1. Successful computation ─────────────────────────────────────────────────
 
-describe('computeInterfacialArea — successful computation', () => {
+describe('computeInterfacialArea — synthetic reference-system formula computation', () => {
+  it('keeps reference geometry, power and d32 state consistent without validating RRBO/NMP', () => {
+    expect(HOLDUP_INPUTS.systemIdentity).toBe('published_reference_system');
+    expect(HOLDUP_INPUTS.columnCrossSectionArea_m2).toBeCloseTo(
+      Math.PI * HOLDUP_INPUTS.columnDiameter_m ** 2 / 4, 14,
+    );
+    const epsilon = HOLDUP_INPUTS.powerPerAgitator_W / (
+      HOLDUP_INPUTS.columnCrossSectionArea_m2 * HOLDUP_INPUTS.compartmentHeight_m * HOLDUP_INPUTS.rho_c_kg_m3
+    );
+    expect(epsilon).toBeCloseTo(0.012, 12);
+    expect(PUBLISHED_D32_STATE.psi_W_kg).toBeCloseTo(epsilon, 12);
+    expect(PUBLISHED_D32_STATE.h_comp_m).toBe(HOLDUP_INPUTS.compartmentHeight_m);
+    const holdup = makeUsableHoldup();
+    expect(holdup.status).toBe('calculated');
+    if (holdup.status !== 'calculated') throw new Error('Expected reference holdup');
+    expect(holdup.intermediates.epsilon_W_kg).toBeCloseTo(0.012, 12);
+    expect(holdup.governance.validatedForRRBONMP).toBe(false);
+  });
+
   it('a = 6·φ_d / d₃₂ numerically correct', () => {
     const holdup = makeUsableHoldup();
     const d32 = makeEngineerD32(0.002); // 2 mm
@@ -174,6 +200,17 @@ describe('computeInterfacialArea — successful computation', () => {
 // ── 2. Blocked states ─────────────────────────────────────────────────────────
 
 describe('computeInterfacialArea — blocked states', () => {
+  it('does not turn reference formula success into RRBO/NMP interfacial-area evidence', () => {
+    const holdup = computeKH1995Holdup({ ...HOLDUP_INPUTS, systemIdentity: 'rrbo_nmp' });
+    expect(holdup.status).toBe('dependency_blocked');
+    if (holdup.status !== 'dependency_blocked') throw new Error('Expected RRBO/NMP dependency block');
+    expect(holdup.blockedBy).toContain('kh1995_rrbo_nmp_not_validated');
+    expect(isHoldupUsable(holdup)).toBe(false);
+    const result = computeInterfacialArea(holdup, makeEngineerD32());
+    expect(result.status).toBe('blocked_holdup');
+    expect(result.a_m2_m3).toBeNull();
+  });
+
   it('holdup null → blocked_holdup, a = null', () => {
     const result = computeInterfacialArea(null, makeEngineerD32());
     expect(result.a_m2_m3).toBeNull();

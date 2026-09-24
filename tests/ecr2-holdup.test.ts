@@ -7,24 +7,30 @@ import {
 } from '../server/engines/llx/llx-ecr2-holdup';
 
 /**
- * Reference-only fixture within the primary K&H Table 1 envelope. It is not
- * RRBO/NMP; production ECR-2 must explicitly identify itself as rrbo_nmp and
- * therefore remains dependency-blocked pending governing evidence.
+ * Synthetic reference-system formula fixture within the K&H Table 1 envelope,
+ * not a measured published data point or RRBO/NMP validation evidence.
+ * Production ECR-2 must identify itself as rrbo_nmp and remains dependency-blocked.
  */
+const REFERENCE_DIAMETER_M = 0.10;
+const REFERENCE_AREA_M2 = Math.PI * REFERENCE_DIAMETER_M ** 2 / 4;
+const REFERENCE_HEIGHT_M = 0.06;
+const REFERENCE_RHO_C_KG_M3 = 1000;
+const REFERENCE_EPSILON_W_KG = 0.1;
+
 const REFERENCE: HoldupInputs = {
   Ud_m_s: 0.001,
   Uc_m_s: 0.0008,
-  rho_c_kg_m3: 1000,
+  rho_c_kg_m3: REFERENCE_RHO_C_KG_M3,
   rho_d_kg_m3: 860,
   mu_c_Pa_s: 0.0012,
   mu_d_Pa_s: 0.001,
   gamma_N_m: 0.0035,
   xf: 0.30,
   // ε = P/(Ac·H·ρc) = 0.1 W/kg
-  powerPerAgitator_W: 0.06,
-  columnCrossSectionArea_m2: 0.01,
-  compartmentHeight_m: 0.06,
-  columnDiameter_m: 0.10,
+  powerPerAgitator_W: REFERENCE_EPSILON_W_KG * REFERENCE_AREA_M2 * REFERENCE_HEIGHT_M * REFERENCE_RHO_C_KG_M3,
+  columnCrossSectionArea_m2: REFERENCE_AREA_M2,
+  compartmentHeight_m: REFERENCE_HEIGHT_M,
+  columnDiameter_m: REFERENCE_DIAMETER_M,
   rotorDiameter_m: 0.06,
   massTransferDirection: 'no_mass_transfer',
   systemIdentity: 'published_reference_system',
@@ -33,6 +39,19 @@ const REFERENCE: HoldupInputs = {
 const refWith = (overrides: Partial<HoldupInputs>): HoldupInputs => ({ ...REFERENCE, ...overrides });
 
 describe('K&H 1995 primary holdup dependency contract', () => {
+  it('keeps synthetic reference geometry and one-agitator power consistent', () => {
+    expect(REFERENCE.systemIdentity).toBe('published_reference_system');
+    expect(REFERENCE.columnCrossSectionArea_m2).toBeCloseTo(
+      Math.PI * REFERENCE.columnDiameter_m ** 2 / 4, 14,
+    );
+    expect(REFERENCE.powerPerAgitator_W / (
+      REFERENCE.columnCrossSectionArea_m2 * REFERENCE.compartmentHeight_m * REFERENCE.rho_c_kg_m3
+    )).toBeCloseTo(0.1, 12);
+    const result = computeKH1995Holdup(REFERENCE) as HoldupCalculated;
+    expect(result.status).toBe('calculated');
+    expect(result.governance.validatedForRRBONMP).toBe(false);
+  });
+
   it('uses the primary ε = P/(Ac·H·ρc) power basis', () => {
     const result = computeKH1995Holdup(REFERENCE) as HoldupCalculated;
     expect(result.status).toBe('calculated');
