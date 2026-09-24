@@ -184,6 +184,7 @@ const RETIRED_PREDICTIVE_NT_ENGINE_ERROR =
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
+let workerTimer: ReturnType<typeof setInterval> | undefined;
 const activeWorkerChildren = new Map<string, ReturnType<typeof spawn>>();
 const task218EvidenceCache = new Map<string, unknown>();
 type RuntimeTestHooks = {
@@ -3027,9 +3028,23 @@ export function startPredictiveNtWorker() {
   if (workerStarted) return;
   preflightPredictiveNtRuntime();
   workerStarted = true;
-  const timer = setInterval(() => void pollWorker(), POLL_MS);
-  timer.unref();
+  workerTimer = setInterval(() => void pollWorker(), POLL_MS);
+  workerTimer.unref();
   void pollWorker();
+}
+
+/** Drain persistence before a disposable integration-test database is removed. */
+export async function shutdownPredictiveNtTestWorker() {
+  if (process.env.NODE_ENV !== 'test') throw new Error('TEST_WORKER_SHUTDOWN_DISABLED');
+  clearInterval(workerTimer);
+  workerTimer = undefined;
+  const deadline = Date.now() + 10_000;
+  while (workerBusy || activeWorkerChildren.size > 0) {
+    for (const child of activeWorkerChildren.values()) child.kill('SIGKILL');
+    if (Date.now() >= deadline) throw new Error('TEST_WORKER_SHUTDOWN_TIMEOUT');
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  workerStarted = false;
 }
 
 async function enqueueRawPredictiveNtJob(

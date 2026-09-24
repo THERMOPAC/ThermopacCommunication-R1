@@ -3,7 +3,15 @@ import {
 } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { createPredictiveNtTestDatabase } from './helpers/predictive-nt-test-database';
+
+// Installed before any service imports: the real application pool is never opened.
+vi.mock('../server/db', async () => {
+  const { createPredictiveNtTestDatabase } = await import('./helpers/predictive-nt-test-database');
+  const fixture = await createPredictiveNtTestDatabase();
+  return { pool: fixture.pool, testDatabase: fixture };
+});
 import {
   PRE_PILOT_MODEL,
   PRE_PILOT_MULTISTAGE_MODEL,
@@ -11,6 +19,7 @@ import {
 } from '../server/ecr-pre-pilot/model';
 import {
   enqueuePredictiveNtRuntimeTestJob,
+  shutdownPredictiveNtTestWorker,
   derivePredictiveNtInputFromStage1,
   derivePredictiveNtSixComponentInputFromStage1,
   attachStage1ResultGovernance,
@@ -108,26 +117,20 @@ function validTask216Evidence() {
 }
 
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
-  const suiteCreatedJobIds = new Set<string>();
+  const userId = 1; // Explicit identity in this run's disposable schema.
 
   afterAll(async () => {
-    if (suiteCreatedJobIds.size > 0) {
-      await pool.query(
-        `UPDATE ecr_pre_pilot_predictive_nt_jobs
-          SET status = 'failed',
-              error = 'TEST_RUN_INTERRUPTED_CLEANUP',
-              lease_expires_at = NULL,
-              completed_at = NOW(),
-              updated_at = NOW()
-        WHERE status IN ('pending', 'running')
-          AND id = ANY($1::uuid[])`,
-        [[...suiteCreatedJobIds]],
-      );
+    try {
+      await shutdownPredictiveNtTestWorker();
+    } finally {
+      delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
+      delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
+      const { testDatabase } = await import('../server/db') as unknown as {
+        testDatabase: Awaited<ReturnType<typeof createPredictiveNtTestDatabase>>;
+      };
+      await testDatabase.dispose();
     }
-    delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
-    delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
-    await pool.end();
-  });
+  }, 20_000);
 
   async function enqueueSuiteJob(
     input: unknown,
@@ -136,9 +139,41 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     hooks?: Parameters<typeof enqueuePredictiveNtRuntimeTestJob>[3],
   ) {
     const submitted = await enqueuePredictiveNtRuntimeTestJob(input, userId, designId, hooks);
-    suiteCreatedJobIds.add(submitted.jobId);
     return submitted;
   }
+
+  it('uses private identities and sequences on every connection with no public fallback', async () => {
+    const clients = await Promise.all([pool.connect(), pool.connect()]);
+    try {
+      for (const client of clients) {
+        const scope = await client.query('SELECT current_schema() AS schema, current_schemas(false)::text[] AS schemas');
+        expect(scope.rows[0].schema).toMatch(/^test_predictive_nt_[a-f0-9]{32}$/);
+        expect(scope.rows[0].schemas).toEqual([scope.rows[0].schema]);
+        expect((await client.query('SELECT * FROM users')).rows)
+          .toEqual([{ id: userId, username: 'predictive-nt-regression-only' }]);
+        const sequence = await client.query(
+          "SELECT pg_get_serial_sequence('ecr_pre_pilot_designs', 'id') AS name",
+        );
+        expect(sequence.rows[0].name).toBe(`${scope.rows[0].schema}.ecr_pre_pilot_designs_id_seq`);
+      }
+    } finally {
+      clients.forEach((client) => client.release());
+    }
+  });
+
+  it('cleans a failed fixture without removing a concurrent test namespace', async () => {
+    const sibling = await createPredictiveNtTestDatabase();
+    try {
+      await sibling.pool.query('INSERT INTO ecr_pre_pilot_number_counters VALUES (1, 999)');
+      throw new Error('SIMULATED_TEST_FAILURE');
+    } catch (error) {
+      expect((error as Error).message).toBe('SIMULATED_TEST_FAILURE');
+    } finally {
+      await sibling.dispose();
+    }
+    expect((await pool.query('SELECT 1 FROM pg_namespace WHERE nspname = $1', [sibling.namespace])).rowCount).toBe(0);
+    expect((await pool.query('SELECT id FROM users')).rows).toEqual([{ id: userId }]);
+  }, 20_000);
 
   it('fails closed instead of running queued work against changed evidence', () => {
     const persisted = {
@@ -795,9 +830,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   });
 
   it('derives the complete solver request from the saved Stage 1 snapshot', async () => {
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for Stage 1 authority test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, `stage1-authority-${Date.now()}`);
     const snapshot = await saveEcrPrePilotStage1(userId, design.id, validStage1(design.projectNumber));
     const derived = derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber);
@@ -889,9 +921,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   }, 60_000);
 
   it('admits positive PA and feed NMP in the saved six-component Stage 1 scope', async () => {
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for Stage 1 scope test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, `stage1-scope-${Date.now()}`);
     const stage1 = validStage1(design.projectNumber);
     stage1.saturatesWt = '64';
@@ -901,9 +930,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
   });
 
   it('keeps lineage stable when identical Stage 1 scientific inputs are saved again', async () => {
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for Stage 1 idempotency test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, `stage1-idempotency-${Date.now()}`);
     const raw = validStage1(design.projectNumber);
 
@@ -1076,9 +1102,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     },
   ])('$name', async ({ hooks, error }) => {
     useCurrentAckProtocolFixture();
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for checkpoint fault test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-fault-v1');
     const submitted = await enqueueSuiteJob(
       currentQueueInput(),
@@ -1111,9 +1134,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
 
   it('fails a zero-exit final RUNNING ACK payload and persists server evidence', async () => {
     useCurrentAckProtocolFixture();
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for terminal ACK bypass test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-terminal-ack-bypass-v1');
     const submitted = await enqueueSuiteJob(
       currentQueueInput(),
@@ -1141,9 +1161,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
 
   it('replaces an admitted completed result when report generation fails', async () => {
     useCurrentAckProtocolFixture();
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for report failure test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-report-failure-v1');
     const submitted = await enqueueSuiteJob(
       currentQueueInput(),
@@ -1174,9 +1191,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
 
   it('resumes the current 7C-1.6 sweep without rewriting acknowledged evidence', async () => {
     useCurrentAckProtocolFixture();
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for checkpoint restart test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-resume-v2');
     const submitted = await enqueueSuiteJob(
       currentQueueInput(),
@@ -1229,9 +1243,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
 
   it('finalizes the current 7C-1.6 sweep after the final acknowledgement', async () => {
     useCurrentAckProtocolFixture();
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for final checkpoint restart test');
-    const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-final-checkpoint-resume-v2');
     const submitted = await enqueueSuiteJob(
       currentQueueInput(),

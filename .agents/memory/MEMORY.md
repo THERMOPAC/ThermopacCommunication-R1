@@ -143,5 +143,6 @@
 - [Stage 5 definition boundary](ecr-stage5-definition-boundary.md) — inherited sizing stays read-only; explicit internals define preliminary geometry, not mechanical adequacy; historical drawings stay frozen.
 - [ECR R1 construction evidence](ecr-r1-construction-evidence.md) — ring/perforated stators are not interchangeable; source-specific stepped blades, shaft-area ambiguity and terminal-count limits.
 - [Stage-4 regression fixtures](stage4-regression-fixture-boundary.md) — a code checkout does not freeze DB authority; isolate missing-authority cases rather than relying on a historical design's identity.
+- [Predictive queue test isolation](predictive-queue-test-isolation.md) — disposable namespaces must own identities and numbering; append-only engineering history cannot be cleaned by test-name matching.
 - [Garthe swarm velocity definitions](garthe-swarm-velocity-convention.md) — superficial swarm and interphase slip differ by (1−φ); low-Re hindrance and operating/flood holdup stay distinct.
 - [Automatic hydraulic selection](ecr-prepilot-automatic-hydraulic-selection.md) — system-owned diameter choice excludes RPM windows; conversational recommendations are not hard-coded targets.
