@@ -502,7 +502,6 @@ function Layout({ children }: LayoutProps) {
       isOpen: isDesignSoftwareMenuOpen,
       toggle: () => setIsDesignSoftwareMenuOpen(!isDesignSoftwareMenuOpen),
       children: [
-        { icon: Cpu, label: "Liquid-Liquid Extraction", href: "/design-software/liquid-liquid-extraction" },
         { icon: FlaskConical, label: "ECR Pre-Pilot Design", href: "/design-software/ecr-pre-pilot-design" },
         {
           icon: BookOpen,
