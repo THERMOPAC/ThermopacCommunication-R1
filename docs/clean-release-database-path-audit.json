@@ -1,0 +1,2257 @@
+{
+  "audit": "Task315 clean-release database-backed download reference census",
+  "database_target": "Replit managed database via executeSql; production read-only replica; development comparison",
+  "source_root": "/home/runner/workspace",
+  "candidate_root": "/tmp/thermopac-clean-release-candidate",
+  "scope": "Selected download-bearing path, URL, attachment, and legacy migration fields; each count is a field occurrence, not a unique document. No GCS/network existence checked.",
+  "production": {
+    "totals": {
+      "columns_scanned": 122,
+      "nonempty_records": 2383,
+      "by_category": {
+        "gcs_object_key": 1186,
+        "remote_url_or_gs_uri": 375,
+        "remote_agent_not_release_asset": 369,
+        "historical_migration_key_not_direct_download": 425,
+        "gcs_filename_metadata": 7,
+        "cloud_first_with_local_cache_fallback": 21
+      }
+    },
+    "columns": [
+      {
+        "table": "advance_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "agreement_amendments",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "agreement_amendments",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "attendance_location_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "bank_realization_certificates",
+        "column": "document_path",
+        "nonempty_records": 123,
+        "distinct_values": 118,
+        "categories": {
+          "gcs_object_key": {
+            "records": 123,
+            "distinct_values": 118
+          }
+        }
+      },
+      {
+        "table": "business_meetings",
+        "column": "transcript_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "business_trips",
+        "column": "supporting_document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "buy_list_line_selections",
+        "column": "datasheet_gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "calibration_instruments",
+        "column": "certificate_file_path",
+        "nonempty_records": 74,
+        "distinct_values": 59,
+        "categories": {
+          "gcs_object_key": {
+            "records": 74,
+            "distinct_values": 59
+          }
+        }
+      },
+      {
+        "table": "calibration_instruments",
+        "column": "certificate_gcs_key",
+        "nonempty_records": 78,
+        "distinct_values": 63,
+        "categories": {
+          "gcs_object_key": {
+            "records": 78,
+            "distinct_values": 63
+          }
+        }
+      },
+      {
+        "table": "change_documents",
+        "column": "document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "change_documents",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "change_documents",
+        "column": "storage_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "change_documents",
+        "column": "storage_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "evidence_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "company_documents",
+        "column": "gcs_path",
+        "nonempty_records": 25,
+        "distinct_values": 25,
+        "categories": {
+          "gcs_object_key": {
+            "records": 25,
+            "distinct_values": 25
+          }
+        }
+      },
+      {
+        "table": "company_master",
+        "column": "logo_gcs_path",
+        "nonempty_records": 1,
+        "distinct_values": 1,
+        "categories": {
+          "gcs_object_key": {
+            "records": 1,
+            "distinct_values": 1
+          }
+        }
+      },
+      {
+        "table": "company_master",
+        "column": "seal_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "company_master",
+        "column": "signature_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "compliance_register",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "compliance_register",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "compliance_register",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "contract_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "contracts",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "contracts",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "customer_order_documents",
+        "column": "gcs_object_path",
+        "nonempty_records": 4,
+        "distinct_values": 4,
+        "categories": {
+          "gcs_object_key": {
+            "records": 4,
+            "distinct_values": 4
+          }
+        }
+      },
+      {
+        "table": "design_basic_drawings",
+        "column": "file_path",
+        "nonempty_records": 3,
+        "distinct_values": 3,
+        "categories": {
+          "gcs_object_key": {
+            "records": 3,
+            "distinct_values": 3
+          }
+        }
+      },
+      {
+        "table": "design_basic_drawings",
+        "column": "file_url",
+        "nonempty_records": 3,
+        "distinct_values": 3,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 3,
+            "distinct_values": 3
+          }
+        }
+      },
+      {
+        "table": "design_data_sheets",
+        "column": "dds_gcs_path",
+        "nonempty_records": 25,
+        "distinct_values": 25,
+        "categories": {
+          "gcs_object_key": {
+            "records": 25,
+            "distinct_values": 25
+          }
+        }
+      },
+      {
+        "table": "design_project_backups",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_project_backups",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_reviews",
+        "column": "markup_file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_software_reference_papers",
+        "column": "file_path",
+        "nonempty_records": 7,
+        "distinct_values": 7,
+        "categories": {
+          "gcs_object_key": {
+            "records": 7,
+            "distinct_values": 7
+          }
+        }
+      },
+      {
+        "table": "design_standards",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_standards",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "dispatch_documents",
+        "column": "document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "dispatch_documents",
+        "column": "storage_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "dispatch_documents",
+        "column": "storage_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "document_agent_jobs",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "document_agent_jobs",
+        "column": "relative_path",
+        "nonempty_records": 196,
+        "distinct_values": 163,
+        "categories": {
+          "remote_agent_not_release_asset": {
+            "records": 196,
+            "distinct_values": 163
+          }
+        }
+      },
+      {
+        "table": "document_agent_jobs",
+        "column": "result_local_path",
+        "nonempty_records": 173,
+        "distinct_values": 159,
+        "categories": {
+          "remote_agent_not_release_asset": {
+            "records": 173,
+            "distinct_values": 159
+          }
+        }
+      },
+      {
+        "table": "drawing_transmittals",
+        "column": "response_document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "drawing_versions",
+        "column": "file_path",
+        "nonempty_records": 11,
+        "distinct_values": 11,
+        "categories": {
+          "gcs_object_key": {
+            "records": 11,
+            "distinct_values": 11
+          }
+        }
+      },
+      {
+        "table": "drawing_versions",
+        "column": "file_url",
+        "nonempty_records": 11,
+        "distinct_values": 11,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 11,
+            "distinct_values": 11
+          }
+        }
+      },
+      {
+        "table": "employee_investment_proofs",
+        "column": "proof_document_key",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "epc_document_attachments",
+        "column": "gcs_object_path",
+        "nonempty_records": 325,
+        "distinct_values": 325,
+        "categories": {
+          "gcs_object_key": {
+            "records": 325,
+            "distinct_values": 325
+          }
+        }
+      },
+      {
+        "table": "epc_documents",
+        "column": "gcs_object_path",
+        "nonempty_records": 10,
+        "distinct_values": 10,
+        "categories": {
+          "gcs_object_key": {
+            "records": 10,
+            "distinct_values": 10
+          }
+        }
+      },
+      {
+        "table": "epc_drawing_controls",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "epc_slddrw_extraction_jobs",
+        "column": "slddrw_gcs_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "gcs_object_key": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "draft_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "executed_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "gcs_file_migration_items",
+        "column": "before_path",
+        "nonempty_records": 335,
+        "distinct_values": 138,
+        "categories": {
+          "historical_migration_key_not_direct_download": {
+            "records": 335,
+            "distinct_values": 138
+          }
+        }
+      },
+      {
+        "table": "gcs_migration_log",
+        "column": "legacy_path",
+        "nonempty_records": 90,
+        "distinct_values": 90,
+        "categories": {
+          "historical_migration_key_not_direct_download": {
+            "records": 90,
+            "distinct_values": 90
+          }
+        }
+      },
+      {
+        "table": "inspection_documents",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "inspection_documents",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "leave_requests",
+        "column": "attachment_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "legal_notices",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "legal_notices",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "loan_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "login_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "material_identification_documents",
+        "column": "file_path",
+        "nonempty_records": 73,
+        "distinct_values": 73,
+        "categories": {
+          "gcs_object_key": {
+            "records": 73,
+            "distinct_values": 73
+          }
+        }
+      },
+      {
+        "table": "material_identification_documents",
+        "column": "file_url",
+        "nonempty_records": 73,
+        "distinct_values": 73,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 73,
+            "distinct_values": 73
+          }
+        }
+      },
+      {
+        "table": "nda_agreements",
+        "column": "draft_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "nda_agreements",
+        "column": "executed_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "nda_agreements",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "nda_agreements",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "notice_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_comm_documents",
+        "column": "gcs_path",
+        "nonempty_records": 5,
+        "distinct_values": 5,
+        "categories": {
+          "gcs_object_key": {
+            "records": 5,
+            "distinct_values": 5
+          }
+        }
+      },
+      {
+        "table": "offer_comm_templates",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_template_revisions",
+        "column": "gcs_object_path",
+        "nonempty_records": 1,
+        "distinct_values": 1,
+        "categories": {
+          "gcs_object_key": {
+            "records": 1,
+            "distinct_values": 1
+          }
+        }
+      },
+      {
+        "table": "offer_templates",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_templates",
+        "column": "gcs_object_path",
+        "nonempty_records": 4,
+        "distinct_values": 4,
+        "categories": {
+          "gcs_object_key": {
+            "records": 4,
+            "distinct_values": 4
+          }
+        }
+      },
+      {
+        "table": "offers",
+        "column": "confirmation_doc_gcs_path",
+        "nonempty_records": 7,
+        "distinct_values": 7,
+        "categories": {
+          "gcs_object_key": {
+            "records": 7,
+            "distinct_values": 7
+          }
+        }
+      },
+      {
+        "table": "offers",
+        "column": "final_offer_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offers",
+        "column": "template_pdf_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "oi_issue_attachments",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "oi_rca_evidence",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "payments",
+        "column": "proof_document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "plc_document_attachments",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "plc_rfq_attachments",
+        "column": "gcs_path",
+        "nonempty_records": 3,
+        "distinct_values": 3,
+        "categories": {
+          "gcs_object_key": {
+            "records": 3,
+            "distinct_values": 3
+          }
+        }
+      },
+      {
+        "table": "plc_tbe_records",
+        "column": "tbe_report_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "pma_documents",
+        "column": "file_path",
+        "nonempty_records": 18,
+        "distinct_values": 18,
+        "categories": {
+          "gcs_object_key": {
+            "records": 18,
+            "distinct_values": 18
+          }
+        }
+      },
+      {
+        "table": "pma_documents",
+        "column": "file_url",
+        "nonempty_records": 18,
+        "distinct_values": 18,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 18,
+            "distinct_values": 18
+          }
+        }
+      },
+      {
+        "table": "policy_templates",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "policy_templates",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "policy_templates",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "posh_cases",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "posh_cases",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "posh_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "project_document_files",
+        "column": "relative_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "project_document_files",
+        "column": "relative_folder_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "project_documents",
+        "column": "storage_path",
+        "nonempty_records": 80,
+        "distinct_values": 73,
+        "categories": {
+          "gcs_object_key": {
+            "records": 80,
+            "distinct_values": 73
+          }
+        }
+      },
+      {
+        "table": "project_documents",
+        "column": "storage_url",
+        "nonempty_records": 80,
+        "distinct_values": 80,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 80,
+            "distinct_values": 80
+          }
+        }
+      },
+      {
+        "table": "project_documents",
+        "column": "url",
+        "nonempty_records": 80,
+        "distinct_values": 80,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 80,
+            "distinct_values": 80
+          }
+        }
+      },
+      {
+        "table": "project_item_drawings",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "purchase_order_documents",
+        "column": "document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "purchase_order_documents",
+        "column": "storage_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "purchase_order_documents",
+        "column": "storage_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "qms_document_revisions",
+        "column": "gcs_path",
+        "nonempty_records": 17,
+        "distinct_values": 17,
+        "categories": {
+          "gcs_object_key": {
+            "records": 17,
+            "distinct_values": 17
+          }
+        }
+      },
+      {
+        "table": "quotation_pdf_artifacts",
+        "column": "gcs_object_path",
+        "nonempty_records": 77,
+        "distinct_values": 77,
+        "categories": {
+          "gcs_object_key": {
+            "records": 77,
+            "distinct_values": 77
+          }
+        }
+      },
+      {
+        "table": "reauth_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "statutory_challans",
+        "column": "ecr_file_key",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "test_procedures",
+        "column": "attachments",
+        "nonempty_records": 7,
+        "distinct_values": 7,
+        "categories": {
+          "gcs_filename_metadata": {
+            "records": 7,
+            "distinct_values": 7
+          }
+        }
+      },
+      {
+        "table": "trip_bookings",
+        "column": "booking_document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "trip_documents",
+        "column": "file_path",
+        "nonempty_records": 77,
+        "distinct_values": 77,
+        "categories": {
+          "gcs_object_key": {
+            "records": 77,
+            "distinct_values": 77
+          }
+        }
+      },
+      {
+        "table": "trip_documents",
+        "column": "file_url",
+        "nonempty_records": 77,
+        "distinct_values": 77,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 77,
+            "distinct_values": 77
+          }
+        }
+      },
+      {
+        "table": "trip_documents",
+        "column": "gcs_path",
+        "nonempty_records": 75,
+        "distinct_values": 75,
+        "categories": {
+          "gcs_object_key": {
+            "records": 75,
+            "distinct_values": 75
+          }
+        }
+      },
+      {
+        "table": "trip_expenses",
+        "column": "receipt_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "trusted_device_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "vendor_compliance_docs",
+        "column": "gcs_path",
+        "nonempty_records": 5,
+        "distinct_values": 5,
+        "categories": {
+          "gcs_object_key": {
+            "records": 5,
+            "distinct_values": 5
+          }
+        }
+      },
+      {
+        "table": "visa_documents",
+        "column": "gcs_path",
+        "nonempty_records": 15,
+        "distinct_values": 15,
+        "categories": {
+          "gcs_object_key": {
+            "records": 15,
+            "distinct_values": 15
+          }
+        }
+      },
+      {
+        "table": "visa_records",
+        "column": "file_path",
+        "nonempty_records": 16,
+        "distinct_values": 6,
+        "categories": {
+          "gcs_object_key": {
+            "records": 16,
+            "distinct_values": 6
+          }
+        }
+      },
+      {
+        "table": "visa_records",
+        "column": "file_url",
+        "nonempty_records": 16,
+        "distinct_values": 16,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 16,
+            "distinct_values": 16
+          }
+        }
+      },
+      {
+        "table": "welder_certificates",
+        "column": "file_path",
+        "nonempty_records": 16,
+        "distinct_values": 16,
+        "categories": {
+          "gcs_object_key": {
+            "records": 16,
+            "distinct_values": 16
+          }
+        }
+      },
+      {
+        "table": "welder_certificates",
+        "column": "file_url",
+        "nonempty_records": 1,
+        "distinct_values": 1,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 1,
+            "distinct_values": 1
+          }
+        }
+      },
+      {
+        "table": "welder_management",
+        "column": "certificate_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "welders",
+        "column": "photo_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "gcs_object_key": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "wpqr_documents",
+        "column": "file_path",
+        "nonempty_records": 21,
+        "distinct_values": 21,
+        "categories": {
+          "cloud_first_with_local_cache_fallback": {
+            "records": 21,
+            "distinct_values": 21,
+            "source_files": 0,
+            "candidate_files": 0,
+            "source_only_files": 0,
+            "missing_both_files": 21
+          }
+        }
+      },
+      {
+        "table": "wpqr_documents",
+        "column": "file_url",
+        "nonempty_records": 21,
+        "distinct_values": 21,
+        "categories": {
+          "gcs_object_key": {
+            "records": 7,
+            "distinct_values": 7
+          },
+          "remote_url_or_gs_uri": {
+            "records": 14,
+            "distinct_values": 14
+          }
+        }
+      },
+      {
+        "table": "wps_documents",
+        "column": "document_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      }
+    ]
+  },
+  "development": {
+    "totals": {
+      "columns_scanned": 125,
+      "nonempty_records": 2317,
+      "by_category": {
+        "gcs_object_key": 1157,
+        "remote_url_or_gs_uri": 375,
+        "remote_agent_not_release_asset": 332,
+        "historical_migration_key_not_direct_download": 425,
+        "gcs_filename_metadata": 7,
+        "cloud_first_with_local_cache_fallback": 21
+      }
+    },
+    "columns": [
+      {
+        "table": "advance_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "agreement_amendments",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "agreement_amendments",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "attendance_location_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "bank_realization_certificates",
+        "column": "document_path",
+        "nonempty_records": 123,
+        "distinct_values": 118,
+        "categories": {
+          "gcs_object_key": {
+            "records": 123,
+            "distinct_values": 118
+          }
+        }
+      },
+      {
+        "table": "business_meetings",
+        "column": "transcript_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "business_trips",
+        "column": "supporting_document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "buy_list_line_selections",
+        "column": "datasheet_gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "calibration_instruments",
+        "column": "certificate_file_path",
+        "nonempty_records": 74,
+        "distinct_values": 59,
+        "categories": {
+          "gcs_object_key": {
+            "records": 74,
+            "distinct_values": 59
+          }
+        }
+      },
+      {
+        "table": "calibration_instruments",
+        "column": "certificate_gcs_key",
+        "nonempty_records": 78,
+        "distinct_values": 63,
+        "categories": {
+          "gcs_object_key": {
+            "records": 78,
+            "distinct_values": 63
+          }
+        }
+      },
+      {
+        "table": "change_documents",
+        "column": "document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "change_documents",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "change_documents",
+        "column": "storage_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "change_documents",
+        "column": "storage_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "evidence_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "evidence_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "company_documents",
+        "column": "gcs_path",
+        "nonempty_records": 25,
+        "distinct_values": 25,
+        "categories": {
+          "gcs_object_key": {
+            "records": 25,
+            "distinct_values": 25
+          }
+        }
+      },
+      {
+        "table": "company_master",
+        "column": "logo_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "company_master",
+        "column": "seal_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "company_master",
+        "column": "signature_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "compliance_register",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "compliance_register",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "compliance_register",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "contract_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "contracts",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "contracts",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "customer_order_documents",
+        "column": "gcs_object_path",
+        "nonempty_records": 4,
+        "distinct_values": 4,
+        "categories": {
+          "gcs_object_key": {
+            "records": 4,
+            "distinct_values": 4
+          }
+        }
+      },
+      {
+        "table": "design_basic_drawings",
+        "column": "file_path",
+        "nonempty_records": 3,
+        "distinct_values": 3,
+        "categories": {
+          "gcs_object_key": {
+            "records": 3,
+            "distinct_values": 3
+          }
+        }
+      },
+      {
+        "table": "design_basic_drawings",
+        "column": "file_url",
+        "nonempty_records": 3,
+        "distinct_values": 3,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 3,
+            "distinct_values": 3
+          }
+        }
+      },
+      {
+        "table": "design_data_sheets",
+        "column": "dds_gcs_path",
+        "nonempty_records": 25,
+        "distinct_values": 25,
+        "categories": {
+          "gcs_object_key": {
+            "records": 25,
+            "distinct_values": 25
+          }
+        }
+      },
+      {
+        "table": "design_project_backups",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_project_backups",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_reviews",
+        "column": "markup_file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_software_reference_papers",
+        "column": "file_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "gcs_object_key": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "design_standards",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "design_standards",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "dispatch_documents",
+        "column": "document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "dispatch_documents",
+        "column": "storage_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "dispatch_documents",
+        "column": "storage_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "document_agent_jobs",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "document_agent_jobs",
+        "column": "relative_path",
+        "nonempty_records": 179,
+        "distinct_values": 144,
+        "categories": {
+          "remote_agent_not_release_asset": {
+            "records": 179,
+            "distinct_values": 144
+          }
+        }
+      },
+      {
+        "table": "document_agent_jobs",
+        "column": "result_local_path",
+        "nonempty_records": 153,
+        "distinct_values": 137,
+        "categories": {
+          "remote_agent_not_release_asset": {
+            "records": 153,
+            "distinct_values": 137
+          }
+        }
+      },
+      {
+        "table": "drawing_transmittals",
+        "column": "response_document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "drawing_versions",
+        "column": "file_path",
+        "nonempty_records": 11,
+        "distinct_values": 11,
+        "categories": {
+          "gcs_object_key": {
+            "records": 11,
+            "distinct_values": 11
+          }
+        }
+      },
+      {
+        "table": "drawing_versions",
+        "column": "file_url",
+        "nonempty_records": 11,
+        "distinct_values": 11,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 11,
+            "distinct_values": 11
+          }
+        }
+      },
+      {
+        "table": "employee_investment_proofs",
+        "column": "proof_document_key",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "epc_document_attachments",
+        "column": "gcs_object_path",
+        "nonempty_records": 315,
+        "distinct_values": 315,
+        "categories": {
+          "gcs_object_key": {
+            "records": 315,
+            "distinct_values": 315
+          }
+        }
+      },
+      {
+        "table": "epc_documents",
+        "column": "gcs_object_path",
+        "nonempty_records": 10,
+        "distinct_values": 10,
+        "categories": {
+          "gcs_object_key": {
+            "records": 10,
+            "distinct_values": 10
+          }
+        }
+      },
+      {
+        "table": "epc_drawing_controls",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "epc_slddrw_extraction_jobs",
+        "column": "slddrw_gcs_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "gcs_object_key": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "draft_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "executed_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "exclusivity_agreements",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "gcs_file_migration_items",
+        "column": "before_path",
+        "nonempty_records": 335,
+        "distinct_values": 138,
+        "categories": {
+          "historical_migration_key_not_direct_download": {
+            "records": 335,
+            "distinct_values": 138
+          }
+        }
+      },
+      {
+        "table": "gcs_migration_log",
+        "column": "legacy_path",
+        "nonempty_records": 90,
+        "distinct_values": 90,
+        "categories": {
+          "historical_migration_key_not_direct_download": {
+            "records": 90,
+            "distinct_values": 90
+          }
+        }
+      },
+      {
+        "table": "inspection_documents",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "inspection_documents",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "leave_requests",
+        "column": "attachment_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "legal_notices",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "legal_notices",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "loan_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "login_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "material_identification_documents",
+        "column": "file_path",
+        "nonempty_records": 73,
+        "distinct_values": 73,
+        "categories": {
+          "gcs_object_key": {
+            "records": 73,
+            "distinct_values": 73
+          }
+        }
+      },
+      {
+        "table": "material_identification_documents",
+        "column": "file_url",
+        "nonempty_records": 73,
+        "distinct_values": 73,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 73,
+            "distinct_values": 73
+          }
+        }
+      },
+      {
+        "table": "nda_agreements",
+        "column": "draft_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "nda_agreements",
+        "column": "executed_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "nda_agreements",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "nda_agreements",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "notice_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_comm_documents",
+        "column": "gcs_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "gcs_object_key": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "offer_comm_templates",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_template_revisions",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_templates",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offer_templates",
+        "column": "gcs_object_path",
+        "nonempty_records": 4,
+        "distinct_values": 4,
+        "categories": {
+          "gcs_object_key": {
+            "records": 4,
+            "distinct_values": 4
+          }
+        }
+      },
+      {
+        "table": "offers",
+        "column": "confirmation_doc_gcs_path",
+        "nonempty_records": 6,
+        "distinct_values": 6,
+        "categories": {
+          "gcs_object_key": {
+            "records": 6,
+            "distinct_values": 6
+          }
+        }
+      },
+      {
+        "table": "offers",
+        "column": "final_offer_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "offers",
+        "column": "template_pdf_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "oi_issue_attachments",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "oi_rca_evidence",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "payments",
+        "column": "proof_document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "plc_document_attachments",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "plc_rfq_attachments",
+        "column": "gcs_path",
+        "nonempty_records": 3,
+        "distinct_values": 3,
+        "categories": {
+          "gcs_object_key": {
+            "records": 3,
+            "distinct_values": 3
+          }
+        }
+      },
+      {
+        "table": "plc_tbe_records",
+        "column": "tbe_report_gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "pma_documents",
+        "column": "file_path",
+        "nonempty_records": 18,
+        "distinct_values": 18,
+        "categories": {
+          "gcs_object_key": {
+            "records": 18,
+            "distinct_values": 18
+          }
+        }
+      },
+      {
+        "table": "pma_documents",
+        "column": "file_url",
+        "nonempty_records": 18,
+        "distinct_values": 18,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 18,
+            "distinct_values": 18
+          }
+        }
+      },
+      {
+        "table": "policy_templates",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "policy_templates",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "policy_templates",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "posh_cases",
+        "column": "file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "posh_cases",
+        "column": "file_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "posh_documents",
+        "column": "gcs_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "project_document_files",
+        "column": "relative_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "project_document_files",
+        "column": "relative_folder_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "project_documents",
+        "column": "storage_path",
+        "nonempty_records": 80,
+        "distinct_values": 73,
+        "categories": {
+          "gcs_object_key": {
+            "records": 80,
+            "distinct_values": 73
+          }
+        }
+      },
+      {
+        "table": "project_documents",
+        "column": "storage_url",
+        "nonempty_records": 80,
+        "distinct_values": 80,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 80,
+            "distinct_values": 80
+          }
+        }
+      },
+      {
+        "table": "project_documents",
+        "column": "url",
+        "nonempty_records": 80,
+        "distinct_values": 80,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 80,
+            "distinct_values": 80
+          }
+        }
+      },
+      {
+        "table": "project_item_drawings",
+        "column": "gcs_object_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "purchase_order_documents",
+        "column": "document_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "purchase_order_documents",
+        "column": "storage_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "purchase_order_documents",
+        "column": "storage_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "qms_document_revisions",
+        "column": "gcs_path",
+        "nonempty_records": 17,
+        "distinct_values": 17,
+        "categories": {
+          "gcs_object_key": {
+            "records": 17,
+            "distinct_values": 17
+          }
+        }
+      },
+      {
+        "table": "quotation_pdf_artifacts",
+        "column": "gcs_object_path",
+        "nonempty_records": 69,
+        "distinct_values": 69,
+        "categories": {
+          "gcs_object_key": {
+            "records": 69,
+            "distinct_values": 69
+          }
+        }
+      },
+      {
+        "table": "reauth_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "statutory_challans",
+        "column": "ecr_file_key",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "test_procedures",
+        "column": "attachments",
+        "nonempty_records": 7,
+        "distinct_values": 7,
+        "categories": {
+          "gcs_filename_metadata": {
+            "records": 7,
+            "distinct_values": 7
+          }
+        }
+      },
+      {
+        "table": "trip_bookings",
+        "column": "booking_document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "trip_documents",
+        "column": "file_path",
+        "nonempty_records": 77,
+        "distinct_values": 77,
+        "categories": {
+          "gcs_object_key": {
+            "records": 77,
+            "distinct_values": 77
+          }
+        }
+      },
+      {
+        "table": "trip_documents",
+        "column": "file_url",
+        "nonempty_records": 77,
+        "distinct_values": 77,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 77,
+            "distinct_values": 77
+          }
+        }
+      },
+      {
+        "table": "trip_documents",
+        "column": "gcs_path",
+        "nonempty_records": 75,
+        "distinct_values": 75,
+        "categories": {
+          "gcs_object_key": {
+            "records": 75,
+            "distinct_values": 75
+          }
+        }
+      },
+      {
+        "table": "trip_expenses",
+        "column": "receipt_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "trusted_device_audit_log",
+        "column": "archive_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "vendor_compliance_docs",
+        "column": "gcs_path",
+        "nonempty_records": 5,
+        "distinct_values": 5,
+        "categories": {
+          "gcs_object_key": {
+            "records": 5,
+            "distinct_values": 5
+          }
+        }
+      },
+      {
+        "table": "visa_documents",
+        "column": "gcs_path",
+        "nonempty_records": 15,
+        "distinct_values": 15,
+        "categories": {
+          "gcs_object_key": {
+            "records": 15,
+            "distinct_values": 15
+          }
+        }
+      },
+      {
+        "table": "visa_records",
+        "column": "file_path",
+        "nonempty_records": 16,
+        "distinct_values": 6,
+        "categories": {
+          "gcs_object_key": {
+            "records": 16,
+            "distinct_values": 6
+          }
+        }
+      },
+      {
+        "table": "visa_records",
+        "column": "file_url",
+        "nonempty_records": 16,
+        "distinct_values": 16,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 16,
+            "distinct_values": 16
+          }
+        }
+      },
+      {
+        "table": "welder_certificates",
+        "column": "file_path",
+        "nonempty_records": 16,
+        "distinct_values": 16,
+        "categories": {
+          "gcs_object_key": {
+            "records": 16,
+            "distinct_values": 16
+          }
+        }
+      },
+      {
+        "table": "welder_certificates",
+        "column": "file_url",
+        "nonempty_records": 1,
+        "distinct_values": 1,
+        "categories": {
+          "remote_url_or_gs_uri": {
+            "records": 1,
+            "distinct_values": 1
+          }
+        }
+      },
+      {
+        "table": "welder_management",
+        "column": "certificate_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "welders",
+        "column": "photo_path",
+        "nonempty_records": 2,
+        "distinct_values": 2,
+        "categories": {
+          "gcs_object_key": {
+            "records": 2,
+            "distinct_values": 2
+          }
+        }
+      },
+      {
+        "table": "wpqr_documents",
+        "column": "file_path",
+        "nonempty_records": 21,
+        "distinct_values": 21,
+        "categories": {
+          "cloud_first_with_local_cache_fallback": {
+            "records": 21,
+            "distinct_values": 21,
+            "source_files": 0,
+            "candidate_files": 0,
+            "source_only_files": 0,
+            "missing_both_files": 21
+          }
+        }
+      },
+      {
+        "table": "wpqr_documents",
+        "column": "file_url",
+        "nonempty_records": 21,
+        "distinct_values": 21,
+        "categories": {
+          "gcs_object_key": {
+            "records": 7,
+            "distinct_values": 7
+          },
+          "remote_url_or_gs_uri": {
+            "records": 14,
+            "distinct_values": 14
+          }
+        }
+      },
+      {
+        "table": "wps_documents",
+        "column": "combined_document_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "wps_documents",
+        "column": "document_file_path",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      },
+      {
+        "table": "wps_documents",
+        "column": "document_url",
+        "nonempty_records": 0,
+        "distinct_values": 0,
+        "categories": {}
+      }
+    ]
+  },
+  "local_fallback": {
+    "route": "WPQR document ID-based local cache fallback",
+    "production_referenced_records": 21,
+    "source_cache_hits": 3,
+    "candidate_cache_hits": 3,
+    "source_only_cache_hits": 0
+  },
+  "constraints": [
+    "Source/candidate filesystem checks are exact path checks; absence of a GCS key on disk is not a missing release asset.",
+    "Relative URLs/keys are not assumed local. No GCS existence or credentials checked.",
+    "Production replica and development schemas differ: development has additional WPS combined and checklist evidence-file columns with no populated values; pqr_document_file_path is absent in both schemas.",
+    "Absolute WPQR values are GCS-first, with separately checked ID-derived local fallback; an absolute-looking key does not prove a required local file."
+  ]
+}

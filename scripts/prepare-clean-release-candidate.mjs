@@ -24,6 +24,12 @@ const targetRoot = path.resolve(requestedTarget);
 const reportsRoot = `${targetRoot}-reports`;
 const verifyOnly = process.argv.includes('--verify-only');
 const resume = process.argv.includes('--resume');
+const assetRoots = [
+  'client/public', 'server/public', 'local-agent', 'local-document-agent',
+  'uploads', 'wpqr_documents', 'workflow-backup/build-windows-agent.yml',
+  'UOR-PLC-Price-Review.xlsx', 'Google_Ads_API_Design_Document.doc',
+  'deliverables/ecr-assembly-reconciliation/approved-component-manifest.json',
+];
 
 function portable(relativePath) {
   return relativePath.split(path.sep).join('/');
@@ -64,7 +70,7 @@ const omissionRules = [
   { path: '.upm', reason: 'package-manager workspace state excluded' },
   { path: '.pythonlibs', reason: 'workspace Python environment excluded' },
   { path: 'attached_assets', reason: 'explicitly excluded source/audit attachments' },
-  { path: 'deliverables', reason: 'explicitly excluded generated deliverables' },
+  { path: 'deliverables', reason: 'generated deliverables excluded except the explicitly listed imported component manifest' },
   { path: 'research-results', reason: 'explicitly excluded generated research results' },
   { path: '.replit', reason: 'never copied; only modules and nix sections are extracted' },
   { path: '.env*', reason: 'environment and secret files are forbidden' },
@@ -302,7 +308,7 @@ async function scanForbiddenMaterial() {
 }
 
 async function buildExternalArtifacts() {
-  const esbuild = path.join(sourceRoot, 'node_modules', 'esbuild', 'bin', 'esbuild');
+  const esbuild = path.join(targetRoot, 'node_modules', 'esbuild', 'bin', 'esbuild');
   const commands = [
     [
       'server/index.ts', '--platform=node', '--packages=external', '--bundle',
@@ -316,8 +322,8 @@ async function buildExternalArtifacts() {
   ];
   for (const args of commands) {
     const result = spawnSync(esbuild, args, {
-      cwd: sourceRoot,
-      env: { ...process.env, NODE_ENV: 'production' },
+      cwd: targetRoot,
+      env: { PATH: process.env.PATH, NODE_ENV: 'production' },
       stdio: 'inherit',
     });
     if (result.error) throw result.error;
@@ -325,10 +331,63 @@ async function buildExternalArtifacts() {
   }
   copiedReasons.set('dist/index.js', 'fresh external esbuild server bundle');
   copiedReasons.set('dist/p1-optimizer.cjs', 'fresh external esbuild optimizer bundle');
+  // Invoke Vite only: npm build also repackages the immutable scientific closure.
+  const result = spawnSync(process.execPath, [
+    '--max-old-space-size=4096',
+    path.join(targetRoot, 'node_modules/vite/bin/vite.js'), 'build',
+  ], {
+    cwd: targetRoot,
+    env: { PATH: process.env.PATH, NODE_ENV: 'production' },
+    stdio: 'inherit',
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`Isolated frontend build failed: ${result.status}`);
+  copiedReasons.set('dist/public', 'fresh isolated production Vite build; no app startup');
+  await mkdir(reportsRoot, { recursive: true });
+  const files = [];
+  for (const absolute of await walkFiles(path.join(targetRoot, 'dist/public'))) {
+    files.push({ path: portable(path.relative(targetRoot, absolute)), sha256: await sha256File(absolute) });
+  }
+  await writeFile(path.join(reportsRoot, 'frontend-build.json'), JSON.stringify({
+    status: 'FRESH_ISOLATED_BUILD', generatedAtUtc: new Date().toISOString(), files,
+  }, null, 2));
 }
 
 async function writeReports(runtimeVerification, links, securityScan) {
   await mkdir(reportsRoot, { recursive: true });
+  const staticAssets = [];
+  for (const relative of assetRoots) {
+    const source = path.join(sourceRoot, relative);
+    const metadata = await lstat(source);
+    const files = metadata.isDirectory() ? await walkFiles(source) : [source];
+    let checked = 0;
+    for (const absolute of files) {
+      const file = portable(path.relative(sourceRoot, absolute));
+      if (forbiddenRelative(file)) continue;
+      const candidate = path.join(targetRoot, file);
+      if (await sha256File(absolute) !== await sha256File(candidate)) {
+        throw new Error(`Runtime asset mismatch under ${relative}`);
+      }
+      if (file.startsWith('client/public/')) {
+        const built = path.join(targetRoot, 'dist/public', file.slice('client/public/'.length));
+        if (await sha256File(absolute) !== await sha256File(built)) {
+          throw new Error('Frontend static asset differs from source');
+        }
+      }
+      checked++;
+    }
+    staticAssets.push({ root: relative, filesHashMatched: checked });
+  }
+  const frontend = JSON.parse(await readFile(path.join(reportsRoot, 'frontend-build.json'), 'utf8'));
+  for (const file of frontend.files) {
+    if (await sha256File(path.join(targetRoot, file.path)) !== file.sha256) {
+      throw new Error('Frontend output no longer matches isolated build evidence');
+    }
+  }
+  if (await sha256File(path.join(sourceRoot, 'replit.nix'))
+    !== await sha256File(path.join(targetRoot, 'replit.nix'))) {
+    throw new Error('Candidate Nix configuration differs from source');
+  }
   const inventory = [];
   let totalBytes = 0;
   for (const absolute of await walkFiles(targetRoot)) {
@@ -398,6 +457,7 @@ async function writeReports(runtimeVerification, links, securityScan) {
   for (const relative of referencedRuntimeRoots) {
     const sourcePresent = await exists(path.join(sourceRoot, relative));
     const candidatePresent = await exists(path.join(targetRoot, relative));
+    if (candidatePresent) throw new Error(`Retired runtime must be absent: ${relative}`);
     runtimeFileComparison.push({
       path: relative,
       sourcePresent,
@@ -414,20 +474,27 @@ async function writeReports(runtimeVerification, links, securityScan) {
     readyToPublish: false,
     blockers: [
       {
-        code: 'LOCAL_DATABASE_FILEPATH_DEPENDENCIES_UNRESOLVED',
-        detail: 'Local database filepath dependencies were not resolved or accessed; publication readiness remains blocked.',
+        code: 'EXTERNAL_INTEGRATION_GATES_NOT_RUN',
+        detail: 'Full ERP startup, live storage/schema compatibility and combined publishing image size remain unverified. See the separate read-only database-path audit; this preparer never accesses a database.',
       },
     ],
+    databasePathAudit: {
+      sourceReport: 'docs/clean-release-database-path-audit.json',
+      available: await exists(path.join(sourceRoot, 'docs/clean-release-database-path-audit.json')),
+      scope: 'Independent read-only snapshot evidence; not rerun by preparation or verification',
+    },
     sourceMissing: missingSource,
     candidateMissing: runtimeFileComparison
       .filter((record) => record.classification === 'accidentally-missing-from-candidate'),
     runtimeFileComparison,
     runtimeVerification,
+    staticAssets,
+    nixConfiguration: { status: 'SOURCE_HASH_MATCHED' },
     nrtlDefaultFilesystemEvidence: nrtlEvidence,
     frontend: {
-      status: 'REUSED_EXISTING_OUTPUT',
+      status: frontend.status,
       path: 'dist/public',
-      reason: 'source-snapshot freshness was not provable without writing build state; existing frontend output was copied and explicitly labeled',
+      reason: 'Vite built inside candidate with only PATH and NODE_ENV; output hashes verified',
     },
     dependencies: {
       status: 'SAME_FULL_DEPENDENCY_SET',
@@ -457,6 +524,31 @@ async function writeReports(runtimeVerification, links, securityScan) {
     path.join(reportsRoot, 'verification-report.json'),
     `${JSON.stringify(report, null, 2)}\n`,
   );
+  const inclusionRoots = new Map();
+  for (const file of inventory) {
+    const root = file.path.startsWith('dist/')
+      ? file.path.split('/').slice(0, 2).join('/')
+      : file.path.split('/')[0];
+    const group = inclusionRoots.get(root) || { root, files: 0, symlinks: 0, bytes: 0 };
+    if (file.type === 'file') { group.files++; group.bytes += file.bytes; }
+    else group.symlinks++;
+    inclusionRoots.set(root, group);
+  }
+  await writeFile(path.join(reportsRoot, 'inclusion-summary.json'), `${JSON.stringify({
+    schemaVersion: 'CLEAN_RELEASE_INCLUSION_SUMMARY_V1',
+    generatedAtUtc: inventoryDocument.generatedAtUtc,
+    inventorySha256: inventoryDocument.aggregateSha256,
+    fileCount: inventoryDocument.fileCount,
+    symlinkCount: inventoryDocument.symlinkCount,
+    totalBytes: inventoryDocument.totalBytes,
+    roots: [...inclusionRoots.values()],
+    staticAssets,
+    runtimeVerification,
+    frontend: report.frontend,
+    nixConfiguration: report.nixConfiguration,
+    retiredRuntimeRootsAbsent: referencedRuntimeRoots,
+    readyToPublish: false,
+  }, null, 2)}\n`);
   return { inventoryDocument, report };
 }
 
@@ -478,10 +570,12 @@ async function assemble() {
     ['uploads', 'complete approved runtime uploads'],
     ['wpqr_documents', 'complete approved WPQR runtime documents'],
     ['node_modules', 'same full installed dependency set; no install or prune'],
-    ['dist/public', 'reused existing frontend output; freshness not asserted'],
     [RUNTIME_RELATIVE, 'frozen Predictive N_T 7C-1.6 scientific closure'],
-    ['.github/workflows/build-windows-agent.yml', 'required Windows agent build workflow'],
+    ['workflow-backup/build-windows-agent.yml', 'exact archived Windows agent workflow served by download route'],
     ['UOR-PLC-Price-Review.xlsx', 'required ERP workbook runtime dependency'],
+    ['Google_Ads_API_Design_Document.doc', 'Google Ads design document download'],
+    ['deliverables/ecr-assembly-reconciliation/approved-component-manifest.json',
+      'shared Stage-5 source imports this exact approved component manifest'],
   ];
   for (const [relative, reason] of roots) {
     console.log(`Copying approved root: ${relative}`);

@@ -19,7 +19,9 @@ app.get('/api/agent-dl/main.py', (_req, res) => {
   res.download(path.join(process.cwd(), 'local-agent/agent/main.py'), 'main.py');
 });
 app.get('/api/agent-dl/build-windows-agent.yml', (_req, res) => {
-  res.download(path.join(process.cwd(), '.github/workflows/build-windows-agent.yml'), 'build-windows-agent.yml');
+  // The original workflow was removed from .github; workflow-backup holds the
+  // exact historical file (not the older client/public download variant).
+  res.download(path.join(process.cwd(), 'workflow-backup/build-windows-agent.yml'), 'build-windows-agent.yml');
 });
 
 // Report file downloads (no auth required — file is read-only, non-sensitive)

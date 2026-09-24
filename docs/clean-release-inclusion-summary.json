@@ -1,0 +1,924 @@
+{
+  "schemaVersion": "CLEAN_RELEASE_INCLUSION_SUMMARY_V1",
+  "generatedAtUtc": "2026-09-24T18:20:03.358Z",
+  "inventorySha256": "c82b1c7cfe6a51b6a8d31162200444bcf9c09cbc6691372525251b91fe4bbe12",
+  "fileCount": 91240,
+  "symlinkCount": 72,
+  "totalBytes": 2415435731,
+  "roots": [
+    {
+      "root": ".agents",
+      "files": 23,
+      "symlinks": 0,
+      "bytes": 12445136
+    },
+    {
+      "root": ".gitattributes",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 491
+    },
+    {
+      "root": ".gitignore",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1862
+    },
+    {
+      "root": ".replit.release-candidate",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 224
+    },
+    {
+      "root": "20260728_add_buy_catalog_sap_columns.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 3373
+    },
+    {
+      "root": "Google_Ads_API_Design_Document.doc",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6132
+    },
+    {
+      "root": "UOR-PLC-Price-Review.xlsx",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 17588
+    },
+    {
+      "root": "add_advance_payment_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 477
+    },
+    {
+      "root": "add_allocated_amount_to_payments.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 888
+    },
+    {
+      "root": "add_approved_drawing_dvr_itp_data_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 691
+    },
+    {
+      "root": "add_basic_drawings_revision_control.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2640
+    },
+    {
+      "root": "add_business_trip_auto_linking_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1343
+    },
+    {
+      "root": "add_campaign_performance_metrics.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 734
+    },
+    {
+      "root": "add_certificate_fields_to_wpqr.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 190
+    },
+    {
+      "root": "add_certified_by_to_pma.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 288
+    },
+    {
+      "root": "add_credit_note_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1094
+    },
+    {
+      "root": "add_drawing_no_to_inspection_orders.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 504
+    },
+    {
+      "root": "add_dwar_enhancements.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 565
+    },
+    {
+      "root": "add_enhanced_gst_tracking_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6414
+    },
+    {
+      "root": "add_finance_write_offs_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 458
+    },
+    {
+      "root": "add_financial_tracking_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1699
+    },
+    {
+      "root": "add_financial_writeoffs_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1186
+    },
+    {
+      "root": "add_google_calendar_integration_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2386
+    },
+    {
+      "root": "add_google_calendar_support_to_commitments.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1816
+    },
+    {
+      "root": "add_google_meet_ai_notes_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1819
+    },
+    {
+      "root": "add_hydrotest_data_to_inspection_orders.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 116
+    },
+    {
+      "root": "add_in_use_field_to_calibration_instruments.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 741
+    },
+    {
+      "root": "add_incomplete_attendance_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2339
+    },
+    {
+      "root": "add_issue_date_to_pma.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 364
+    },
+    {
+      "root": "add_itp_template_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 311
+    },
+    {
+      "root": "add_marketing_campaign_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 387
+    },
+    {
+      "root": "add_material_traceability_data_field.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 326
+    },
+    {
+      "root": "add_material_type_field.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 273
+    },
+    {
+      "root": "add_ncr_data_to_inspection_orders.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 295
+    },
+    {
+      "root": "add_nda_exclusivity_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 8921
+    },
+    {
+      "root": "add_ndt_data_to_inspection_orders.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 104
+    },
+    {
+      "root": "add_paid_amount_to_invoices.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 570
+    },
+    {
+      "root": "add_password_reset_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 690
+    },
+    {
+      "root": "add_password_security_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 876
+    },
+    {
+      "root": "add_preferred_vendor_to_master_items.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 613
+    },
+    {
+      "root": "add_procedure_data_field.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 350
+    },
+    {
+      "root": "add_procurement_fields_to_master_items.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 242
+    },
+    {
+      "root": "add_sap_b1_customer_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2578
+    },
+    {
+      "root": "add_sap_invoice_fields_to_payments.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1114
+    },
+    {
+      "root": "add_shop_data_field.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 434
+    },
+    {
+      "root": "add_task_management_llm_prompt.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 8025
+    },
+    {
+      "root": "add_task_meeting_integration_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 821
+    },
+    {
+      "root": "add_temperature_to_llm_prompts.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 270
+    },
+    {
+      "root": "add_template_customization_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 650
+    },
+    {
+      "root": "add_unit_field_to_material_identification.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 371
+    },
+    {
+      "root": "add_unit_field_to_work_order_items.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 94
+    },
+    {
+      "root": "add_upload_download_permissions_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 724
+    },
+    {
+      "root": "add_visual_data_to_inspection_orders.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 121
+    },
+    {
+      "root": "add_weld_data_to_inspection_orders.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 291
+    },
+    {
+      "root": "add_welder_personal_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 307
+    },
+    {
+      "root": "client",
+      "files": 603,
+      "symlinks": 0,
+      "bytes": 28330537
+    },
+    {
+      "root": "create_after_sales_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 4469
+    },
+    {
+      "root": "create_attendance_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 3071
+    },
+    {
+      "root": "create_business_trip_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 4487
+    },
+    {
+      "root": "create_calibration_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1079
+    },
+    {
+      "root": "create_concluded_calendar_events_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 808
+    },
+    {
+      "root": "create_customers.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 685
+    },
+    {
+      "root": "create_daily_quotes_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 32650
+    },
+    {
+      "root": "create_design_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 14506
+    },
+    {
+      "root": "create_design_project_backups_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 3801
+    },
+    {
+      "root": "create_directory_templates.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1391
+    },
+    {
+      "root": "create_dispatch_shipping_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2645
+    },
+    {
+      "root": "create_dwar_kpi_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 3903
+    },
+    {
+      "root": "create_engineering_change_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2295
+    },
+    {
+      "root": "create_exchange_rate_settings_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1011
+    },
+    {
+      "root": "create_finance_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 3159
+    },
+    {
+      "root": "create_gcs_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1098
+    },
+    {
+      "root": "create_inspection_documents_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1058
+    },
+    {
+      "root": "create_inspection_orders_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2379
+    },
+    {
+      "root": "create_item_components_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 964
+    },
+    {
+      "root": "create_itp_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2089
+    },
+    {
+      "root": "create_lead_generation_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 4659
+    },
+    {
+      "root": "create_leave_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 7966
+    },
+    {
+      "root": "create_legal_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 8502
+    },
+    {
+      "root": "create_llm_logs_audit_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2312
+    },
+    {
+      "root": "create_llm_prompt_engine_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6402
+    },
+    {
+      "root": "create_material_identification_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1902
+    },
+    {
+      "root": "create_material_inspection_links_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 946
+    },
+    {
+      "root": "create_meetings_commitments_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 12619
+    },
+    {
+      "root": "create_module_permissions_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 3832
+    },
+    {
+      "root": "create_payroll_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6255
+    },
+    {
+      "root": "create_production_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 4712
+    },
+    {
+      "root": "create_quality_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6047
+    },
+    {
+      "root": "create_roi_project_steps_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 969
+    },
+    {
+      "root": "create_sales_marketing_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 5606
+    },
+    {
+      "root": "create_sample_design_review_data.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6783
+    },
+    {
+      "root": "create_sample_leave_data.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 4154
+    },
+    {
+      "root": "create_sap_purchase_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 12214
+    },
+    {
+      "root": "create_tank_prices_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 864
+    },
+    {
+      "root": "create_trip_documents_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1900
+    },
+    {
+      "root": "create_user_intelligence_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2849
+    },
+    {
+      "root": "create_visa_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 4436
+    },
+    {
+      "root": "create_welder_certificates_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 832
+    },
+    {
+      "root": "create_welder_management_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1641
+    },
+    {
+      "root": "create_work_locations_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1150
+    },
+    {
+      "root": "create_work_order_history_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1195
+    },
+    {
+      "root": "create_workweek_policies_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 5800
+    },
+    {
+      "root": "create_wpqr_documents_table.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 548
+    },
+    {
+      "root": "create_wps_pqr_tables.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1934
+    },
+    {
+      "root": "deliverables",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 17325
+    },
+    {
+      "root": "dist/index.js",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 11151810
+    },
+    {
+      "root": "dist/p1-optimizer.cjs",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 120514
+    },
+    {
+      "root": "dist/predictive-nt-runtime-7c-1-6",
+      "files": 2350,
+      "symlinks": 0,
+      "bytes": 200732516
+    },
+    {
+      "root": "dist/public",
+      "files": 450,
+      "symlinks": 0,
+      "bytes": 25047964
+    },
+    {
+      "root": "drizzle.config.ts",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 325
+    },
+    {
+      "root": "fix_duplicate_certificate_numbers.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1375
+    },
+    {
+      "root": "local-agent",
+      "files": 67,
+      "symlinks": 0,
+      "bytes": 778932
+    },
+    {
+      "root": "local-document-agent",
+      "files": 54,
+      "symlinks": 0,
+      "bytes": 90917120
+    },
+    {
+      "root": "migrations",
+      "files": 15,
+      "symlinks": 0,
+      "bytes": 2779496
+    },
+    {
+      "root": "node_modules",
+      "files": 62183,
+      "symlinks": 72,
+      "bytes": 1319085769
+    },
+    {
+      "root": "package-lock.json",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 608471
+    },
+    {
+      "root": "package.json",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 6577
+    },
+    {
+      "root": "postcss.config.js",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 80
+    },
+    {
+      "root": "pyproject.toml",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 143
+    },
+    {
+      "root": "remove_test_procedure_fields.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 321
+    },
+    {
+      "root": "rename_invoice_fields_to_payment.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1418
+    },
+    {
+      "root": "reorganize_certificate_numbers_welder_specific.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1354
+    },
+    {
+      "root": "replit.nix",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 254
+    },
+    {
+      "root": "scripts",
+      "files": 72,
+      "symlinks": 0,
+      "bytes": 670592
+    },
+    {
+      "root": "server",
+      "files": 25091,
+      "symlinks": 0,
+      "bytes": 687034980
+    },
+    {
+      "root": "shared",
+      "files": 23,
+      "symlinks": 0,
+      "bytes": 1186960
+    },
+    {
+      "root": "tailwind.config.ts",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2787
+    },
+    {
+      "root": "tests",
+      "files": 159,
+      "symlinks": 0,
+      "bytes": 1654618
+    },
+    {
+      "root": "theme.json",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 113
+    },
+    {
+      "root": "tsconfig.json",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 657
+    },
+    {
+      "root": "update_brc_schema_to_invoices.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 2160
+    },
+    {
+      "root": "update_certificate_no_length.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 166
+    },
+    {
+      "root": "update_leads_schema.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 377
+    },
+    {
+      "root": "update_pma_schema.sql",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 849
+    },
+    {
+      "root": "uploads",
+      "files": 17,
+      "symlinks": 0,
+      "bytes": 31617599
+    },
+    {
+      "root": "uv.lock",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 138
+    },
+    {
+      "root": "vite.config.ts",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1008
+    },
+    {
+      "root": "vitest.config.ts",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 1257
+    },
+    {
+      "root": "vitest.predictive-nt-archive.config.ts",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 523
+    },
+    {
+      "root": "vitest.predictive-nt-release.config.ts",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 909
+    },
+    {
+      "root": "workflow-backup",
+      "files": 1,
+      "symlinks": 0,
+      "bytes": 12402
+    },
+    {
+      "root": "wpqr_documents",
+      "files": 5,
+      "symlinks": 0,
+      "bytes": 925442
+    }
+  ],
+  "staticAssets": [
+    {
+      "root": "client/public",
+      "filesHashMatched": 122
+    },
+    {
+      "root": "server/public",
+      "filesHashMatched": 3
+    },
+    {
+      "root": "local-agent",
+      "filesHashMatched": 67
+    },
+    {
+      "root": "local-document-agent",
+      "filesHashMatched": 54
+    },
+    {
+      "root": "uploads",
+      "filesHashMatched": 17
+    },
+    {
+      "root": "wpqr_documents",
+      "filesHashMatched": 5
+    },
+    {
+      "root": "workflow-backup/build-windows-agent.yml",
+      "filesHashMatched": 1
+    },
+    {
+      "root": "UOR-PLC-Price-Review.xlsx",
+      "filesHashMatched": 1
+    },
+    {
+      "root": "Google_Ads_API_Design_Document.doc",
+      "filesHashMatched": 1
+    },
+    {
+      "root": "deliverables/ecr-assembly-reconciliation/approved-component-manifest.json",
+      "filesHashMatched": 1
+    }
+  ],
+  "runtimeVerification": {
+    "manifestSha256": "2482213baab825170ffd9af67b66319674095f5864a9ceccb897b25a5b72e017",
+    "aggregateSha256": "617d26175b5355418ed5b987eb1655bff571dfbc039455b1a4891f35b98652d0",
+    "payloadFilesValidated": 2349
+  },
+  "frontend": {
+    "status": "FRESH_ISOLATED_BUILD",
+    "path": "dist/public",
+    "reason": "Vite built inside candidate with only PATH and NODE_ENV; output hashes verified"
+  },
+  "nixConfiguration": {
+    "status": "SOURCE_HASH_MATCHED"
+  },
+  "retiredRuntimeRootsAbsent": [
+    "dist/job-b-interface-runtime",
+    "dist/job-c-runtime",
+    "dist/stage4-job-b-dogbox-runtime",
+    "dist/stage4-seven-component-adapter-runtime"
+  ],
+  "readyToPublish": false
+}

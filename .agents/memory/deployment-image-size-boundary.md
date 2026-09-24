@@ -8,3 +8,9 @@ Do not use `dist` size or workspace `du` totals as the deployment image size. Th
 **Why:** Publishing still exceeded the image limit after the current-only scientific runtime reduced `dist` substantially. Logs identify the combined-layer limit but do not report individual layer sizes.
 
 **How to apply:** Report exact build-output savings separately from unverified image savings. The `.replit` `hidden` property controls file-tree visibility, not documented publishing exclusions. Never delete Replit-managed state, historical assets, or mixed evidence directories based only on their size. Audit active PDF and scientific consumers before removing system dependencies.
+
+Build both server and frontend from inside an isolated release candidate, not from the original workspace with an external output directory.
+
+**Why:** A workspace-based bundle can silently resolve imports from omitted directories and falsely suggest the candidate is self-contained. Generated-output folders can contain source-imported authorities; directory labels alone do not establish safe exclusion.
+
+**How to apply:** Keep narrow, hash-verified exceptions for actual imports and download consumers. Run only the bundlers with a minimal environment, not application startup or the scientific packager.
