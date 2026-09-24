@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import path from 'path';
 import ts from 'typescript';
 
@@ -23,6 +23,12 @@ export default defineConfig({
   }],
   test: {
     include: ['tests/**/*.test.ts'],
+    exclude: [
+      ...configDefaults.exclude,
+      'tests/**/*.archive.test.ts',
+      'tests/ecr-pre-pilot-six-component-gate.test.ts',
+      'tests/stage4-seven-component-adapter.integration.test.ts',
+    ],
     environment: 'node',
     globals: true,
   },

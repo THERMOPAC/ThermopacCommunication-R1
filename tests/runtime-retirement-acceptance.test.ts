@@ -67,7 +67,9 @@ describe('scientific runtime retirement production acceptance', () => {
       name.startsWith('predictive-nt-runtime'))).toEqual([
       'predictive-nt-runtime-7c-1-6',
     ]);
-  });
+  // Full byte verification of 2,349 files is I/O-bound on a cold filesystem.
+  // This wall-clock budget does not change any hash or numerical assertion.
+  }, 60_000);
 
   it('binds production preflight, enqueue and claim to current 7C-1.6 only', async () => {
     const service = readFileSync(

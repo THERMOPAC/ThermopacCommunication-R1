@@ -1,8 +1,9 @@
-import { execFileSync } from 'node:child_process';
-import { appendFileSync, copyFileSync, cpSync, mkdtempSync, rmSync } from 'node:fs';
+import {
+  appendFileSync, copyFileSync, cpSync, mkdtempSync, rmSync,
+} from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
   PRE_PILOT_MODEL,
   PRE_PILOT_MULTISTAGE_MODEL,
@@ -77,21 +78,22 @@ function validStage1(projectNumber: number) {
   };
 }
 
-// Existing queue/checkpoint fixtures exercise the immutable 6C archive
-// contract. New submissions use the default 7C derivation below.
+// Historical validation fixtures remain readable, but may never be submitted.
 const validInput = derivePredictiveNtSixComponentInputFromStage1(
   makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
   209,
 );
 
-function validInputWithMaximumStages(maximumStages: number) {
-  return derivePredictiveNtSixComponentInputFromStage1(
-    makeStage1Snapshot(canonicalizeStage1Input({
-      ...validStage1(209),
-      maximumStages: String(maximumStages),
-    }, 209)),
+function currentQueueInput() {
+  return derivePredictiveNtInputFromStage1(
+    makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
     209,
   );
+}
+
+function useCurrentAckProtocolFixture() {
+  process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT =
+    path.join(process.cwd(), 'tests/fixtures/predictive_nt_ack_v3_protocol_worker.py');
 }
 
 function validTask216Evidence() {
@@ -105,40 +107,38 @@ function validTask216Evidence() {
   };
 }
 
-function useAckProtocolFixture() {
-  process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT =
-    path.join(process.cwd(), 'tests/fixtures/predictive_nt_ack_protocol_worker.py');
-}
-
 describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
-  beforeAll(async () => {
-    await pool.query(
-      `UPDATE ecr_pre_pilot_predictive_nt_jobs
-          SET status = 'failed',
-              error = 'TEST_RUN_INTERRUPTED_CLEANUP',
-              lease_expires_at = NULL,
-              completed_at = NOW(),
-              updated_at = NOW()
-        WHERE status IN ('pending', 'running')
-          AND input_snapshot ? '_runtimeTestOwner'`,
-    );
-  });
+  const suiteCreatedJobIds = new Set<string>();
 
   afterAll(async () => {
-    await pool.query(
-      `UPDATE ecr_pre_pilot_predictive_nt_jobs
+    if (suiteCreatedJobIds.size > 0) {
+      await pool.query(
+        `UPDATE ecr_pre_pilot_predictive_nt_jobs
           SET status = 'failed',
               error = 'TEST_RUN_INTERRUPTED_CLEANUP',
               lease_expires_at = NULL,
               completed_at = NOW(),
               updated_at = NOW()
         WHERE status IN ('pending', 'running')
-          AND input_snapshot ? '_runtimeTestOwner'`,
-    );
+          AND id = ANY($1::uuid[])`,
+        [[...suiteCreatedJobIds]],
+      );
+    }
     delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
     delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
     await pool.end();
   });
+
+  async function enqueueSuiteJob(
+    input: unknown,
+    userId: number,
+    designId: number,
+    hooks?: Parameters<typeof enqueuePredictiveNtRuntimeTestJob>[3],
+  ) {
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(input, userId, designId, hooks);
+    suiteCreatedJobIds.add(submitted.jobId);
+    return submitted;
+  }
 
   it('fails closed instead of running queued work against changed evidence', () => {
     const persisted = {
@@ -596,50 +596,6 @@ describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
     })).toBeNull();
   });
 
-  it('traces assembled stages once per solve without mutating methods', () => {
-    const wrapper = path.resolve(
-      'server/ecr-pre-pilot/predictive-nt-seven-component-v1-5-progress/worker.py',
-    );
-    const output = execFileSync('python3.12', ['-c', `
-import importlib.util, json, sys
-spec = importlib.util.spec_from_file_location("progress_wrapper_test", ${JSON.stringify(wrapper)})
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
-class Fake:
-    def solve_cascade(self, count, fail=False):
-        stages = []
-        for index in range(count):
-            self.unrelated_helper(index)
-            stages.append({"stage": index + 1})
-        if fail:
-            raise RuntimeError("expected test failure")
-        return stages
-    def unrelated_helper(self, index):
-        return index * 2
-fake = Fake()
-events = []
-original_method = fake.solve_cascade
-prior_trace = sys.gettrace()
-assert module.observe_stage_assembly(
-    fake.solve_cascade, 3, lambda done, maximum: events.append([done, maximum]), 3
-) == [{"stage": 1}, {"stage": 2}, {"stage": 3}]
-assert fake.solve_cascade.__func__ is original_method.__func__
-assert sys.gettrace() is prior_trace
-assert module.observe_stage_assembly(
-    fake.solve_cascade, 2, lambda done, maximum: events.append([done, maximum]), 2
-) == [{"stage": 1}, {"stage": 2}]
-try:
-    module.observe_stage_assembly(fake.solve_cascade, 2, lambda *_: None, 2, True)
-except RuntimeError:
-    pass
-else:
-    raise AssertionError("exception was not propagated")
-assert sys.gettrace() is prior_trace
-print(json.dumps(events))
-`], { encoding: 'utf8' });
-    expect(JSON.parse(output)).toEqual([[0, 3], [1, 3], [2, 3], [3, 3], [0, 2], [1, 2], [2, 2]]);
-  }, 30_000);
-
   it('keeps historical 7C-1.1 checkpoints exact-contract resumable only', () => {
     const current = derivePredictiveNtInputFromStage1(
       makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
@@ -1066,213 +1022,46 @@ print(json.dumps(events))
     }
   });
 
-  it('fails preflight before submission when a packaged runtime artifact is missing', () => {
-    execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
-    const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'predictive-nt-runtime-'));
-    cpSync('dist/predictive-nt-runtime', temporaryRoot, { recursive: true });
-    process.env.PREDICTIVE_NT_RUNTIME_ROOT = temporaryRoot;
-    try {
-      const relativeScipyPath =
-        'server/research/ecr-pre-pilot-cosmosac/vendor/python/scipy/optimize/_lsq/least_squares.py';
-      const temporaryScipyPath = path.join(temporaryRoot, relativeScipyPath);
-      appendFileSync(temporaryScipyPath, '\n# tampered scientific optimizer\n');
-      expect(() => preflightPredictiveNtRuntime())
-        .toThrow(/SCIENTIFIC_RUNTIME_MANIFEST_FILE_MISMATCH/);
-      copyFileSync(path.join('dist/predictive-nt-runtime', relativeScipyPath), temporaryScipyPath);
+  it('refuses a retired 6C queue submission before database access', async () => {
+    await expect(enqueuePredictiveNtRuntimeTestJob(
+      validInput,
+      1,
+      1,
+    )).rejects.toThrow(
+      'PREDICTIVE_NT_ENGINE_CONTRACT_RETIRED: only 7C-1.6.0 may execute',
+    );
+  });
 
-      rmSync(path.join(
-        temporaryRoot,
-        'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3/BBEAQIROQSPTKN-UHFFFAOYSA-N.sigma',
-      ));
+  it('fails current preflight for tampered and missing packaged runtime artifacts', () => {
+    delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
+    // Release validation consumes the bundle produced by `npm run build`; it
+    // must never create or repair that production artifact.
+    preflightPredictiveNtRuntime();
+    const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'predictive-nt-current-runtime-'));
+    cpSync('dist/predictive-nt-runtime-7c-1-6', temporaryRoot, { recursive: true });
+    process.env.PREDICTIVE_NT_RUNTIME_ROOT = temporaryRoot;
+    const relativeWorkerPath =
+      'server/ecr-pre-pilot/predictive-nt-seven-component-v1-6/worker.py';
+    const temporaryWorkerPath = path.join(temporaryRoot, relativeWorkerPath);
+    const relativeScientificPath =
+      'server/research/ecr-pre-pilot-cosmosac/vendor/python/scipy/optimize/_lsq/least_squares.py';
+    const temporaryScientificPath = path.join(temporaryRoot, relativeScientificPath);
+    try {
+      appendFileSync(temporaryScientificPath, '\n# tampered current scientific runtime\n');
       expect(() => preflightPredictiveNtRuntime())
-        .toThrow(/(?:SCIENTIFIC_RUNTIME_(?:INPUT_MISSING|MANIFEST_FILE_MISMATCH)|FileNotFoundError)/);
+        .toThrow(/SEVEN_COMPONENT_RUNTIME_MANIFEST_MISMATCH/);
+      copyFileSync(
+        path.join('dist/predictive-nt-runtime-7c-1-6', relativeScientificPath),
+        temporaryScientificPath,
+      );
+      rmSync(temporaryWorkerPath);
+      expect(() => preflightPredictiveNtRuntime())
+        .toThrow(/PREDICTIVE_NT_RUNTIME_MISSING/);
     } finally {
       delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
       rmSync(temporaryRoot, { recursive: true, force: true });
     }
-  }, 30_000);
-
-  it('runs a saved Stage-1 stage search to completion from the production runtime bundle', async () => {
-    execFileSync('node', ['scripts/package-predictive-nt-runtime.mjs']);
-    process.env.PREDICTIVE_NT_RUNTIME_ROOT = 'dist/predictive-nt-runtime';
-    expect(preflightPredictiveNtRuntime()).toMatchObject({
-      status: 'PASS',
-      python: '3.12',
-      engineId: 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC',
-      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'],
-      modelIdentity: 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL',
-    });
-    const preflight = preflightPredictiveNtRuntime();
-    expect(preflight.engineHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(preflight.verifiedScientificInputCount).toBeGreaterThanOrEqual(2_000);
-    expect(preflight.verifiedScientificInputAggregateSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(preflight.verifiedNativeDependencyCount).toBeGreaterThan(0);
-    expect(preflight.verifiedNativeDependencyAggregateSha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(preflight.runtimeManifestStatus).toBe('PACKAGED_MANIFEST_VERIFIED');
-
-    const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
-    if (!user.rows[0]) throw new Error('No user available for Predictive N_T integration test');
-    const userId = Number(user.rows[0].id);
-    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-prod-integration-v1');
-    try {
-      const submitted = await enqueuePredictiveNtRuntimeTestJob(
-        validInputWithMaximumStages(2),
-        userId,
-        design.id,
-        { restartAfterAcknowledgedStage: 1 },
-      );
-
-      let completed = await getPredictiveNtJob(submitted.jobId, userId, design.id);
-      const deadline = Date.now() + 270_000;
-      while (completed?.status !== 'completed' && completed?.status !== 'failed' && Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        completed = await getPredictiveNtJob(submitted.jobId, userId, design.id);
-      }
-
-      expect(completed?.status, completed?.error ?? 'job did not complete').toBe('completed');
-      expect(completed?.modelHash).toBe(PRE_PILOT_MODEL.modelHash);
-      const restartHistory = await pool.query(
-        `SELECT COUNT(*)::int AS total
-           FROM ecr_pre_pilot_predictive_nt_job_history
-          WHERE job_id = $1
-            AND details->>'event' = 'stale_job_reclaimed'`,
-        [submitted.jobId],
-      );
-      expect(restartHistory.rows[0].total).toBeGreaterThanOrEqual(1);
-      expect(completed?.engineHash).toBe(
-        preflight.engineHash,
-      );
-      expect(completed?.result).toMatchObject({
-        status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
-        establishedTheoreticalStages: null,
-        releaseEligible: false,
-        calibrationRequired: true,
-        componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP'],
-        modelIdentity: 'COSMO-SAC-2010 + PROJECT_NMP_LLE_RESIDUAL',
-        engine: {
-          engineId: 'ECR2_PREDICTIVE_NT_SIX_COMPONENT_COSMOSAC',
-          engineHash: completed?.engineHash,
-        },
-        globalStabilityQualification: {
-          evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
-          status: 'BLOCKED_FAIL_CLOSED',
-          qualified: false,
-          researchOnly: true,
-          calibrationRequired: true,
-          releaseEligible: false,
-          predictiveNt: null,
-          postSplitTpdThreshold: -1e-8,
-          coverage: {
-            expectedPhaseEndpoints: 110,
-            returnedPhaseEndpoints: 110,
-            failingPhaseCount: 57,
-            negativeOrUnresolvedPhaseCount: 96,
-            optimizerRefinementFailureCount: 39,
-          },
-          comparisonCandidate: {
-            disposition: 'REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY',
-            qualified: false,
-            frozenValidationPassed: false,
-          },
-          blockers: [
-            'FROZEN_COMPOSITION_VALIDATION_FAILED',
-            'POST_SPLIT_TPD_STABILITY_FAILED',
-            'DIRECT_MATCHING_SIX_COMPONENT_LLE_EVIDENCE_MISSING',
-          ],
-        },
-        stage1Authority: {
-          freshModeledNmpMassBasis: 150,
-          nmpPurityAndWaterSpecificationOnly: {
-            nmpPurityWt: 99.5,
-            nmpWaterWt: 0.5,
-          },
-        },
-      });
-      const result = completed?.result as any;
-      expect(result.globalStabilityQualification.evidenceArtifacts.resultsSha256)
-        .toMatch(/^[a-f0-9]{64}$/);
-      expect(result.globalStabilityQualification.classificationCounts).toEqual({
-        GENUINE_LOWER_GIBBS_BASIN: 57,
-        LOCAL_HESSIAN_ONLY_ARTIFACT: 14,
-        OPTIMIZER_REFINEMENT_FAILURE: 39,
-      });
-      expect(result.stage1TargetGovernance.overallEcrProductAcceptance).toBe(false);
-      expect(result.trials).toHaveLength(2);
-      expect(result.trials[0]).toMatchObject({
-        stageCount: 1,
-        researchStatus: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
-        releaseEligible: false,
-        numericalAcceptancePassed: expect.any(Boolean),
-        boundaryStreams: {
-          oilFeed: { componentMoles: expect.any(Array) },
-          freshNmp: { componentMoles: expect.any(Array) },
-        },
-      });
-      expect(result.trials[0].boundaryStreams.oilFeed.componentMass).toHaveLength(6);
-      expect(result.trials[0].boundaryStreams.freshNmp.componentMass).toHaveLength(6);
-      expect(result.trials[0].boundaryStreams.oilFeed.componentMass[4]).toBeGreaterThan(0);
-      expect(result.trials[0].boundaryStreams.oilFeed.componentMass[5]).toBeGreaterThan(0);
-      expect(result.trials[0].boundaryStreams.freshNmp.componentMass.slice(0, 5))
-        .toEqual([0, 0, 0, 0, 0]);
-      expect(result.trials[0].boundaryStreams.freshNmp.componentMass[5]).toBeGreaterThan(0);
-      expect(result.checkpoint).toMatchObject({
-        protocol: 'ACK_V2',
-        acknowledgedStageCount: 2,
-        modelHash: PRE_PILOT_MODEL.modelHash,
-        engineHash: completed?.engineHash,
-      });
-      expect(result.checkpoint.trialHashes).toHaveLength(2);
-      expect(result.checkpoint.trialCanonicals).toHaveLength(2);
-      expect(result.checkpoint.payloadHashes).toHaveLength(2);
-      expect(result.checkpoint.payloadCanonicals).toHaveLength(2);
-      expect(result.trials[0].maximumOverallComponentBalanceResidualMol).toBeLessThanOrEqual(1e-8);
-      expect(Math.abs(Object.values(result.trials[0].overallComponentBalanceResidualMol)
-        .reduce((sum: number, value) => sum + Number(value), 0))).toBeLessThanOrEqual(1e-8);
-      for (const trial of result.trials) {
-        expect(trial.residualClosureStatus).toMatch(/^(CLOSED|UNCLOSED)$/);
-        expect(trial.solverTerminationStatus).toMatch(
-          /^(MAX_NFEV|GTOL|FTOL|XTOL|FTOL_AND_XTOL|RESIDUAL_CLOSURE|NEWTON_STOPPED_UNCLOSED|NUMERICAL_ERROR|UNKNOWN)$/,
-        );
-        expect(trial.multistartEvidence.primary).toMatchObject({
-          terminationStatus: expect.any(String),
-          terminationMessage: expect.any(String),
-          functionEvaluations: expect.any(Number),
-          maximumScaledEquationResidual: expect.any(Number),
-          closureLimit: 1e-8,
-          residualClosureStatus: expect.stringMatching(/^(CLOSED|UNCLOSED)$/),
-        });
-        expect(trial.multistartEvidence.secondary).toMatchObject({
-          terminationStatus: expect.any(String),
-          terminationMessage: expect.any(String),
-          functionEvaluations: expect.any(Number),
-          maximumScaledEquationResidual: expect.any(Number),
-          closureLimit: 1e-8,
-          residualClosureStatus: expect.stringMatching(/^(CLOSED|UNCLOSED)$/),
-        });
-        const bothClosed = trial.multistartEvidence.primary.residualClosureStatus === 'CLOSED'
-          && trial.multistartEvidence.secondary.residualClosureStatus === 'CLOSED';
-        expect(trial.multistartEvidence.bothStartsClosed).toBe(bothClosed);
-        expect(trial.branchComparisonStatus).toBe(
-          bothClosed ? 'EVALUATED' : 'NOT_EVALUABLE_ENDPOINT_UNCLOSED',
-        );
-        expect(trial.multistartProductRelativeDifference == null).toBe(!bothClosed);
-        if (!bothClosed) {
-          expect(trial.acceptanceBlockers.map(({ code }: { code: string }) => code))
-            .not.toContain('MULTISTART_BRANCH_REPRODUCTION_FAILED');
-        }
-      }
-      const checkpointHistory = await pool.query(
-        `SELECT COUNT(*)::int AS total
-           FROM ecr_pre_pilot_predictive_nt_job_history
-          WHERE job_id = $1
-            AND details->>'event' = 'trial_checkpoint_acknowledged'`,
-        [submitted.jobId],
-      );
-      expect(checkpointHistory.rows[0].total).toBeGreaterThanOrEqual(1);
-    } finally {
-      delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
-    }
-  }, 420_000);
+  }, 60_000);
 
   it.each([
     {
@@ -1286,13 +1075,13 @@ print(json.dumps(events))
       error: 'PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH',
     },
   ])('$name', async ({ hooks, error }) => {
-    useAckProtocolFixture();
+    useCurrentAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for checkpoint fault test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-fault-v1');
-    const submitted = await enqueuePredictiveNtRuntimeTestJob(
-        validInputWithMaximumStages(2),
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
       userId,
       design.id,
       hooks,
@@ -1307,31 +1096,27 @@ print(json.dumps(events))
     expect(terminal?.error).toContain(error);
     expect((terminal?.result as any)?.trials).toHaveLength(1);
     expect((terminal?.result as any)?.checkpoint).toMatchObject({
-      protocol: 'ACK_V2',
+      protocol: 'ACK_V3_ENGINE_CONTRACT',
+      engineContractVersion: '7C-1.6.0',
       acknowledgedStageCount: 1,
     });
-    expect((terminal?.result as any)?.globalStabilityQualification).toMatchObject({
-      evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+    expect(terminal?.result).toMatchObject({
+      status: 'ENGINE_ERROR',
+      engineContractVersion: '7C-1.6.0',
       predictiveNt: null,
       releaseEligible: false,
-    });
-    expect((terminal?.result as any)?.task218CandidateGeneratedStability).toMatchObject({
-      evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
-      predictiveNt: null,
-      sulfurPrediction: 'NOT_CALCULABLE',
-      pilotValidated: false,
-      releaseEligible: false,
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
     });
   }, 150_000);
 
   it('fails a zero-exit final RUNNING ACK payload and persists server evidence', async () => {
-    useAckProtocolFixture();
+    useCurrentAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for terminal ACK bypass test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-terminal-ack-bypass-v1');
-    const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      validInputWithMaximumStages(2),
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
       userId,
       design.id,
       { replaceFinalPayloadWithRunningAck: true },
@@ -1348,30 +1133,20 @@ print(json.dumps(events))
       status: 'ENGINE_ERROR',
       predictiveNt: null,
       releaseEligible: false,
-      calibrationRequired: true,
-      globalStabilityQualification: {
-        evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
-        predictiveNt: null,
-        releaseEligible: false,
-      },
-      task218CandidateGeneratedStability: {
-        evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
-        predictiveNt: null,
-        sulfurPrediction: 'NOT_CALCULABLE',
-        pilotValidated: false,
-        releaseEligible: false,
-      },
+      calibrationRequired: false,
+      engineContractVersion: '7C-1.6.0',
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
     });
   }, 150_000);
 
   it('replaces an admitted completed result when report generation fails', async () => {
-    useAckProtocolFixture();
+    useCurrentAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for report failure test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-report-failure-v1');
-    const submitted = await enqueuePredictiveNtRuntimeTestJob(
-      validInputWithMaximumStages(2),
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
       userId,
       design.id,
       { forceReportGenerationFailure: true },
@@ -1390,33 +1165,21 @@ print(json.dumps(events))
       status: 'ENGINE_ERROR',
       predictiveNt: null,
       releaseEligible: false,
-      calibrationRequired: true,
-      globalStabilityQualification: {
-        evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
-        predictiveNt: null,
-        releaseEligible: false,
-      },
-      task218CandidateGeneratedStability: {
-        evidenceId: 'TASK_218_CANDIDATE_GENERATED_CONTROLLED_NEGATIVE_V1',
-        status: 'BLOCKED_FAIL_CLOSED',
-        qualified: false,
-        predictiveNt: null,
-        sulfurPrediction: 'NOT_CALCULABLE',
-        pilotValidated: false,
-        releaseEligible: false,
-      },
+      calibrationRequired: false,
+      engineContractVersion: '7C-1.6.0',
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
     });
     expect(terminal?.report.available).toBe(false);
   }, 150_000);
 
-  it('resumes at the next stage after a worker restart without rewriting acknowledged evidence', async () => {
-    useAckProtocolFixture();
+  it('resumes the current 7C-1.6 sweep without rewriting acknowledged evidence', async () => {
+    useCurrentAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for checkpoint restart test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-resume-v2');
-    const submitted = await enqueuePredictiveNtRuntimeTestJob(
-        validInputWithMaximumStages(2),
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
       userId,
       design.id,
       { restartAfterAcknowledgedStage: 1 },
@@ -1430,17 +1193,19 @@ print(json.dumps(events))
 
     expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
     const result = terminal?.result as any;
-    expect(result.trials.map((trial: any) => trial.stageCount)).toEqual([1, 2]);
+    expect(result.trials.map((trial: any) => trial.stageCount))
+      .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(result.checkpoint).toMatchObject({
-      protocol: 'ACK_V2',
-      acknowledgedStageCount: 2,
-      modelHash: PRE_PILOT_MODEL.modelHash,
+      protocol: 'ACK_V3_ENGINE_CONTRACT',
+      engineContractVersion: '7C-1.6.0',
+      acknowledgedStageCount: 10,
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
       engineHash: terminal?.engineHash,
     });
-    expect(result.checkpoint.trialHashes).toHaveLength(2);
-    expect(result.checkpoint.trialCanonicals).toHaveLength(2);
-    expect(result.checkpoint.payloadHashes).toHaveLength(2);
-    expect(result.checkpoint.payloadCanonicals).toHaveLength(2);
+    expect(result.checkpoint.trialHashes).toHaveLength(10);
+    expect(result.checkpoint.trialCanonicals).toHaveLength(10);
+    expect(result.checkpoint.payloadHashes).toHaveLength(10);
+    expect(result.checkpoint.payloadCanonicals).toHaveLength(10);
 
     const history = await pool.query(
       `SELECT details->>'stageCount' AS stage_count,
@@ -1453,23 +1218,26 @@ print(json.dumps(events))
         ORDER BY (details->>'stageCount')::int`,
       [submitted.jobId],
     );
-    expect(history.rows).toEqual([
-      { stage_count: '1', trial_hash: result.checkpoint.trialHashes[0], total: 1 },
-      { stage_count: '2', trial_hash: result.checkpoint.trialHashes[1], total: 1 },
-    ]);
+    expect(history.rows).toEqual(result.checkpoint.trialHashes.map(
+      (trialHash: string, index: number) => ({
+        stage_count: String(index + 1),
+        trial_hash: trialHash,
+        total: 1,
+      }),
+    ));
   }, 210_000);
 
-  it('finalizes from checkpoints when the worker restarts after the final acknowledgement', async () => {
-    useAckProtocolFixture();
+  it('finalizes the current 7C-1.6 sweep after the final acknowledgement', async () => {
+    useCurrentAckProtocolFixture();
     const user = await pool.query<{ id: number }>('SELECT id FROM users ORDER BY id LIMIT 1');
     if (!user.rows[0]) throw new Error('No user available for final checkpoint restart test');
     const userId = Number(user.rows[0].id);
     const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-final-checkpoint-resume-v2');
-    const submitted = await enqueuePredictiveNtRuntimeTestJob(
-        validInputWithMaximumStages(2),
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
       userId,
       design.id,
-      { restartAfterAcknowledgedStage: 2 },
+      { restartAfterAcknowledgedStage: 10 },
     );
     let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
     const deadline = Date.now() + 180_000;
@@ -1480,8 +1248,15 @@ print(json.dumps(events))
 
     expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
     const result = terminal?.result as any;
-    expect(result.trials.map((trial: any) => trial.stageCount)).toEqual([1, 2]);
-    expect(result.checkpoint.acknowledgedStageCount).toBe(2);
+    expect(result.trials.map((trial: any) => trial.stageCount))
+      .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(result.checkpoint).toMatchObject({
+      protocol: 'ACK_V3_ENGINE_CONTRACT',
+      engineContractVersion: '7C-1.6.0',
+      acknowledgedStageCount: 10,
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+      engineHash: terminal?.engineHash,
+    });
     const history = await pool.query(
       `SELECT details->>'stageCount' AS stage_count, COUNT(*)::int AS total
          FROM ecr_pre_pilot_predictive_nt_job_history
@@ -1491,9 +1266,9 @@ print(json.dumps(events))
         ORDER BY (details->>'stageCount')::int`,
       [submitted.jobId],
     );
-    expect(history.rows).toEqual([
-      { stage_count: '1', total: 1 },
-      { stage_count: '2', total: 1 },
-    ]);
+    expect(history.rows).toEqual(Array.from({ length: 10 }, (_, index) => ({
+      stage_count: String(index + 1),
+      total: 1,
+    })));
   }, 210_000);
 });

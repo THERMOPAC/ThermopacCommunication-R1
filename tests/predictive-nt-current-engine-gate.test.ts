@@ -24,9 +24,17 @@ describe('Predictive N_T current-engine execution gate', () => {
     );
   });
 
-  it('refuses retired raw test requests before database access', async () => {
+  it.each([
+    undefined,
+    '6C-1.0.0',
+    '7C-1.1.0',
+    '7C-1.2.0',
+    '7C-1.3.0',
+    '7C-1.4.0',
+    '7C-1.5.0',
+  ])('refuses retired %s raw requests before database access', async (engineContractVersion) => {
     await expect(enqueuePredictiveNtRuntimeTestJob({
-      engineContractVersion: '7C-1.5.0',
+      ...(engineContractVersion === undefined ? {} : { engineContractVersion }),
     }, 1, 1)).rejects.toThrow(
       'PREDICTIVE_NT_ENGINE_CONTRACT_RETIRED: only 7C-1.6.0 may execute',
     );

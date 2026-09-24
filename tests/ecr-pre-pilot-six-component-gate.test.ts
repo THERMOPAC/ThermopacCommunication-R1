@@ -299,7 +299,7 @@ describe('six-component COSMO-SAC gate contract', () => {
     expect(fiveComponent.removals.PA.valuePercent).toBeNull();
 
     const snapshot = makeStage1Snapshot(savedStage1);
-    const governed = attachStage1ResultGovernance({
+    expect(() => attachStage1ResultGovernance({
       status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
       sixComponentRemoval: { PA: 99 },
       removalClaims: { PA: 99 },
@@ -316,10 +316,6 @@ describe('six-component COSMO-SAC gate contract', () => {
           snapshot.sixComponentCosmoSacBasisManifestSha256,
         sixComponentCosmoSacBindingSha256: snapshot.sixComponentCosmoSacBindingSha256,
       },
-    } as any) as any;
-    expect(governed.sixComponentRemoval).toBeUndefined();
-    expect(governed.removalClaims).toBeUndefined();
-    expect(governed.stage1TargetGovernance.sixComponentRemoval.status)
-      .toBe('NOT_CALCULABLE');
+    } as any)).toThrow('TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING');
   });
 });

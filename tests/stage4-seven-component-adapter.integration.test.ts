@@ -55,7 +55,12 @@ const attackerSealAdapter = (adapterRoot: string) => {
 let tamperRoot: string;
 let tamperBase: string;
 
-describe.sequential('governed Stage-4 7C-1.5 adapter (actual engine)', () => {
+const historicalStage4RuntimeAvailable =
+  fs.existsSync(root) && fs.existsSync('dist/predictive-nt-runtime-7c-1-5');
+
+describe.skipIf(!historicalStage4RuntimeAvailable).sequential(
+  'governed Stage-4 7C-1.5 adapter (actual engine)',
+  () => {
   beforeAll(() => {
     process.env.STAGE4_EQUILIBRIUM_ADAPTER_RUNTIME_ROOT = root;
     tamperRoot = fs.mkdtempSync(path.join(process.cwd(), 'stage4-tamper-'));
@@ -245,4 +250,5 @@ describe.sequential('governed Stage-4 7C-1.5 adapter (actual engine)', () => {
     await expect(loadValidatedCompletedSevenComponentNtForStage4('', 1, 1))
       .rejects.toThrow('STAGE4_STAGE2_JOB_REFERENCE_INVALID');
   });
-});
+  },
+);

@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import {
+  mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile,
+} from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -28,6 +32,10 @@ async function filesUnder(directory: string): Promise<string[]> {
     return entry.isDirectory() ? filesUnder(absolute) : [absolute];
   }));
   return files.flat();
+}
+
+async function sha256File(file: string): Promise<string> {
+  return createHash("sha256").update(await readFile(file)).digest("hex");
 }
 
 describe("Predictive N_T production packaging", () => {
@@ -74,7 +82,7 @@ describe("Predictive N_T production packaging", () => {
       .join("\n");
     expect(manifest.aggregateSha256)
       .toBe(createHash("sha256").update(recordText).digest("hex"));
-  });
+  }, 60_000);
 
   it("keeps retired packagers out of the production build command", async () => {
     const packageJson = JSON.parse(await readFile(
@@ -85,5 +93,88 @@ describe("Predictive N_T production packaging", () => {
     expect(packageJson.scripts.build).not.toContain("package-job-b-interface.mjs");
     expect(packageJson.scripts.build).not.toContain("package-stage4-job-b-dogbox.mjs");
     expect(packageJson.scripts.build).not.toContain("package-job-c-runtime.mjs");
+  });
+
+  it("runs release validation read-only and refuses absent or corrupt prebuilt runtimes", async () => {
+    const harnessRoot = await mkdtemp(path.join(os.tmpdir(), "predictive-nt-release-"));
+    const harnessRuntime = path.join(
+      harnessRoot, "dist", "predictive-nt-runtime-7c-1-6",
+    );
+    const payloadPath = path.join(harnessRuntime, "frozen-runtime.txt");
+    const payload = Buffer.from("immutable prebuilt runtime\n");
+    const payloadSha256 = createHash("sha256").update(payload).digest("hex");
+    const record = {
+      path: "frozen-runtime.txt",
+      bytes: payload.length,
+      sha256: payloadSha256,
+    };
+    const aggregateSha256 = createHash("sha256")
+      .update(`${record.path}:${record.bytes}:${record.sha256}`).digest("hex");
+    const releaseHarness = path.join(root, "scripts", "validate-predictive-nt-release.mjs");
+    const packageJson = {
+      scripts: {
+        "validate:predictive-nt-release": `node ${JSON.stringify(releaseHarness)}`,
+        "validate:predictive-nt-release:checks":
+          "node -e \"if (process.env.PYTHONDONTWRITEBYTECODE !== '1') process.exit(1)\"",
+      },
+    };
+
+    try {
+      await mkdir(harnessRuntime, { recursive: true });
+      await writeFile(payloadPath, payload);
+      await writeFile(
+        path.join(harnessRuntime, manifestName),
+        `${JSON.stringify({
+          schemaVersion: "PREDICTIVE_NT_RUNTIME_MANIFEST_V1",
+          hashAlgorithm: "sha256",
+          fileCount: 1,
+          aggregateSha256,
+          files: [record],
+        }, null, 2)}\n`,
+      );
+      await writeFile(
+        path.join(harnessRoot, "package.json"),
+        `${JSON.stringify(packageJson, null, 2)}\n`,
+      );
+
+      const before = await filesUnder(path.join(harnessRoot, "dist"));
+      const beforeHashes = await Promise.all(before.sort().map(sha256File));
+      execFileSync("npm", ["run", "validate:predictive-nt-release"], {
+        cwd: harnessRoot,
+        stdio: "pipe",
+      });
+      const after = await filesUnder(path.join(harnessRoot, "dist"));
+      expect(after.sort().map(file => path.relative(harnessRoot, file)))
+        .toEqual(before.map(file => path.relative(harnessRoot, file)));
+      expect(await Promise.all(after.map(sha256File))).toEqual(beforeHashes);
+
+      await writeFile(payloadPath, "tampered runtime\n");
+      expect(() => execFileSync("npm", ["run", "validate:predictive-nt-release"], {
+        cwd: harnessRoot,
+        stdio: "pipe",
+      })).toThrow('PREDICTIVE_NT_RELEASE_RUNTIME_MANIFEST_MISMATCH');
+      expect(await readFile(payloadPath, "utf8")).toBe("tampered runtime\n");
+
+      await writeFile(payloadPath, payload);
+      packageJson.scripts["validate:predictive-nt-release:checks"] =
+        `node -e "require('fs').writeFileSync('dist/unexpected.txt', 'mutation')"`;
+      await writeFile(
+        path.join(harnessRoot, "package.json"),
+        JSON.stringify(packageJson),
+      );
+      expect(() => execFileSync("npm", ["run", "validate:predictive-nt-release"], {
+        cwd: harnessRoot,
+        stdio: "pipe",
+      })).toThrow('PREDICTIVE_NT_RELEASE_VALIDATION_MODIFIED_DIST');
+
+      await rm(harnessRuntime, { recursive: true, force: true });
+      expect(() => execFileSync("npm", ["run", "validate:predictive-nt-release"], {
+        cwd: harnessRoot,
+        stdio: "pipe",
+      })).toThrow('PREDICTIVE_NT_RELEASE_RUNTIME_MISSING');
+      await expect(stat(harnessRuntime)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await rm(harnessRoot, { recursive: true, force: true });
+    }
   });
 });
