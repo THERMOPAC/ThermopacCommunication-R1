@@ -178,6 +178,9 @@ const PREDICTIVE_NT_7C_1_5_ENGINE_SHA256 =
   process.env.PREDICTIVE_NT_7C_1_5_ENGINE_SHA256 ?? '';
 const PREDICTIVE_NT_7C_1_6_ENGINE_SHA256 =
   process.env.PREDICTIVE_NT_7C_1_6_ENGINE_SHA256 ?? '';
+const CURRENT_PREDICTIVE_NT_ENGINE_CONTRACT = '7C-1.6.0' as const;
+const RETIRED_PREDICTIVE_NT_ENGINE_ERROR =
+  'PREDICTIVE_NT_ENGINE_CONTRACT_RETIRED: only 7C-1.6.0 may execute';
 const WORKER_OWNER = `${os.hostname()}:${process.pid}:${randomUUID()}`;
 let workerStarted = false;
 let workerBusy = false;
@@ -216,6 +219,20 @@ function runtimeRoot(input?: PredictiveNtJobInput) {
     : process.cwd();
 }
 
+function currentRuntimeRoot() {
+  return runtimeRoot({
+    engineContractVersion: CURRENT_PREDICTIVE_NT_ENGINE_CONTRACT,
+  } as PredictiveNtJobInput);
+}
+
+export function assertCurrentPredictiveNtExecution(
+  input?: Pick<PredictiveNtJobInput, 'engineContractVersion'>,
+) {
+  if (input?.engineContractVersion !== CURRENT_PREDICTIVE_NT_ENGINE_CONTRACT) {
+    throw new Error(RETIRED_PREDICTIVE_NT_ENGINE_ERROR);
+  }
+}
+
 type Task216GlobalStabilityEvidenceExpectation = {
   evidenceArtifacts: {
     protocolSha256: string;
@@ -250,13 +267,13 @@ type Task216GlobalStabilityEvidenceExpectation = {
 
 function sha256RuntimeFile(relativePath: string) {
   return createHash('sha256')
-    .update(fs.readFileSync(path.join(runtimeRoot(), relativePath)))
+    .update(fs.readFileSync(path.join(currentRuntimeRoot(), relativePath)))
     .digest('hex');
 }
 
 export function expectedTask216GlobalStabilityEvidence(): Task216GlobalStabilityEvidenceExpectation {
   const resultPath = path.join(
-    runtimeRoot(),
+    currentRuntimeRoot(),
     '.agents/outputs/task-216-mono-rich-global-stability/results.json',
   );
   const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
@@ -420,7 +437,7 @@ export function validateTask216GlobalStabilityEvidence(
 
 /** Reconstruct, rather than trust, the compact Task218 terminal attachment. */
 export function expectedTask218CandidateGeneratedStabilityEvidence() {
-  const base = runtimeRoot();
+  const base = currentRuntimeRoot();
   const read = (relative: string) => JSON.parse(fs.readFileSync(path.join(base, relative), 'utf8'));
   const protocolPath = 'server/research/task-218-candidate-generated-stability/protocol.json';
   const runnerPath = 'server/research/task-218-candidate-generated-stability/run.py';
@@ -854,7 +871,9 @@ function currentPredictiveNtEngineHash(input?: PredictiveNtJobInput) {
 }
 
 export function preflightPredictiveNtRuntime() {
-  return readPredictiveNtRuntimePreflight();
+  return readPredictiveNtRuntimePreflight({
+    engineContractVersion: CURRENT_PREDICTIVE_NT_ENGINE_CONTRACT,
+  } as PredictiveNtJobInput);
 }
 
 export { PREDICTIVE_NT_MOLECULAR_REGISTRY };
@@ -2199,6 +2218,7 @@ async function claimNextJob() {
                   status = 'pending'
                   OR (status = 'running' AND lease_expires_at < NOW())
                 )
+             AND input_snapshot->>'engineContractVersion' = '7C-1.6.0'
             AND (
                   input_snapshot->>'_runtimeTestOwner' IS NULL
                   OR input_snapshot->>'_runtimeTestOwner' = $4
@@ -2734,6 +2754,17 @@ async function finishJob(
 }
 
 function execute(job: PredictiveNtJob, claimToken: string) {
+  try {
+    assertCurrentPredictiveNtExecution(job.input);
+  } catch (error) {
+    console.error('[Predictive N_T] Refusing retired engine execution', {
+      jobId: job.id,
+      engineContractVersion: job.input?.engineContractVersion ?? null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    workerBusy = false;
+    return;
+  }
   const script = workerScript(job.input);
   let engineHash: string;
   try {
@@ -3008,6 +3039,7 @@ async function enqueueRawPredictiveNtJob(
   testHooks?: RuntimeTestHooks,
   runtimeTestOwner = false,
 ) {
+  assertCurrentPredictiveNtExecution(input);
   const gate = validatePredictiveNtJobInput(input);
   const engineHash = currentPredictiveNtEngineHash(input);
   const selectedModelHash = isReplacementSevenComponentInput(input)
@@ -3033,7 +3065,8 @@ async function enqueueRawPredictiveNtJob(
       `SELECT COUNT(*)::int AS total,
               COUNT(*) FILTER (WHERE created_by = $1)::int AS user_total
          FROM ecr_pre_pilot_predictive_nt_jobs
-        WHERE status IN ('pending', 'running')`,
+        WHERE status IN ('pending', 'running')
+          AND input_snapshot->>'engineContractVersion' = '7C-1.6.0'`,
       [userId],
     );
     if (counts.rows[0].total >= MAX_QUEUED_JOBS) throw new Error('PREDICTIVE_NT_QUEUE_FULL');
@@ -3112,6 +3145,7 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
       Number(design.rows[0].project_number),
     );
     const input = { ...derivedInput, maximumStages: 10 };
+    assertCurrentPredictiveNtExecution(input);
     gate = validatePredictiveNtJobInput(input);
     const engineHash = currentPredictiveNtEngineHash(input);
     const immutableInput = { ...input, modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash };
@@ -3119,7 +3153,8 @@ export async function enqueuePredictiveNtJobFromSavedStage1(
       `SELECT COUNT(*)::int AS total,
               COUNT(*) FILTER (WHERE created_by = $1)::int AS user_total
          FROM ecr_pre_pilot_predictive_nt_jobs
-        WHERE status IN ('pending', 'running')`,
+        WHERE status IN ('pending', 'running')
+          AND input_snapshot->>'engineContractVersion' = '7C-1.6.0'`,
       [userId],
     );
     if (counts.rows[0].total >= MAX_QUEUED_JOBS) throw new Error('PREDICTIVE_NT_QUEUE_FULL');

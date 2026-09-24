@@ -193,11 +193,18 @@ describe("Stage 3 reporting-only geometry evidence", () => {
       compartmentCount: firstStage4.mainOutputs.physicalCompartments,
       requiredActiveHeightM: firstStage4.mainOutputs.requiredActiveHeightM,
       installedActiveHeightM: firstStage4.mainOutputs.installedActiveHeightM,
-      designNt: 7, hetsM: 1,
+      designNt: 7,
+      sizingMethod: "ADOPTED_COMPARTMENT_EFFICIENCY",
+      designCompartmentEfficiency: 0.35,
+      impliedInstalledHetsMPerTheoreticalStage:
+        firstStage4.mainOutputs.installedActiveHeightM / 7,
     });
     expect(r1.complete).toBe(true);
-    for (const view of ["ga", "section", "compartment", "rotor", "stator"] as const)
-      expect(renderStage5Svg(r1, view)).toContain("GEOMETRICALLY COMPLETE");
+    for (const view of ["ga", "section", "compartment", "rotor", "stator"] as const) {
+      const svg = renderStage5Svg(r1, view);
+      expect(svg).toContain("<svg");
+      expect(svg).toContain("ECR_KUHNI_PREPILOT_GEOMETRY_RULESET_R3");
+    }
     expect(JSON.stringify(first)).toBe(optimizerBeforeReport);
     expect(JSON.stringify(firstStage4)).toBe(stage4BeforeReport);
     expect(JSON.stringify(processBasis)).toBe(basisBeforeReport);
@@ -222,11 +229,11 @@ describe("Stage 3 reporting-only geometry evidence", () => {
       .toBe("9bb60fde91874d412e01d17203e17f185e9c9a10d1824462dc0f34794e1626e1");
     expect(replayStage4.mainOutputs).toEqual({
       diameterM: 0.8,
-      overallEfficiency: 0.24,
-      physicalCompartments: 30,
-      activeHeightM: 7,
-      requiredActiveHeightM: 7,
-      installedActiveHeightM: 7.199999999999999,
+      overallEfficiency: 0.35,
+      physicalCompartments: 20,
+      activeHeightM: 4.8,
+      requiredActiveHeightM: 4.8,
+      installedActiveHeightM: 4.8,
     });
     expect(replayStage4.selectedStage3Hydraulics).toEqual(
       firstStage4.selectedStage3Hydraulics,

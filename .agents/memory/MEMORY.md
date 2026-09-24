@@ -1,3 +1,4 @@
+- [Scientific runtime retirement](scientific-runtime-production-retirement.md) — production no longer retains historical executable replay; preserve immutable results and the full current closure.
 - [Kühni disengagement sizing](kuhni-disengagement-boundary.md) — end sections require independent carryover/capture criteria; dissolved solvent and compartment mean drops cannot establish separator performance.
 - [Scientific snapshot reads](scientific-snapshot-read-isolation.md) — large revision reads need consistent read-only transactions, not exclusive reader locks; test real-data concurrency.
 - [Frozen Predictive N_T reporting semantics](predictive-nt-frozen-report-semantics.md) — 7C endpoint statuses are combined, not primary optimizer termination; feed-basis sulfur versus raffinate concentration target is a preserved historical basis mismatch, never demonstrated product compliance.

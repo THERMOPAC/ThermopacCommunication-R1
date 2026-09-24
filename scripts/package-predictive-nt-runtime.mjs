@@ -1,9 +1,26 @@
 import { createHash } from 'node:crypto';
-import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 
 const root = process.cwd();
-const bundleRoot = path.join(root, 'dist', 'predictive-nt-runtime');
+const distRoot = path.join(root, 'dist');
+const stagingRoot = await mkdtemp(path.join(tmpdir(), 'predictive-nt-runtime-'));
+const bundleRoot = path.join(stagingRoot, 'predictive-nt-runtime');
+const retiredFinalRoots = [
+  'predictive-nt-runtime',
+  'predictive-nt-runtime-7c',
+  'predictive-nt-runtime-7c-1-2',
+  'predictive-nt-runtime-7c-1-3',
+  'predictive-nt-runtime-7c-1-4',
+  'predictive-nt-runtime-7c-1-5',
+  'job-b-interface-runtime',
+  'stage4-job-b-dogbox-runtime',
+  'job-c-runtime',
+  'stage4-seven-component-adapter-runtime',
+];
+
+try {
 const files = new Set([
   'server/research/ecr-pre-pilot-model-freeze/predictive_nt_six_component.py',
   'server/research/ecr-pre-pilot-cosmosac-nmp-lle-countercurrent/run.py',
@@ -111,7 +128,7 @@ console.log(`Packaged Predictive N_T runtime (${records.length} hashed files)`);
 
 // The frozen 6C worker validates an exact manifest and must not see 7C files.
 // Build a separately versioned 7C closure from that immutable 6C base.
-const sevenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c');
+const sevenBundleRoot = path.join(stagingRoot, 'predictive-nt-runtime-7c');
 const sevenFiles = [
   'server/ecr-pre-pilot/predictive-nt-seven-component',
   'server/research/ecr-pre-pilot-seven-component-dry-limit/run.py',
@@ -156,7 +173,7 @@ console.log(`Packaged Predictive N_T 7C runtime (${sevenRecords.length} hashed f
 // 7C-1.2.0 is a new immutable closure. Keep the historical 7C-1.1.0 bundle
 // available for exact-contract replay/resume and layer the simultaneous engine
 // and its versioned worker into a separate runtime root.
-const sevenTwelveBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-2');
+const sevenTwelveBundleRoot = path.join(stagingRoot, 'predictive-nt-runtime-7c-1-2');
 await rm(sevenTwelveBundleRoot, { recursive: true, force: true });
 await cp(sevenBundleRoot, sevenTwelveBundleRoot, { recursive: true });
 for (const relativePath of [
@@ -201,7 +218,7 @@ console.log(
 
 // 7C-1.3.0 keeps both historical bundles immutable and layers only the native
 // thermodynamic wrapper, unchanged 1.2 cascade contract, and versioned worker.
-const sevenThirteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-3');
+const sevenThirteenBundleRoot = path.join(stagingRoot, 'predictive-nt-runtime-7c-1-3');
 await rm(sevenThirteenBundleRoot, { recursive: true, force: true });
 await cp(sevenTwelveBundleRoot, sevenThirteenBundleRoot, { recursive: true });
 for (const relativePath of [
@@ -247,7 +264,7 @@ console.log(
 
 // 7C-1.4.0 layers the immutable Task-238 native-plus-RK model and worker while
 // retaining every historical runtime byte-for-byte.
-const sevenFourteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-4');
+const sevenFourteenBundleRoot = path.join(stagingRoot, 'predictive-nt-runtime-7c-1-4');
 await rm(sevenFourteenBundleRoot, { recursive: true, force: true });
 await cp(sevenThirteenBundleRoot, sevenFourteenBundleRoot, { recursive: true });
 for (const relativePath of [
@@ -291,7 +308,7 @@ console.log(
 
 // 7C-1.5.0 preserves the complete 7C-1.4 closure and adds only the versioned
 // worker that extends the governed wet-solvent range through 5.0 wt% H2O.
-const sevenFifteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-5');
+const sevenFifteenBundleRoot = path.join(stagingRoot, 'predictive-nt-runtime-7c-1-5');
 await rm(sevenFifteenBundleRoot, { recursive: true, force: true });
 await cp(sevenFourteenBundleRoot, sevenFifteenBundleRoot, { recursive: true });
 for (const relativePath of [
@@ -343,7 +360,7 @@ console.log(
 
 // 7C-1.6.0 keeps the 7C-1.5 scientific closure immutable and adds only the
 // authorized ordered N_T=1..10 orchestration worker.
-const sevenSixteenBundleRoot = path.join(root, 'dist', 'predictive-nt-runtime-7c-1-6');
+const sevenSixteenBundleRoot = path.join(stagingRoot, 'predictive-nt-runtime-7c-1-6');
 await rm(sevenSixteenBundleRoot, { recursive: true, force: true });
 await cp(sevenFifteenBundleRoot, sevenSixteenBundleRoot, { recursive: true });
 const sevenSixteenWorkerPath =
@@ -381,9 +398,22 @@ console.log(
   `Packaged Predictive N_T 7C-1.6 runtime (${sevenSixteenRecords.length} hashed files)`,
 );
 
+// Historical layers are needed to reproduce the inherited manifest, but they
+// are build intermediates rather than deployed artifacts. Retire stale final
+// directories only after the complete 1.6 closure has been built successfully.
+for (const directory of retiredFinalRoots) {
+  await rm(path.join(distRoot, directory), { recursive: true, force: true });
+}
+const deployedBundleRoot = path.join(distRoot, 'predictive-nt-runtime-7c-1-6');
+await rm(deployedBundleRoot, { recursive: true, force: true });
+await cp(sevenSixteenBundleRoot, deployedBundleRoot, { recursive: true });
+
 // Stage 4 consumes a server-owned adapter artifact.  It is derived from, but
 // never added to, the immutable historical/predictive runtime closures.
-const stage4AdapterRoot = path.join(root, 'dist', 'stage4-seven-component-adapter-runtime');
+// This archived packager remains available as source evidence only. Production
+// packaging does not invoke it and does not deploy its retired adapter.
+async function packageArchivedStage4Adapter() {
+const stage4AdapterRoot = path.join(stagingRoot, 'stage4-seven-component-adapter-runtime');
 await rm(stage4AdapterRoot, { recursive: true, force: true });
 for (const relativePath of [
   'server/ecr-pre-pilot/stage4-seven-component-adapter',
@@ -495,3 +525,7 @@ await writeFile(
 console.log(
   `Packaged Stage 4 seven-component adapter (${adapterRecords.length} hashed files)`,
 );
+}
+} finally {
+  await rm(stagingRoot, { recursive: true, force: true });
+}
