@@ -71,6 +71,7 @@ import {
 import {
   computeKH1995Holdup,
   isHoldupUsable,
+  type HoldupInputs,
 } from '../server/engines/llx/llx-ecr2-holdup';
 
 import {
@@ -161,19 +162,36 @@ const DE_NMP: DiffusivityInput = {
   status: 'engineer_supplied',
 };
 
-const HOLDUP_INPUTS = {
-  psi_W_kg:    0.012,
+// Synthetic reference-system point inside the primary K&H 1995 Table 1
+// envelope, used only to exercise downstream formula and null-propagation tests.
+// This is NOT an RRBO/NMP holdup prediction or a coupled physical operating point
+// with makeLocalProps(): its assumed RRBO viscosity is outside this envelope.
+const HOLDUP_COLUMN_DIAMETER_M = 0.10;
+const HOLDUP_COLUMN_AREA_M2 = Math.PI * HOLDUP_COLUMN_DIAMETER_M ** 2 / 4;
+const HOLDUP_INPUTS: HoldupInputs = {
   Ud_m_s:      2.78e-4,   // 1.0 m³/(m²·h) → m/s
   Uc_m_s:      3.33e-4,   // 1.2 m³/(m²·h) → m/s
   rho_c_kg_m3: 1020,
   rho_d_kg_m3: 870,
+  mu_c_Pa_s:   0.0012,
+  mu_d_Pa_s:   0.0010,
   gamma_N_m:   0.012,
   xf:          0.23,
+  // Primary Eq. 9: ε = P/(Ac·H·ρc) = 0.012 W/kg for one agitator.
+  powerPerAgitator_W: 0.012 * HOLDUP_COLUMN_AREA_M2 * 0.06 * 1020,
+  columnCrossSectionArea_m2: HOLDUP_COLUMN_AREA_M2,
+  compartmentHeight_m: 0.06,
+  columnDiameter_m: HOLDUP_COLUMN_DIAMETER_M,
+  rotorDiameter_m: 0.06,
+  massTransferDirection: 'no_mass_transfer',
+  systemIdentity: 'published_reference_system',
 };
 
 function makeUsableHoldup() {
   const h = computeKH1995Holdup(HOLDUP_INPUTS);
-  if (!isHoldupUsable(h)) throw new Error('Holdup not usable in test fixture');
+  if (!isHoldupUsable(h)) {
+    throw new Error(`Holdup not usable in reference test fixture: ${JSON.stringify(h)}`);
+  }
   return h;
 }
 
@@ -208,6 +226,47 @@ function makeDiffusivityContract(): ECR2DiffusivityContract {
 // ══════════════════════════════════════════════════════════════════════════════
 // TEST GROUP 1 — Composition closure (items 1–3)
 // ══════════════════════════════════════════════════════════════════════════════
+
+describe('reference holdup fixture contract', () => {
+  it('has consistent geometry, primary power basis, and entirely in-domain diagnostics', () => {
+    const h = makeUsableHoldup();
+    expect(HOLDUP_INPUTS.columnCrossSectionArea_m2).toBeCloseTo(
+      Math.PI * HOLDUP_INPUTS.columnDiameter_m ** 2 / 4, 12,
+    );
+    expect(h.intermediates.epsilon_W_kg).toBeCloseTo(0.012, 12);
+    expect(h.intermediates.C_psi).toBe(1);
+    for (const [name, diagnostic] of Object.entries(h.applicabilityDiagnostics)) {
+      expect(diagnostic.withinRange, name).toBe(true);
+      expect(diagnostic.extrapolated, name).toBe(false);
+    }
+    expect(h.phi).toBeGreaterThan(0);
+    expect(h.phi).toBeLessThan(1);
+    expect(h.governance.validatedForRRBONMP).toBe(false);
+  });
+
+  it.each([
+    {
+      override: { systemIdentity: 'rrbo_nmp' } satisfies Partial<HoldupInputs>,
+      blocker: 'kh1995_rrbo_nmp_not_validated',
+    },
+    {
+      override: { massTransferDirection: 'bidirectional_multicomponent' } satisfies Partial<HoldupInputs>,
+      blocker: 'kh1995_cpsi_bidirectional_multicomponent_unresolved',
+    },
+    {
+      override: { mu_d_Pa_s: MU_D_ENGINEER.value } satisfies Partial<HoldupInputs>,
+      blocker: 'kh1995_primary_applicability_outside:mu_d_Pa_s',
+    },
+  ])('preserves the dependency gate: $blocker', ({ override, blocker }) => {
+    const h = computeKH1995Holdup({ ...HOLDUP_INPUTS, ...override });
+    expect(h.status).toBe('dependency_blocked');
+    expect(isHoldupUsable(h)).toBe(false);
+    expect(h.phi).toBeNull();
+    if (h.status !== 'dependency_blocked') throw new Error(`Unexpected status: ${h.status}`);
+    expect(h.blockedBy).toContain(blocker);
+    expect(computeInterfacialArea(h, makeEngineerD32()).a_m2_m3).toBeNull();
+  });
+});
 
 describe('1. x composition closure', () => {
   it('valid x with Σ = 1.0 passes', () => {
