@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { resolvePredictiveNtFrozenRuntimePath } from './six-component-cosmo-sac-basis';
 
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const families = ['SAT', 'MONO', 'DI', 'POLY', 'PA'];
@@ -87,7 +88,7 @@ export async function frozenMolecularBasis(input: any, result: any) {
     }
     provenance.push([key, digest]);
     try {
-      const bytes = await readFile(path);
+      const bytes = await readFile(resolvePredictiveNtFrozenRuntimePath(path));
       if (createHash('sha256').update(bytes).digest('hex') !== digest) {
         provenance.push(['Artifact verification', `${path}: HASH MISMATCH; details withheld`]);
         continue;

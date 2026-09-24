@@ -15,6 +15,31 @@ export type SixComponentCosmoSacFamily = typeof SIX_COMPONENT_COSMO_SAC_ORDER[nu
 
 const PROFILE_ROOT =
   'server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles/sigma3';
+const PREDICTIVE_NT_PRODUCTION_RUNTIME_ROOT =
+  'dist/predictive-nt-runtime-7c-1-6';
+
+export function resolvePredictiveNtFrozenRuntimePath(relativePath: string): string {
+  if (
+    typeof relativePath !== 'string'
+    || relativePath.length === 0
+    || relativePath.includes('\\')
+    || relativePath.includes('\0')
+    || path.posix.isAbsolute(relativePath)
+    || path.posix.normalize(relativePath) !== relativePath
+    || relativePath === '..'
+    || relativePath.startsWith('../')
+  ) {
+    throw new Error('PREDICTIVE_NT_FROZEN_RUNTIME_PATH_INVALID');
+  }
+  const root = process.env.NODE_ENV === 'production'
+    ? path.resolve(process.cwd(), PREDICTIVE_NT_PRODUCTION_RUNTIME_ROOT)
+    : process.cwd();
+  const resolved = path.resolve(root, relativePath);
+  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
+    throw new Error('PREDICTIVE_NT_FROZEN_RUNTIME_PATH_INVALID');
+  }
+  return resolved;
+}
 
 const mutableBasis = {
   schemaVersion: 'ECR_PRE_PILOT_SIX_COMPONENT_COSMO_SAC_BASIS_V1',
@@ -226,7 +251,7 @@ export type SixComponentProfileFileReader = (relativePath: string) => Buffer;
 export function verifyStage1SixComponentCosmoSacProfileFiles(
   binding: SixComponentCosmoSacStage1Binding,
   readProfile: SixComponentProfileFileReader = (relativePath) =>
-    fs.readFileSync(path.resolve(process.cwd(), relativePath)),
+    fs.readFileSync(resolvePredictiveNtFrozenRuntimePath(relativePath)),
 ) {
   if (binding.status !== 'VERIFIED') throw new Error('SIX_COMPONENT_COSMO_SAC_BINDING_BLOCKED');
   for (const component of binding.components) {
