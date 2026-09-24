@@ -30,7 +30,6 @@ import * as Employee from "@/loaders/employee";
 import * as System from "@/loaders/system";
 
 import * as OI from "@/loaders/oi";
-import * as Hazop from "@/loaders/hazop";
 import * as DesignSoftware from "@/loaders/design-software";
 
 function SuperuserRoute({
@@ -329,26 +328,6 @@ function Router() {
       <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-4" component={() => <DesignSoftware.EcrPrePilotDesignStage4Page />} />
        <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-5" component={() => <DesignSoftware.EcrPrePilotDesignStage5Page />} />
       <ProtectedRoute path="/design-software/ecr-pre-pilot-design" component={() => <DesignSoftware.EcrPrePilotDesignPage />} />
-
-      <ProtectedRoute path="/hazop/dashboard" component={() => <Hazop.HazopDashboardPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/process-builder" component={() => <Hazop.HazopProcessBuilderPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/nodes" component={() => <Hazop.HazopNodesPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/worksheet" component={() => <Hazop.HazopWorksheetPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/actions" component={() => <Hazop.HazopActionsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/event-groups" component={() => <Hazop.HazopEventGroupsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/response-groups" component={() => <Hazop.HazopResponseGroupsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/scenarios" component={() => <Hazop.HazopScenariosPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/ce-matrix" component={() => <Hazop.HazopCeMatrixPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/safety-functions" component={() => <Hazop.HazopSafetyFunctionsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/interlocks" component={() => <Hazop.HazopInterlocksPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/alarm-trips" component={() => <Hazop.HazopAlarmTripsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/safety-critical-elements" component={() => <Hazop.HazopSafetyCriticalElementsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/lopa/:lopaId" component={() => <Hazop.HazopLopaDetailPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/lopa" component={() => <Hazop.HazopLopaPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/srs/:srsId" component={() => <Hazop.HazopSrsDetailPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/srs" component={() => <Hazop.HazopSrsPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/moc/:mocId" component={() => <Hazop.HazopMocDetailPage />} />
-      <ProtectedRoute path="/hazop/studies/:id/moc" component={() => <Hazop.HazopMocPage />} />
 
       <Route component={NotFound} />
     </Switch>

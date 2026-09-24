@@ -12,7 +12,8 @@ const router = Router();
 // Get all modules
 router.get('/api/modules', authenticateUser, async (req, res) => {
   try {
-    res.json(modules);
+    // Historical permission records remain valid; retired modules are not assignable.
+    res.json(modules.filter(moduleName => moduleName !== 'HAZOP'));
   } catch (error) {
     console.error('Error fetching modules:', error);
     res.status(500).json({ error: 'Failed to fetch modules' });

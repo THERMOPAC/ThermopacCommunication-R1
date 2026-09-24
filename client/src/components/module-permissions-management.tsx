@@ -46,6 +46,9 @@ interface RolePermission {
   canDownload: boolean;
 }
 
+// Keep retired permission records intact while excluding them from operational UI choices.
+const RETIRED_OPERATIONAL_MODULES = new Set(['HAZOP']);
+
 const ModulePermissionsManagement: React.FC = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -57,7 +60,8 @@ const ModulePermissionsManagement: React.FC = () => {
   // Fetch all modules
   const { data: modules, isLoading: isLoadingModules } = useQuery<string[], Error>({
     queryKey: ['/api/modules'],
-    queryFn: getQueryFn({ on401: "throw" })
+    queryFn: getQueryFn({ on401: "throw" }),
+    select: (moduleNames) => moduleNames.filter((moduleName) => !RETIRED_OPERATIONAL_MODULES.has(moduleName)),
   });
   
   // Fetch all users
@@ -511,7 +515,9 @@ const ModulePermissionsManagement: React.FC = () => {
                     <div key={role} className="mb-8">
                       <h3 className="text-xl font-bold mb-4">{role}</h3>
                       <div className="grid gap-4">
-                        {Object.entries(modules).map(([moduleName, permissions]) => (
+                        {Object.entries(modules)
+                          .filter(([moduleName]) => !RETIRED_OPERATIONAL_MODULES.has(moduleName))
+                          .map(([moduleName, permissions]) => (
                           <Card key={`${role}-${moduleName}`}>
                             <CardHeader className="py-3">
                               <CardTitle className="text-lg">{moduleName}</CardTitle>

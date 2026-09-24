@@ -52,7 +52,6 @@ import {
   DollarSign,
   Palette,
   FileText,
-  FilePen,
   Plane,
   Gavel,
   Database,
@@ -76,10 +75,7 @@ import {
   ActivitySquare,
   BookOpen,
   BookMarked,
-  Grid3X3,
-  Cpu,
-  FlaskConical,
-  Bell
+  FlaskConical
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -140,7 +136,6 @@ function Layout({ children }: LayoutProps) {
 
   const [isDocumentControlMenuOpen, setIsDocumentControlMenuOpen] = useState(false);
   const [isOIMenuOpen, setIsOIMenuOpen] = useState(false);
-  const [isHazopMenuOpen, setIsHazopMenuOpen] = useState(false);
   const [isDesignSoftwareMenuOpen, setIsDesignSoftwareMenuOpen] = useState(false);
   const [isCpsSizingMenuOpen, setIsCpsSizingMenuOpen] = useState(false);
   const [attendanceCheckCompleted, setAttendanceCheckCompleted] = useState(false);
@@ -231,15 +226,8 @@ function Layout({ children }: LayoutProps) {
   // Check if we're on any Operational Intelligence page
   const isOnOIPage = location.startsWith('/oi');
 
-  // Check if we're on any HAZOP page
-  const isOnHazopPage = location.startsWith('/hazop');
-
   // Check if we're on any Design Software page
   const isOnDesignSoftwarePage = location.startsWith('/design-software');
-
-  // Extract study ID from URL when inside a specific HAZOP study
-  const hazopStudyIdMatch = location.match(/^\/hazop\/studies\/(\d+)/);
-  const hazopStudyId = hazopStudyIdMatch ? hazopStudyIdMatch[1] : null;
 
   
   // Auto-open menus based on current page
@@ -289,10 +277,6 @@ function Layout({ children }: LayoutProps) {
       setIsOIMenuOpen(true);
     }
 
-    if (isOnHazopPage && !isHazopMenuOpen) {
-      setIsHazopMenuOpen(true);
-    }
-
     if (isOnDesignSoftwarePage && !isDesignSoftwareMenuOpen) {
       setIsDesignSoftwareMenuOpen(true);
     }
@@ -300,7 +284,7 @@ function Layout({ children }: LayoutProps) {
     if (location.startsWith("/design-software/cps-sizing") && !isCpsSizingMenuOpen) {
       setIsCpsSizingMenuOpen(true);
     }
-  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnHazopPage, isHazopMenuOpen, isOnDesignSoftwarePage, isDesignSoftwareMenuOpen]);
+  }, [isOnDigitalMarketingPage, isOnSalesAndMarketingPage, isOnProjectsPage, isOnProductionPage, isOnQualityPage, isOnFinancePage, isOnAdministrationPage, isOnMeetingsPage, isOnSapPurchasingPage, isOnDocumentControlPage, isDocumentControlMenuOpen, isOnOIPage, isOIMenuOpen, isOnDesignSoftwarePage, isDesignSoftwareMenuOpen]);
 
   // Helper function to check if a user has permission to view a module
   const hasViewPermission = (moduleName: Module) => {
@@ -515,33 +499,6 @@ function Layout({ children }: LayoutProps) {
         },
       ]
     }] : []),
-    ...(hasViewPermission("HAZOP") ? [{
-      icon: ShieldAlert,
-      label: "HAZOP",
-      isSubmenu: true,
-      isOpen: isHazopMenuOpen,
-      toggle: () => setIsHazopMenuOpen(!isHazopMenuOpen),
-      children: [
-        { icon: ShieldAlert, label: "HAZOP Dashboard", href: "/hazop/dashboard" },
-        ...(hazopStudyId ? [
-          { icon: Layers, label: "Process Builder", href: `/hazop/studies/${hazopStudyId}/process-builder` },
-          { icon: Zap, label: "Nodes & Deviations", href: `/hazop/studies/${hazopStudyId}/nodes` },
-          { icon: FileText, label: "Worksheet", href: `/hazop/studies/${hazopStudyId}/worksheet` },
-          { icon: ClipboardCheck, label: "Actions Register", href: `/hazop/studies/${hazopStudyId}/actions` },
-          { icon: Target, label: "Event Groups", href: `/hazop/studies/${hazopStudyId}/event-groups` },
-          { icon: ActivitySquare, label: "Response Groups", href: `/hazop/studies/${hazopStudyId}/response-groups` },
-          { icon: BookOpen, label: "Scenarios", href: `/hazop/studies/${hazopStudyId}/scenarios` },
-          { icon: Grid3X3, label: "C&E Matrix", href: `/hazop/studies/${hazopStudyId}/ce-matrix` },
-          { icon: ShieldCheck, label: "Safety Functions", href: `/hazop/studies/${hazopStudyId}/safety-functions` },
-          { icon: ShieldAlert, label: "Interlocks", href: `/hazop/studies/${hazopStudyId}/interlocks` },
-          { icon: Bell, label: "Alarms & Trips", href: `/hazop/studies/${hazopStudyId}/alarm-trips` },
-          { icon: Cpu, label: "SCE Registry", href: `/hazop/studies/${hazopStudyId}/safety-critical-elements` },
-          { icon: BarChart3, label: "LOPA", href: `/hazop/studies/${hazopStudyId}/lopa` },
-          { icon: FileText, label: "SRS Register", href: `/hazop/studies/${hazopStudyId}/srs` },
-          { icon: FilePen, label: "MOC Register", href: `/hazop/studies/${hazopStudyId}/moc` },
-        ] : []),
-      ]
-    }] : []),
     ...(hasViewPermission("SAP B1 Integration") ? [{ 
       icon: Database, 
       label: "SAP B1 Integration", 
@@ -694,7 +651,6 @@ function Layout({ children }: LayoutProps) {
                     { type: 'submenu', label: 'Design Software' },
                     { type: 'submenu', label: 'Sales and Marketing' },
                     { type: 'submenu', label: 'Project Management' },
-                    { type: 'submenu', label: 'HAZOP' },
                     { type: 'submenu', label: 'Drawing Verification', skipPermCheck: true },
                     { type: 'submenu', label: 'Production Management' },
                     { type: 'submenu', label: 'Quality Management' },
