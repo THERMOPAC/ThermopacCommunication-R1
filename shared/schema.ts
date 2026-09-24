@@ -3222,6 +3222,9 @@ export const checklistExecutions = pgTable('checklist_executions', {
   // Execution details
   executionDate: timestamp('execution_date').notNull(),
   executedBy: integer('executed_by').notNull().references(() => users.id),
+  // Retain legacy production data independently of workflow status/comments.
+  location: text('location'),
+  notes: text('notes'),
   
   // Results
   status: text('status').notNull().default('in_progress'), // in_progress, completed, failed
@@ -6451,8 +6454,11 @@ export const materialIdentification = pgTable('material_identification', {
 
 // Counter table for MI ID sequence numbers
 export const materialIdentificationCounter = pgTable('material_identification_counter', {
-  year: integer('year').primaryKey(),
-  sequenceNumber: integer('sequence_number').notNull().default(0),
+  id: serial('id').primaryKey(),
+  year: integer('year').notNull(),
+  // Keep the production column name used by the counter routes.
+  sequenceNumber: integer('sequence').notNull(),
+  updatedAt: timestamp('updated_at').default(sql`CURRENT_TIMESTAMP`),
 });
 
 

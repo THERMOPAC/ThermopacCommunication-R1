@@ -15,5 +15,10 @@ description: Why post-merge/dev schema sync must never use drizzle-kit push on t
 
 **How to apply:**
 - Additive schema changes flow automatically via post-merge (`scripts/post-merge.sh` → `db-additive-sync.ts`; timeout 720s).
-- Renames, drops, NOT NULL tightening, and constraint changes must be done deliberately with SQL, preserving data (e.g. material_identification_counter `sequence`→`sequence_number` was a data-preserving rename).
+- Dev renames, drops, NOT NULL tightening, and constraint changes must be deliberate and preserve data. For managed production, use Publish, not direct DDL.
+- Before renaming legacy columns in development, check raw-SQL consumers and the production diff. A locally data-preserving rename can become a destructive drop/add at publish time.
+
+**Why:** A counter rename in development diverged from production and the still-active raw-SQL routes. Publishing proposed dropping the production counter fields; production also had a newer counter value than development.
+
+**How to apply:** Prefer restoring compatible dev schema when a rename was not intentional. Preserve production counter values; never copy development counter rows over them. Verify the full publishing diff, not just ORM schema, contains no unintended drops.
 - `--dry-run` flag on the sync script previews statements and reports drift warnings.
