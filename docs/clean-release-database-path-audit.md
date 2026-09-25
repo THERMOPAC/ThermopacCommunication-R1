@@ -1,5 +1,9 @@
 # Clean release — database download-path audit (offline)
 
+Follow-up: [read-only cloud and schema audit](clean-release-document-compatibility-audit.md)
+verifies the 21 current effective WPQR objects with workspace credentials and documents
+broader WPS compatibility blockers. The census below remains the earlier metadata-only snapshot.
+
 ## Boundary and method
 
 Read-only SELECTs through executeSql against the **production replica** and, separately, the development database. The production schema was discovered independently of development; no production data or schema was modified. Scanned 122 production and 125 development download-bearing string columns (including legacy path, attachment, certificate, evidence, document, and PDF template fields). Grouped nonempty field occurrences and checked path-shaped references against the source workspace and temporary candidate without disclosing records, IDs, URLs, or raw paths. Per-table/column and category aggregates are in [the JSON report](clean-release-database-path-audit.json). A field occurrence is not a unique document, and neither database is assumed to reflect the other's state.

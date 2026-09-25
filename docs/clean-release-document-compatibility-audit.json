@@ -1,0 +1,462 @@
+{
+  "audit": "Read-only release document and schema compatibility audit",
+  "noninternal_wps_trigger_counts": { "production": 0, "development": 0 },
+  "cloud": {
+    "checked_at": "2026-09-24T18:47:39.787Z",
+    "scope": "Production-replica and development WPQR effective keys; workspace explicit credentials, NOT deployed ADC. Full SDK streams; signed GET checks PDF prefix only.",
+    "environments": {
+      "production": {
+        "records": 21,
+        "governed": 7,
+        "metadata": {
+          "nonempty": 21
+        },
+        "stream": {
+          "complete_pdf": 21
+        },
+        "signed_get": {
+          "pdf_prefix_readable": 21
+        }
+      },
+      "development": {
+        "records": 21,
+        "governed": 7,
+        "metadata": {
+          "nonempty": 21
+        },
+        "stream": {
+          "complete_pdf": 21
+        },
+        "signed_get": {
+          "pdf_prefix_readable": 21
+        }
+      }
+    },
+    "distinct_objects_probed": 21
+  },
+  "schema": {
+    "production": [
+      {
+        "table": "checklist_item_results",
+        "column": "checklist_item_id"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "created_at"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "evidence_path"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "execution_id"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "id"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "measured_value"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "observation"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "result"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "updated_at"
+      },
+      {
+        "table": "wps_documents",
+        "column": "approvalDate"
+      },
+      {
+        "table": "wps_documents",
+        "column": "approvedBy"
+      },
+      {
+        "table": "wps_documents",
+        "column": "baseMetalGrade"
+      },
+      {
+        "table": "wps_documents",
+        "column": "baseMetalThickness"
+      },
+      {
+        "table": "wps_documents",
+        "column": "createdAt"
+      },
+      {
+        "table": "wps_documents",
+        "column": "createdBy"
+      },
+      {
+        "table": "wps_documents",
+        "column": "document_file_path"
+      },
+      {
+        "table": "wps_documents",
+        "column": "electricalParameters"
+      },
+      {
+        "table": "wps_documents",
+        "column": "fillerMaterial"
+      },
+      {
+        "table": "wps_documents",
+        "column": "id"
+      },
+      {
+        "table": "wps_documents",
+        "column": "jointType"
+      },
+      {
+        "table": "wps_documents",
+        "column": "mirror_job_id"
+      },
+      {
+        "table": "wps_documents",
+        "column": "mirror_status"
+      },
+      {
+        "table": "wps_documents",
+        "column": "postWeldHeatTreatment"
+      },
+      {
+        "table": "wps_documents",
+        "column": "pqrId"
+      },
+      {
+        "table": "wps_documents",
+        "column": "preheatingTemp"
+      },
+      {
+        "table": "wps_documents",
+        "column": "remarks"
+      },
+      {
+        "table": "wps_documents",
+        "column": "revisionNo"
+      },
+      {
+        "table": "wps_documents",
+        "column": "shieldingGas"
+      },
+      {
+        "table": "wps_documents",
+        "column": "status"
+      },
+      {
+        "table": "wps_documents",
+        "column": "updatedAt"
+      },
+      {
+        "table": "wps_documents",
+        "column": "weldPosition"
+      },
+      {
+        "table": "wps_documents",
+        "column": "welderProcess"
+      },
+      {
+        "table": "wps_documents",
+        "column": "wpsId"
+      }
+    ],
+    "development": [
+      {
+        "table": "checklist_item_results",
+        "column": "checklist_item_id"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "created_at"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "evidence_file_path"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "evidence_path"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "execution_id"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "id"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "measured_value"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "observation"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "result"
+      },
+      {
+        "table": "checklist_item_results",
+        "column": "updated_at"
+      },
+      {
+        "table": "wps_documents",
+        "column": "approvalDate"
+      },
+      {
+        "table": "wps_documents",
+        "column": "approval_date"
+      },
+      {
+        "table": "wps_documents",
+        "column": "approvedBy"
+      },
+      {
+        "table": "wps_documents",
+        "column": "approved_by"
+      },
+      {
+        "table": "wps_documents",
+        "column": "baseMetalGrade"
+      },
+      {
+        "table": "wps_documents",
+        "column": "baseMetalThickness"
+      },
+      {
+        "table": "wps_documents",
+        "column": "base_metal_grade"
+      },
+      {
+        "table": "wps_documents",
+        "column": "base_metal_thickness"
+      },
+      {
+        "table": "wps_documents",
+        "column": "combined_document_file_path"
+      },
+      {
+        "table": "wps_documents",
+        "column": "combined_document_url"
+      },
+      {
+        "table": "wps_documents",
+        "column": "createdAt"
+      },
+      {
+        "table": "wps_documents",
+        "column": "createdBy"
+      },
+      {
+        "table": "wps_documents",
+        "column": "created_at"
+      },
+      {
+        "table": "wps_documents",
+        "column": "created_by"
+      },
+      {
+        "table": "wps_documents",
+        "column": "document_file_path"
+      },
+      {
+        "table": "wps_documents",
+        "column": "document_url"
+      },
+      {
+        "table": "wps_documents",
+        "column": "electricalParameters"
+      },
+      {
+        "table": "wps_documents",
+        "column": "electrical_parameters"
+      },
+      {
+        "table": "wps_documents",
+        "column": "fillerMaterial"
+      },
+      {
+        "table": "wps_documents",
+        "column": "filler_material"
+      },
+      {
+        "table": "wps_documents",
+        "column": "id"
+      },
+      {
+        "table": "wps_documents",
+        "column": "jointType"
+      },
+      {
+        "table": "wps_documents",
+        "column": "joint_type"
+      },
+      {
+        "table": "wps_documents",
+        "column": "mirror_job_id"
+      },
+      {
+        "table": "wps_documents",
+        "column": "mirror_status"
+      },
+      {
+        "table": "wps_documents",
+        "column": "postWeldHeatTreatment"
+      },
+      {
+        "table": "wps_documents",
+        "column": "post_weld_heat_treatment"
+      },
+      {
+        "table": "wps_documents",
+        "column": "pqrId"
+      },
+      {
+        "table": "wps_documents",
+        "column": "pqr_id"
+      },
+      {
+        "table": "wps_documents",
+        "column": "preheatingTemp"
+      },
+      {
+        "table": "wps_documents",
+        "column": "preheating_temp"
+      },
+      {
+        "table": "wps_documents",
+        "column": "remarks"
+      },
+      {
+        "table": "wps_documents",
+        "column": "revisionNo"
+      },
+      {
+        "table": "wps_documents",
+        "column": "revision_no"
+      },
+      {
+        "table": "wps_documents",
+        "column": "shieldingGas"
+      },
+      {
+        "table": "wps_documents",
+        "column": "shielding_gas"
+      },
+      {
+        "table": "wps_documents",
+        "column": "status"
+      },
+      {
+        "table": "wps_documents",
+        "column": "updatedAt"
+      },
+      {
+        "table": "wps_documents",
+        "column": "updated_at"
+      },
+      {
+        "table": "wps_documents",
+        "column": "weldPosition"
+      },
+      {
+        "table": "wps_documents",
+        "column": "weld_position"
+      },
+      {
+        "table": "wps_documents",
+        "column": "welderProcess"
+      },
+      {
+        "table": "wps_documents",
+        "column": "welder_process"
+      },
+      {
+        "table": "wps_documents",
+        "column": "wpsId"
+      },
+      {
+        "table": "wps_documents",
+        "column": "wps_id"
+      }
+    ]
+  },
+  "compatibility_probes": {
+    "production": {
+      "required_columns": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "column_name,is_nullable,has_default\nbaseMetalGrade,NO,f\nbaseMetalThickness,NO,f\ncreatedAt,NO,f\nfillerMaterial,NO,f\nid,NO,t\njointType,NO,f\nmirror_status,NO,t\npqrId,NO,f\nstatus,NO,t\nupdatedAt,NO,f\nweldPosition,NO,f\nwelderProcess,NO,f\nwpsId,NO,f\n",
+        "success": true
+      },
+      "pqr_read_probe": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "START TRANSACTION\nROLLBACK\n",
+        "success": true
+      },
+      "primary_read_probe": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "START TRANSACTION\nROLLBACK\n",
+        "success": true
+      },
+      "checklist_read_probe": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "START TRANSACTION\nROLLBACK\n",
+        "success": true
+      },
+      "report_join_probe": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "START TRANSACTION\nROLLBACK\n",
+        "success": true
+      }
+    },
+    "development": {
+      "required_columns": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "column_name,is_nullable,has_default\nbaseMetalGrade,NO,f\nbaseMetalThickness,NO,f\nbase_metal_grade,NO,f\nbase_metal_thickness,NO,f\ncreatedAt,NO,f\ncreated_at,NO,t\ncreated_by,NO,f\nfillerMaterial,NO,f\nfiller_material,NO,f\nid,NO,t\njointType,NO,f\njoint_type,NO,f\nmirror_status,NO,t\npqrId,NO,f\npqr_id,NO,f\nrevision_no,NO,t\nstatus,NO,t\nupdatedAt,NO,f\nupdated_at,NO,t\nweldPosition,NO,f\nweld_position,NO,f\nwelderProcess,NO,f\nwelder_process,NO,f\nwpsId,NO,f\nwps_id,NO,f\n",
+        "success": true
+      },
+      "pqr_read_probe": {
+        "exitCode": 1,
+        "exitReason": "EXECUTE_SQL_COMMAND_ERROR",
+        "output": "Encountered an error executing SQL command: exitCode=1 exitReason=exit stderr=ERROR:  column \"pqr_document_file_path\" does not exist\nLINE 1: SELECT pqr_document_file_path FROM wps_documents LIMIT 0\n               ^\n",
+        "success": false
+      },
+      "primary_read_probe": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "wps_id,document_url,combined_document_file_path,combined_document_url\n",
+        "success": true
+      },
+      "checklist_read_probe": {
+        "exitCode": 0,
+        "exitReason": null,
+        "output": "evidence_path,evidence_file_path\n",
+        "success": true
+      },
+      "report_join_probe": {
+        "exitCode": 1,
+        "exitReason": "EXECUTE_SQL_COMMAND_ERROR",
+        "output": "Encountered an error executing SQL command: exitCode=1 exitReason=exit stderr=ERROR:  column w.createdby does not exist\nLINE 1: ...d FROM wps_documents w LEFT JOIN users creator ON w.createdB...\n                                                             ^\nHINT:  Perhaps you meant to reference the column \"w.createdBy\" or the column \"w.created_by\".\n",
+        "success": false
+      }
+    }
+  },
+  "interpretation": "Production LIMIT-0 probes returned START TRANSACTION/ROLLBACK without projected headers despite success=true; not evidence of valid SQL. Column presence uses information_schema. No application route was called because successful WPQR downloads log audit writes. Workspace credentials do not establish deployed ADC behavior."
+}

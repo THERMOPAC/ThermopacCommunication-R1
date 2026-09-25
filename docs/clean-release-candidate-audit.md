@@ -128,6 +128,11 @@ workspace and the candidate. Retired runtimes must not be restored to satisfy it
 
 ## Outstanding release gates
 
+Follow-up evidence: [document availability and schema compatibility](clean-release-document-compatibility-audit.md).
+The WPQR effective-object probe passed for all 21 records with workspace credentials.
+Deployed ADC/HTTP behavior remains unverified, and WPS schema compatibility is blocked.
+The original snapshot findings below are retained for audit history.
+
 1. **Historical local-file inclusion resolved at this snapshot:** production's
    122 examined columns contain 2,383 nonempty field occurrences. No historical
    local download established an existing source file missing from the candidate.

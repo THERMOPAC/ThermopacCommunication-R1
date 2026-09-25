@@ -1,4 +1,5 @@
 - [Deployment image size](deployment-image-size-boundary.md) — `dist` savings are not image-layer savings; editor-hidden files are not documented publishing exclusions.
+- [Production query evidence](production-readonly-query-evidence.md) — wrapper-only START TRANSACTION/ROLLBACK is not proof a SELECT compiled, even if the tool reports success.
 - [HAZOP retirement boundary](hazop-retirement-boundary.md) — remove application execution, not historical studies, reports or engineering-document classifications.
 - [Scientific runtime retirement](scientific-runtime-production-retirement.md) — production no longer retains historical executable replay; preserve immutable results and the full current closure.
 - [Kühni disengagement sizing](kuhni-disengagement-boundary.md) — end sections require independent carryover/capture criteria; dissolved solvent and compartment mean drops cannot establish separator performance.
