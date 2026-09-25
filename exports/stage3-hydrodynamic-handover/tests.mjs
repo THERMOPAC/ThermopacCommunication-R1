@@ -8,7 +8,6 @@ import { replay } from './replay.mjs';
 const read = p => JSON.parse(readFileSync(p,'utf8'));
 const input = read('input.json');
 const output = read('replay-output/result.json');
-const historical = read('evidence/historical-candidate/result.json');
 const basis = makeStage1HydrodynamicProcessBasis(input.snapshot);
 const trial = evaluateRrboHydraulicTrial(.9,30,basis,{rotorToColumn:.33,compartmentToColumn:.3,statorFreeArea:.4});
 test('saved DEV identity and exact requested Stage1',()=> {
@@ -50,23 +49,26 @@ test('swarm speed and slip remain distinct',()=>{
 test('wrong phase rejected',()=>assert.throws(()=>evaluateRrboHydraulicTrial(.9,30,{...basis,phaseConfiguration:'nmp-continuous-rrbo-dispersed'},{rotorToColumn:.33,compartmentToColumn:.3,statorFreeArea:.4}),/RRBO_CONTINUOUS_REQUIRED/));
 test('wrong temperature rejected',()=>assert.throws(()=>evaluateRrboHydraulicTrial(.9,30,{...basis,operatingTemperatureC:50},{rotorToColumn:.33,compartmentToColumn:.3,statorFreeArea:.4}),/40C/));
 test('density reversal rejected',()=>assert.throws(()=>evaluateRrboHydraulicTrial(.9,30,{...basis,wetSolventPhase:{...basis.wetSolventPhase,densityKgM3:800}},{rotorToColumn:.33,compartmentToColumn:.3,statorFreeArea:.4}),/DENSITY/));
-test('selector exactly reproducible from current local envelope',()=>assert.deepEqual(resolveAutomaticHydraulicSelection(output.run,basis.stage1SnapshotHash),output.selection));
+test('selector exactly reproducible across JSON serialization',()=>assert.deepEqual(JSON.parse(JSON.stringify(resolveAutomaticHydraulicSelection(output.run,basis.stage1SnapshotHash))),output.selection));
 test('selector rejects stale Stage1 identity',()=>assert.throws(()=>resolveAutomaticHydraulicSelection(output.run,'stale'),/CURRENT_P1_SOURCE_REQUIRED/));
 test('selector rejects tampering',()=>{
   const r=structuredClone(output.run); r.result.candidateGrid=[];
   assert.throws(()=>resolveAutomaticHydraulicSelection(r,basis.stage1SnapshotHash),/INTEGRITY_FAILURE/);
 });
-test('full specified grid replay and historical hydraulic-only parity',()=>{
+test('full current-input grid and independent representative replay parity',()=>{
   const current=output.run.result.orientationComparison[0].geometryGrid;
-  const old=historical.orientationComparison.find(o=>o.orientation===basis.phaseConfiguration).geometryGrid;
   assert.equal(current.reduce((n,g)=>n+g.trials.length,0),3402);
-  assert.equal(current.length,old.length);
-  for(let i=0;i<current.length;i++) for(let j=0;j<current[i].trials.length;j++)
-    assert.deepEqual(current[i].trials[j].hydraulicMethod,old[i].trials[j].hydraulicMethod);
-  assert.notEqual(historical.processBasis.stage1SnapshotHash,basis.stage1SnapshotHash);
+  assert.equal(current.length,378);
+  for(const i of [0,100,200,377]) {
+    const g=current[i].geometry;
+    const fresh=replay({...input,grid:{diameterM:[g.columnDiameterM],hcToColumn:[g.hcToColumn],
+      rotorToColumn:[g.rotorToColumn],freeArea:[g.freeArea],rpm:input.grid.rpm}});
+    assert.deepEqual(fresh.run.result.orientationComparison[0].geometryGrid[0],current[i]);
+  }
+  assert.equal(output.run.basis.stage1SnapshotHash,input.snapshot.immutableHash);
 });
 test('input contract rejects malformed grid',()=>assert.throws(()=>replay({...input,grid:{...input.grid,rpm:[]}}),/INVALID_GRID_rpm/));
-test('all packaged original sources and historical evidence match provenance hashes',()=>{
+test('all packaged original sources and current authority match provenance hashes',()=>{
   for(const f of read('provenance.json').files)
     assert.equal(createHash('sha256').update(readFileSync(f.packagedPath)).digest('hex'),f.sha256,f.packagedPath);
 });

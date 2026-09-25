@@ -1829,3 +1829,17 @@ mtime_ms = 1790316953592
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/b7339bae-af3c-40b6-9d84-1265b5f613b2/6a14605b-c351-4880-898e-af3fe123e4e9"
 storage_version_token = "1790316990223491"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "22vc1oznYcOGuA7V-ta81"
+uri = "file://exports/Stage-3-Hydrodynamic-Screening-Handover.zip"
+type = "unspecified"
+title = "Stage 3 Hydrodynamic Screening Handover"
+description = "Current Stage 3 engine, Project 236 saved inputs, standalone replay, equations, integration guide, tests and checksums. Older project snapshots/results excluded. Pre-pilot screening only."
+logical_id = "7d33ca24-db3f-4925-a980-514bffde930f"
+content_hash = "sha256:e1f7b8a4bc927e65ba66568a571761e1192fef6fdae4f697017123a9faabaccd"
+size = 6010244
+mtime_ms = 1790338616397
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7d33ca24-db3f-4925-a980-514bffde930f/b6ccea2d-d32e-4994-9d20-a48f8229ac97"
+storage_version_token = "1790338658115890"
+content_type = "application/octet-stream"

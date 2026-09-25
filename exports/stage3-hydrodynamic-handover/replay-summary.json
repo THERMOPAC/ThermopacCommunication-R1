@@ -1,0 +1,16 @@
+{
+  "outputPath": "replay-output/result.json",
+  "provenance": "NEW_LOCAL_REPLAY_NOT_DATABASE_AUTHORITY",
+  "trials": 3402,
+  "feasible": 158,
+  "status": "AUTOMATIC_DISCRETE_KNEE_SELECTED",
+  "selectedGeometry": {
+    "columnDiameterM": 0.7,
+    "compartmentHeightM": 0.21,
+    "hcToColumn": 0.3,
+    "rotorDiameterM": 0.23099999999999998,
+    "rotorToColumn": 0.33,
+    "freeArea": 0.4
+  },
+  "rpm": 30
+}

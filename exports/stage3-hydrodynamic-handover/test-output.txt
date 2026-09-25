@@ -1,0 +1,94 @@
+
+> test
+> node --test tests.mjs
+
+TAP version 13
+# Subtest: saved DEV identity and exact requested Stage1
+ok 1 - saved DEV identity and exact requested Stage1
+  ---
+  duration_ms: 1.81316
+  ...
+# Subtest: saved basis projection uses correct denser dispersed NMP direction and units
+ok 2 - saved basis projection uses correct denser dispersed NMP direction and units
+  ---
+  duration_ms: 0.147441
+  ...
+# Subtest: six mandatory scenarios and conservative acceptance
+ok 3 - six mandatory scenarios and conservative acceptance
+  ---
+  duration_ms: 0.200797
+  ...
+# Subtest: roots, continuation, signed velocities and numerical residuals
+ok 4 - roots, continuation, signed velocities and numerical residuals
+  ---
+  duration_ms: 0.137175
+  ...
+# Subtest: Stokes immobile limit
+ok 5 - Stokes immobile limit
+  ---
+  duration_ms: 0.081542
+  ...
+# Subtest: swarm speed and slip remain distinct
+ok 6 - swarm speed and slip remain distinct
+  ---
+  duration_ms: 0.097188
+  ...
+# Subtest: wrong phase rejected
+ok 7 - wrong phase rejected
+  ---
+  duration_ms: 0.370106
+  ...
+# Subtest: wrong temperature rejected
+ok 8 - wrong temperature rejected
+  ---
+  duration_ms: 0.281299
+  ...
+# Subtest: density reversal rejected
+ok 9 - density reversal rejected
+  ---
+  duration_ms: 0.165971
+  ...
+# Subtest: selector exactly reproducible across JSON serialization
+ok 10 - selector exactly reproducible across JSON serialization
+  ---
+  duration_ms: 871.298811
+  ...
+# Subtest: selector rejects stale Stage1 identity
+ok 11 - selector rejects stale Stage1 identity
+  ---
+  duration_ms: 0.306743
+  ...
+# Subtest: selector rejects tampering
+ok 12 - selector rejects tampering
+  ---
+  duration_ms: 1596.792205
+  ...
+# Subtest: full current-input grid and independent representative replay parity
+ok 13 - full current-input grid and independent representative replay parity
+  ---
+  duration_ms: 2042.759862
+  ...
+# Subtest: input contract rejects malformed grid
+ok 14 - input contract rejects malformed grid
+  ---
+  duration_ms: 0.488187
+  ...
+# Subtest: all packaged original sources and current authority match provenance hashes
+ok 15 - all packaged original sources and current authority match provenance hashes
+  ---
+  duration_ms: 1.495847
+  ...
+# Subtest: local result content hash checks
+ok 16 - local result content hash checks
+  ---
+  duration_ms: 1447.232043
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6461.809895
