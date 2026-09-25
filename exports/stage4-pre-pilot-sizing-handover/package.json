@@ -1,0 +1,12 @@
+{
+  "name": "stage4-pre-pilot-sizing-handover",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test tests.mjs",
+    "replay": "node replay.mjs",
+    "verify": "node verify.mjs"
+  }
+}

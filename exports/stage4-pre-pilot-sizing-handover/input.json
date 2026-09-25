@@ -1,0 +1,25 @@
+{
+  "provenance": "PORTABLE_REPLAY_NOT_SAVED_PROJECT236_STAGE4_RUN",
+  "currentLineage": {
+    "stage1SnapshotHash": "local-replay-stage1",
+    "selectionImplementation": "local-replay-selection",
+    "selectionResultHash": "6459732b1e932aa9535c1303892bcf4c204dcb37e57fe8f9ce9525dcbce05c73"
+  },
+  "selectedStage3": {
+    "lineage": {
+      "stage1SnapshotHash": "local-replay-stage1",
+      "selectionImplementation": "local-replay-selection",
+      "selectionResultHash": "6459732b1e932aa9535c1303892bcf4c204dcb37e57fe8f9ce9525dcbce05c73"
+    },
+    "geometry": {
+      "status": "SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY",
+      "columnDiameterM": 0.7,
+      "compartmentHeightM": 0.21,
+      "hcToColumn": 0.3,
+      "rotorDiameterM": 0.23099999999999998,
+      "rotorToColumn": 0.33,
+      "freeArea": 0.4,
+      "rpm": 30
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "parentPath": "server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts",
+  "parentSha256": "5b7e7a9fc485d1be79ac15a723171322efee4374566ec08f7a86d3017d3881f7",
+  "extraction": "Exact constants and selected-geometry bounds/equation block; TypeScript non-null assertions removed; portable output adapter is not the original service projection.",
+  "replaySourcePath": "exports/stage3-hydrodynamic-handover/replay-summary.json",
+  "replaySourceSha256": "6459732b1e932aa9535c1303892bcf4c204dcb37e57fe8f9ce9525dcbce05c73",
+  "replaySourceStatus": "NEW_LOCAL_REPLAY_NOT_DATABASE_AUTHORITY",
+  "numericDisplay": "Rotor diameter 0.23099999999999998 m retained exactly from replay (0.231 m displayed).",
+  "sourceAdmissionReview": {
+    "function": "loadStage4PrePilotSizingAuthority",
+    "automaticSelectionLines": [
+      489,
+      527
+    ],
+    "optimizerIntegrityLines": [
+      573,
+      607
+    ],
+    "note": "Reviewed but not bundled or implemented: authenticated ownership, current Stage1, selected Stage3 evidence, engine identity and immutable/calculation integrity. Portable labels do not establish any of these facts."
+  }
+}

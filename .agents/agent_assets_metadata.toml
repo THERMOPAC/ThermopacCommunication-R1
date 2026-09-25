@@ -1843,3 +1843,17 @@ mtime_ms = 1790338616397
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/7d33ca24-db3f-4925-a980-514bffde930f/b6ccea2d-d32e-4994-9d20-a48f8229ac97"
 storage_version_token = "1790338658115890"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "CnRQ38Cw4VMmeb106IdqK"
+uri = "file://exports/Stage-4-Pre-Pilot-Sizing-Handover.zip"
+type = "unspecified"
+title = "Stage 4 Pre-Pilot Sizing Handover"
+description = "Current adopted-efficiency sizing only. Includes portable module, reference inputs/outputs, equations, source provenance, integration guide and 82 passing tests. Excludes Job A/B/C code, history and interfaces."
+logical_id = "fc983ea5-97ea-44e3-85e3-b27b3e34fa99"
+content_hash = "sha256:34cde355ec4760778f6dcff7f385a3e9c41dd2bbb4a7f22b7393534d4f200e31"
+size = 22150
+mtime_ms = 1790340682394
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/fc983ea5-97ea-44e3-85e3-b27b3e34fa99/92bbfde3-2d03-4f9e-b19b-5a0e371ee6c2"
+storage_version_token = "1790340719351524"
+content_type = "application/octet-stream"

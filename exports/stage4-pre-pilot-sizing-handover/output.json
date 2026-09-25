@@ -1,0 +1,39 @@
+{
+  "provenance": "PORTABLE_REPLAY_NOT_SAVED_PROJECT236_STAGE4_RUN",
+  "status": "CALCULATED_COMPARTMENT_EFFICIENCY_PRE_PILOT_SIZING",
+  "authority": "LOCAL_REPLAY_CONSISTENCY_ONLY_NOT_AUTHENTICATED_SAVED_AUTHORITY",
+  "selectedStage3": {
+    "lineage": {
+      "stage1SnapshotHash": "local-replay-stage1",
+      "selectionImplementation": "local-replay-selection",
+      "selectionResultHash": "6459732b1e932aa9535c1303892bcf4c204dcb37e57fe8f9ce9525dcbce05c73"
+    },
+    "geometry": {
+      "status": "SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY",
+      "columnDiameterM": 0.7,
+      "compartmentHeightM": 0.21,
+      "hcToColumn": 0.3,
+      "rotorDiameterM": 0.23099999999999998,
+      "rotorToColumn": 0.33,
+      "freeArea": 0.4,
+      "rpm": 30
+    }
+  },
+  "sizing": {
+    "diameterM": 0.7,
+    "compartmentHeightM": 0.21,
+    "requiredPhysicalCompartments": 20,
+    "installedActiveHeightM": 4.2,
+    "requiredActiveHeightM": 4.2,
+    "impliedInstalledHetsMPerTheoreticalStage": 0.6,
+    "designNt": 7,
+    "adoptedEfficiency": 0.35
+  },
+  "actualStage2NtReference": null,
+  "limitations": [
+    "Adopted efficiency 0.35 is an engineering assumption, not calculated performance or a published system constant.",
+    "Implied installed HETS is diagnostic only, not an input.",
+    "No hydraulic qualification, physical or pilot validation, outlet prediction, target compliance or final mechanical design.",
+    "Active height excludes disengagement zones and is not total vessel height."
+  ]
+}

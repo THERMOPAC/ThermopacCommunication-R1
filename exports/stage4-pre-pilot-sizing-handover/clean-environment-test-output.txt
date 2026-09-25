@@ -1,0 +1,424 @@
+
+> stage4-pre-pilot-sizing-handover@1.0.0 test
+> node --test tests.mjs
+
+TAP version 13
+# Subtest: source slice checksums and runtime extraction parity
+ok 1 - source slice checksums and runtime extraction parity
+  ---
+  duration_ms: 2.062205
+  ...
+# Subtest: reference replay: fixed seven, 35%, 20 compartments, 4.2 m, implied 0.6 m
+ok 2 - reference replay: fixed seven, 35%, 20 compartments, 4.2 m, implied 0.6 m
+  ---
+  duration_ms: 0.91183
+  ...
+# Subtest: equations, twelve-decimal rounding and source-block evaluation agree across sweep
+ok 3 - equations, twelve-decimal rounding and source-block evaluation agree across sweep
+  ---
+  duration_ms: 6.787313
+  ...
+# Subtest: reject columnDiameterM zero
+ok 4 - reject columnDiameterM zero
+  ---
+  duration_ms: 0.532069
+  ...
+# Subtest: reject columnDiameterM negative
+ok 5 - reject columnDiameterM negative
+  ---
+  duration_ms: 0.248526
+  ...
+# Subtest: reject columnDiameterM NaN
+ok 6 - reject columnDiameterM NaN
+  ---
+  duration_ms: 0.28938
+  ...
+# Subtest: reject columnDiameterM infinite
+ok 7 - reject columnDiameterM infinite
+  ---
+  duration_ms: 0.142024
+  ...
+# Subtest: reject columnDiameterM missing
+ok 8 - reject columnDiameterM missing
+  ---
+  duration_ms: 0.142418
+  ...
+# Subtest: reject columnDiameterM string
+ok 9 - reject columnDiameterM string
+  ---
+  duration_ms: 0.24257
+  ...
+# Subtest: reject compartmentHeightM zero
+ok 10 - reject compartmentHeightM zero
+  ---
+  duration_ms: 0.237527
+  ...
+# Subtest: reject compartmentHeightM negative
+ok 11 - reject compartmentHeightM negative
+  ---
+  duration_ms: 0.171355
+  ...
+# Subtest: reject compartmentHeightM NaN
+ok 12 - reject compartmentHeightM NaN
+  ---
+  duration_ms: 0.178977
+  ...
+# Subtest: reject compartmentHeightM infinite
+ok 13 - reject compartmentHeightM infinite
+  ---
+  duration_ms: 0.171911
+  ...
+# Subtest: reject compartmentHeightM missing
+ok 14 - reject compartmentHeightM missing
+  ---
+  duration_ms: 0.176354
+  ...
+# Subtest: reject compartmentHeightM string
+ok 15 - reject compartmentHeightM string
+  ---
+  duration_ms: 0.148068
+  ...
+# Subtest: reject hcToColumn zero
+ok 16 - reject hcToColumn zero
+  ---
+  duration_ms: 0.176823
+  ...
+# Subtest: reject hcToColumn negative
+ok 17 - reject hcToColumn negative
+  ---
+  duration_ms: 0.129432
+  ...
+# Subtest: reject hcToColumn NaN
+ok 18 - reject hcToColumn NaN
+  ---
+  duration_ms: 0.205209
+  ...
+# Subtest: reject hcToColumn infinite
+ok 19 - reject hcToColumn infinite
+  ---
+  duration_ms: 0.150365
+  ...
+# Subtest: reject hcToColumn missing
+ok 20 - reject hcToColumn missing
+  ---
+  duration_ms: 0.194959
+  ...
+# Subtest: reject hcToColumn string
+ok 21 - reject hcToColumn string
+  ---
+  duration_ms: 0.128827
+  ...
+# Subtest: reject rotorDiameterM zero
+ok 22 - reject rotorDiameterM zero
+  ---
+  duration_ms: 0.117309
+  ...
+# Subtest: reject rotorDiameterM negative
+ok 23 - reject rotorDiameterM negative
+  ---
+  duration_ms: 0.106193
+  ...
+# Subtest: reject rotorDiameterM NaN
+ok 24 - reject rotorDiameterM NaN
+  ---
+  duration_ms: 0.107854
+  ...
+# Subtest: reject rotorDiameterM infinite
+ok 25 - reject rotorDiameterM infinite
+  ---
+  duration_ms: 0.106382
+  ...
+# Subtest: reject rotorDiameterM missing
+ok 26 - reject rotorDiameterM missing
+  ---
+  duration_ms: 0.108567
+  ...
+# Subtest: reject rotorDiameterM string
+ok 27 - reject rotorDiameterM string
+  ---
+  duration_ms: 0.106557
+  ...
+# Subtest: reject rotorToColumn zero
+ok 28 - reject rotorToColumn zero
+  ---
+  duration_ms: 0.136886
+  ...
+# Subtest: reject rotorToColumn negative
+ok 29 - reject rotorToColumn negative
+  ---
+  duration_ms: 0.121151
+  ...
+# Subtest: reject rotorToColumn NaN
+ok 30 - reject rotorToColumn NaN
+  ---
+  duration_ms: 0.11102
+  ...
+# Subtest: reject rotorToColumn infinite
+ok 31 - reject rotorToColumn infinite
+  ---
+  duration_ms: 0.110339
+  ...
+# Subtest: reject rotorToColumn missing
+ok 32 - reject rotorToColumn missing
+  ---
+  duration_ms: 0.172837
+  ...
+# Subtest: reject rotorToColumn string
+ok 33 - reject rotorToColumn string
+  ---
+  duration_ms: 0.203577
+  ...
+# Subtest: reject freeArea zero
+ok 34 - reject freeArea zero
+  ---
+  duration_ms: 0.164744
+  ...
+# Subtest: reject freeArea negative
+ok 35 - reject freeArea negative
+  ---
+  duration_ms: 0.190183
+  ...
+# Subtest: reject freeArea NaN
+ok 36 - reject freeArea NaN
+  ---
+  duration_ms: 0.188588
+  ...
+# Subtest: reject freeArea infinite
+ok 37 - reject freeArea infinite
+  ---
+  duration_ms: 0.138965
+  ...
+# Subtest: reject freeArea missing
+ok 38 - reject freeArea missing
+  ---
+  duration_ms: 0.121259
+  ...
+# Subtest: reject freeArea string
+ok 39 - reject freeArea string
+  ---
+  duration_ms: 0.111466
+  ...
+# Subtest: reject rpm zero
+ok 40 - reject rpm zero
+  ---
+  duration_ms: 0.185407
+  ...
+# Subtest: reject rpm negative
+ok 41 - reject rpm negative
+  ---
+  duration_ms: 0.119638
+  ...
+# Subtest: reject rpm NaN
+ok 42 - reject rpm NaN
+  ---
+  duration_ms: 0.136485
+  ...
+# Subtest: reject rpm infinite
+ok 43 - reject rpm infinite
+  ---
+  duration_ms: 0.191685
+  ...
+# Subtest: reject rpm missing
+ok 44 - reject rpm missing
+  ---
+  duration_ms: 0.126114
+  ...
+# Subtest: reject rpm string
+ok 45 - reject rpm string
+  ---
+  duration_ms: 0.112683
+  ...
+# Subtest: accept source boundary hcToColumn 0.2
+ok 46 - accept source boundary hcToColumn 0.2
+  ---
+  duration_ms: 0.316926
+  ...
+# Subtest: accept source boundary hcToColumn 0.3
+ok 47 - accept source boundary hcToColumn 0.3
+  ---
+  duration_ms: 0.673137
+  ...
+# Subtest: reject outside source boundary hcToColumn 0.199999
+ok 48 - reject outside source boundary hcToColumn 0.199999
+  ---
+  duration_ms: 0.51896
+  ...
+# Subtest: reject outside source boundary hcToColumn 0.30000099999999996
+ok 49 - reject outside source boundary hcToColumn 0.30000099999999996
+  ---
+  duration_ms: 0.271532
+  ...
+# Subtest: accept source boundary rotorToColumn 0.33
+ok 50 - accept source boundary rotorToColumn 0.33
+  ---
+  duration_ms: 0.270352
+  ...
+# Subtest: accept source boundary rotorToColumn 0.5
+ok 51 - accept source boundary rotorToColumn 0.5
+  ---
+  duration_ms: 0.176467
+  ...
+# Subtest: reject outside source boundary rotorToColumn 0.32999900000000004
+ok 52 - reject outside source boundary rotorToColumn 0.32999900000000004
+  ---
+  duration_ms: 0.303247
+  ...
+# Subtest: reject outside source boundary rotorToColumn 0.500001
+ok 53 - reject outside source boundary rotorToColumn 0.500001
+  ---
+  duration_ms: 0.199121
+  ...
+# Subtest: accept source boundary freeArea 0.2
+ok 54 - accept source boundary freeArea 0.2
+  ---
+  duration_ms: 0.210575
+  ...
+# Subtest: accept source boundary freeArea 0.4
+ok 55 - accept source boundary freeArea 0.4
+  ---
+  duration_ms: 0.175939
+  ...
+# Subtest: reject outside source boundary freeArea 0.199999
+ok 56 - reject outside source boundary freeArea 0.199999
+  ---
+  duration_ms: 0.177476
+  ...
+# Subtest: reject outside source boundary freeArea 0.400001
+ok 57 - reject outside source boundary freeArea 0.400001
+  ---
+  duration_ms: 0.200025
+  ...
+# Subtest: accept source boundary rpm 30
+ok 58 - accept source boundary rpm 30
+  ---
+  duration_ms: 0.176676
+  ...
+# Subtest: accept source boundary rpm 70
+ok 59 - accept source boundary rpm 70
+  ---
+  duration_ms: 0.209403
+  ...
+# Subtest: reject outside source boundary rpm 29.999999
+ok 60 - reject outside source boundary rpm 29.999999
+  ---
+  duration_ms: 0.163708
+  ...
+# Subtest: reject outside source boundary rpm 70.000001
+ok 61 - reject outside source boundary rpm 70.000001
+  ---
+  duration_ms: 0.250356
+  ...
+# Subtest: missing selection, unselected geometry and half-D cannot generate fallback
+ok 62 - missing selection, unselected geometry and half-D cannot generate fallback
+  ---
+  duration_ms: 0.448874
+  ...
+# Subtest: compartmentHeightM geometric consistency 1e-9 tolerance
+ok 63 - compartmentHeightM geometric consistency 1e-9 tolerance
+  ---
+  duration_ms: 1.411893
+  ...
+# Subtest: rotorDiameterM geometric consistency 1e-9 tolerance
+ok 64 - rotorDiameterM geometric consistency 1e-9 tolerance
+  ---
+  duration_ms: 0.509436
+  ...
+# Subtest: reject stale stage1SnapshotHash
+ok 65 - reject stale stage1SnapshotHash
+  ---
+  duration_ms: 0.304934
+  ...
+# Subtest: reject absent current stage1SnapshotHash
+ok 66 - reject absent current stage1SnapshotHash
+  ---
+  duration_ms: 0.230695
+  ...
+# Subtest: reject stale selectionImplementation
+ok 67 - reject stale selectionImplementation
+  ---
+  duration_ms: 0.209662
+  ...
+# Subtest: reject absent current selectionImplementation
+ok 68 - reject absent current selectionImplementation
+  ---
+  duration_ms: 0.248238
+  ...
+# Subtest: reject stale selectionResultHash
+ok 69 - reject stale selectionResultHash
+  ---
+  duration_ms: 0.263742
+  ...
+# Subtest: reject absent current selectionResultHash
+ok 70 - reject absent current selectionResultHash
+  ---
+  duration_ms: 0.242509
+  ...
+# Subtest: client admission boolean cannot replace lineage
+ok 71 - client admission boolean cannot replace lineage
+  ---
+  duration_ms: 0.415886
+  ...
+# Subtest: Stage2 reference never changes sizing
+ok 72 - Stage2 reference never changes sizing
+  ---
+  duration_ms: 0.87793
+  ...
+# Subtest: invalid Stage2 reference 0
+ok 73 - invalid Stage2 reference 0
+  ---
+  duration_ms: 0.46419
+  ...
+# Subtest: invalid Stage2 reference -1
+ok 74 - invalid Stage2 reference -1
+  ---
+  duration_ms: 0.167516
+  ...
+# Subtest: invalid Stage2 reference NaN
+ok 75 - invalid Stage2 reference NaN
+  ---
+  duration_ms: 0.120189
+  ...
+# Subtest: invalid Stage2 reference Infinity
+ok 76 - invalid Stage2 reference Infinity
+  ---
+  duration_ms: 0.141973
+  ...
+# Subtest: invalid Stage2 reference 1.5
+ok 77 - invalid Stage2 reference 1.5
+  ---
+  duration_ms: 0.130546
+  ...
+# Subtest: invalid Stage2 reference 7
+ok 78 - invalid Stage2 reference 7
+  ---
+  duration_ms: 0.100783
+  ...
+# Subtest: Stage2 reference requires evidence identity
+ok 79 - Stage2 reference requires evidence identity
+  ---
+  duration_ms: 0.191794
+  ...
+# Subtest: extreme positive height rounded to zero is rejected by adapter
+ok 80 - extreme positive height rounded to zero is rejected by adapter
+  ---
+  duration_ms: 0.176239
+  ...
+# Subtest: overflow rejected by source finite check
+ok 81 - overflow rejected by source finite check
+  ---
+  duration_ms: 0.160293
+  ...
+# Subtest: replay provenance is mandatory
+ok 82 - replay provenance is mandatory
+  ---
+  duration_ms: 0.184466
+  ...
+1..82
+# tests 82
+# suites 0
+# pass 82
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 118.71702

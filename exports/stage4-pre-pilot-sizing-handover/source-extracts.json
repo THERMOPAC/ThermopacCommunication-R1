@@ -1,0 +1,20 @@
+{
+  "parentPath": "server/ecr-pre-pilot/stage4-pre-pilot-sizing-service.ts",
+  "parentSha256": "5b7e7a9fc485d1be79ac15a723171322efee4374566ec08f7a86d3017d3881f7",
+  "slices": [
+    {
+      "name": "fixed design constants",
+      "start": 29,
+      "end": 30,
+      "text": "export const STAGE4_HETS_DESIGN_NT = 7;\nexport const STAGE4_DESIGN_COMPARTMENT_EFFICIENCY = 0.35;\n",
+      "sha256": "c6d7dba5216ce4817251da7897739c79a9c59203e0f52c68c063430d9562809b"
+    },
+    {
+      "name": "deriveStage4PrePilotSizing selected geometry admission and sizing",
+      "start": 281,
+      "end": 320,
+      "text": "  const optimizedHydraulics = optimizerGeometry?.status === 'SELECTED_IMMUTABLE_OPTIMIZER_GEOMETRY'\n    && positiveFinite(optimizerGeometry.columnDiameterM)\n    && positiveFinite(optimizerGeometry.compartmentHeightM)\n    && positiveFinite(optimizerGeometry.hcToColumn)\n    && optimizerGeometry.hcToColumn >= 0.2\n    && optimizerGeometry.hcToColumn <= 0.3\n    && positiveFinite(optimizerGeometry.rotorDiameterM)\n    && positiveFinite(optimizerGeometry.rotorToColumn)\n    && optimizerGeometry.rotorToColumn >= 0.33\n    && optimizerGeometry.rotorToColumn <= 0.5\n    && positiveFinite(optimizerGeometry.freeArea)\n    && optimizerGeometry.freeArea >= 0.2\n    && optimizerGeometry.freeArea <= 0.4\n    && positiveFinite(optimizerGeometry.rpm)\n    && optimizerGeometry.rpm >= 30\n    && optimizerGeometry.rpm <= 70\n    && Math.abs(\n      optimizerGeometry.compartmentHeightM - optimizerGeometry.columnDiameterM * optimizerGeometry.hcToColumn,\n    ) <= 1e-9\n    && Math.abs(\n      optimizerGeometry.rotorDiameterM - optimizerGeometry.columnDiameterM * optimizerGeometry.rotorToColumn,\n    ) <= 1e-9;\n  if (!optimizedHydraulics) {\n    fail('STAGE4_VALID_CURRENT_STAGE3_SELECTED_HYDRAULICS_REQUIRED');\n  }\n\n  const diameterM = optimizerGeometry!.columnDiameterM;\n  const compartmentHeightM = optimizerGeometry!.compartmentHeightM;\n  const requiredPhysicalCompartments = Math.ceil(\n    STAGE4_HETS_DESIGN_NT / STAGE4_DESIGN_COMPARTMENT_EFFICIENCY,\n  );\n  const installedActiveHeightM = Math.round(\n    requiredPhysicalCompartments * compartmentHeightM * 1e12,\n  ) / 1e12;\n  const requiredActiveHeightM = installedActiveHeightM;\n  const impliedInstalledHetsMPerTheoreticalStage =\n    installedActiveHeightM / STAGE4_HETS_DESIGN_NT;\n  if (!finite(compartmentHeightM) || !finite(impliedInstalledHetsMPerTheoreticalStage)\n    || !Number.isInteger(requiredPhysicalCompartments) || requiredPhysicalCompartments < 1\n    || !finite(installedActiveHeightM)) fail('STAGE4_COMPARTMENT_EFFICIENCY_CALCULATION_INVALID');\n",
+      "sha256": "ccb4c6c9b1128164d1cd748562d1ec97854517a35b3381e5414928ad517e7229"
+    }
+  ]
+}
