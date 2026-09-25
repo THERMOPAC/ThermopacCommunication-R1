@@ -24,6 +24,62 @@
   </head>
   <body>
     <div id="root"></div>
+    <aside id="startup-status" role="status" hidden style="max-width:720px;margin:64px auto;padding:24px;font:16px/1.5 system-ui,sans-serif;color:#172554;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px">
+      <h1 style="font-size:22px;margin-top:0">Thermopac has not finished loading</h1>
+      <p id="startup-explanation">The page arrived, but the application has not displayed yet. This diagnostic does not automatically reload the page.</p>
+      <pre id="startup-details" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px"></pre>
+      <p>Please share the diagnostic text above if this message persists.</p>
+    </aside>
+    <script>
+      (function () {
+        var root = document.getElementById("root");
+        var panel = document.getElementById("startup-status");
+        var details = document.getElementById("startup-details");
+        var explanation = document.getElementById("startup-explanation");
+        var failure = "";
+        var timer;
+        function safePath(value) {
+          try { return new URL(value, window.location.href).pathname; }
+          catch (_) { return ""; }
+        }
+        function show() {
+          if (root.childElementCount) return;
+          panel.hidden = false;
+          explanation.textContent = failure
+            ? "The browser reported an error before the app could display. No automatic reload was attempted."
+            : "The page arrived, but the app has not displayed after 15 seconds. This may be a stalled script request; the exact cause is not yet known.";
+          details.textContent = failure || "STARTUP_WAITING_FOR_APP\nPage: " + window.location.pathname;
+          console.error("[app-startup-status]", details.textContent);
+        }
+        function check() {
+          clearTimeout(timer);
+          if (root.childElementCount) {
+            panel.hidden = true;
+          } else {
+            timer = setTimeout(show, 15000);
+          }
+        }
+        window.addEventListener("error", function (event) {
+          if (event.message) {
+            failure = "STARTUP_SCRIPT_ERROR\n" + event.message.slice(0, 400)
+              + "\nSource: " + safePath(event.filename)
+              + "\nLine: " + event.lineno + ", column: " + event.colno;
+          } else if (event.target && event.target.tagName === "SCRIPT") {
+            failure = "STARTUP_SCRIPT_LOAD_FAILED\nSource: " + safePath(event.target.src);
+          }
+          if (failure) show();
+        }, true);
+        window.addEventListener("unhandledrejection", function (event) {
+          var reason = event.reason;
+          failure = "STARTUP_PROMISE_REJECTED\n" + String(
+            reason && reason.message ? reason.message : "No error message supplied"
+          ).slice(0, 400);
+          show();
+        });
+        new MutationObserver(check).observe(root, { childList: true });
+        check();
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

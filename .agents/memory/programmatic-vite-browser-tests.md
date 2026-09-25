@@ -13,6 +13,19 @@ Fresh-browser success does not establish that the existing preview session is
 healthy. For syntax errors whose stack contains only the error message, inspect
 the native ErrorEvent filename, line, and column in the affected session.
 
+A connected Vite WebSocket is not proof that the application mounted. Treat
+HTML delivery, development-client connection, and application rendering as
+separate diagnostic milestones.
+
+**Why:** An affected preview emitted an independent startup-wait diagnostic
+and then connected Vite without supplying a JavaScript exception. Healthy
+server probes and fresh-browser renders did not explain that session's blank
+screen.
+
+**How to apply:** Capture bootstrap status before the application module
+graph loads; do not rely exclusively on React error boundaries or infer a
+successful app render from the Vite connected message.
+
 **Why:** A preview repeatedly failed on first-byte module parsing while new
 Chromium sessions rendered successfully. Stack-only reporting hid the module
 location, and bypassing one module exposed another failure.
