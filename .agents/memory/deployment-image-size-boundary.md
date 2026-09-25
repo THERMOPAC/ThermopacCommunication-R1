@@ -14,3 +14,22 @@ Build both server and frontend from inside an isolated release candidate, not fr
 **Why:** A workspace-based bundle can silently resolve imports from omitted directories and falsely suggest the candidate is self-contained. Generated-output folders can contain source-imported authorities; directory labels alone do not establish safe exclusion.
 
 **How to apply:** Keep narrow, hash-verified exceptions for actual imports and download consumers. Run only the bundlers with a minimal environment, not application startup or the scientific packager.
+
+Nix closure membership does not establish shared-library discoverability for the
+vendored scientific wheels.
+
+**Why:** Clean Python imports failed first on libstdc++.so.6 and then on libz.so.1,
+even though retained Nix closures contained their providers. Supplying both GCC
+runtime and zlib library paths made the pinned numerical imports succeed.
+
+**How to apply:** When testing a reduced production environment, verify native
+imports with a credential-free environment and explicitly resolved library paths;
+do not infer success from retained dependencies or ambient workspace imports.
+
+Scope the old-channel GCC/zlib library path to Python, not the whole ERP.
+
+**Why:** Applying it globally made the newer Node module's ICU fail with
+`CXXABI_1.3.15 not found`; a Python-only wrapper preserved Node and numerical imports.
+
+**How to apply:** Validate Node, browser and Python together when changing native
+library resolution. A successful standalone Python import is insufficient.

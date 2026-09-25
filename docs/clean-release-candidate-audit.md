@@ -1,5 +1,41 @@
 # Clean release candidate — isolated verification
 
+## Authorized test preparation — 2026-09-25
+
+The user authorized a separate isolated publishing test. The test remains
+**blocked, not completed**: no separate publishing project or isolated database
+and storage have been established. The existing project has a successful live
+Autoscale deployment; its configuration was not changed.
+
+The absent temporary candidate was recreated using the preparation script.
+Server/optimizer and frontend builds succeeded (frontend: 34.16 seconds).
+Verification passed for all 2,349 pinned scientific payload files, the unchanged
+Nix configuration, asset inclusion, and retired-runtime exclusions.
+The fresh inventory contains 91,241 regular files, 72 symlinks, and
+2,415,439,457 regular-file bytes excluding Nix (2.25 GiB).
+The three offline test files listed below passed again: 15/15 tests.
+These are filesystem/build measurements, **not combined image-layer sizes**.
+Existing database-path audits were not refreshed.
+
+Read-only startup inspection found that `server/index.ts` initializes SAP and
+starts OI, CAPA, document recovery, and attendance schedulers without a global
+disable guard. `server/agents/agent-setup.ts` also schedules agent work, task
+archiving, and payroll-period creation. `npm run dev` invokes a schema script
+before startup. None of those entrypoints were executed for this test.
+
+Replit's documentation consulted for this test says independently published
+applications require separate projects; artifacts within a project publish
+together. A temporary candidate directory is not an independent publishing
+target. Publishing is user-initiated. The deployment-log query for image/layer
+size evidence returned no logs, so actual combined image size remains unknown.
+
+To continue, establish a separate test project with no inherited live credentials
+or production domain, a disposable database and restricted test storage, and
+explicit worker/integration controls before full ERP startup. Database schema
+creation/migration remains subject to separate authorization. Capture the test
+publish's combined-layer evidence rather than inferring it from this inventory.
+Do not publish this existing live project as a substitute.
+
 ## Status
 
 The candidate's offline build, static-asset and historical local-download inclusion
