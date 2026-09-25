@@ -1,0 +1,110 @@
+{
+  "NIST_COSMOSAC_source_commit": "1b82456be38026719b16cad4076109bef3fcb309",
+  "calibrationRequired": true,
+  "caseInputSha256": {
+    "T01-Z01": "a94deb29aece0230b8dc250d2b7e97c3707683d8e105aa995723c6df9fe27140",
+    "T01-Z02": "3ec0205a876cfa21f41a0c9f1dfaee4d7906b696d61855e65fdc1fccd9fdb4c6",
+    "T01-Z03": "2c745b754311a43164f55b3d3ab42a5397645b7c13f132b45bfddf8e881bd7d1",
+    "T01-Z04": "59779484f5e4816a7ecc702513a1f408988b3a4c46166545316f6693e0f34cef",
+    "T02-Z01": "29dec05048634fe9e1473a6365c6ecf863631033456c3a3d76f9a841d471f356",
+    "T02-Z02": "d6c8ec62db435e58c786c1f6577af7b1206540c9ec31bce4f5bed48a69b49b7a",
+    "T02-Z03": "36ebd179acb3f4d57cceea865b25ac94b28204696925fbafdb9095a19f5cb5a8",
+    "T02-Z04": "85617faaed76dc5d6f3e32ded9069998c22eafb02b719eccd031ced9e79ab55d",
+    "T03-Z01": "7158ce511d8d8dfa77c98a96ffa24886e51e4abbc6dde5756847d159a21f77c2",
+    "T03-Z02": "f7b5d8d606c90c3d1103841d3b1264dcf6d3042fe872847d79ac7951af4aa67a",
+    "T03-Z03": "cd69ff24d958792c137290e8eac66babd926f267b07744a12d936317a93a7a21",
+    "T03-Z04": "23ffdf7f4cf6957fc87a297640705665683dc400c259a75fd7f0c374e33a99b1",
+    "T04-Z01": "b9100fa61c9a94ff5060fbd98443df50653bf7f1cbbc17778c047c740f055b7d",
+    "T04-Z02": "ab94117862d99b7e13b99c9e91f5fe800b155f56cf2ba3f2b8c7e4b55fbeda2a",
+    "T04-Z03": "bf851caba5bb31bd4a6e2ec8fd610cb94dd3b22c2e84a1f7c0ac78557ef42720",
+    "T04-Z04": "4b915fdfebd6097162c6d17376c3e3e1f8331764df21161af99a68aad41aab2d",
+    "T05-Z01": "3b32e9e1d7f0aa49280339caeb9df330956d51365106332f85a01cbdfd92720a",
+    "T05-Z02": "afc7947fe03cfe4422f542d68c40ba94fa04bc738f246cba812939bb8230d2f3",
+    "T05-Z03": "6cc5c249daea37d113e3859ec969e748e9de7afb583baee1b6758a8fa247f286",
+    "T05-Z04": "3596960565f3184ce7d21e857a46ac4ccf230312e201eba5ebb6b4192ccc4703"
+  },
+  "frozenGridSha256": "b3c5d8a7719fa63e979294e769f4cc54c2f4509e8b419f3fb0113baea6271a14",
+  "identities": {
+    "DI": {
+      "CAS": "90-12-0",
+      "InChI": "InChI=1S/C11H10/c1-9-5-4-7-10-6-2-3-8-11(9)10/h2-8H,1H3",
+      "InChIKey": "QPUYECUOLPXSFR-UHFFFAOYSA-N",
+      "MW_g_mol": 142.1971,
+      "SMILES": "Cc1cccc2ccccc12"
+    },
+    "MONO": {
+      "CAS": "103-65-1",
+      "InChI": "InChI=1S/C9H12/c1-2-6-9-7-4-3-5-8-9/h3-5,7-8H,2,6H2,1H3",
+      "InChIKey": "ODLMAHJVESYWTB-UHFFFAOYSA-N",
+      "MW_g_mol": 120.194,
+      "SMILES": "CCCc1ccccc1"
+    },
+    "NMP": {
+      "CAS": "872-50-4",
+      "InChI": "InChI=1S/C5H9NO/c1-6-4-2-3-5(6)7/h2-4H2,1H3",
+      "InChIKey": "SECXISVLQFMRJM-UHFFFAOYSA-N",
+      "MW_g_mol": 99.1311,
+      "SMILES": "CN1CCCC1=O"
+    },
+    "PA": {
+      "CAS": "10081-67-1",
+      "InChI": "InChI=1S/C30H31N/c1-29(2,23-11-7-5-8-12-23)25-15-19-27(20-16-25)31-28-21-17-26(18-22-28)30(3,4)24-13-9-6-10-14-24/h5-22,31H,1-4H3",
+      "InChIKey": "UJAWGGOCYUPCPS-UHFFFAOYSA-N",
+      "MW_g_mol": 405.58,
+      "SMILES": "CC(C)(c1ccccc1)c2ccc(Nc3ccc(C(C)(C)c4ccccc4)cc3)cc2"
+    },
+    "POLY": {
+      "CAS": "129-00-0",
+      "InChI": "InChI=1S/C16H10/c1-3-11-7-9-13-5-2-6-14-10-8-12(4-1)15(11)16(13)14/h1-10H",
+      "InChIKey": "BBEAQIROQSPTKN-UHFFFAOYSA-N",
+      "MW_g_mol": 202.2506,
+      "SMILES": "c1cc2ccc3cccc4ccc(c1)c2c34"
+    },
+    "SAT": {
+      "CAS": "112-40-3",
+      "InChI": "InChI=1S/C12H26/c1-3-5-7-9-11-12-10-8-6-4-2/h3-12H2,1-2H3",
+      "InChIKey": "SNRUBQQJIBEYMU-UHFFFAOYSA-N",
+      "MW_g_mol": 170.3348,
+      "SMILES": "CCCCCCCCCCCC"
+    }
+  },
+  "modelVariant": {
+    "excluded": "get_lngamma / multicomponent dispersive mode",
+    "lnGamma": "get_lngamma_comb(T,x)+get_lngamma_resid(T,x)",
+    "name": "COSMO-SAC-2010"
+  },
+  "phaseEquilibriumAlgorithm": "constrained total-Gibbs L-BFGS-B over conserved NMP-rich component amounts; four deterministic starts",
+  "pilotValidated": false,
+  "profileSource": {
+    "complistSha256": "365a84301ee4ab5aa1a9811851468672aea736760239c63de7ad087b3ac633f1",
+    "directory": "server/research/ecr-pre-pilot-six-component-thermodynamics/generated/profiles",
+    "profileSha256ByFamily": {
+      "DI": "7e8664f594afa70a232f845dfafbfbb1efd2e10e13c586187b556102a97503ed",
+      "MONO": "0afc9a2a69c0f3c7827ecdd7553f7ebf1a6e35f8b64597ffc8a6b780c324c275",
+      "NMP": "58dcecc755994f7955aec100dfb26de62c3ad933dcfd25c11f68ddec3b1efa69",
+      "PA": "474736e63fd99749f7dad0cd5569959e9dd47a8a2dfe55b6ef80642ed3d1c03e",
+      "POLY": "682828484416f124e3207f246d23954197502cba83d9b4744ace239d91fe8854",
+      "SAT": "6f51a75fbfa70df9b410fae88614e5c27d003eea228bc91318edb2854b5c26c2"
+    },
+    "restrictedOrVendoredProfileInputsUsed": false
+  },
+  "releaseEligible": false,
+  "researchOnly": true,
+  "runnerSha256": "2ab508b252435dd61cea8c601c8bbf4ba0456847de6f5dad73004bf4299732a6",
+  "runtime": {
+    "cCOSMOBinarySha256": "a90b34a97bfc9b3fe06ac247a3feae7263f83aa1a29b4d79fea758bec587ce61",
+    "cCOSMOModulePath": "server/research/ecr-pre-pilot-cosmosac/vendor/python/cCOSMO.cpython-312-x86_64-linux-gnu.so",
+    "numpy": "2.1.3",
+    "python": "3.12.12 (main, Oct  9 2025, 11:07:00) [GCC 15.2.0]",
+    "scipy": "1.14.1",
+    "vendorDirectory": "server/research/ecr-pre-pilot-cosmosac/vendor/python"
+  },
+  "schemaVersion": "2.0.0",
+  "settings": {
+    "TPD": "full-simplex denominator 4, then deterministic BFGS refinement; two-phase acceptance requires negative TPD, objective improvement, interior solution, and isoactivity closure",
+    "compositionFloor": 1e-10,
+    "flash": "constrained total-Gibbs L-BFGS-B over conserved NMP-rich component amounts; four deterministic starts"
+  },
+  "sixComponentProfileProvenanceSha256": "c3a6f2c3c0277ce81c02e7fd8d900e5864ac6891a0c34934e631a14aa9093012",
+  "sulfurPrediction": "NOT_CALCULABLE"
+}

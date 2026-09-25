@@ -1,0 +1,29 @@
+{
+  "staticClosureRoots": [
+    "server/ecr-pre-pilot/predictive-nt-job-service.ts",
+    "client/src/lib/predictive-nt-stage-display.ts"
+  ],
+  "includedClosureFiles": [
+    "client/src/lib/predictive-nt-stage-display.ts",
+    "server/ecr-pre-pilot/model.ts",
+    "server/ecr-pre-pilot/predictive-nt-job-service.ts",
+    "server/ecr-pre-pilot/predictive-nt-report-evidence.ts",
+    "server/ecr-pre-pilot/predictive-nt-report.ts",
+    "server/ecr-pre-pilot/predictive-nt-research-candidate.ts",
+    "server/ecr-pre-pilot/predictive-nt-stage4-engine-manifest.json",
+    "server/ecr-pre-pilot/six-component-cosmo-sac-basis.ts",
+    "server/ecr-pre-pilot/stage1.ts",
+    "server/research/ecr-pre-pilot-pa-anchor/evidence.ts"
+  ],
+  "destinationInfrastructureAdapters": [
+    {
+      "importer": "server/ecr-pre-pilot/predictive-nt-job-service.ts",
+      "import": "../db",
+      "destinationAdapterRequired": "server/db.ts"
+    }
+  ],
+  "referenceOnlyFiles": [
+    "server/ecr-pre-pilot/routes.ts"
+  ],
+  "note": "API router is reference-only, not dependency-closed. Filesystem scientific dependencies are in the full runtime. No server bootstrap/database pool/authentication implementation supplied."
+}

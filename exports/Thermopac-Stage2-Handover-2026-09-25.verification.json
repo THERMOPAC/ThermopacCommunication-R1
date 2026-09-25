@@ -1,0 +1,12 @@
+{
+  "archive": "exports/Thermopac-Stage2-Handover-2026-09-25.zip",
+  "bytes": 61921826,
+  "sha256": "5a3a0c92f02677c3c0afa6c0a6c18d0085140e9c8955e43df781edac7e86b5d4",
+  "payloadFiles": 2404,
+  "runtimePayloadFiles": 2349,
+  "localStaticClosureFiles": 10,
+  "originalRuntimeVerified": true,
+  "zipMembersVerified": true,
+  "referenceInputResultAndPdfVerified": true,
+  "scientificRerunPerformed": false
+}

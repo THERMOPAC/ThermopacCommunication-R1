@@ -1,0 +1,1285 @@
+import {
+  appendFileSync, copyFileSync, cpSync, mkdtempSync, rmSync,
+} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import { createPredictiveNtTestDatabase } from './helpers/predictive-nt-test-database';
+
+// Installed before any service imports: the real application pool is never opened.
+vi.mock('../server/db', async () => {
+  const { createPredictiveNtTestDatabase } = await import('./helpers/predictive-nt-test-database');
+  const fixture = await createPredictiveNtTestDatabase();
+  return { pool: fixture.pool, testDatabase: fixture };
+});
+import {
+  PRE_PILOT_MODEL,
+  PRE_PILOT_MULTISTAGE_MODEL,
+  PRE_PILOT_MULTISTAGE_MODEL_1_4,
+} from '../server/ecr-pre-pilot/model';
+import {
+  enqueuePredictiveNtRuntimeTestJob,
+  shutdownPredictiveNtTestWorker,
+  derivePredictiveNtInputFromStage1,
+  derivePredictiveNtSixComponentInputFromStage1,
+  attachStage1ResultGovernance,
+  expectedTask216GlobalStabilityEvidence,
+  expectedTask218CandidateGeneratedStabilityEvidence,
+  getPredictiveNtJob,
+  internalProgressForJobRow,
+  preflightPredictiveNtRuntime,
+  predictiveNtCheckpointProtocol,
+  validateTask216GlobalStabilityEvidence,
+  validateTask218CandidateGeneratedStabilityEvidence,
+  validatePredictiveNtExecutionEvidence,
+  validatePredictiveNtCheckpointContract,
+  validatePredictiveNtJobInput,
+  validateSevenComponentPersistedResult,
+} from '../server/ecr-pre-pilot/predictive-nt-job-service';
+import { allocateEcrPrePilotDesign, saveEcrPrePilotStage1 } from '../server/ecr-pre-pilot-service';
+import { pool } from '../server/db';
+import {
+  canonicalizeStage1Input,
+  makeStage1Snapshot,
+  stage1ScientificContentHash,
+  stage1SnapshotHash,
+} from '../server/ecr-pre-pilot/stage1';
+
+function validStage1(projectNumber: number) {
+  return {
+    projectReference: String(projectNumber),
+    rrboGrade: 'SN300',
+    designFeedRateLph: '1000',
+    operatingTemperatureC: '50',
+    operatingPressure: '2.0',
+    phaseConfiguration: 'nmp-continuous-rrbo-dispersed',
+    saturatesWt: '65',
+    monoAromaticsWt: '20',
+    diAromaticsWt: '5',
+    polyAromaticsWt: '3',
+    polarAromaticsWt: '5',
+    nmpInFeedWt: '2',
+    rrboDensityKgM3: '850',
+    rrboDynamicViscosityCp: '20',
+    rrboInterfacialTensionMnM: '8',
+    nmpPurityWt: '99.5',
+    nmpWaterWt: '0.5',
+    nmpTemperatureC: '50',
+    nmpDensityKgM3: '1000',
+    nmpDynamicViscosityCp: '1.2',
+    solventOilRatio: '1.50',
+    targetRaffinateSulfurPpm: '1000',
+    minimumRaffinateSaturatesWt: '90',
+    targetRaffinateTotalAromaticsWt: '10.0',
+    targetRaffinatePolarAromaticsWt: '0.50',
+    minimumRecoveryPct: '90',
+    maximumNmpRaffinateWt: '1.0',
+    feedSulfurPpm: '3500',
+    sulfurAllocationSatPct: '0',
+    sulfurAllocationMonoPct: '20',
+    sulfurAllocationDiPct: '30',
+    sulfurAllocationPolyPct: '40',
+    sulfurAllocationPaPct: '10',
+    designBasisNotes: 'Stage 1 authority integration fixture',
+    satIdentity: 'n-dodecane',
+    monoIdentity: 'n-propylbenzene',
+    maximumStages: '10',
+  };
+}
+
+// Historical validation fixtures remain readable, but may never be submitted.
+const validInput = derivePredictiveNtSixComponentInputFromStage1(
+  makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+  209,
+);
+
+function currentQueueInput() {
+  return derivePredictiveNtInputFromStage1(
+    makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+    209,
+  );
+}
+
+function useCurrentAckProtocolFixture() {
+  process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT =
+    path.join(process.cwd(), 'tests/fixtures/predictive_nt_ack_v3_protocol_worker.py');
+}
+
+function validTask216Evidence() {
+  return {
+    evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+    researchOnly: true,
+    calibrationRequired: true,
+    releaseEligible: false,
+    predictiveNt: null,
+    ...expectedTask216GlobalStabilityEvidence(),
+  };
+}
+
+describe('ECR Pre-Pilot Predictive N_T background jobs', () => {
+  const userId = 1; // Explicit identity in this run's disposable schema.
+
+  afterAll(async () => {
+    try {
+      await shutdownPredictiveNtTestWorker();
+    } finally {
+      delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
+      delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
+      const { testDatabase } = await import('../server/db') as unknown as {
+        testDatabase: Awaited<ReturnType<typeof createPredictiveNtTestDatabase>>;
+      };
+      await testDatabase.dispose();
+    }
+  }, 20_000);
+
+  async function enqueueSuiteJob(
+    input: unknown,
+    userId: number,
+    designId: number,
+    hooks?: Parameters<typeof enqueuePredictiveNtRuntimeTestJob>[3],
+  ) {
+    const submitted = await enqueuePredictiveNtRuntimeTestJob(input, userId, designId, hooks);
+    return submitted;
+  }
+
+  it('uses private identities and sequences on every connection with no public fallback', async () => {
+    const clients = await Promise.all([pool.connect(), pool.connect()]);
+    try {
+      for (const client of clients) {
+        const scope = await client.query('SELECT current_schema() AS schema, current_schemas(false)::text[] AS schemas');
+        expect(scope.rows[0].schema).toMatch(/^test_predictive_nt_[a-f0-9]{32}$/);
+        expect(scope.rows[0].schemas).toEqual([scope.rows[0].schema]);
+        expect((await client.query('SELECT * FROM users')).rows)
+          .toEqual([{ id: userId, username: 'predictive-nt-regression-only' }]);
+        const sequence = await client.query(
+          "SELECT pg_get_serial_sequence('ecr_pre_pilot_designs', 'id') AS name",
+        );
+        expect(sequence.rows[0].name).toBe(`${scope.rows[0].schema}.ecr_pre_pilot_designs_id_seq`);
+      }
+    } finally {
+      clients.forEach((client) => client.release());
+    }
+  });
+
+  it('cleans a failed fixture without removing a concurrent test namespace', async () => {
+    const sibling = await createPredictiveNtTestDatabase();
+    try {
+      await sibling.pool.query('INSERT INTO ecr_pre_pilot_number_counters VALUES (1, 999)');
+      throw new Error('SIMULATED_TEST_FAILURE');
+    } catch (error) {
+      expect((error as Error).message).toBe('SIMULATED_TEST_FAILURE');
+    } finally {
+      await sibling.dispose();
+    }
+    expect((await pool.query('SELECT 1 FROM pg_namespace WHERE nspname = $1', [sibling.namespace])).rowCount).toBe(0);
+    expect((await pool.query('SELECT id FROM users')).rows).toEqual([{ id: userId }]);
+  }, 20_000);
+
+  it('fails closed instead of running queued work against changed evidence', () => {
+    const persisted = {
+      input: validInput,
+      modelHash: PRE_PILOT_MODEL.modelHash,
+      engineHash: 'persisted-engine',
+    };
+    expect(validatePredictiveNtExecutionEvidence(persisted, 'changed-engine'))
+      .toBe('PREDICTIVE_NT_ENGINE_HASH_MISMATCH');
+    expect(validatePredictiveNtExecutionEvidence({
+      ...persisted,
+      modelHash: 'changed-model',
+    }, 'persisted-engine')).toBe('PREDICTIVE_NT_MODEL_HASH_MISMATCH');
+    expect(validatePredictiveNtExecutionEvidence(persisted, 'persisted-engine')).toBeNull();
+  });
+
+  it('rejects Task 216 hash, coverage, and false blocker-free evidence mutations', () => {
+    const hashes = {
+      protocolSha256: '1'.repeat(64),
+      runnerSha256: '2'.repeat(64),
+      resultsSha256: '3'.repeat(64),
+      reportSha256: '4'.repeat(64),
+      provenanceSha256: '5'.repeat(64),
+    };
+    const expected = {
+      evidenceArtifacts: hashes,
+      status: 'BLOCKED_FAIL_CLOSED',
+      qualified: false,
+      postSplitTpdThreshold: -1e-8,
+      exactReferenceJobId: 'reference-job',
+      coverage: {
+        expectedPhaseEndpoints: 110,
+        returnedPhaseEndpoints: 110,
+        failingPhaseCount: 42,
+        negativeOrUnresolvedPhaseCount: 73,
+        optimizerRefinementFailureCount: 31,
+      },
+      blockers: [
+        'POST_SPLIT_TPD_STABILITY_FAILED',
+        'FROZEN_COMPOSITION_VALIDATION_FAILED',
+      ],
+      worstMinimum: -0.62,
+      worstFullyReproducedMinimum: -0.61,
+      classificationCounts: {
+        GENUINE_LOWER_GIBBS_BASIN: 42,
+        OPTIMIZER_REFINEMENT_FAILURE: 31,
+        STABLE_PHASE: 37,
+      },
+      comparisonCandidate: {
+        disposition: 'REJECTED_FROZEN_VALIDATION_AND_GLOBAL_INSTABILITY',
+        qualified: false,
+        frozenValidationPassed: false,
+        classificationCounts: {
+          GENUINE_LOWER_GIBBS_BASIN: 10,
+          STABLE_PHASE: 100,
+        },
+        worstMinimum: -0.1,
+      },
+    };
+    const evidence = {
+      evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1',
+      researchOnly: true,
+      calibrationRequired: true,
+      releaseEligible: false,
+      predictiveNt: null,
+      ...expected,
+    };
+    expect(validateTask216GlobalStabilityEvidence(evidence, expected)).toBeNull();
+    expect(validateTask216GlobalStabilityEvidence({
+      ...evidence,
+      evidenceArtifacts: { ...hashes, resultsSha256: '0'.repeat(64) },
+    }, expected)).toBe('TASK216_GLOBAL_STABILITY_EVIDENCE_HASH_MISMATCH');
+    expect(validateTask216GlobalStabilityEvidence({
+      ...evidence,
+      coverage: { ...evidence.coverage, returnedPhaseEndpoints: 109 },
+    }, expected)).toBe('TASK216_GLOBAL_STABILITY_PHASE_COVERAGE_INCOMPLETE');
+    expect(validateTask216GlobalStabilityEvidence({
+      ...evidence,
+      blockers: ['FROZEN_COMPOSITION_VALIDATION_FAILED'],
+    }, expected)).toBe('TASK216_GLOBAL_STABILITY_FALSE_BLOCKER_FREE_CLAIM');
+    expect(validateTask216GlobalStabilityEvidence(undefined, expected))
+      .toBe('TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING');
+    for (const mutation of [
+      { ...evidence, exactReferenceJobId: 'other-job' },
+      {
+        ...evidence,
+        coverage: { ...evidence.coverage, negativeOrUnresolvedPhaseCount: 72 },
+      },
+      {
+        ...evidence,
+        coverage: { ...evidence.coverage, optimizerRefinementFailureCount: 30 },
+      },
+      {
+        ...evidence,
+        comparisonCandidate: {
+          ...evidence.comparisonCandidate,
+          disposition: 'QUALIFIED',
+        },
+      },
+      {
+        ...evidence,
+        comparisonCandidate: {
+          ...evidence.comparisonCandidate,
+          worstMinimum: 0,
+        },
+      },
+    ]) {
+      expect(validateTask216GlobalStabilityEvidence(mutation, expected))
+        .toBe('TASK216_GLOBAL_STABILITY_FROZEN_SUMMARY_MISMATCH');
+    }
+  });
+
+  it('rejects Task218 candidate lineage, endpoint, verdict, and governance mutations', () => {
+    const evidence = expectedTask218CandidateGeneratedStabilityEvidence();
+    expect(validateTask218CandidateGeneratedStabilityEvidence(evidence)).toBeNull();
+    for (const mutation of [
+      { ...evidence, evidenceId: 'TASK_216_MONO_RICH_GLOBAL_STABILITY_V1' },
+      {
+        ...evidence,
+        evidenceArtifacts: {
+          ...evidence.evidenceArtifacts,
+          resultsSha256: '0'.repeat(64),
+        },
+      },
+      { ...evidence, candidateModelSha256: '0'.repeat(64) },
+      { ...evidence, auditHash: '0'.repeat(64) },
+      { ...evidence, candidateParameterSha256: '0'.repeat(64) },
+      { ...evidence, candidateFlashHash: '0'.repeat(64) },
+      { ...evidence, cascadeExecutionHash: '0'.repeat(64) },
+      { ...evidence, endpointMatrixHash: '0'.repeat(64) },
+      { ...evidence, qualificationHash: '0'.repeat(64) },
+      { ...evidence, componentOrder: [...evidence.componentOrder].reverse() },
+      { ...evidence, coverage: { ...evidence.coverage, returned: 109 } },
+      {
+        ...evidence,
+        coverage: {
+          ...evidence.coverage,
+          classifications: { STABLE_PHASE: 110 },
+        },
+      },
+      { ...evidence, endpointOrder: 'reordered' },
+      {
+        ...evidence,
+        gates: { ...evidence.gates, allGlobalTpdPassed: false },
+      },
+      { ...evidence, blockers: evidence.blockers.slice(1) },
+      {
+        ...evidence,
+        historicalComparisons: {
+          ...evidence.historicalComparisons,
+          disposition: 'QUALIFICATION_EVIDENCE',
+        },
+      },
+      { ...evidence, status: 'QUALIFIED' },
+      { ...evidence, qualified: true },
+      { ...evidence, releaseEligible: true },
+      { ...evidence, pilotValidated: true },
+      { ...evidence, release: true },
+      { ...evidence, predictiveNt: 1 },
+      { ...evidence, sulfurPrediction: 'CALCULABLE' },
+    ]) {
+      expect(validateTask218CandidateGeneratedStabilityEvidence(mutation))
+        .toMatch(/TASK218_CANDIDATE_(?:FROZEN_SUMMARY_MISMATCH|GOVERNANCE_VIOLATION)/);
+    }
+    expect(validateTask218CandidateGeneratedStabilityEvidence(undefined))
+      .toBe('TASK218_CANDIDATE_EVIDENCE_MISSING');
+  }, 30_000);
+
+  it('binds every job input to the frozen package and never establishes N_T at validation', () => {
+    const gate = validatePredictiveNtJobInput(validInput);
+    expect(gate).toMatchObject({
+      model: {
+        packageId: 'PRE_PILOT_MODEL',
+        modelHash: PRE_PILOT_MODEL.modelHash,
+        calibrationStatus: 'CALIBRATION_REQUIRED',
+      },
+      mayRunPredictiveNt: true,
+      establishedTheoreticalStages: null,
+    });
+  });
+
+  it('fails closed for a changed model hash', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      modelHash: 'changed',
+    })).toThrow('MODEL_HASH_MISMATCH');
+  });
+
+  it('requires an explicit molecular basis', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      monoIdentity: '',
+    })).toThrow('MOLECULAR_BASIS_REQUIRED');
+  });
+
+  it('rejects molecular identities outside the frozen descriptor registry', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      satIdentity: 'invented-saturate',
+    })).toThrow('MOLECULAR_IDENTITY_UNAVAILABLE');
+  });
+
+  it('rejects a PA source mutation that is not reconstructed from Stage 1', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      sourceFeedCompositionMassFraction: {
+        ...validInput.sourceFeedCompositionMassFraction,
+        saturates: 0.69,
+        polar: 0.01,
+      },
+    })).toThrow('MOLECULAR_FEED_BASIS_MISMATCH');
+  });
+
+  it('rejects inconsistent feed, product, and solvent molecular conversions', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      feedMoleFractions: [0.7, 0.3, 0, 0, 0, 0],
+    })).toThrow('MOLECULAR_FEED_BASIS_MISMATCH');
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      targetRaffinateMonoHydrocarbonMoleFraction: 0.25,
+    })).toThrow('MOLECULAR_PRODUCT_TARGET_BASIS_MISMATCH');
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      solventMolarRatio: 1,
+    })).toThrow('MOLECULAR_SOLVENT_BASIS_MISMATCH');
+  });
+
+  it.each([
+    ['temperature', () => ({ ...validInput, temperatureK: validInput.temperatureK + 1 })],
+    ['maximum stages', () => ({ ...validInput, maximumStages: validInput.maximumStages - 1 })],
+    ['self-consistent solvent basis', () => {
+      const sourceSolventOilMassRatio = validInput.sourceSolventOilMassRatio * 0.9;
+      return {
+        ...validInput,
+        sourceSolventOilMassRatio,
+        solventMolarRatio: validInput.solventMolarRatio * 0.9,
+      };
+    }],
+    ['self-consistent feed basis', () => {
+      const saturates = 0.6;
+      const mono = 0.4;
+      const moles = saturates / 170.34 + mono / 120.19;
+      return {
+        ...validInput,
+        sourceFeedCompositionMassFraction: {
+          ...validInput.sourceFeedCompositionMassFraction,
+          saturates,
+          mono,
+          di: 0,
+          poly: 0,
+          polar: 0,
+          nmp: 0,
+        },
+        feedMoleFractions: [
+          (saturates / 170.34) / moles,
+          (mono / 120.19) / moles,
+           0, 0, 0, 0,
+        ] as [number, number, number, number, number, number],
+        solventMolarRatio: (validInput.sourceSolventOilMassRatio / 99.1311) / moles,
+      };
+    }],
+    ['self-consistent product target basis', () => {
+      const maximumTotalAromatics = 0.07;
+      const monoMoles = maximumTotalAromatics / 120.19;
+      const satMoles = (1 - maximumTotalAromatics) / 170.34;
+      return {
+        ...validInput,
+        sourceProductTargetsMassFraction: {
+          ...validInput.sourceProductTargetsMassFraction,
+          maximumTotalAromatics,
+        },
+        targetRaffinateMonoHydrocarbonMoleFraction: monoMoles / (monoMoles + satMoles),
+      };
+    }],
+    ['authority recovery governance', () => ({
+      ...validInput,
+      stage1Authority: {
+        ...validInput.stage1Authority!,
+        minimumMassRecovery: { targetPercent: 85, status: 'CALCULABLE' as const },
+      },
+    })],
+  ])('rejects valid-looking %s mutations not reconstructed from Stage 1', (_name, mutate) => {
+    expect(() => validatePredictiveNtJobInput(mutate())).toThrow('STAGE1_AUTHORITY_MISMATCH');
+  });
+
+  it('rejects a changed six-component engine contract', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      engineComponentContract: {
+        ...validInput.engineComponentContract,
+        thermodynamicModel: 'COSMO-SAC-2010',
+      },
+    } as any)).toThrow('PREDICTIVE_NT_SIX_COMPONENT_CONTRACT_REQUIRED');
+  });
+
+  it.each([0.5, 0.6, 0.7, 0.75, 0.9, 1, 1.25, 1.5, 2])(
+    'accepts solvent/oil dropdown ratio %s through saved Stage 1 and 7C validation',
+    (ratio) => {
+      const stage1 = canonicalizeStage1Input({
+        ...validStage1(209),
+        solventOilRatio: ratio.toFixed(2),
+      }, 209);
+      expect(stage1.solventOilRatio).toBe(ratio);
+      const input = derivePredictiveNtInputFromStage1(makeStage1Snapshot(stage1), 209);
+      expect(input.sourceSolventOilMassRatio).toBe(ratio);
+      expect(input.wetSolventConstruction?.totalWetSolventMassPerUnitFeedMass).toBe(ratio);
+      expect(() => validatePredictiveNtJobInput(input)).not.toThrow();
+    },
+  );
+
+  it('routes new controlled-water derivations to the 7C contract with an exact wet-solvent closure', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(seven.engineContractVersion).toBe('7C-1.6.0');
+    expect(seven.modelHash).toBe(PRE_PILOT_MULTISTAGE_MODEL.modelHash);
+    expect(seven.engineComponentContract).toMatchObject({
+      componentCount: 7,
+      families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_ADDITIVE_RK_H2O',
+    });
+    expect(seven.feedMoleFractions).toHaveLength(7);
+    expect(seven.solventSpecificationAudit).toEqual({
+      nmpPurityMassPercent: 99.5,
+      nmpWaterMassPercent: 0.5,
+    });
+    expect(seven.wetSolventConstruction?.dryNmpMassPerUnitFeedMass).toBeCloseTo(1.4925, 12);
+    expect(seven.wetSolventConstruction?.waterMassPerUnitFeedMass).toBeCloseTo(0.0075, 12);
+    expect(seven.wetSolventConstruction?.massClosureResidual).toBeLessThanOrEqual(1e-12);
+    expect(
+      seven.wetSolventConstruction!.totalWetSolventMassPerUnitFeedMass
+      - seven.wetSolventConstruction!.dryNmpMassPerUnitFeedMass
+      - seven.wetSolventConstruction!.waterMassPerUnitFeedMass,
+    ).toBeCloseTo(0, 12);
+    expect(() => validatePredictiveNtJobInput({
+      ...seven,
+      feedMoleFractions: [...seven.feedMoleFractions.slice(0, 6), 0.2],
+    })).toThrow('PREDICTIVE_NT_SEVEN_COMPONENT_CONTRACT_REQUIRED');
+  });
+
+  it.each([3.5, 4.0, 4.5, 5.0])(
+    'admits %s wt%% H2O through immutable 7C-1.6 derivation and validation',
+    (waterWt) => {
+      const stage1 = canonicalizeStage1Input({
+        ...validStage1(209),
+        nmpPurityWt: String(100 - waterWt),
+        nmpWaterWt: String(waterWt),
+      }, 209);
+      const input = derivePredictiveNtInputFromStage1(makeStage1Snapshot(stage1), 209);
+      expect(input.engineContractVersion).toBe('7C-1.6.0');
+      expect(input.solventSpecificationAudit.nmpWaterMassPercent).toBe(waterWt);
+      expect(input.wetSolventConstruction?.waterMassPerUnitFeedMass)
+        .toBeCloseTo(1.5 * waterWt / 100, 12);
+      expect(() => validatePredictiveNtJobInput(input)).not.toThrow();
+    },
+  );
+
+  it('preserves exact 7C-1.4 model reconstruction for historical replay', () => {
+    const current = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    const historical = {
+      ...current,
+      engineContractVersion: '7C-1.4.0' as const,
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL_1_4.modelHash,
+    };
+    expect(() => validatePredictiveNtJobInput(historical)).not.toThrow();
+  });
+
+  it('rejects a 7C input reconstructed under another engine contract', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(() => validatePredictiveNtJobInput({
+      ...seven,
+      engineContractVersion: '6C-1.0.0',
+    })).toThrow('PREDICTIVE_NT_SIX_COMPONENT_CONTRACT_REQUIRED');
+  });
+
+  it('uses ACK_V3 for 7C and rejects cross-engine checkpoint contracts', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    expect(predictiveNtCheckpointProtocol(seven)).toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(validatePredictiveNtCheckpointContract(
+      seven,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.6.0',
+    )).toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(() => validatePredictiveNtCheckpointContract(
+      seven,
+      'ACK_V2',
+      '6C-LEGACY',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+    expect(predictiveNtCheckpointProtocol(validInput)).toBe('ACK_V2');
+    expect(() => validatePredictiveNtCheckpointContract(
+      validInput,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.2.0',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+  });
+
+  it('maps exact-N_T internal progress separately from the single governed trial', () => {
+    const base = {
+      input_snapshot: { engineContractVersion: '7C-1.5.0', ntTest: 10 },
+      maximum_stages: 1,
+      completed_trials: 0,
+      status: 'running',
+      result_snapshot: {
+        trials: [],
+        internalProgress: {
+          completedInternalStages: 6,
+          maximumInternalStages: 10,
+        },
+      },
+    };
+    expect(internalProgressForJobRow(base)).toEqual({
+      completedInternalStages: 6,
+      maximumInternalStages: 10,
+    });
+    expect(base.completed_trials).toBe(0);
+    expect(base.maximum_stages).toBe(1);
+    expect(internalProgressForJobRow({
+      ...base,
+      status: 'completed',
+      completed_trials: 1,
+      result_snapshot: { trials: [{}] },
+    })).toEqual({
+      completedInternalStages: 10,
+      maximumInternalStages: 10,
+    });
+  });
+
+  it('rejects malformed internal progress and leaves non-exact jobs unchanged', () => {
+    const malformed = {
+      input_snapshot: { engineContractVersion: '7C-1.5.0', ntTest: 10 },
+      maximum_stages: 1,
+      status: 'running',
+      result_snapshot: {
+        internalProgress: {
+          completedInternalStages: 11,
+          maximumInternalStages: 10,
+        },
+      },
+    };
+    expect(internalProgressForJobRow(malformed)).toBeNull();
+    expect(internalProgressForJobRow({
+      ...malformed,
+      input_snapshot: { engineContractVersion: '7C-1.4.0', ntTest: 10 },
+    })).toBeNull();
+  });
+
+  it('keeps historical 7C-1.1 checkpoints exact-contract resumable only', () => {
+    const current = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    const historical = {
+      ...current,
+      engineContractVersion: '7C-1.1.0' as const,
+    };
+    expect(predictiveNtCheckpointProtocol(historical))
+      .toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(validatePredictiveNtCheckpointContract(
+      historical,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.1.0',
+    )).toBe('ACK_V3_ENGINE_CONTRACT');
+    expect(() => validatePredictiveNtCheckpointContract(
+      historical,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.2.0',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+    expect(() => validatePredictiveNtCheckpointContract(
+      current,
+      'ACK_V3_ENGINE_CONTRACT',
+      '7C-1.1.0',
+    )).toThrow('PREDICTIVE_NT_CROSS_ENGINE_CHECKPOINT_FORBIDDEN');
+  });
+
+  it('rejects an internally closed but rescaled 7C wet-solvent result', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input({
+        ...validStage1(209),
+        maximumStages: '2',
+      }, 209)),
+      209,
+    );
+    const fractions = Array(7).fill(1 / 7);
+    const stream = {
+      componentMoles: Array(7).fill(1),
+      componentMass: Array(7).fill(1),
+      flowMol: 7,
+      mass: 7,
+      moleFractions: fractions,
+      massFractions: fractions,
+    };
+    const result: any = {
+      engineContractVersion: '7C-1.2.0',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      status: 'IMPLEMENTED — PREDICTIVE QUALIFICATION PENDING',
+      implementationStatus: 'IMPLEMENTED',
+      releaseEligible: false,
+      predictiveNt: null,
+      establishedTheoreticalStages: null,
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
+      qualificationEvidence: {
+        directWaterBearingLleValidated: false,
+        independentBlindQualificationPassed: false,
+      },
+      executionStatus: 'COMPLETED_GOVERNED_SEQUENCE',
+      trialsAttempted: 2,
+      governedTrialsAccepted: 2,
+      diagnosticTrialsCalculated: 0,
+      thermodynamicCondition: {
+        temperatureC: 50,
+        temperatureK: 323.15,
+        authority: 'IMMUTABLE_STAGE1_OPERATING_TEMPERATURE',
+      },
+      wetSolventConstruction: {
+        rrboFeedMass: 100,
+        totalWetSolventMass: 150,
+        dryNmpMass: 149.25,
+        waterMass: 0.75,
+        nmpWeightPercentOfWetSolvent: 99.5,
+        waterWeightPercentOfWetSolvent: 0.5,
+        massClosureResidual: 0,
+        componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      },
+      trials: [1, 2].map((stageCount) => ({
+        stageCount,
+        numericalAcceptancePassed: true,
+        diagnosticContinuationUsed: false,
+        governanceClassification: 'GOVERNED_RESULT',
+        overallComponentBalanceResidualMol: Array(7).fill(0),
+        overallComponentBalanceResidualMass: Array(7).fill(0),
+        boundaryStreams: {
+          oilFeed: stream,
+          freshWetSolvent: stream,
+          finalRaffinate: stream,
+          finalExtract: stream,
+        },
+        stages: Array.from({ length: stageCount }, () => ({
+          governanceClassification: 'GOVERNED_EQUILIBRIUM',
+          raffinateIncoming: stream,
+          extractIncoming: stream,
+          raffinateLeaving: stream,
+          extractLeaving: stream,
+        })),
+      })),
+    };
+    const contract12Input = {
+      ...seven,
+      engineContractVersion: '7C-1.2.0' as const,
+      maximumStages: 2,
+    };
+    expect(validateSevenComponentPersistedResult(
+      result,
+      { input: contract12Input },
+    )).toBeNull();
+    const historicalInput = {
+      ...seven,
+      engineContractVersion: '7C-1.1.0' as const,
+      maximumStages: 2,
+    };
+    expect(validateSevenComponentPersistedResult({
+      ...result,
+      engineContractVersion: '7C-1.1.0',
+    }, { input: historicalInput })).toBeNull();
+    expect(validateSevenComponentPersistedResult({
+      ...result,
+      engineContractVersion: '7C-1.1.0',
+    }, { input: seven })).toBe('PREDICTIVE_NT_7C_RESULT_CONTRACT_INVALID');
+    const intermediate = {
+      ...result,
+      trials: [result.trials[0]],
+      trialsAttempted: undefined,
+      governedTrialsAccepted: undefined,
+      diagnosticTrialsCalculated: undefined,
+      executionStatus: undefined,
+    };
+    expect(validateSevenComponentPersistedResult(
+      intermediate,
+      { input: contract12Input, intermediate: true },
+    )).toBeNull();
+    const unresolvedPhaseTopology = {
+      ...result,
+      trials: [result.trials[0]],
+      trialsAttempted: 1,
+      governedTrialsAccepted: 1,
+      diagnosticTrialsCalculated: 0,
+      executionStatus: 'BLOCKED_PHASE_TOPOLOGY_UNRESOLVED',
+      blockingCode: 'SEVEN_COMPONENT_PHASE_TOPOLOGY_UNRESOLVED',
+      blockingMessage: 'Raffinate/extract phase topology could not be resolved.',
+      blockedCascadeTrialCount: 2,
+      blockedStageFromFeedEnd: 2,
+      flashEvidence: {
+        phaseBehavior: 'UNRESOLVED',
+        phaseFractionExtract: null,
+      },
+    };
+    expect(validateSevenComponentPersistedResult(
+      unresolvedPhaseTopology,
+      { input: contract12Input },
+    )).toBeNull();
+    expect(validateSevenComponentPersistedResult({
+      ...unresolvedPhaseTopology,
+      blockingCode: 'SEVEN_COMPONENT_NO_LIQUID_SPLIT',
+    }, { input: contract12Input })).toBe('PREDICTIVE_NT_7C_BLOCKED_RESULT_INVALID');
+    const rescaled = {
+      ...result,
+      wetSolventConstruction: {
+        ...result.wetSolventConstruction,
+        rrboFeedMass: 200,
+        totalWetSolventMass: 300,
+        dryNmpMass: 298.5,
+        waterMass: 1.5,
+      },
+    };
+    expect(validateSevenComponentPersistedResult(rescaled, { input: contract12Input }))
+      .toBe('PREDICTIVE_NT_7C_WET_SOLVENT_AUTHORITY_MISMATCH');
+  });
+
+  it('persists a fail-closed 7C engine error without fabricating successful trials', () => {
+    const seven = derivePredictiveNtInputFromStage1(
+      makeStage1Snapshot(canonicalizeStage1Input(validStage1(209), 209)),
+      209,
+    );
+    const contract12Input = {
+      ...seven,
+      engineContractVersion: '7C-1.2.0' as const,
+    };
+    expect(validateSevenComponentPersistedResult({
+      engineContractVersion: '7C-1.2.0',
+      componentOrder: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+      status: 'ENGINE_ERROR',
+      releaseEligible: false,
+      predictiveNt: null,
+      establishedTheoreticalStages: null,
+      error: 'RuntimeError: SEVEN_COMPONENT_STAGE_FLASH_UNRESOLVED:1',
+    }, { input: contract12Input })).toBeNull();
+  });
+
+  it('rejects the deprecated molar recovery gate', () => {
+    expect(() => validatePredictiveNtJobInput({
+      ...validInput,
+      minimumNmpFreeHydrocarbonRecovery: 0.95,
+    })).toThrow('MASS_RECOVERY_GATE_UNAVAILABLE');
+  });
+
+  it('derives the complete solver request from the saved Stage 1 snapshot', async () => {
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-authority-${Date.now()}`);
+    const snapshot = await saveEcrPrePilotStage1(userId, design.id, validStage1(design.projectNumber));
+    const derived = derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber);
+
+    expect(derived).toMatchObject({
+      modelHash: PRE_PILOT_MODEL.modelHash,
+      temperatureK: 323.15,
+      satIdentity: 'n-dodecane',
+      monoIdentity: 'n-propylbenzene',
+      sourceFeedCompositionMassFraction: {
+        saturates: 0.65,
+        mono: 0.2,
+        di: 0.05,
+        poly: 0.03,
+        polar: 0.05,
+        nmp: 0.02,
+      },
+      sourceProductTargetsMassFraction: {
+        maximumTotalAromatics: 0.1,
+        maximumPolarAromatics: 0.005,
+        minimumSaturates: 0.9,
+        maximumNmp: 0.01,
+        minimumRrboRecovery: 0.9,
+      },
+      maximumStages: 10,
+      stage1Authority: {
+        schemaVersion: 'ECR_PRE_PILOT_STAGE_1_V1',
+        sulfurPrediction: {
+          status: 'NOT_CALCULABLE',
+          calibrationStatus: 'CALIBRATION_REQUIRED',
+        },
+        minimumMassRecovery: {
+          targetPercent: 90,
+          status: 'CALCULABLE',
+        },
+      },
+    });
+    expect(derived.stage1Authority?.snapshotHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(() => validatePredictiveNtJobInput(derived)).not.toThrow();
+    expect(attachStage1ResultGovernance({
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
+      globalStabilityQualification: validTask216Evidence(),
+      task218CandidateGeneratedStability: expectedTask218CandidateGeneratedStabilityEvidence(),
+    }, derived)).toMatchObject({
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
+      stage1TargetGovernance: {
+        predictiveNtAuthority: 'FROZEN_SIX_COMPONENT_COSMO_SAC_RESEARCH_ENGINE',
+        predictiveNtEngineScope: {
+          componentCount: 6,
+          thermodynamicModel: 'COSMO-SAC-2010',
+          researchDiagnosticOnly: true,
+        },
+        sulfurPrediction: {
+          status: 'NOT_CALCULABLE',
+          calibrationStatus: 'CALIBRATION_REQUIRED',
+        },
+        minimumMassRecovery: {
+          targetPercent: 90,
+          status: 'CALCULABLE',
+        },
+        overallEcrProductAcceptance: false,
+        overallEcrProductAcceptanceStatus: 'RESEARCH_DIAGNOSTIC_NOT_RELEASE_ELIGIBLE',
+      },
+    });
+    expect(() => attachStage1ResultGovernance({
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
+    }, derived)).toThrow('TASK216_GLOBAL_STABILITY_EVIDENCE_MISSING');
+    expect(() => attachStage1ResultGovernance({
+      status: 'RESEARCH_DIAGNOSTIC_NOT_ACCEPTED',
+      predictiveNt: null,
+      globalStabilityQualification: validTask216Evidence(),
+    }, derived)).toThrow('TASK218_CANDIDATE_EVIDENCE_MISSING');
+    expect(() => attachStage1ResultGovernance({
+      status: 'RUNNING',
+      checkpoint: { protocol: 'ACK_V2' },
+    }, derived)).toThrow('PREDICTIVE_NT_TERMINAL_RUNNING_ACK_PAYLOAD_FORBIDDEN');
+    expect(attachStage1ResultGovernance({
+      status: 'RUNNING',
+      checkpoint: { protocol: 'ACK_V2' },
+    }, derived, { allowAckCheckpoint: true })).toMatchObject({
+      status: 'RUNNING',
+      checkpoint: { protocol: 'ACK_V2' },
+      predictiveNt: null,
+      releaseEligible: false,
+    });
+  }, 60_000);
+
+  it('admits positive PA and feed NMP in the saved six-component Stage 1 scope', async () => {
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-scope-${Date.now()}`);
+    const stage1 = validStage1(design.projectNumber);
+    stage1.saturatesWt = '64';
+    stage1.polarAromaticsWt = '6';
+    const snapshot = await saveEcrPrePilotStage1(userId, design.id, stage1);
+    expect(() => derivePredictiveNtSixComponentInputFromStage1(snapshot, design.projectNumber)).not.toThrow();
+  });
+
+  it('keeps lineage stable when identical Stage 1 scientific inputs are saved again', async () => {
+    const design = await allocateEcrPrePilotDesign(userId, `stage1-idempotency-${Date.now()}`);
+    const raw = validStage1(design.projectNumber);
+
+    const first = await saveEcrPrePilotStage1(userId, design.id, raw);
+    const second = await saveEcrPrePilotStage1(userId, design.id, raw);
+
+    expect(second.immutableHash).toBe(first.immutableHash);
+    expect(second.savedAt).toBe(first.savedAt);
+
+    const metadataOnlyResave = {
+      ...first,
+      savedAt: '2099-01-01T00:00:00.000Z',
+    };
+    metadataOnlyResave.immutableHash = stage1SnapshotHash(metadataOnlyResave);
+    expect(metadataOnlyResave.immutableHash).not.toBe(first.immutableHash);
+    expect(stage1ScientificContentHash(metadataOnlyResave))
+      .toBe(stage1ScientificContentHash(first));
+
+    const changedScientificInput = {
+      ...first,
+      stage1: {
+        ...first.stage1,
+        designFeedRateLph: first.stage1.designFeedRateLph + 1,
+      },
+    };
+    changedScientificInput.immutableHash = stage1SnapshotHash(changedScientificInput);
+    expect(stage1ScientificContentHash(changedScientificInput))
+      .not.toBe(stage1ScientificContentHash(first));
+  });
+
+  it('derives and validates identical 7C thermodynamic inputs for both saved phase orientations', () => {
+    const nmpContinuousSnapshot = makeStage1Snapshot(canonicalizeStage1Input(
+      validStage1(209),
+      209,
+    ));
+    const rrboContinuousSnapshot = makeStage1Snapshot(canonicalizeStage1Input({
+      ...validStage1(209),
+      phaseConfiguration: 'rrbo-continuous-nmp-dispersed',
+    }, 209));
+
+    expect(nmpContinuousSnapshot.immutableHash).not.toBe(rrboContinuousSnapshot.immutableHash);
+    expect(nmpContinuousSnapshot.stage1.phaseConfiguration)
+      .toBe('nmp-continuous-rrbo-dispersed');
+    expect(rrboContinuousSnapshot.stage1.phaseConfiguration)
+      .toBe('rrbo-continuous-nmp-dispersed');
+
+    const nmpContinuous = derivePredictiveNtInputFromStage1(nmpContinuousSnapshot, 209);
+    const rrboContinuous = derivePredictiveNtInputFromStage1(rrboContinuousSnapshot, 209);
+
+    expect(() => validatePredictiveNtJobInput(nmpContinuous)).not.toThrow();
+    expect(() => validatePredictiveNtJobInput(rrboContinuous)).not.toThrow();
+    expect(nmpContinuous).toMatchObject({
+      engineContractVersion: '7C-1.6.0',
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+      temperatureK: 323.15,
+      engineComponentContract: {
+        componentCount: 7,
+        families: ['SAT', 'MONO', 'DI', 'POLY', 'PA', 'NMP', 'H2O'],
+        thermodynamicModel: 'NATIVE_SEVEN_COMPONENT_COSMO_SAC_2010_ADDITIVE_RK_H2O',
+      },
+    });
+    expect({
+      modelHash: rrboContinuous.modelHash,
+      temperatureK: rrboContinuous.temperatureK,
+      solventMolarRatio: rrboContinuous.solventMolarRatio,
+      feedMoleFractions: rrboContinuous.feedMoleFractions,
+      sourceFeedCompositionMassFraction: rrboContinuous.sourceFeedCompositionMassFraction,
+      sourceProductTargetsMassFraction: rrboContinuous.sourceProductTargetsMassFraction,
+      sourceSolventOilMassRatio: rrboContinuous.sourceSolventOilMassRatio,
+      solventSpecificationAudit: rrboContinuous.solventSpecificationAudit,
+      wetSolventConstruction: rrboContinuous.wetSolventConstruction,
+      targetRaffinateMonoHydrocarbonMoleFraction:
+        rrboContinuous.targetRaffinateMonoHydrocarbonMoleFraction,
+      minimumRaffinateSaturatesHydrocarbonMoleFraction:
+        rrboContinuous.minimumRaffinateSaturatesHydrocarbonMoleFraction,
+      engineComponentContract: rrboContinuous.engineComponentContract,
+    }).toEqual({
+      modelHash: nmpContinuous.modelHash,
+      temperatureK: nmpContinuous.temperatureK,
+      solventMolarRatio: nmpContinuous.solventMolarRatio,
+      feedMoleFractions: nmpContinuous.feedMoleFractions,
+      sourceFeedCompositionMassFraction: nmpContinuous.sourceFeedCompositionMassFraction,
+      sourceProductTargetsMassFraction: nmpContinuous.sourceProductTargetsMassFraction,
+      sourceSolventOilMassRatio: nmpContinuous.sourceSolventOilMassRatio,
+      solventSpecificationAudit: nmpContinuous.solventSpecificationAudit,
+      wetSolventConstruction: nmpContinuous.wetSolventConstruction,
+      targetRaffinateMonoHydrocarbonMoleFraction:
+        nmpContinuous.targetRaffinateMonoHydrocarbonMoleFraction,
+      minimumRaffinateSaturatesHydrocarbonMoleFraction:
+        nmpContinuous.minimumRaffinateSaturatesHydrocarbonMoleFraction,
+      engineComponentContract: nmpContinuous.engineComponentContract,
+    });
+    expect(nmpContinuous.stage1Authority?.snapshotHash)
+      .toBe(nmpContinuousSnapshot.immutableHash);
+    expect(rrboContinuous.stage1Authority?.snapshotHash)
+      .toBe(rrboContinuousSnapshot.immutableHash);
+    expect(nmpContinuous.stage1Authority?.source.stage1.phaseConfiguration)
+      .toBe('nmp-continuous-rrbo-dispersed');
+    expect(rrboContinuous.stage1Authority?.source.stage1.phaseConfiguration)
+      .toBe('rrbo-continuous-nmp-dispersed');
+
+    expect(() => canonicalizeStage1Input({
+      ...validStage1(209),
+      phaseConfiguration: 'unsupported-phase-configuration',
+    }, 209)).toThrow('INVALID_STAGE1_phaseConfiguration');
+  });
+
+  it('disables the raw scientific enqueue outside the test runtime', async () => {
+    const prior = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    try {
+      await expect(enqueuePredictiveNtRuntimeTestJob(validInput, 1, 1))
+        .rejects.toThrow('RAW_PREDICTIVE_NT_ENQUEUE_DISABLED');
+    } finally {
+      process.env.NODE_ENV = prior;
+    }
+  });
+
+  it('refuses a retired 6C queue submission before database access', async () => {
+    await expect(enqueuePredictiveNtRuntimeTestJob(
+      validInput,
+      1,
+      1,
+    )).rejects.toThrow(
+      'PREDICTIVE_NT_ENGINE_CONTRACT_RETIRED: only 7C-1.6.0 may execute',
+    );
+  });
+
+  it('fails current preflight for tampered and missing packaged runtime artifacts', () => {
+    delete process.env.PREDICTIVE_NT_TEST_WORKER_SCRIPT;
+    // Release validation consumes the bundle produced by `npm run build`; it
+    // must never create or repair that production artifact.
+    preflightPredictiveNtRuntime();
+    const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), 'predictive-nt-current-runtime-'));
+    cpSync('dist/predictive-nt-runtime-7c-1-6', temporaryRoot, { recursive: true });
+    process.env.PREDICTIVE_NT_RUNTIME_ROOT = temporaryRoot;
+    const relativeWorkerPath =
+      'server/ecr-pre-pilot/predictive-nt-seven-component-v1-6/worker.py';
+    const temporaryWorkerPath = path.join(temporaryRoot, relativeWorkerPath);
+    const relativeScientificPath =
+      'server/research/ecr-pre-pilot-cosmosac/vendor/python/scipy/optimize/_lsq/least_squares.py';
+    const temporaryScientificPath = path.join(temporaryRoot, relativeScientificPath);
+    try {
+      appendFileSync(temporaryScientificPath, '\n# tampered current scientific runtime\n');
+      expect(() => preflightPredictiveNtRuntime())
+        .toThrow(/SEVEN_COMPONENT_RUNTIME_MANIFEST_MISMATCH/);
+      copyFileSync(
+        path.join('dist/predictive-nt-runtime-7c-1-6', relativeScientificPath),
+        temporaryScientificPath,
+      );
+      rmSync(temporaryWorkerPath);
+      expect(() => preflightPredictiveNtRuntime())
+        .toThrow(/PREDICTIVE_NT_RUNTIME_MISSING/);
+    } finally {
+      delete process.env.PREDICTIVE_NT_RUNTIME_ROOT;
+      rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  }, 60_000);
+
+  it.each([
+    {
+      name: 'retains the acknowledged prefix when the worker dies before N+1',
+      hooks: { killAfterAcknowledgedStage: 1 },
+      error: 'PREDICTIVE_NT_TEST_TERMINATED_AFTER_ACK',
+    },
+    {
+      name: 'rejects a mismatched replay without losing the committed trial',
+      hooks: { replayMismatchAtStage: 1 },
+      error: 'PREDICTIVE_NT_CHECKPOINT_REPLAY_MISMATCH',
+    },
+  ])('$name', async ({ hooks, error }) => {
+    useCurrentAckProtocolFixture();
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-fault-v1');
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
+      userId,
+      design.id,
+      hooks,
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 120_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+    expect(terminal?.status).toBe('failed');
+    expect(terminal?.error).toContain(error);
+    expect((terminal?.result as any)?.trials).toHaveLength(1);
+    expect((terminal?.result as any)?.checkpoint).toMatchObject({
+      protocol: 'ACK_V3_ENGINE_CONTRACT',
+      engineContractVersion: '7C-1.6.0',
+      acknowledgedStageCount: 1,
+    });
+    expect(terminal?.result).toMatchObject({
+      status: 'ENGINE_ERROR',
+      engineContractVersion: '7C-1.6.0',
+      predictiveNt: null,
+      releaseEligible: false,
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
+    });
+  }, 150_000);
+
+  it('fails a zero-exit final RUNNING ACK payload and persists server evidence', async () => {
+    useCurrentAckProtocolFixture();
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-terminal-ack-bypass-v1');
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
+      userId,
+      design.id,
+      { replaceFinalPayloadWithRunningAck: true },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 120_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+    expect(terminal?.status).toBe('failed');
+    expect(terminal?.error).toContain('PREDICTIVE_NT_TERMINAL_RUNNING_ACK_PAYLOAD_FORBIDDEN');
+    expect(terminal?.result).toMatchObject({
+      status: 'ENGINE_ERROR',
+      predictiveNt: null,
+      releaseEligible: false,
+      calibrationRequired: false,
+      engineContractVersion: '7C-1.6.0',
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
+    });
+  }, 150_000);
+
+  it('replaces an admitted completed result when report generation fails', async () => {
+    useCurrentAckProtocolFixture();
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-report-failure-v1');
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
+      userId,
+      design.id,
+      { forceReportGenerationFailure: true },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 120_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+    expect(terminal?.status).toBe('failed');
+    expect(terminal?.error).toContain(
+      'PREDICTIVE_NT_REPORT_GENERATION_FAILED: PREDICTIVE_NT_TEST_FORCED_REPORT_GENERATION_FAILURE',
+    );
+    expect(terminal?.result).toMatchObject({
+      status: 'ENGINE_ERROR',
+      predictiveNt: null,
+      releaseEligible: false,
+      calibrationRequired: false,
+      engineContractVersion: '7C-1.6.0',
+      sulfurPrediction: { status: 'NOT_CALCULABLE' },
+    });
+    expect(terminal?.report.available).toBe(false);
+  }, 150_000);
+
+  it('resumes the current 7C-1.6 sweep without rewriting acknowledged evidence', async () => {
+    useCurrentAckProtocolFixture();
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-checkpoint-resume-v2');
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
+      userId,
+      design.id,
+      { restartAfterAcknowledgedStage: 1 },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 180_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+
+    expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
+    const result = terminal?.result as any;
+    expect(result.trials.map((trial: any) => trial.stageCount))
+      .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(result.checkpoint).toMatchObject({
+      protocol: 'ACK_V3_ENGINE_CONTRACT',
+      engineContractVersion: '7C-1.6.0',
+      acknowledgedStageCount: 10,
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+      engineHash: terminal?.engineHash,
+    });
+    expect(result.checkpoint.trialHashes).toHaveLength(10);
+    expect(result.checkpoint.trialCanonicals).toHaveLength(10);
+    expect(result.checkpoint.payloadHashes).toHaveLength(10);
+    expect(result.checkpoint.payloadCanonicals).toHaveLength(10);
+
+    const history = await pool.query(
+      `SELECT details->>'stageCount' AS stage_count,
+              details->>'trialHash' AS trial_hash,
+              COUNT(*)::int AS total
+         FROM ecr_pre_pilot_predictive_nt_job_history
+        WHERE job_id = $1
+          AND details->>'event' = 'trial_checkpoint_acknowledged'
+        GROUP BY details->>'stageCount', details->>'trialHash'
+        ORDER BY (details->>'stageCount')::int`,
+      [submitted.jobId],
+    );
+    expect(history.rows).toEqual(result.checkpoint.trialHashes.map(
+      (trialHash: string, index: number) => ({
+        stage_count: String(index + 1),
+        trial_hash: trialHash,
+        total: 1,
+      }),
+    ));
+  }, 210_000);
+
+  it('finalizes the current 7C-1.6 sweep after the final acknowledgement', async () => {
+    useCurrentAckProtocolFixture();
+    const design = await allocateEcrPrePilotDesign(userId, 'predictive-nt-final-checkpoint-resume-v2');
+    const submitted = await enqueueSuiteJob(
+      currentQueueInput(),
+      userId,
+      design.id,
+      { restartAfterAcknowledgedStage: 10 },
+    );
+    let terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    const deadline = Date.now() + 180_000;
+    while (terminal?.status !== 'completed' && terminal?.status !== 'failed' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      terminal = await getPredictiveNtJob(submitted.jobId, userId, design.id);
+    }
+
+    expect(terminal?.status, terminal?.error ?? 'job did not complete').toBe('completed');
+    const result = terminal?.result as any;
+    expect(result.trials.map((trial: any) => trial.stageCount))
+      .toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(result.checkpoint).toMatchObject({
+      protocol: 'ACK_V3_ENGINE_CONTRACT',
+      engineContractVersion: '7C-1.6.0',
+      acknowledgedStageCount: 10,
+      modelHash: PRE_PILOT_MULTISTAGE_MODEL.modelHash,
+      engineHash: terminal?.engineHash,
+    });
+    const history = await pool.query(
+      `SELECT details->>'stageCount' AS stage_count, COUNT(*)::int AS total
+         FROM ecr_pre_pilot_predictive_nt_job_history
+        WHERE job_id = $1
+          AND details->>'event' = 'trial_checkpoint_acknowledged'
+        GROUP BY details->>'stageCount'
+        ORDER BY (details->>'stageCount')::int`,
+      [submitted.jobId],
+    );
+    expect(history.rows).toEqual(Array.from({ length: 10 }, (_, index) => ({
+      stage_count: String(index + 1),
+      total: 1,
+    })));
+  }, 210_000);
+});

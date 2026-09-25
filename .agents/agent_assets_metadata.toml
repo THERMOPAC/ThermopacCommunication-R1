@@ -1815,3 +1815,17 @@ mtime_ms = 1790136358174
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/ae41098b-7c33-43d1-accc-b1a2301e5c84/74d780a6-8db8-40fd-aea1-76ca3bbd46ed"
 storage_version_token = "1790136503670144"
 content_type = "application/pdf"
+
+[[outputs]]
+id = "vPUfzx_Z1vSadIWEl52Ki"
+uri = "file://exports/Thermopac-Stage2-Handover-2026-09-25.zip"
+type = "unspecified"
+title = "Thermopac Stage 2 — Complete Handover ZIP"
+description = "Verified frozen runtime, molecular profiles, reference calculation and matching PDF, API/checkpoint contract, integration sources, available native source and licence notices. Approximately 62 MB."
+logical_id = "b7339bae-af3c-40b6-9d84-1265b5f613b2"
+content_hash = "sha256:5a3a0c92f02677c3c0afa6c0a6c18d0085140e9c8955e43df781edac7e86b5d4"
+size = 61921826
+mtime_ms = 1790316953592
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:5d05ae61-8225-4651-bb76-b4e20a4ddabb/b7339bae-af3c-40b6-9d84-1265b5f613b2/6a14605b-c351-4880-898e-af3fe123e4e9"
+storage_version_token = "1790316990223491"
+content_type = "application/octet-stream"

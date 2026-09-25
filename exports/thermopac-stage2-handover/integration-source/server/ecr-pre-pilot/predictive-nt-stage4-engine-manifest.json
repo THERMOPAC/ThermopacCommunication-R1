@@ -1,0 +1,16 @@
+{
+  "schema": "ECR_PERSISTED_STAGE2_STAGE4_ENGINE_ALLOWLIST_V1",
+  "purpose": "Bundled immutable allowlist for read-only Stage-4 validation of already completed 7C Stage-2 records. Values are the verifiedScientificInputAggregateSha256 values recorded by the controlled 7C runtime manifests; this file is not derived from database rows.",
+  "contracts": {
+    "7C-1.5.0": {
+      "engineId": "ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O",
+      "engineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac",
+      "stage4AdapterScienceEngineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac"
+    },
+    "7C-1.6.0": {
+      "engineId": "ECR2_PRE_PILOT_SEVEN_COMPONENT_0P5_5P0_H2O_SWEEP",
+      "engineHash": "ff35a410554e3f30bb43715691752fdc2f6a016a4689c885bf91272a17c7b486",
+      "stage4AdapterScienceEngineHash": "4f0b57dd41a2d768e1964e49ecee23e87de358ad7de697a2b315ab94a79091ac"
+    }
+  }
+}
