@@ -1,0 +1,11 @@
+{
+  "name": "stage3-hydrodynamic-screening-handover",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "replay": "node replay.mjs",
+    "test": "node --test tests.mjs",
+    "rebuild": "esbuild entry.ts --bundle --platform=node --format=esm --tree-shaking=true --outfile=runtime/engine.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

@@ -1,0 +1,23 @@
+{
+  "methodology": [
+    "Saved-data postprocessing only: no engine/solver import, no model execution, no database read/write, no application, input, equation or authority changes.",
+    "Use saved FEASIBLE classification and verify all six loading <=0.70, tip speed <=4.5 m/s, finite metrics and lower-root evidence. Ignore the 20 rpm rule AND all RPM-window preferences. No comparison ranking from the old window selection is used.",
+    "Within each diameter minimize max(six scenario loading). Absolute headroom = 0.70 - maxLoading; percentage-point headroom = 100 times that difference (NOT percent relative). This is the sole hydraulic objective, not area or a weighted score.",
+    "Exact objective ties are retained and counted; deterministic presentation tie-break: ascending RPM, hc/D, rotor/D, free area. Numerical near-ties are not claims of significant engineering differences.",
+    "Controlling scenario is saved governing minimum-capacity scenario, checked against all six. Its capacity, holdups, drop size, area, roots and diagnostics stay together. Worst separation is min over six of phi_turn - phi_op; ranges describe scenario envelopes, not synthetic scenarios.",
+    "Area objective for alternatives is maximize MINIMUM six-scenario interfacial area (m2/m3): conservative across mandatory unestablished interface/coefficient cases, not an average. It is not a transfer coefficient, residence time, removal prediction or guaranteed contact efficiency.",
+    "Pareto 2D uses maximize headroom and minimum-six area, globally and within each D. Optional global 3D adds maximize minimum-six turning separation. Exact nonweighted dominance (all no worse and at least one strictly better); all equal-coordinate trials remain. No cost/compactness/spacing preference is invented.",
+    "Roots and 16-point continuation are stored evidence, not rerun. Recheck closure, endpoint, monotonic holdup and signed velocities algebraically. Lower branch is quasi-steady admissibility, not dynamic stability. Root distance and normalized turning separation are geometry of saved solutions, not probabilities or confidence.",
+    "Verify SHA256 of every file in source manifest and terminal COMPLETE/result hash. Cross-check all feasible CSV scenario numerical core metrics, roots, continuation, diagnostics, velocities and qualification against saved JSON. CSV doubled-quote handling preserves backslashes in embedded JSON.",
+    "Reporting uses rounded tables; CSV/JSON retain native JS numeric precision. No new physical acceptance cutoffs are imposed on Eo, We, Re or Oh. Drag-correlation bounds and spherical/turbulent validity remain UNKNOWN as stored."
+  ],
+  "objective": "minimize maximum six-scenario loading within each diameter",
+  "tieBreak": [
+    "rpm",
+    "hcToColumn",
+    "rotorToColumn",
+    "freeArea"
+  ],
+  "areaObjective": "maximize minimum six-scenario interfacial area",
+  "thirdObjective": "maximize minimum six-scenario turning-holdup separation"
+}

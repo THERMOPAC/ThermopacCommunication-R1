@@ -1,0 +1,369 @@
+{
+  "inputs": {
+    "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": {
+      "bytes": 11406,
+      "imports": [],
+      "format": "esm"
+    },
+    "server/engines/llx/llx-ecr2-d32-interface.ts": {
+      "bytes": 31890,
+      "imports": [],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/kuhni-hydrodynamics.ts": {
+      "bytes": 16385,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/engines/llx/llx-ecr2-d32-interface.ts",
+          "kind": "import-statement",
+          "original": "../engines/llx/llx-ecr2-d32-interface"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/kuhni-geometry-resolver.ts": {
+      "bytes": 18796,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/kuhni-geometry-resolver-v110.ts": {
+      "bytes": 14771,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/kuhni-geometry-resolver-v120.ts": {
+      "bytes": 22234,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver-v110.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver-v110"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/kuhni-geometry-resolver-v130.ts": {
+      "bytes": 4172,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver-v120.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver-v120"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/kuhni-geometry-resolver-v140.ts": {
+      "bytes": 26571,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver-v130.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver-v130"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/stage3-stage4-optimizer.ts": {
+      "bytes": 72222,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts",
+          "kind": "import-statement",
+          "original": "./rrbo-wetnmp-hydraulic-p1"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver-v140.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver-v140"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-geometry-resolver.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-geometry-resolver"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/automatic-hydraulic-selection.ts": {
+      "bytes": 8143,
+      "imports": [
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./kuhni-hydrodynamics"
+        },
+        {
+          "path": "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts",
+          "kind": "import-statement",
+          "original": "./rrbo-wetnmp-hydraulic-p1"
+        },
+        {
+          "path": "server/ecr-pre-pilot/stage3-stage4-optimizer.ts",
+          "kind": "import-statement",
+          "original": "./stage3-stage4-optimizer"
+        }
+      ],
+      "format": "esm"
+    },
+    "server/research/ecr-pre-pilot-pa-anchor/evidence.ts": {
+      "bytes": 5556,
+      "imports": [],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/six-component-cosmo-sac-basis.ts": {
+      "bytes": 10303,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:fs",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "server/ecr-pre-pilot/stage1.ts": {
+      "bytes": 19855,
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "server/research/ecr-pre-pilot-pa-anchor/evidence.ts",
+          "kind": "import-statement",
+          "original": "../research/ecr-pre-pilot-pa-anchor/evidence"
+        },
+        {
+          "path": "server/ecr-pre-pilot/six-component-cosmo-sac-basis.ts",
+          "kind": "import-statement",
+          "original": "./six-component-cosmo-sac-basis"
+        }
+      ],
+      "format": "esm"
+    },
+    "<stdin>": {
+      "bytes": 674,
+      "imports": [
+        {
+          "path": "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts",
+          "kind": "import-statement",
+          "original": "./server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1"
+        },
+        {
+          "path": "server/ecr-pre-pilot/automatic-hydraulic-selection.ts",
+          "kind": "import-statement",
+          "original": "./server/ecr-pre-pilot/automatic-hydraulic-selection"
+        },
+        {
+          "path": "server/ecr-pre-pilot/kuhni-hydrodynamics.ts",
+          "kind": "import-statement",
+          "original": "./server/ecr-pre-pilot/kuhni-hydrodynamics"
+        },
+        {
+          "path": "server/ecr-pre-pilot/stage1.ts",
+          "kind": "import-statement",
+          "original": "./server/ecr-pre-pilot/stage1"
+        },
+        {
+          "path": "server/ecr-pre-pilot/stage3-stage4-optimizer.ts",
+          "kind": "import-statement",
+          "original": "./server/ecr-pre-pilot/stage3-stage4-optimizer"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "stdin.js": {
+      "imports": [
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:crypto",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "exports": [
+        "AUTOMATIC_SELECTION_HASH",
+        "ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_HASH",
+        "ECR_STAGE3_STAGE4_OPTIMIZER_P1_REVIEW_VERSION",
+        "dragCoefficient",
+        "evaluateP1ReviewTrial",
+        "evaluateRrboHydraulicTrial",
+        "kuhniRunHash",
+        "makeStage1HydrodynamicProcessBasis",
+        "resolveAutomaticHydraulicSelection",
+        "swarmSpeeds"
+      ],
+      "entryPoint": "<stdin>",
+      "inputs": {
+        "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": {
+          "bytesInOutput": 10662
+        },
+        "<stdin>": {
+          "bytesInOutput": 0
+        },
+        "server/ecr-pre-pilot/kuhni-hydrodynamics.ts": {
+          "bytesInOutput": 12945
+        },
+        "server/engines/llx/llx-ecr2-d32-interface.ts": {
+          "bytesInOutput": 12833
+        },
+        "server/ecr-pre-pilot/stage3-stage4-optimizer.ts": {
+          "bytesInOutput": 13091
+        },
+        "server/ecr-pre-pilot/kuhni-geometry-resolver-v140.ts": {
+          "bytesInOutput": 11960
+        },
+        "server/ecr-pre-pilot/kuhni-geometry-resolver-v130.ts": {
+          "bytesInOutput": 586
+        },
+        "server/ecr-pre-pilot/kuhni-geometry-resolver-v120.ts": {
+          "bytesInOutput": 675
+        },
+        "server/ecr-pre-pilot/kuhni-geometry-resolver-v110.ts": {
+          "bytesInOutput": 629
+        },
+        "server/ecr-pre-pilot/kuhni-geometry-resolver.ts": {
+          "bytesInOutput": 9970
+        },
+        "server/ecr-pre-pilot/automatic-hydraulic-selection.ts": {
+          "bytesInOutput": 7506
+        },
+        "server/research/ecr-pre-pilot-pa-anchor/evidence.ts": {
+          "bytesInOutput": 5500
+        },
+        "server/ecr-pre-pilot/six-component-cosmo-sac-basis.ts": {
+          "bytesInOutput": 3382
+        },
+        "server/ecr-pre-pilot/stage1.ts": {
+          "bytesInOutput": 5249
+        }
+      },
+      "bytes": 96319
+    }
+  }
+}

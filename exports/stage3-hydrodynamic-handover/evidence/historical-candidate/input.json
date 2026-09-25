@@ -1,0 +1,120 @@
+{
+  "provenance": {
+    "sourceFileSha256": "aeef586f907f9b1ccaef7ba4af837d667a2d64a09bf34be768c1dbd9bda091fd",
+    "sourceSnapshotHash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+    "isolatedBasisSha256": "6e6b5439b1006dcea6d196b9ce93304a596873a79294dc41db0ea43f5ced420a",
+    "phaseOverrideOnly": true,
+    "authoritiesUnmodified": [
+      {
+        "id": "64",
+        "design_id": 269,
+        "stage1_snapshot_hash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+        "implementation_hash": "faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550",
+        "immutable_hash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+        "created_at": "2026-09-16T09:06:30.839Z"
+      },
+      {
+        "id": "63",
+        "design_id": 269,
+        "stage1_snapshot_hash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+        "implementation_hash": "faa56fdd99b0904a5e524fb8350859192d94b269331e91bbd34cc5d946ccb550",
+        "immutable_hash": "e2afc059444f3c22c5d3a64b83ed81b59b5a122bd51ac1c9bc9897337d788249",
+        "created_at": "2026-09-16T04:38:39.786Z"
+      },
+      {
+        "id": "62",
+        "design_id": 269,
+        "stage1_snapshot_hash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+        "implementation_hash": "35a2b0900aac2de58877f4699b174441da715ec5b8329232afc2beedbe77dd56",
+        "immutable_hash": "4a477818318055f48f58a9d60b4bea444b6e308c39c437e641ffd52047261384",
+        "created_at": "2026-09-16T03:54:00.630Z"
+      },
+      {
+        "id": "61",
+        "design_id": 269,
+        "stage1_snapshot_hash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+        "implementation_hash": "35a2b0900aac2de58877f4699b174441da715ec5b8329232afc2beedbe77dd56",
+        "immutable_hash": "ee43e2ee0a246c96e63a6abadef6c0f606eb1a39333956cc7ad2e6d342a355a1",
+        "created_at": "2026-09-16T03:31:52.830Z"
+      },
+      {
+        "id": "60",
+        "design_id": 269,
+        "stage1_snapshot_hash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+        "implementation_hash": "35a2b0900aac2de58877f4699b174441da715ec5b8329232afc2beedbe77dd56",
+        "immutable_hash": "ee43e2ee0a246c96e63a6abadef6c0f606eb1a39333956cc7ad2e6d342a355a1",
+        "created_at": "2026-09-16T03:31:45.939Z"
+      }
+    ],
+    "controls": {
+      "diameterMinM": 0.2,
+      "diameterMaxM": 1.5,
+      "diameterStepM": 0.1,
+      "rpmMin": 30,
+      "rpmMax": 70,
+      "rpmStep": 5,
+      "hcToColumn": [
+        0.2,
+        0.25,
+        0.3
+      ],
+      "rotorToColumn": [
+        0.33,
+        0.4,
+        0.5
+      ],
+      "freeArea": [
+        0.2,
+        0.3,
+        0.4
+      ],
+      "compareOrientations": true,
+      "minimumUsefulWindowRpm": 20
+    },
+    "sourceCodeSha256": {
+      "server/ecr-pre-pilot/stage3-stage4-optimizer.ts": "7163652f6dec662d15922ac5c2d97906563d394947a1232cdec948760efcf1a5",
+      "server/ecr-pre-pilot/rrbo-wetnmp-hydraulic-p1.ts": "9a1def48c229c5af65fe2fe3773f032d556bbdeaccbfe9c49a2166042f34f4ed"
+    },
+    "candidateNotAuthority": true
+  },
+  "basis": {
+    "schemaVersion": "ECR_PRE_PILOT_HYDRODYNAMIC_PROCESS_BASIS_V1",
+    "stage1SnapshotHash": "549dffa428356ee5e94d8baff297c114e1f0c6f345b84e121181e7b5f6b5f15b",
+    "operatingTemperatureC": 40,
+    "temperatureK": 313.15,
+    "operatingPressure": "2.0",
+    "phaseConfiguration": "rrbo-continuous-nmp-dispersed",
+    "composition": {
+      "rrboGrade": "SN300",
+      "rrboFeedWt": {
+        "saturates": 85,
+        "monoAromatics": 7,
+        "diAromatics": 4,
+        "polyAromatics": 2,
+        "polarAromatics": 2,
+        "nmp": 0
+      },
+      "wetSolventWt": {
+        "nmp": 99.5,
+        "water": 0.5
+      }
+    },
+    "rrboFeed": {
+      "identity": "RRBO_FEED",
+      "valueLph": 4000,
+      "conversion": "L/h * 1e-3 m3/L / 3600 s/h",
+      "flowM3S": 0.0011111111111111111,
+      "densityKgM3": 869,
+      "dynamicViscosityPaS": 0.0598
+    },
+    "wetSolventPhase": {
+      "identity": "WET_NMP_SOLVENT_PHASE",
+      "solventOilMassRatio": 0.6,
+      "conversion": "(RRBO m3/s * RRBO kg/m3 * S/O) / wet-solvent kg/m3",
+      "flowM3S": 0.0005707717569786535,
+      "densityKgM3": 1015,
+      "dynamicViscosityPaS": 0.001416
+    },
+    "interfacialTensionNM": 0.011
+  }
+}
