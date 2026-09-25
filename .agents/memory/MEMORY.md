@@ -149,3 +149,4 @@
 - [Predictive queue test isolation](predictive-queue-test-isolation.md) — disposable namespaces must own identities and numbering; append-only engineering history cannot be cleaned by test-name matching.
 - [Garthe swarm velocity definitions](garthe-swarm-velocity-convention.md) — superficial swarm and interphase slip differ by (1−φ); low-Re hindrance and operating/flood holdup stay distinct.
 - [Automatic hydraulic selection](ecr-prepilot-automatic-hydraulic-selection.md) — system-owned diameter choice excludes RPM windows; conversational recommendations are not hard-coded targets.
+- [Hydraulic runtime portability](hydraulic-runtime-portability.md) — compare all decisions independently of byte parity; numerical tolerances never replace scientific screening limits.
