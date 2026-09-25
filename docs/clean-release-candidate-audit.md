@@ -1,5 +1,14 @@
 # Clean release candidate — isolated verification
 
+## Subsequent runtime activation
+
+The user subsequently authorized activating the reduced runtime in this project.
+The active Nix roots and production launcher have now been changed and checked
+offline; see `production-nix-runtime-validation.md`. This supersedes the earlier
+unchanged-configuration status below, not the separate full-ERP/publishing test
+requirements. The clean directory is still not this project's publishing source,
+historical workspace files remain intact, and no publish has been performed.
+
 ## Authorized test preparation — 2026-09-25
 
 The user authorized a separate isolated publishing test. The test remains

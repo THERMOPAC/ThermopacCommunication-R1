@@ -33,3 +33,14 @@ Scope the old-channel GCC/zlib library path to Python, not the whole ERP.
 
 **How to apply:** Validate Node, browser and Python together when changing native
 library resolution. A successful standalone Python import is insufficient.
+
+Package-tool removal can leave duplicate `.replit` Nix package declarations intact.
+
+**Why:** Removing research/tooling roots through the supported dependency controls
+updated `replit.nix`, but the older `.replit` package list still retained the same
+large tooling closure.
+
+**How to apply:** Reconcile both sources of Nix roots. Protected `.replit` edits use
+the schema-validating replacement callback supplied by the tool, not a direct
+write. The package index may not expose `stdenv.cc.cc.lib`; if retaining it
+transitively, explicitly verify closure membership instead of assuming it.

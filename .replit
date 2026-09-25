@@ -4,12 +4,12 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["freetype", "glibcLocales", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf", "openjpeg", "swig", "xcbuild"]
+packages = []
 
 [deployment]
 deploymentTarget = "autoscale"
 build = ["npm", "run", "build"]
-run = ["bash", "-c", "node scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs && NODE_ENV=production node dist/index.js"]
+run = ["sh", "scripts/production-run.sh"]
 
 [workflows]
 runButton = "Project"
@@ -29,14 +29,11 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm run dev"
-waitForPort = 5000
+args = "sh -n scripts/production-run.sh"
 
 [agent]
 integrations = ["javascript_openai:1.0.0"]

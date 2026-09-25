@@ -1,14 +1,10 @@
 {pkgs}: {
   deps = [
-    pkgs.python312Packages.pymupdf
-    pkgs.python312Packages.rdkit
-    pkgs.python312Packages.scipy
-    pkgs.python312Packages.numpy
-    pkgs.expat
-    pkgs.nspr
-    pkgs.nss
+    pkgs.glibcLocales
+    pkgs.which
+    pkgs.poppler_utils
+    pkgs.zlib
+    pkgs.python312
     pkgs.chromium
-    pkgs.jq
-    pkgs.postgresql
   ];
 }

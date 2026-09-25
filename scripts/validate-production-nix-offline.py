@@ -4,9 +4,64 @@ import json
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+
+
+def check_production_command(launcher):
+    """Stub *only* Node so the exact production command never runs migrations."""
+    with tempfile.TemporaryDirectory(prefix="production-command-") as directory:
+        directory = Path(directory)
+        node = directory / "node"
+        node.write_text("""#!/bin/sh
+if [ "$1" = scripts/prepare-production-runtime.mjs ] && [ "$2" = --verify ]; then
+  exit 0
+fi
+printf '%s|%s|%s\\n' "$1" "${NODE_ENV-unset}" "${LD_LIBRARY_PATH-unset}" >> "$TEST_NODE_LOG"
+if [ "$1" = scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs ]; then
+  exit "${TEST_SCHEMA_STATUS:-0}"
+fi
+if [ "${TEST_SLEEP:-0}" = 1 ]; then exec /bin/sleep 30; fi
+exit 37
+""")
+        node.chmod(0o700)
+        env = dict(os.environ, PATH=str(directory) + ":" + os.environ["PATH"],
+                   TEST_NODE_LOG=str(directory / "calls"), NODE_ENV="test")
+        script = ["/bin/sh", "scripts/production-run.sh"]
+        result = subprocess.run(script, env=env, check=False, timeout=20)
+        assert result.returncode == 37, result.returncode
+        calls = (directory / "calls").read_text().splitlines()
+        assert calls == [
+            "scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs|test|unset",
+            "dist/index.js|production|unset",
+        ], calls
+        (directory / "calls").unlink()
+        result = subprocess.run(script, env=dict(env, TEST_SCHEMA_STATUS="23"),
+                                check=False, timeout=20)
+        assert result.returncode == 23
+        assert (directory / "calls").read_text().splitlines() == calls[:1]
+        (directory / "calls").unlink()
+        process = subprocess.Popen(script, env=dict(env, TEST_SLEEP="1"))
+        try:
+            import time
+            for _ in range(100):
+                if (directory / "calls").exists() and len(
+                        (directory / "calls").read_text().splitlines()) == 2:
+                    break
+                time.sleep(0.05)
+            else:
+                raise AssertionError("production exec did not reach final command")
+            process.send_signal(signal.SIGTERM)
+            assert process.wait(timeout=5) == -signal.SIGTERM
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+        assert shutil.which("python3.12") == str(launcher)
+        print("PASS: production command order, exit codes, exec/signal and Node isolation",
+              flush=True)
 
 
 def isolated(node):
@@ -22,6 +77,18 @@ def isolated(node):
         raise RuntimeError("Unexpected network route in isolated namespace")
     print("PASS: no external routes; allowlisted environment; Python-scoped libraries", flush=True)
     assert "LD_LIBRARY_PATH" not in os.environ
+    launcher = str(Path.cwd() / "dist/production-bin/python3.12")
+    assert shutil.which("python3.12") == launcher
+    subprocess.run([node, "scripts/prepare-production-runtime.mjs", "--verify"],
+                   check=True, timeout=30)
+    check_production_command(launcher)
+    python_check = """
+import os, sys
+assert sys.executable == os.environ["EXPECTED_PYTHON"]
+assert os.environ["LD_LIBRARY_PATH"] == os.environ["EXPECTED_LIBRARIES"]
+print("PASS: pinned Python and child-only GCC/zlib")
+"""
+    subprocess.run(["python3.12", "-c", python_check], check=True, timeout=30)
     chromium = subprocess.check_output(["which", "chromium"], text=True).strip()
     assert chromium.startswith("/nix/store/") and chromium.endswith("/bin/chromium")
     print("PASS: portable Chromium discovery; no global library override", flush=True)
@@ -47,6 +114,7 @@ print('PASS: pinned vendored numerical/native imports')
     subprocess.run([
         node, "node_modules/vitest/vitest.mjs", "run", "--maxWorkers=1",
         "--no-file-parallelism", "--testTimeout=90000",
+        "tests/production-nix-active.test.ts",
         "tests/production-nix-document-smoke.test.ts",
         "tests/predictive-nt-production-evidence-paths.test.ts",
         "tests/predictive-nt-report-evidence.test.ts",
@@ -63,9 +131,10 @@ def main():
                      "/tmp/thermopac-clean-release-candidate").resolve()
     if not candidate.is_relative_to(Path("/tmp")) or not candidate.is_dir():
         raise RuntimeError("An existing external /tmp release candidate is required")
-    expression = """let pkgs=import <nixpkgs> {}; in {
-      roots = map (p: p.outPath)
-        (import ./docs/production-nix-candidate.nix {inherit pkgs;}).deps;
+    expression = """let pkgs=import <nixpkgs> {};
+      deps = (import ./replit.nix {inherit pkgs;}).deps;
+    in {
+      roots = map (p: p.outPath) deps;
       python = pkgs.python312.outPath;
       libraries = pkgs.lib.makeLibraryPath [ pkgs.stdenv.cc.cc.lib pkgs.zlib ];
       locales = pkgs.glibcLocales.outPath;
@@ -76,21 +145,40 @@ def main():
     node = shutil.which("node")
     if not node:
         raise RuntimeError("Node module required")
+    if len(config["roots"]) != 6:
+        raise RuntimeError("Unexpected active replit.nix root list")
+    manifest = json.loads((source / "dist/production-bin/manifest.json").read_text())
+    if manifest["roots"] != config["roots"] or \
+            manifest["python"] != config["python"] + "/bin/python3.12" or \
+            ":".join(manifest["libraries"]) != config["libraries"]:
+        raise RuntimeError("Build-generated launcher does not match active Nix roots")
     python = config["python"] + "/bin/python3.12"
     shutil.copyfile(source / "tests/production-nix-document-smoke.test.ts",
                     candidate / "tests/production-nix-document-smoke.test.ts")
+    shutil.copyfile(source / "tests/production-nix-active.test.ts",
+                    candidate / "tests/production-nix-active.test.ts")
+    shutil.copyfile(source / "replit.nix", candidate / "replit.nix")
+    shutil.copyfile(source / "scripts/production-run.sh",
+                    candidate / "scripts/production-run.sh")
+    shutil.copyfile(source / "scripts/prepare-production-runtime.mjs",
+                    candidate / "scripts/prepare-production-runtime.mjs")
+    (candidate / "dist/production-bin").mkdir(exist_ok=True)
+    shutil.copyfile(source / "dist/production-bin/python3.12",
+                    candidate / "dist/production-bin/python3.12")
+    (candidate / "dist/production-bin/python3.12").chmod(0o755)
+    shutil.copyfile(source / "dist/production-bin/manifest.json",
+                    candidate / "dist/production-bin/manifest.json")
     with tempfile.TemporaryDirectory(prefix="production-nix-smoke-") as temporary:
-        wrapper = Path(temporary) / "python3.12"
-        shutil.copyfile(source / "scripts/production-python312-wrapper.sh", wrapper)
-        wrapper.chmod(0o700)
         env = {
-            "PATH": ":".join([temporary] + [p + "/bin" for p in config["roots"]]
+            "PATH": ":".join([str(candidate / "dist/production-bin")]
+                             + [p + "/bin" for p in config["roots"]]
                              + [str(Path(node).parent)]),
             "PYTHONDONTWRITEBYTECODE": "1",
             "HOME": temporary, "TMPDIR": temporary, "NODE_ENV": "test",
             "ISOLATED_NIX_SMOKE": "1", "LANG": "en_US.UTF-8",
-            "PRODUCTION_PYTHON312_BIN": python,
-            "PRODUCTION_PYTHON312_LIBRARY_PATH": config["libraries"],
+            "EXPECTED_PYTHON": python,
+            "EXPECTED_LIBRARIES": config["libraries"],
+            "ACTIVE_REPLIT_PATH": str(source / ".replit"),
             "LOCALE_ARCHIVE": config["locales"] + "/lib/locale/locale-archive",
         }
         subprocess.run([
