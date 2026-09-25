@@ -1931,12 +1931,6 @@ export function RetiredEcrPrePilotDesignStage4Page() {
   );
 }
 
-type RetiredHistoryRecord = {
-  label: string;
-  status: "saved" | "unavailable";
-  value: unknown;
-};
-
 /**
  * Active Stage 4 route after retirement of the experimental Job A/B/C chain.
  *
@@ -1949,9 +1943,6 @@ export default function EcrPrePilotDesignStage4Page() {
   const [design, setDesign] = useState<RecordValue | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [history, setHistory] = useState<RetiredHistoryRecord[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1988,54 +1979,6 @@ export default function EcrPrePilotDesignStage4Page() {
       cancelled = true;
     };
   }, []);
-
-  const loadRetiredHistory = useCallback(async () => {
-    const designId = Number(design?.id);
-    if (!Number.isFinite(designId) || historyLoaded || historyLoading) return;
-    setHistoryLoading(true);
-    const sources = [
-      ["Job A coefficient record", `/api/ecr-pre-pilot/designs/${designId}/job-a/latest`],
-      ["Job C scientific record", `/api/ecr-pre-pilot/designs/${designId}/job-c/jobs/latest`],
-      ["Full finite-rate physical sizing record", `/api/ecr-pre-pilot/designs/${designId}/job-c/physical-sizing/latest`],
-      ["Partial-transfer sizing record", `/api/ecr-pre-pilot/designs/${designId}/partial-transfer-physical-sizing/latest`],
-      ["Partial-transfer qualification record", `/api/ecr-pre-pilot/designs/${designId}/partial-transfer-qualification/jobs/latest`],
-    ] as const;
-    const records = await Promise.all(sources.map(async ([label, endpoint]) => {
-      try {
-        const response = await fetch(endpoint, { credentials: "include" });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          return {
-            label,
-            status: "unavailable" as const,
-            value: response.status === 404
-              ? "No saved record"
-              : stringValue(read(object(payload), "message", "error"), `Read failed (${response.status})`),
-          };
-        }
-        return { label, status: "saved" as const, value: payload };
-      } catch (cause: unknown) {
-        return {
-          label,
-          status: "unavailable" as const,
-          value: cause instanceof Error ? cause.message : "Saved record could not be read.",
-        };
-      }
-    }));
-    setHistory([
-      records[0],
-      {
-        label: "Job B local-coupling record",
-        status: records[1].status,
-        value: records[1].status === "saved"
-          ? "Retired Job B evidence, when present, is retained within the saved Job C scientific record below; no standalone Job B execution or latest-result endpoint is exposed."
-          : "No saved Job C scientific record is available to expose its retained Job B evidence.",
-      },
-      ...records.slice(1),
-    ]);
-    setHistoryLoaded(true);
-    setHistoryLoading(false);
-  }, [design?.id, historyLoaded, historyLoading]);
 
   const designId = Number(design?.id);
 
@@ -2091,46 +2034,6 @@ export default function EcrPrePilotDesignStage4Page() {
         ) : (
           <div className="space-y-4">
             <Stage4PrePilotSizingPanel designId={designId} />
-            <details
-              data-testid="retired-stage4-history"
-              className="rounded-md border border-slate-300 bg-slate-50 p-3"
-              onToggle={(event) => {
-                if (event.currentTarget.open) void loadRetiredHistory();
-              }}
-            >
-              <summary className="cursor-pointer text-xs font-semibold text-slate-800">
-                Retired Job A/B/C and finite-rate history · read-only
-              </summary>
-              <div className="mt-3 space-y-3 text-xs text-slate-700">
-                <div className="rounded border border-amber-300 bg-amber-50 p-3 text-amber-950">
-                  <p className="font-semibold">Retired — historical evidence only</p>
-                  <p className="mt-1">
-                    Job A, Job B, Job C, diagnostics, continuation, full finite-rate,
-                    partial-transfer qualification and associated sizing can no longer be
-                    run, retried, resumed, stopped, or used to gate HETS sizing.
-                  </p>
-                </div>
-                {historyLoading && (
-                  <p role="status" className="flex items-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading saved retired records once…
-                  </p>
-                )}
-                {historyLoaded && history.map((item) => (
-                  <details
-                    key={item.label}
-                    data-testid="retired-history-record"
-                    className="rounded border border-slate-200 bg-white p-2"
-                  >
-                    <summary className="cursor-pointer font-semibold">
-                      {item.label} · {item.status === "saved" ? "Retired" : "Unavailable"}
-                    </summary>
-                    <pre className="mt-2 max-h-72 overflow-auto rounded bg-slate-950 p-3 text-[10px] text-cyan-50">
-                      {typeof item.value === "string" ? item.value : JSON.stringify(item.value, null, 2)}
-                    </pre>
-                  </details>
-                ))}
-              </div>
-            </details>
           </div>
         )}
       </main>
