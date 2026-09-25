@@ -29,11 +29,12 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "sh -n scripts/production-run.sh"
+args = "node_modules/.bin/tsx server/index.ts"
+waitForPort = 5000
 
 [agent]
 integrations = ["javascript_openai:1.0.0"]
