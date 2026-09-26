@@ -19,19 +19,10 @@ describe('LLX interactive route retirement', () => {
     expect(app).toContain('<Route component={NotFound} />');
   });
 
-  it('preserves ECR Pre-Pilot routes and loaders for all five stages', () => {
-    for (const [suffix, component] of [
-      ['', 'EcrPrePilotDesignPage'],
-      ['/stage-2', 'EcrPrePilotDesignStage2Page'],
-      ['/stage-3', 'EcrPrePilotDesignStage3Page'],
-      ['/stage-4', 'EcrPrePilotDesignStage4Page'],
-      ['/stage-5', 'EcrPrePilotDesignStage5Page'],
-    ]) {
-      expect(app).toContain(`path="/design-software/ecr-pre-pilot-design${suffix}"`);
-      expect(app).toContain(`DesignSoftware.${component}`);
-      expect(loaders).toContain(`export const ${component} = lazyWithRetry`);
+  it('does not retain the retired standalone routes or loaders', () => {
+    for (const text of [app, layout, loaders]) {
+      expect(text).not.toMatch(/ecr-pre-pilot|EcrPrePilot/);
     }
-    expect(layout).toContain('href: "/design-software/ecr-pre-pilot-design"');
   });
 
   it('preserves CPS routes, loaders and navigation', () => {

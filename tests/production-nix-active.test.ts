@@ -17,9 +17,7 @@ describe.runIf(process.env.ISOLATED_NIX_SMOKE === '1')('active production config
     expect(nix).not.toContain('stdenv.cc.cc.lib');
     expect(nix).not.toContain('python312Packages');
     const build = JSON.parse(readFileSync('package.json', 'utf8')).scripts.build as string;
-    expect(build.indexOf('node scripts/package-predictive-nt-runtime.mjs'))
-      .toBeLessThan(build.indexOf('node scripts/prepare-production-runtime.mjs'));
-    expect(build.indexOf('node scripts/prepare-production-runtime.mjs'))
-      .toBeLessThan(build.indexOf('node scripts/publish-size-diagnostics.mjs'));
+    expect(build).toContain('node scripts/prepare-production-runtime.mjs');
+    expect(build).not.toMatch(/predictive-nt|p1-optimizer|ecr-pre-pilot/);
   });
 });

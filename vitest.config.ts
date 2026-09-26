@@ -4,7 +4,7 @@ import ts from 'typescript';
 
 export default defineConfig({
   plugins: [{
-    name: 'stage4-ui-test-tsx-transform',
+    name: 'ui-test-tsx-transform',
     enforce: 'pre',
     transform(code, id) {
       // Vitest's Rolldown path does not apply the app's React plugin to every
@@ -26,8 +26,6 @@ export default defineConfig({
     exclude: [
       ...configDefaults.exclude,
       'tests/**/*.archive.test.ts',
-      'tests/ecr-pre-pilot-six-component-gate.test.ts',
-      'tests/stage4-seven-component-adapter.integration.test.ts',
     ],
     environment: 'node',
     globals: true,

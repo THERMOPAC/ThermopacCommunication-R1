@@ -1,3 +1,4 @@
+- [ECR Pre-Pilot full removal](ecr-prepilot-full-removal.md) — user authorized full module/data deletion; supersedes older retention notes; keep separate LLX ECR-2 and handovers.
 - [Deployment image size](deployment-image-size-boundary.md) — `dist` savings are not image-layer savings; editor-hidden files are not documented publishing exclusions.
 - [Production query evidence](production-readonly-query-evidence.md) — wrapper-only START TRANSACTION/ROLLBACK is not proof a SELECT compiled, even if the tool reports success.
 - [HAZOP retirement boundary](hazop-retirement-boundary.md) — remove application execution, not historical studies, reports or engineering-document classifications.

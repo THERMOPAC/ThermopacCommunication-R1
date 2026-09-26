@@ -11,9 +11,7 @@ describe('LLX frontend retirement dependency boundary', () => {
     }
   });
 
-  it('preserves the ECR Pre-Pilot shared droplet-diameter dependency', () => {
-    expect(source('server/ecr-pre-pilot/kuhni-hydrodynamics.ts'))
-      .toContain('../engines/llx/llx-ecr2-d32-interface');
+  it('preserves the independent LLX droplet-diameter implementation', () => {
     expect(existsSync(resolve(process.cwd(), 'server/engines/llx/llx-ecr2-d32-interface.ts'))).toBe(true);
   });
 

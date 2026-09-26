@@ -4,21 +4,12 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "node scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs && tsx server/index.ts",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && esbuild server/ecr-pre-pilot/stage3-stage4-optimizer.ts --platform=node --bundle --format=cjs --outfile=dist/p1-optimizer.cjs && node scripts/package-predictive-nt-runtime.mjs && node scripts/prepare-production-runtime.mjs && node scripts/publish-size-diagnostics.mjs",
+    "dev": "tsx server/index.ts",
+    "build": "node scripts/clean-build-output.mjs && vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist && node scripts/prepare-production-runtime.mjs",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "research:ecr-dortmund-benchmark": "tsx server/research/ecr-pre-pilot-dortmund-benchmark/run.ts",
-    "verify:ecr-dortmund-benchmark": "tsx server/research/ecr-pre-pilot-dortmund-benchmark/verify.ts",
-    "research:ecr-descriptor-transfer": "python3 server/research/ecr-pre-pilot-descriptor-transfer/run.py",
-    "verify:ecr-descriptor-transfer": "python3 server/research/ecr-pre-pilot-descriptor-transfer/verify.py",
-    "export:ecr-pre-pilot-stage1": "tsx scripts/export-ecr-pre-pilot-stage1.ts",
-    "validate:ecr-pre-pilot-stage1": "tsx scripts/validate-ecr-pre-pilot-stage1.ts",
-    "validate:predictive-nt-packaging": "vitest run tests/predictive-nt-packaging-retirement.test.ts",
-    "validate:predictive-nt-release": "node scripts/validate-predictive-nt-release.mjs",
-    "validate:predictive-nt-release:checks": "vitest run --config vitest.predictive-nt-release.config.ts && PYTHONDONTWRITEBYTECODE=1 python3 tests/predictive-nt-seven-component-v1-6-worker.test.py && PYTHONDONTWRITEBYTECODE=1 python3 tests/runtime-retirement-acceptance-scientific.py",
-    "test:predictive-nt-archive": "vitest run --config vitest.predictive-nt-archive.config.ts"
+    "test:standalone-retirement": "vitest run tests/standalone-retirement.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

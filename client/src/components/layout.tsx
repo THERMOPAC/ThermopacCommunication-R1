@@ -75,7 +75,6 @@ import {
   ActivitySquare,
   BookOpen,
   BookMarked,
-  FlaskConical
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAllModulePermissions } from "@/hooks/use-module-permissions";
@@ -486,7 +485,6 @@ function Layout({ children }: LayoutProps) {
       isOpen: isDesignSoftwareMenuOpen,
       toggle: () => setIsDesignSoftwareMenuOpen(!isDesignSoftwareMenuOpen),
       children: [
-        { icon: FlaskConical, label: "ECR Pre-Pilot Design", href: "/design-software/ecr-pre-pilot-design" },
         {
           icon: BookOpen,
           label: "CPS Sizing Tool",

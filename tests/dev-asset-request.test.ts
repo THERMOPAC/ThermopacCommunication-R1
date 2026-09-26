@@ -11,7 +11,7 @@ describe("development asset session boundary", () => {
     }
   });
   it("retains sessions for every application and API route", () => {
-    for (const path of ["/", "/api/user", "/api/ecr-pre-pilot/designs/latest-saved", "/api/src/data", "/auth/google/callback", "/design-software/ecr-pre-pilot-design/stage-2", "/src-admin", "/@vite/private"]) {
+    for (const path of ["/", "/api/user", "/api/design-software/projects", "/api/src/data", "/auth/google/callback", "/design-software", "/src-admin", "/@vite/private"]) {
       expect(isDevAssetRequest("GET", path, "development")).toBe(false);
     }
   });

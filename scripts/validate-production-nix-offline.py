@@ -20,9 +20,6 @@ if [ "$1" = scripts/prepare-production-runtime.mjs ] && [ "$2" = --verify ]; the
   exit 0
 fi
 printf '%s|%s|%s\\n' "$1" "${NODE_ENV-unset}" "${LD_LIBRARY_PATH-unset}" >> "$TEST_NODE_LOG"
-if [ "$1" = scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs ]; then
-  exit "${TEST_SCHEMA_STATUS:-0}"
-fi
 if [ "${TEST_SLEEP:-0}" = 1 ]; then exec /bin/sleep 30; fi
 exit 37
 """)
@@ -34,21 +31,15 @@ exit 37
         assert result.returncode == 37, result.returncode
         calls = (directory / "calls").read_text().splitlines()
         assert calls == [
-            "scripts/apply-ecr-pre-pilot-predictive-nt-schema.mjs|test|unset",
             "dist/index.js|production|unset",
         ], calls
-        (directory / "calls").unlink()
-        result = subprocess.run(script, env=dict(env, TEST_SCHEMA_STATUS="23"),
-                                check=False, timeout=20)
-        assert result.returncode == 23
-        assert (directory / "calls").read_text().splitlines() == calls[:1]
         (directory / "calls").unlink()
         process = subprocess.Popen(script, env=dict(env, TEST_SLEEP="1"))
         try:
             import time
             for _ in range(100):
                 if (directory / "calls").exists() and len(
-                        (directory / "calls").read_text().splitlines()) == 2:
+                        (directory / "calls").read_text().splitlines()) == 1:
                     break
                 time.sleep(0.05)
             else:
@@ -92,33 +83,12 @@ print("PASS: pinned Python and child-only GCC/zlib")
     chromium = subprocess.check_output(["which", "chromium"], text=True).strip()
     assert chromium.startswith("/nix/store/") and chromium.endswith("/bin/chromium")
     print("PASS: portable Chromium discovery; no global library override", flush=True)
-    runtime = Path("dist/predictive-nt-runtime-7c-1-6")
-    vendor = runtime / "server/research/ecr-pre-pilot-cosmosac/vendor/python"
-    imports = """
-import pathlib, sys
-v = pathlib.Path(sys.argv[1]).resolve()
-sys.path.insert(0, str(v))
-import numpy, scipy, cCOSMO
-from scipy import optimize, linalg
-for module in (numpy, scipy, cCOSMO):
-    assert pathlib.Path(module.__file__).resolve().is_relative_to(v)
-assert numpy.__version__ == '2.1.3'
-assert scipy.__version__ == '1.14.1'
-print('PASS: pinned vendored numerical/native imports')
-"""
-    subprocess.run(["python3.12", "-S", "-c", imports, str(vendor)],
-                   check=True, timeout=60)
-    subprocess.run(["python3.12", str(runtime / "server/ecr-pre-pilot/"
-                    "predictive-nt-seven-component-v1-6/worker.py"), "--preflight"],
-                   check=True, timeout=120)
     subprocess.run([
         node, "node_modules/vitest/vitest.mjs", "run", "--maxWorkers=1",
         "--no-file-parallelism", "--testTimeout=90000",
         "tests/production-nix-active.test.ts",
         "tests/production-nix-document-smoke.test.ts",
-        "tests/predictive-nt-production-evidence-paths.test.ts",
-        "tests/predictive-nt-report-evidence.test.ts",
-        "tests/ecr-pre-pilot-predictive-nt-report.test.ts",
+        "tests/standalone-retirement.test.ts",
     ], check=True, timeout=240)
 
 

@@ -323,11 +323,6 @@ function Router() {
       <ProtectedRoute path="/design-software/cps-sizing/case/:id" component={() => <DesignSoftware.CpsSizingCasePage />} />
       <ProtectedRoute path="/design-software/cps-sizing/knowledge-engine" component={() => <DesignSoftware.CpsKnowledgeEnginePage />} />
       <ProtectedRoute path="/design-software/cps-sizing" component={() => <DesignSoftware.CpsSizingCasesPage />} />
-      <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-2" component={() => <DesignSoftware.EcrPrePilotDesignStage2Page />} />
-      <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-3" component={() => <DesignSoftware.EcrPrePilotDesignStage3Page />} />
-      <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-4" component={() => <DesignSoftware.EcrPrePilotDesignStage4Page />} />
-       <ProtectedRoute path="/design-software/ecr-pre-pilot-design/stage-5" component={() => <DesignSoftware.EcrPrePilotDesignStage5Page />} />
-      <ProtectedRoute path="/design-software/ecr-pre-pilot-design" component={() => <DesignSoftware.EcrPrePilotDesignPage />} />
 
       <Route component={NotFound} />
     </Switch>

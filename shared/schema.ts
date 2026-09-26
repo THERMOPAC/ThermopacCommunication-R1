@@ -1,4 +1,4 @@
-import { pgTable, text, serial, bigserial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint, customType } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, bigserial, integer, bigint, boolean, jsonb, timestamp, date, decimal, varchar, foreignKey, primaryKey, doublePrecision, uuid, time, numeric, uniqueIndex, unique, real, check, pgEnum, index, smallint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { roles } from "./roles";
@@ -17177,195 +17177,6 @@ export const designSelectionRecords = pgTable('design_selection_records', {
   chkSelectionMode:     check('dsel_records_mode_chk', sql`selection_mode IN ('autonomous', 'user_selected')`),
 }));
 
-// ── ECR Pre-Pilot Design foundation ───────────────────────────────────────────
-// Project numbers are allocated from a dedicated counter and recorded in an
-// append-only ledger. The ledger is separate from the draft so a cancelled or
-// removed draft cannot release a number for reuse.
-export const ecrPrePilotNumberCounters = pgTable('ecr_pre_pilot_number_counters', {
-  id:          integer('id').primaryKey().default(1),
-  nextNumber:  integer('next_number').notNull().default(1),
-});
-
-export const ecrPrePilotNumberAllocations = pgTable('ecr_pre_pilot_number_allocations', {
-  projectNumber: integer('project_number').primaryKey(),
-  allocationKey: varchar('allocation_key', { length: 128 }).notNull(),
-  allocatedBy:   integer('allocated_by').notNull().references(() => users.id),
-  allocatedAt:   timestamp('allocated_at').notNull().defaultNow(),
-}, (table) => ({
-  userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_alloc_user_key_uidx').on(table.allocatedBy, table.allocationKey),
-}));
-
-export const ecrPrePilotDesigns = pgTable('ecr_pre_pilot_designs', {
-  id:             serial('id').primaryKey(),
-  projectNumber:  integer('project_number').notNull(),
-  allocationKey:  varchar('allocation_key', { length: 128 }).notNull(),
-  createdBy:      integer('created_by').notNull().references(() => users.id),
-  status:         varchar('status', { length: 20 }).notNull().default('draft'),
-  inputData:      jsonb('input_data').notNull().default(sql`'{}'::jsonb`),
-  createdAt:      timestamp('created_at').notNull().defaultNow(),
-  updatedAt:      timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  projectNumberUnique: uniqueIndex('ecr_pre_pilot_design_project_number_uidx').on(table.projectNumber),
-  userAllocationKeyUnique: uniqueIndex('ecr_pre_pilot_design_user_key_uidx').on(table.createdBy, table.allocationKey),
-}));
-
-export const ecrPrePilotStage5EndSections = pgTable('ecr_pre_pilot_stage5_end_sections', {
-  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  selection: jsonb('selection').notNull(),
-  sourceHash: text('source_hash').notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  scopeKey: primaryKey({ columns: [table.designId, table.createdBy] }),
-}));
-
-const bytea = customType<{ data: Buffer; driverData: Buffer }>({
-  dataType() {
-    return 'bytea';
-  },
-});
-
-export const ecrPrePilotPredictiveNtJobs = pgTable('ecr_pre_pilot_predictive_nt_jobs', {
-  id:              uuid('id').primaryKey(),
-  designId:        integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy:       integer('created_by').notNull().references(() => users.id),
-  inputSnapshot:   jsonb('input_snapshot').notNull(),
-  modelHash:       varchar('model_hash', { length: 64 }).notNull(),
-  engineHash:      varchar('engine_hash', { length: 64 }).notNull(),
-  status:          varchar('status', { length: 20 }).notNull().default('pending'),
-  completedTrials: integer('completed_trials').notNull().default(0),
-  maximumStages:   integer('maximum_stages').notNull(),
-  resultSnapshot:  jsonb('result_snapshot'),
-  reportPdf:       bytea('report_pdf'),
-  reportFilename:  varchar('report_filename', { length: 240 }),
-  reportSha256:    varchar('report_sha256', { length: 64 }),
-  reportGeneratedAt: timestamp('report_generated_at'),
-  error:           text('error'),
-  workerOwner:     varchar('worker_owner', { length: 160 }),
-  claimToken:      uuid('claim_token'),
-  attemptCount:    integer('attempt_count').notNull().default(0),
-  leaseExpiresAt:  timestamp('lease_expires_at'),
-  createdAt:       timestamp('created_at').notNull().defaultNow(),
-  startedAt:       timestamp('started_at'),
-  completedAt:     timestamp('completed_at'),
-  updatedAt:       timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  queueIndex: index('ecr_pre_pilot_predictive_nt_jobs_queue_idx').on(table.status, table.createdAt),
-  ownerIndex: index('ecr_pre_pilot_predictive_nt_jobs_owner_idx').on(table.createdBy, table.status),
-  designIndex: index('ecr_pre_pilot_predictive_nt_jobs_design_idx').on(table.designId, table.createdAt),
-  statusCheck: check('ecr_pre_pilot_predictive_nt_jobs_status_chk', sql`status IN ('pending', 'running', 'completed', 'failed')`),
-}));
-
-export const ecrPrePilotPredictiveNtJobHistory = pgTable('ecr_pre_pilot_predictive_nt_job_history', {
-  id:              bigserial('id', { mode: 'number' }).primaryKey(),
-  jobId:           uuid('job_id').notNull().references(() => ecrPrePilotPredictiveNtJobs.id),
-  inputSnapshot:   jsonb('input_snapshot').notNull(),
-  modelHash:       varchar('model_hash', { length: 64 }).notNull(),
-  engineHash:      varchar('engine_hash', { length: 64 }).notNull(),
-  status:          varchar('status', { length: 20 }).notNull(),
-  completedTrials: integer('completed_trials').notNull(),
-  maximumStages:   integer('maximum_stages').notNull(),
-  workerOwner:     varchar('worker_owner', { length: 160 }),
-  attemptCount:    integer('attempt_count').notNull(),
-  resultSnapshot:  jsonb('result_snapshot'),
-  error:           text('error'),
-  details:         jsonb('details').notNull().default(sql`'{}'::jsonb`),
-  recordedAt:      timestamp('recorded_at').notNull().defaultNow(),
-}, (table) => ({
-  jobHistoryIndex: index('ecr_pre_pilot_predictive_nt_job_history_job_idx').on(table.jobId, table.recordedAt),
-  statusCheck: check('ecr_pre_pilot_predictive_nt_job_history_status_chk', sql`status IN ('pending', 'running', 'completed', 'failed')`),
-}));
-
-export const ecrPrePilotKuhniHydrodynamicRuns = pgTable('ecr_pre_pilot_kuhni_hydrodynamic_runs', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
-  processBasis: jsonb('process_basis').notNull(),
-  inputSnapshot: jsonb('input_snapshot').notNull(),
-  resultSnapshot: jsonb('result_snapshot').notNull(),
-  implementationHash: varchar('implementation_hash', { length: 64 }).notNull(),
-  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({ designIndex: index('ecr_pre_pilot_kuhni_runs_design_idx').on(table.designId, table.createdAt) }));
-
-export const ecrPrePilotKuhniGeometryResolverRuns = pgTable('ecr_pre_pilot_kuhni_geometry_resolver_runs', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
-  stage2JobId: uuid('stage2_job_id').references(() => ecrPrePilotPredictiveNtJobs.id),
-  stage2ResultHash: varchar('stage2_result_hash', { length: 64 }),
-  parentHydrodynamicRunId: bigint('parent_hydrodynamic_run_id', { mode: 'number' }).references(() => ecrPrePilotKuhniHydrodynamicRuns.id),
-  parentHydrodynamicRunHash: varchar('parent_hydrodynamic_run_hash', { length: 64 }),
-  processBasis: jsonb('process_basis').notNull(),
-  theoreticalStageAuthority: jsonb('theoretical_stage_authority').notNull(),
-  resultSnapshot: jsonb('result_snapshot').notNull(),
-  implementationHash: varchar('implementation_hash', { length: 64 }).notNull(),
-  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({ designIndex: index('ecr_pre_pilot_kuhni_resolver_design_idx').on(table.designId, table.createdAt) }));
-
-export const ecrPrePilotJobCPhysicalSizingResults = pgTable('ecr_pre_pilot_job_c_physical_sizing_results', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  parentJobId: uuid('parent_job_id').notNull(),
-  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  parentResultHash: varchar('parent_result_hash', { length: 64 }).notNull(),
-  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
-  processBasis: jsonb('process_basis').notNull(),
-  inputSnapshot: jsonb('input_snapshot').notNull(),
-  resultSnapshot: jsonb('result_snapshot').notNull(),
-  resultHash: varchar('result_hash', { length: 64 }).notNull(),
-  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({
-  scopeIndex: index('ecr_pre_pilot_job_c_physical_sizing_scope_idx')
-    .on(table.createdBy, table.designId, table.createdAt),
-  parentIndex: index('ecr_pre_pilot_job_c_physical_sizing_parent_idx')
-    .on(table.parentJobId, table.createdAt),
-}));
-
-export const ecrPrePilotPartialTransferPhysicalSizingResults = pgTable('ecr_pre_pilot_partial_transfer_physical_sizing_results', {
-  id: bigserial('id', { mode: 'number' }).primaryKey(),
-  anchorJobId: uuid('anchor_job_id').notNull(),
-  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  anchorResultHash: varchar('anchor_result_hash', { length: 64 }).notNull(),
-  stage1SnapshotHash: varchar('stage1_snapshot_hash', { length: 64 }).notNull(),
-  stage3ImmutableHash: varchar('stage3_immutable_hash', { length: 64 }).notNull(),
-  inputSnapshot: jsonb('input_snapshot').notNull(),
-  resultSnapshot: jsonb('result_snapshot').notNull(),
-  resultHash: varchar('result_hash', { length: 64 }).notNull(),
-  immutableHash: varchar('immutable_hash', { length: 64 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({
-  scopeIndex: index('ecr_pre_pilot_partial_transfer_physical_sizing_scope_idx')
-    .on(table.createdBy, table.designId, table.createdAt),
-}));
-
-export const ecrPrePilotPartialTransferQualificationJobs = pgTable('ecr_pre_pilot_partial_transfer_qualification_jobs', {
-  id: uuid('id').primaryKey(),
-  designId: integer('design_id').notNull().references(() => ecrPrePilotDesigns.id),
-  createdBy: integer('created_by').notNull().references(() => users.id),
-  status: varchar('status', { length: 20 }).notNull().default('pending'),
-  inputSnapshot: jsonb('input_snapshot').notNull(),
-  inputHash: varchar('input_hash', { length: 64 }).notNull(),
-  resultSnapshot: jsonb('result_snapshot'),
-  resultHash: varchar('result_hash', { length: 64 }),
-  progress: jsonb('progress').notNull().default(sql`'{}'::jsonb`),
-  error: text('error'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  startedAt: timestamp('started_at'),
-  completedAt: timestamp('completed_at'),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  scopeIndex: index('ecr_pre_pilot_partial_transfer_qualification_scope_idx')
-    .on(table.createdBy, table.designId, table.createdAt),
-  statusCheck: check('ecr_pre_pilot_partial_transfer_qualification_jobs_status_chk',
-    sql`status IN ('pending', 'running', 'completed', 'failed', 'cancelled', 'interrupted')`),
-}));
-
 // ── Zod insert schemas ────────────────────────────────────────────────────────
 export const insertDesignSoftwareDesignSchema = createInsertSchema(designSoftwareDesigns).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertDesignSoftwareRevisionSchema = createInsertSchema(designSoftwareRevisions).omit({ id: true, createdAt: true, updatedAt: true });
@@ -17374,8 +17185,6 @@ export const insertDesignSoftwareResultSchema = createInsertSchema(designSoftwar
 export const insertDesignSoftwareCalculationRunSchema = createInsertSchema(designSoftwareCalculationRuns).omit({ id: true, calculatedAt: true });
 export const insertDesignSoftwareAssumptionSchema = createInsertSchema(designSoftwareAssumptions).omit({ id: true, createdAt: true });
 export const insertDesignSoftwareApprovalSchema = createInsertSchema(designSoftwareApprovals).omit({ id: true, performedAt: true });
-export const insertEcrPrePilotDesignSchema = createInsertSchema(ecrPrePilotDesigns).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertEcrPrePilotPredictiveNtJobSchema = createInsertSchema(ecrPrePilotPredictiveNtJobs).omit({ createdAt: true, updatedAt: true });
 
 // ── TypeScript types ──────────────────────────────────────────────────────────
 export type DesignSoftwareDesign = typeof designSoftwareDesigns.$inferSelect;
@@ -17385,7 +17194,3 @@ export type DesignSoftwareResult = typeof designSoftwareResults.$inferSelect;
 export type DesignSoftwareCalculationRun = typeof designSoftwareCalculationRuns.$inferSelect;
 export type DesignSoftwareAssumption = typeof designSoftwareAssumptions.$inferSelect;
 export type DesignSoftwareApproval = typeof designSoftwareApprovals.$inferSelect;
-export type EcrPrePilotDesign = typeof ecrPrePilotDesigns.$inferSelect;
-export type EcrPrePilotPredictiveNtJob = typeof ecrPrePilotPredictiveNtJobs.$inferSelect;
-export type EcrPrePilotPredictiveNtJobHistory = typeof ecrPrePilotPredictiveNtJobHistory.$inferSelect;
-export type EcrPrePilotKuhniHydrodynamicRun = typeof ecrPrePilotKuhniHydrodynamicRuns.$inferSelect;
