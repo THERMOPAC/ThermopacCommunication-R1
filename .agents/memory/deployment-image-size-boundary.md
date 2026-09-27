@@ -44,3 +44,9 @@ large tooling closure.
 the schema-validating replacement callback supplied by the tool, not a direct
 write. The package index may not expose `stdenv.cc.cc.lib`; if retaining it
 transitively, explicitly verify closure membership instead of assuming it.
+
+Preserve development/history/cache files when addressing the publishing size limit.
+
+**Why:** The user explicitly rejected deleting development files merely to reduce the production image; a production-only packaging boundary is the desired solution.
+
+**How to apply:** Establish supported publisher inclusion/exclusion rules before proposing a packaging change. The available failed-build record exposes neither layer byte sizes nor manifests; do not equate the “Repl (cache)” layer with the workspace `.cache` directory.
